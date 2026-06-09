@@ -8,7 +8,7 @@ static void seedCell(Particles2DTP& ps,int i,int j,double dx,unsigned char t){
   for(int s=0;s<4;++s){ double x=(i+0.25+0.5*(s%2))*dx, y=(j+0.25+0.5*(s/2))*dx; ps.add({x,y},{0,0},t); }
 }
 void Sim2DTP::initTwoPhaseDamBreak(){
-  phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  phase.rho_tilde_0 = calibrateRhoTilde0_2d(phase, Vp);
   int wx=grid.nx*4/10, hy=grid.ny*7/10;
   for(int j=1;j<grid.ny-1;++j)for(int i=1;i<grid.nx-1;++i){
     bool liquid = (i<wx && j<hy);
@@ -16,7 +16,7 @@ void Sim2DTP::initTwoPhaseDamBreak(){
   }
 }
 void Sim2DTP::initRayleighTaylor(){
-  phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  phase.rho_tilde_0 = calibrateRhoTilde0_2d(phase, Vp);
   int mid=grid.ny/2;
   for(int j=1;j<grid.ny-1;++j)for(int i=1;i<grid.nx-1;++i){
     double pert = 1.0*std::cos(2*3.14159265*i/grid.nx);
