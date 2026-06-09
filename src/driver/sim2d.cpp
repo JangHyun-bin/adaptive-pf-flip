@@ -29,6 +29,8 @@ void Sim2D::step() {
   UniformGrid2D saved = grid;                 // velocity snapshot before pressure
   for (size_t idx=0; idx<grid.vfield.size(); ++idx)
     if (grid.mv[idx] > 0.0) grid.vfield[idx] += dt*gravity;
+  // No-penetration BC: zero normal velocity at wall-interface faces.
+  // Cells 0 and nx-1/ny-1 are SOLID, so u(1),u(nx-1) and v(i,1),v(i,ny-1) are the wall faces.
   for (int j=0;j<grid.ny;++j){ grid.u(0,j)=0; grid.u(1,j)=0; grid.u(grid.nx-1,j)=0; grid.u(grid.nx,j)=0; }
   for (int i=0;i<grid.nx;++i){ grid.v(i,0)=0; grid.v(i,1)=0; grid.v(i,grid.ny-1)=0; grid.v(i,grid.ny)=0; }
   auto div = divergence(grid);

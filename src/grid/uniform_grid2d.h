@@ -30,6 +30,11 @@ struct UniformGrid2D {
   double& p(int i, int j) { return pfield[i + nx*j]; }
   Cell& cell(int i, int j) { return marker[i + nx*j]; }
 
+  const double& u(int i, int j) const { return ufield[i + (nx+1)*j]; }
+  const double& v(int i, int j) const { return vfield[i + nx*j]; }
+  const double& p(int i, int j) const { return pfield[i + nx*j]; }
+  const Cell& cell(int i, int j) const { return marker[i + nx*j]; }
+
   bool inBounds(int i, int j) const { return i>=0 && i<nx && j>=0 && j<ny; }
 
   void clear() {
