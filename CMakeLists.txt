@@ -20,6 +20,7 @@ add_executable(unit_tests
   tests/test_g2p.cpp
   tests/test_divergence.cpp
   tests/test_pressure.cpp
-  tests/test_advect.cpp)
+  tests/test_advect.cpp
+  tests/test_sim.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
