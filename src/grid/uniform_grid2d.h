@@ -14,12 +14,14 @@ struct UniformGrid2D {
   std::vector<double> mu, mv;           // face masses
   std::vector<double> pfield;           // cell pressure
   std::vector<Cell> marker;             // cell type
+  std::vector<double> bu, bv;           // face beta = 1/rho (default 1 = constant-density)
 
   UniformGrid2D(int nx_, int ny_, double dx_)
       : nx(nx_), ny(ny_), dx(dx_),
         ufield((nx_+1)*ny_, 0.0), vfield(nx_*(ny_+1), 0.0),
         mu((nx_+1)*ny_, 0.0), mv(nx_*(ny_+1), 0.0),
-        pfield(nx_*ny_, 0.0), marker(nx_*ny_, Cell::AIR) {}
+        pfield(nx_*ny_, 0.0), marker(nx_*ny_, Cell::AIR)
+        , bu((nx_+1)*ny_, 1.0), bv(nx_*(ny_+1), 1.0) {}
 
   size_t u_size() const { return ufield.size(); }
   size_t v_size() const { return vfield.size(); }
