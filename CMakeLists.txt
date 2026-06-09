@@ -38,11 +38,14 @@ add_executable(unit_tests
   tests/test_phasefield.cpp
   tests/test_transfer_tp.cpp
   tests/test_pressure_vc.cpp
-  tests/test_sim_tp.cpp)
+  tests/test_sim_tp.cpp
+  tests/test_rt.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
 target_link_libraries(run_dambreak pfflip2d)
 add_executable(run_dambreak3d apps/run_dambreak3d.cpp)
 target_link_libraries(run_dambreak3d pfflip2d)
+add_executable(run_rt2d apps/run_rt2d.cpp)
+target_link_libraries(run_rt2d pfflip2d)
 
