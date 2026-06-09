@@ -37,7 +37,8 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 |---|---|---|
 | **0** | 2D MAC FLIP/PIC, pressure CG, RK2 advect, dam-break | ✅ done |
 | **1** | **3D** extension, viscosity (Eq. 13), velocity extrapolation | ✅ done |
-| **2** ★ | **Two-phase phase field** (Eq. 7), variable-coefficient β=1/ρ Poisson (Eq. 8), cubic kernel (Eq. 6) — validated by Rayleigh-Taylor | ✅ done — *the paper's identity* (2D; droplet/bubble conversion → Phase 2b) |
+| **2** ★ | **Two-phase phase field** (Eq. 7), variable-coefficient β=1/ρ Poisson (Eq. 8), cubic kernel (Eq. 6) — validated by Rayleigh-Taylor | ✅ done — *the paper's identity* |
+| **2c** | **3D** two-phase (3D air-water): 3D normalized-cubic P2G, 3D variable-coefficient Poisson, 3D Rayleigh-Taylor | ✅ done |
 | **3** | [MSBG](https://github.com/tum-pbs/MSBG) treeless sparse multiresolution grid integration | ⬜ |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & volumetric rendering.
