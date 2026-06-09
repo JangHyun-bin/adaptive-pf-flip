@@ -1,4 +1,37 @@
+# ── Build ─────────────────────────────────────────────
 /build/
+/build_probe/
 *.o
 *.obj
+*.exe
+*.lib
+*.pdb
+*.ilk
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# ── Generated simulation output (frames, raw images) ──
+/frames/
+/frames3d/
 *.ppm
+/frame_*.png
+/slice_*.png
+
+# NOTE: curated result animations live in assets/ and ARE tracked.
+
+# ── Reference material (copyrighted paper + extracted analysis) ──
+# The source PDF is a copyrighted ACM publication and must not be redistributed.
+/ref/
+
+# ── Scratch / toolchain probes ────────────────────────
+probe*.cpp
+probe*.exe
+
+# ── Editor / OS ───────────────────────────────────────
+.vs/
+.vscode/
+.idea/
+*.user
+Thumbs.db
+.DS_Store
