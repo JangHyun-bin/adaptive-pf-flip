@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.16)
+project(pfflip2d CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include_directories(external src)
+enable_testing()
+add_library(pfflip2d
+  src/grid/uniform_grid2d.cpp
+  src/transfer/transfer2d.cpp
+  src/pressure/pressure2d.cpp
+  src/advect/advect2d.cpp
+  src/driver/sim2d.cpp)
+add_executable(unit_tests
+  tests/test_main.cpp
+  tests/test_sanity.cpp)
+target_link_libraries(unit_tests pfflip2d)
+add_test(NAME unit_tests COMMAND unit_tests)
