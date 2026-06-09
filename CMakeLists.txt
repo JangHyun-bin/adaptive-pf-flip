@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.16)
 project(pfflip2d CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,13 +7,16 @@ enable_testing()
 add_library(pfflip2d
   src/grid/uniform_grid2d.cpp
   src/transfer/transfer2d.cpp
+  src/transfer/transfer2d_tp.cpp
   src/transfer/transfer3d.cpp
   src/pressure/pressure2d.cpp
+  src/pressure/pressure2d_vc.cpp
   src/pressure/pressure3d.cpp
   src/advect/advect2d.cpp
   src/advect/advect3d.cpp
   src/driver/sim2d.cpp
-  src/driver/sim3d.cpp)
+  src/driver/sim3d.cpp
+  src/driver/sim2d_tp.cpp)
 add_executable(unit_tests
   tests/test_main.cpp
   tests/test_sanity.cpp
@@ -31,10 +34,18 @@ add_executable(unit_tests
   tests/test_pressure3d.cpp
   tests/test_advect3d.cpp
   tests/test_viscosity.cpp
-  tests/test_sim3d.cpp)
+  tests/test_sim3d.cpp
+  tests/test_phasefield.cpp
+  tests/test_transfer_tp.cpp
+  tests/test_pressure_vc.cpp
+  tests/test_sim_tp.cpp
+  tests/test_rt.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
 target_link_libraries(run_dambreak pfflip2d)
 add_executable(run_dambreak3d apps/run_dambreak3d.cpp)
 target_link_libraries(run_dambreak3d pfflip2d)
+add_executable(run_rt2d apps/run_rt2d.cpp)
+target_link_libraries(run_rt2d pfflip2d)
+
