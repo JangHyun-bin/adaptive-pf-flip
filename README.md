@@ -19,7 +19,13 @@ The goal is to rebuild the method **algorithmically identical** to the paper —
 | ![2D dam-break](assets/dambreak-2d.gif) | ![3D dam-break](assets/dambreak-3d.gif) |
 | 64² grid, 4,128 particles | 48³ grid, 211,968 particles (mid-z slice) |
 
-Both show a classic dam-break: gravity-driven collapse → floor surge → wall run-up → sloshing. Single-phase (free surface) so far — the air phase arrives in Phase 2.
+Both show a classic dam-break: gravity-driven collapse → floor surge → wall run-up → sloshing.
+
+**Phase 2 — two-phase phase field (the paper's core).** Below: a Rayleigh-Taylor instability (heavy water over light air) resolved with **no surface reconstruction** — the phase field is a by-product of the particle-to-grid splat (Eq. 7), and buoyancy emerges from the variable-coefficient β=1/ρ pressure solve (Eq. 8).
+
+![Rayleigh-Taylor two-phase](assets/rayleigh-taylor-2phase.gif)
+
+*(blue = water, dark = air; 64×96 grid — classic RT mushroom fingering)*
 
 ---
 
@@ -31,7 +37,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 |---|---|---|
 | **0** | 2D MAC FLIP/PIC, pressure CG, RK2 advect, dam-break | ✅ done |
 | **1** | **3D** extension, viscosity (Eq. 13), velocity extrapolation | ✅ done |
-| **2** ★ | **Two-phase phase field** (Eq. 7), variable-coefficient β=1/ρ Poisson (Eq. 8), cubic kernel (Eq. 6), escaped particles | ⬜ next — *where the paper's identity begins* |
+| **2** ★ | **Two-phase phase field** (Eq. 7), variable-coefficient β=1/ρ Poisson (Eq. 8), cubic kernel (Eq. 6) — validated by Rayleigh-Taylor | ✅ done — *the paper's identity* (2D; droplet/bubble conversion → Phase 2b) |
 | **3** | [MSBG](https://github.com/tum-pbs/MSBG) treeless sparse multiresolution grid integration | ⬜ |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & volumetric rendering.
