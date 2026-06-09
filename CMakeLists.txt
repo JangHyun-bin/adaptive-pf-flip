@@ -47,7 +47,8 @@ add_executable(unit_tests
   tests/test_pressure3d_vc.cpp
   tests/test_sim3d_tp.cpp
   tests/test_sparse_grid.cpp
-  tests/test_sparse_stencil.cpp)
+  tests/test_sparse_stencil.cpp
+  tests/test_block_color.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
