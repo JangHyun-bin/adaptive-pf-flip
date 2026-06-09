@@ -15,6 +15,7 @@ add_executable(unit_tests
   tests/test_sanity.cpp
   tests/test_vec2.cpp
   tests/test_grid.cpp
-  tests/test_particles.cpp)
+  tests/test_particles.cpp
+  tests/test_p2g.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
