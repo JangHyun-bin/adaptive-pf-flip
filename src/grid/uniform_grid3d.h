@@ -8,12 +8,14 @@ struct UniformGrid3D {
   double dx, ox=0.0, oy=0.0, oz=0.0;
   std::vector<double> ufield, vfield, wfield;
   std::vector<double> mu, mv, mw;
+  std::vector<double> bu, bv, bw;
   std::vector<double> pfield;
   std::vector<Cell3> marker;
   UniformGrid3D(int nx_,int ny_,int nz_,double dx_)
     : nx(nx_),ny(ny_),nz(nz_),dx(dx_),
       ufield((nx_+1)*ny_*nz_,0.0), vfield(nx_*(ny_+1)*nz_,0.0), wfield(nx_*ny_*(nz_+1),0.0),
       mu((nx_+1)*ny_*nz_,0.0), mv(nx_*(ny_+1)*nz_,0.0), mw(nx_*ny_*(nz_+1),0.0),
+      bu((nx_+1)*ny_*nz_,1.0), bv(nx_*(ny_+1)*nz_,1.0), bw(nx_*ny_*(nz_+1),1.0),
       pfield(nx_*ny_*nz_,0.0), marker(nx_*ny_*nz_,Cell3::AIR) {}
   size_t u_size() const { return ufield.size(); }
   size_t v_size() const { return vfield.size(); }

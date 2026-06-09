@@ -32,7 +32,7 @@ static void splatK(std::vector<double>& field, std::vector<double>& mass,
 }
 static const double KR = 1.5;   // kernel support radius (cells)
 
-double calibrateRhoTilde0(const PhaseParams& pp, double Vp){
+double calibrateRhoTilde0_2d(const PhaseParams& pp, double Vp){
   UniformGrid2D g(8,8,1.0);
   double mp = pp.rho_l*Vp;
   for(int j=0;j<8;++j) for(int i=0;i<8;++i) for(int s=0;s<4;++s){

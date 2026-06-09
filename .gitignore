@@ -12,11 +12,12 @@ CMakeFiles/
 cmake_install.cmake
 
 # ── Generated simulation output (frames, raw images) ──
-/frames/
-/frames3d/
+/frames*/
 *.ppm
 /frame_*.png
 /slice_*.png
+/rt_*.png
+/rt3_*.png
 
 # NOTE: curated result animations live in assets/ and ARE tracked.
 
