@@ -11,6 +11,7 @@ add_library(pfflip2d
   src/pressure/pressure2d.cpp
   src/pressure/pressure3d.cpp
   src/advect/advect2d.cpp
+  src/advect/advect3d.cpp
   src/driver/sim2d.cpp)
 add_executable(unit_tests
   tests/test_main.cpp
@@ -26,7 +27,9 @@ add_executable(unit_tests
   tests/test_sim.cpp
   tests/test_grid3d.cpp
   tests/test_transfer3d.cpp
-  tests/test_pressure3d.cpp)
+  tests/test_pressure3d.cpp
+  tests/test_advect3d.cpp
+  tests/test_viscosity.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
