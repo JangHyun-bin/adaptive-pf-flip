@@ -56,4 +56,6 @@ add_executable(run_rt2d apps/run_rt2d.cpp)
 target_link_libraries(run_rt2d pfflip2d)
 add_executable(run_rt3d apps/run_rt3d.cpp)
 target_link_libraries(run_rt3d pfflip2d)
+add_executable(dump_render apps/dump_render.cpp)
+target_link_libraries(dump_render pfflip2d)
 
