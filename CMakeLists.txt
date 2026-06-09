@@ -7,9 +7,13 @@ enable_testing()
 add_library(pfflip2d
   src/grid/uniform_grid2d.cpp
   src/transfer/transfer2d.cpp
+  src/transfer/transfer3d.cpp
   src/pressure/pressure2d.cpp
+  src/pressure/pressure3d.cpp
   src/advect/advect2d.cpp
-  src/driver/sim2d.cpp)
+  src/advect/advect3d.cpp
+  src/driver/sim2d.cpp
+  src/driver/sim3d.cpp)
 add_executable(unit_tests
   tests/test_main.cpp
   tests/test_sanity.cpp
@@ -21,8 +25,16 @@ add_executable(unit_tests
   tests/test_divergence.cpp
   tests/test_pressure.cpp
   tests/test_advect.cpp
-  tests/test_sim.cpp)
+  tests/test_sim.cpp
+  tests/test_grid3d.cpp
+  tests/test_transfer3d.cpp
+  tests/test_pressure3d.cpp
+  tests/test_advect3d.cpp
+  tests/test_viscosity.cpp
+  tests/test_sim3d.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
 target_link_libraries(run_dambreak pfflip2d)
+add_executable(run_dambreak3d apps/run_dambreak3d.cpp)
+target_link_libraries(run_dambreak3d pfflip2d)
