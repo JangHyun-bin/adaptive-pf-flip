@@ -39,6 +39,7 @@ static std::vector<int> fluidCells(const SparseMacGrid2D<8>& g){
   return cells;
 }
 void spProjectStep(SparseMacGrid2D<8>& g, double dt, int cg_iters, double cg_tol){
+  g.pf.clear();                                // p-blocks track LIVE fluid (sparsity metric/viz read pf)
   auto cells = fluidCells(g);
   int N=(int)cells.size(); if(N==0) return;
   std::unordered_map<int,int> idx; idx.reserve(N*2);
@@ -71,8 +72,9 @@ void spProjectStep(SparseMacGrid2D<8>& g, double dt, int cg_iters, double cg_tol
   // project: update each u and v face exactly once (mirror of uniform project())
   double s=dt/g.dx;
   // u faces: face u(i,j) is between cell (i-1,j) and cell (i,j). i ranges 1..nx-1
-  // Only update if at least one adjacent cell is fluid (and neither is solid)
-  // Use a separate pass over the active uf blocks to find candidate faces
+  // Only update if at least one adjacent cell is fluid (and neither is solid).
+  // NOTE: dense index sweep, sparse writes (skip = no block activation);
+  // sparsifying the sweep itself is a Phase 3b/4 optimization.
   for(int j=0;j<g.ny;++j) for(int i=1;i<g.nx;++i){
     bool lf=isFluid(i-1,j), rf=isFluid(i,j);
     if(!lf&&!rf) continue;
