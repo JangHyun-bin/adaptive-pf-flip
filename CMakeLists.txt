@@ -6,6 +6,7 @@ include_directories(external src)
 enable_testing()
 add_library(pfflip2d
   src/grid/uniform_grid2d.cpp
+  src/driver/sparse_ops2d.cpp
   src/transfer/transfer2d.cpp
   src/transfer/transfer2d_tp.cpp
   src/transfer/transfer3d.cpp
@@ -50,7 +51,8 @@ add_executable(unit_tests
   tests/test_sparse_stencil.cpp
   tests/test_block_color.cpp
   tests/test_sparse_splat.cpp
-  tests/test_sparse_mac.cpp)
+  tests/test_sparse_mac.cpp
+  tests/test_sparse_pressure.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
