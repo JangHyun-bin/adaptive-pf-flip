@@ -67,4 +67,6 @@ add_executable(run_rt3d apps/run_rt3d.cpp)
 target_link_libraries(run_rt3d pfflip2d)
 add_executable(dump_render apps/dump_render.cpp)
 target_link_libraries(dump_render pfflip2d)
+add_executable(run_sparse_dambreak apps/run_sparse_dambreak.cpp)
+target_link_libraries(run_sparse_dambreak pfflip2d)
 
