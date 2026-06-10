@@ -31,6 +31,10 @@ Both show a classic dam-break: gravity-driven collapse → floor surge → wall 
 
 ![Rough volumetric render](assets/water-rough-render.gif)
 
+**Sparse FLIP (Phase A).** The single-phase dam-break running entirely on the Phase 3 sparse block grid — blue = particles, dark green = the **only blocks actually allocated** (max 64/192 across the whole 128×96 run). Storage follows the fluid; the rest of the domain never exists in memory.
+
+![Sparse dam-break](assets/sparse-dambreak-2d.gif)
+
 ---
 
 ## Roadmap
@@ -45,6 +49,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **2c** | **3D** two-phase (3D air-water): 3D normalized-cubic P2G, 3D variable-coefficient Poisson, 3D Rayleigh-Taylor | ✅ done |
 | **R** | **Rough rendering** — particle export + density-splat shading (volumetric-ish water look), *not* the paper's exact ray tracer | ✅ done |
 | **3** | **Sparse block grid** — our own clean-MSVC reimplementation of MSBG's concepts (treeless, large blocks, dense block-pointer array, block pool, 4/8-color). The real [MSBG](https://github.com/tum-pbs/MSBG) is GCC/Make/POSIX-only and won't build/link on MSVC, so we rebuilt the ideas. Validated: **same result as the uniform grid, sparse storage** (only active blocks allocated). *Single-resolution; multiresolution → Phase 3b.* | ✅ done |
+| **A** | **Sparse FLIP** — the Phase 3 grid wired into a real solver: 2D single-phase FLIP (MAC fields as sparse block fields, P2G activates only touched blocks, pressure CG enumerates fluid cells) with the dam-break matching the uniform solver's behavior. **Payoff demonstrated: max 64/192 blocks allocated** in the 128×96 run. *Two-phase/3D/multiresolution on sparse → later.* | ✅ done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -71,6 +76,10 @@ ctest --test-dir build -C Debug --output-on-failure
 
 # run a 3D dam-break -> slice_###.ppm (mid-z slices)
 ./build/Debug/run_dambreak3d.exe
+
+# run the sparse-grid dam-break (Phase A) -> sp_###.ppm with active-block overlay
+cmake --build build --config Release --target run_sparse_dambreak
+./build/Release/run_sparse_dambreak.exe
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).
@@ -83,13 +92,15 @@ PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('
 src/
   math/        Vec2, Vec3
   grid/        UniformGrid2D / UniformGrid3D  (MAC staggered)
+               SparseBlockGrid2D / SparseMacGrid2D  (treeless block-sparse, Phase 3/A)
   particles/   Particles2D / Particles3D
   transfer/    P2G / G2P  (bilinear/trilinear splat + FLIP/PIC blend)
   pressure/    divergence, pressure Poisson CG, projection
   advect/      RK2 advection, velocity extrapolation
   physics/     viscosity <-> FLIP alpha mapping (Eq. 13)
-  driver/      Sim2D / Sim3D step loop + dam-break scenes + viz
-apps/          run_dambreak, run_dambreak3d
+  driver/      Sim2D / Sim3D / SparseSim2D step loops + dam-break scenes + viz
+               sparse_ops2d  (sparse P2G / fluid-cell CG / projection / G2P / advect)
+apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak
 tests/         doctest unit + integration tests (one per module)
 docs/          design specs and implementation plans
 external/      vendored doctest
