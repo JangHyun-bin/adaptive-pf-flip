@@ -5,7 +5,8 @@
 #include <cmath>
 #include <vector>
 
-TEST_CASE("multires pressure: weighted operator conserves coarse-fine flux") {
+// Task 5 is smoke-only; native finite-volume coarse-fine coupling is Task 6.
+TEST_CASE("multires pressure smoke: mean operator annihilates constant pressure") {
   MRLayout2D<8> layout(32, 32, 1.0);
   layout.setCoarseEverywhere(1);
   layout.refineFineCellBox(8, 8, 16, 24);
@@ -24,7 +25,7 @@ TEST_CASE("multires pressure: weighted operator conserves coarse-fine flux") {
   CHECK(std::abs(weightedSum) < 1e-9);
 }
 
-TEST_CASE("multires pressure: projection reduces divergence") {
+TEST_CASE("multires pressure smoke: u-face averaging reduces spread") {
   MRLayout2D<8> layout(32, 32, 1.0);
   layout.setCoarseEverywhere(1);
   layout.refineFineCellBox(8, 8, 24, 24);
