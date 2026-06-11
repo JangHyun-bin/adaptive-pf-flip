@@ -22,13 +22,20 @@ struct MRScalarGrid2D {
 
   explicit MRScalarGrid2D(const MRLayout2D<B>& l) : layout(l) {}
 
-  double cellSize(int level) const { return layout.dx * (1 << level); }
+  double cellSize(int level) const {
+    if (level < 0) {
+      throw std::out_of_range("MRScalarGrid2D::cellSize invalid level");
+    }
+    return layout.dx * (1 << level);
+  }
 
   double centerX(const MRCellKey& c) const {
+    requireValidStorageCell(c, "MRScalarGrid2D::centerX invalid cell");
     return (c.block.bx * B + c.lx + 0.5) * cellSize(c.block.level);
   }
 
   double centerY(const MRCellKey& c) const {
+    requireValidStorageCell(c, "MRScalarGrid2D::centerY invalid cell");
     return (c.block.by * B + c.ly + 0.5) * cellSize(c.block.level);
   }
 
@@ -43,9 +50,7 @@ struct MRScalarGrid2D {
   }
 
   float& ref(const MRCellKey& c) {
-    if (!validStorageCell(c)) {
-      throw std::out_of_range("MRScalarGrid2D::ref invalid cell");
-    }
+    requireValidStorageCell(c, "MRScalarGrid2D::ref invalid cell");
 
     auto& data = blocks[c.block];
     if (data.empty()) data.assign(B * B, 0.0f);
@@ -66,7 +71,7 @@ struct MRScalarGrid2D {
       for (int ly = 0; ly < B; ++ly) {
         for (int lx = 0; lx < B; ++lx) {
           MRCellKey c{b, lx, ly};
-          if (cellCenterInsideDomain(c)) cells.push_back(c);
+          if (cellIntersectsDomainFine(c)) cells.push_back(c);
         }
       }
     }
@@ -74,10 +79,10 @@ struct MRScalarGrid2D {
   }
 
   double sampleCellCenter(double x, double y) const {
-    if (layout.nx <= 0 || layout.ny <= 0) return 0.0;
+    if (layout.nx <= 0 || layout.ny <= 0 || layout.dx <= 0.0) return 0.0;
 
-    int fx = std::max(0, std::min(layout.nx - 1, static_cast<int>(std::floor(x))));
-    int fy = std::max(0, std::min(layout.ny - 1, static_cast<int>(std::floor(y))));
+    int fx = std::max(0, std::min(layout.nx - 1, static_cast<int>(std::floor(x / layout.dx))));
+    int fy = std::max(0, std::min(layout.ny - 1, static_cast<int>(std::floor(y / layout.dx))));
     return get(cellAtFineCell(fx, fy));
   }
 
@@ -88,24 +93,35 @@ private:
     return static_cast<size_t>(c.lx + B * c.ly);
   }
 
+  void requireValidStorageCell(const MRCellKey& c, const char* message) const {
+    if (!validStorageCell(c)) {
+      throw std::out_of_range(message);
+    }
+  }
+
   bool blockIsLeaf(const MRBlockKey& b) const {
     const auto& leaves = layout.leaves();
     return std::find(leaves.begin(), leaves.end(), b) != leaves.end();
   }
 
-  bool cellCenterInsideDomain(const MRCellKey& c) const {
-    double xmax = layout.nx * layout.dx;
-    double ymax = layout.ny * layout.dx;
-    double x = centerX(c);
-    double y = centerY(c);
-    return x >= 0.0 && x < xmax && y >= 0.0 && y < ymax;
+  bool validCellAddress(const MRCellKey& c) const {
+    return c.block.level >= 0 &&
+           c.lx >= 0 && c.lx < B &&
+           c.ly >= 0 && c.ly < B;
+  }
+
+  bool cellIntersectsDomainFine(const MRCellKey& c) const {
+    int step = 1 << c.block.level;
+    int x0 = c.block.bx * B * step + c.lx * step;
+    int y0 = c.block.by * B * step + c.ly * step;
+    int x1 = x0 + step;
+    int y1 = y0 + step;
+    return x0 < layout.nx && x1 > 0 && y0 < layout.ny && y1 > 0;
   }
 
   bool validStorageCell(const MRCellKey& c) const {
-    return c.block.level >= 0 &&
-           c.lx >= 0 && c.lx < B &&
-           c.ly >= 0 && c.ly < B &&
+    return validCellAddress(c) &&
            blockIsLeaf(c.block) &&
-           cellCenterInsideDomain(c);
+           cellIntersectsDomainFine(c);
   }
 };

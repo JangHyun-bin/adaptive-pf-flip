@@ -53,6 +53,8 @@ TEST_CASE("multires scalar: out-of-range lookup returns invalid cell without sto
   CHECK(c.ly == -1);
   CHECK(g.get(c) == doctest::Approx(0.0));
   CHECK_THROWS_AS(g.ref(c), std::out_of_range);
+  CHECK_THROWS_AS(g.centerX(c), std::out_of_range);
+  CHECK_THROWS_AS(g.centerY(c), std::out_of_range);
   CHECK(g.activeBlockCount() == 0);
 }
 
@@ -70,4 +72,37 @@ TEST_CASE("multires scalar: leaf cells omit padded boundary centers") {
     CHECK(g.centerY(c) >= 0.0);
     CHECK(g.centerY(c) < 18.0);
   }
+}
+
+TEST_CASE("multires scalar: physical sampling honors grid spacing") {
+  MRLayout2D<8> layout(32, 32, 0.5);
+  layout.setCoarseEverywhere(0);
+
+  MRScalarGrid2D<8> g(layout);
+  MRCellKey c = g.cellAtFineCell(10, 4);
+  g.ref(c) = 7.0f;
+
+  CHECK(g.centerX(c) == doctest::Approx(5.25));
+  CHECK(g.centerY(c) == doctest::Approx(2.25));
+  CHECK(g.sampleCellCenter(5.25, 2.25) == doctest::Approx(7.0));
+}
+
+TEST_CASE("multires scalar: odd coarse boundary cells are valid if they intersect domain") {
+  MRLayout2D<8> layout(21, 17, 1.0);
+  layout.setCoarseEverywhere(1);
+
+  MRScalarGrid2D<8> g(layout);
+  std::vector<MRCellKey> cells = g.leafCells();
+  CHECK(cells.size() == 99);
+  for (const MRCellKey& c : cells) {
+    g.ref(c) = 1.0f;
+  }
+
+  MRCellKey edge = g.cellAtFineCell(20, 16);
+  CHECK(edge.block.level == 1);
+  CHECK(g.centerX(edge) == doctest::Approx(21.0));
+  CHECK(g.centerY(edge) == doctest::Approx(17.0));
+
+  g.ref(edge) = 11.0f;
+  CHECK(g.sampleCellCenter(20.5, 16.5) == doctest::Approx(11.0));
 }
