@@ -100,9 +100,17 @@ void spProjectStepVC(SparseMacGrid2D<8>& g, const PhaseParams& pp, double dt, in
   auto isFluid=[&](int i,int j){ return g.inBounds(i,j) && g.cell(i,j)==1; };
   auto isSolid=[&](int i,int j){ return !g.inBounds(i,j) || g.cell(i,j)==2; };
   auto isAir  =[&](int i,int j){ return g.inBounds(i,j) && g.cell(i,j)==0; };
-  // face beta on the fly from raw face density (== dense per-face bu/bv computation)
-  auto bU=[&](int i,int j){ return betaFromPhi(phiFromRawDensity((double)g.gmu(i,j),pp),pp); };
-  auto bV=[&](int i,int j){ return betaFromPhi(phiFromRawDensity((double)g.gmv(i,j),pp),pp); };
+  // face beta on the fly from raw face density (== dense per-face bu/bv computation).
+  // Constants hoisted from phiFromRawDensity/betaFromPhi: std::log once per solve,
+  // not per CG-iteration beta eval (8 evals/cell/iter) — numerically identical.
+  const double rmin = etaPhi(pp)*pp.rho_g*pp.rho_tilde_0;
+  const double invden = 1.0/(pp.alpha_phi*pp.rho_tilde_0*pp.rho_l);
+  auto betaOfRaw=[&](double rt){
+    double phi = (rt<rmin)? 0.0 : std::min(std::sqrt((rt-rmin)*invden), 1.0);
+    return 1.0/(phi*pp.rho_l + (1.0-phi)*pp.rho_g);
+  };
+  auto bU=[&](int i,int j){ return betaOfRaw((double)g.gmu(i,j)); };
+  auto bV=[&](int i,int j){ return betaOfRaw((double)g.gmv(i,j)); };
   // pure-Neumann pin (dense findPinCell mirror): pin first enumerated fluid cell iff no fluid cell touches AIR
   int pc=-1;
   { bool dirichlet=false; const int di[4]={1,-1,0,0},dj[4]={0,0,1,-1};
