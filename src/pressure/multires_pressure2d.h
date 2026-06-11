@@ -5,8 +5,15 @@
 template<int B>
 struct MRMacGrid2D;
 
+struct MREdge {
+  int a = -1;
+  int b = -1;
+  double conductance = 0.0;
+};
+
 struct MRPressureSystem2D {
   std::vector<double> volumes;
+  std::vector<MREdge> edges;
 
   int cellCount() const { return static_cast<int>(volumes.size()); }
   double volume(int i) const { return volumes[i]; }
