@@ -15,6 +15,7 @@ add_library(pfflip2d
   src/transfer/transfer2d_tp.cpp
   src/transfer/transfer3d.cpp
   src/transfer/transfer3d_tp.cpp
+  src/pressure/multires_pressure2d.cpp
   src/pressure/pressure2d.cpp
   src/pressure/pressure2d_vc.cpp
   src/pressure/pressure3d.cpp
@@ -55,6 +56,7 @@ add_executable(unit_tests
   tests/test_multires_scalar.cpp
   tests/test_multires_mac.cpp
   tests/test_multires_transfer_tp.cpp
+  tests/test_multires_pressure.cpp
   tests/test_sparse_grid.cpp
   tests/test_sparse_stencil.cpp
   tests/test_block_color.cpp
