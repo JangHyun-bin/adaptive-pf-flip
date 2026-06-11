@@ -35,6 +35,10 @@ Both show a classic dam-break: gravity-driven collapse → floor surge → wall 
 
 ![Sparse dam-break](assets/sparse-dambreak-2d.gif)
 
+**Sparse two-phase (Phase B).** The paper's core solver running on the paper's storage: a gas bubble (amber) rising through water (blue) by buoyancy that **emerges purely from the β=1/ρ variable-coefficient pressure solve** — no explicit buoyancy force — on sparse block storage. The bubble deforms into a cap and splits into a vortex pair (classic 2D behavior without surface tension); the free surface bulges; and the empty headspace **never allocates** (max 78/144 cell blocks across the 96² run).
+
+![Sparse two-phase bubble](assets/sparse-bubble-2phase.gif)
+
 ---
 
 ## Roadmap
@@ -50,6 +54,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **R** | **Rough rendering** — particle export + density-splat shading (volumetric-ish water look), *not* the paper's exact ray tracer | ✅ done |
 | **3** | **Sparse block grid** — our own clean-MSVC reimplementation of MSBG's concepts (treeless, large blocks, dense block-pointer array, block pool, 4/8-color). The real [MSBG](https://github.com/tum-pbs/MSBG) is GCC/Make/POSIX-only and won't build/link on MSVC, so we rebuilt the ideas. Validated: **same result as the uniform grid, sparse storage** (only active blocks allocated). *Single-resolution; multiresolution → Phase 3b.* | ✅ done |
 | **A** | **Sparse FLIP** — the Phase 3 grid wired into a real solver: 2D single-phase FLIP (MAC fields as sparse block fields, P2G activates only touched blocks, pressure CG enumerates fluid cells) with the dam-break matching the uniform solver's behavior. **Payoff demonstrated: max 64/192 blocks allocated** in the 128×96 run. *Two-phase/3D/multiresolution on sparse → later.* | ✅ done |
+| **B** | **Sparse two-phase** — Phase 2's phase-field FLIP (Eq. 6 cubic kernel, Eq. 7 φ, Eq. 8 β=1/ρ Poisson with Neumann pin) ported onto the sparse grid, with β computed on the fly from face raw densities (no extra storage). Validated two ways: sparse Rayleigh-Taylor overturns like the dense solver (equivalence), and a free-surface bubble tank where the **empty headspace never allocates — max 78/144 cell blocks** (sparsity). *Narrow-band air for full-domain two-phase → SPEC-2.* | ✅ done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -80,6 +85,10 @@ ctest --test-dir build -C Debug --output-on-failure
 # run the sparse-grid dam-break (Phase A) -> sp_###.ppm with active-block overlay
 cmake --build build --config Release --target run_sparse_dambreak
 ./build/Release/run_sparse_dambreak.exe
+
+# run the sparse two-phase bubble tank (Phase B) -> spb_###.ppm
+cmake --build build --config Release --target run_sparse_bubble
+./build/Release/run_sparse_bubble.exe
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).
@@ -98,9 +107,9 @@ src/
   pressure/    divergence, pressure Poisson CG, projection
   advect/      RK2 advection, velocity extrapolation
   physics/     viscosity <-> FLIP alpha mapping (Eq. 13)
-  driver/      Sim2D / Sim3D / SparseSim2D step loops + dam-break scenes + viz
-               sparse_ops2d  (sparse P2G / fluid-cell CG / projection / G2P / advect)
-apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak
+  driver/      Sim2D / Sim3D / SparseSim2D / SparseSim2DTP step loops + scenes + viz
+               sparse_ops2d / sparse_ops2d_tp  (sparse P2G / fluid-cell CG / VC projection / G2P / advect)
+apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak, run_sparse_bubble
 tests/         doctest unit + integration tests (one per module)
 docs/          design specs and implementation plans
 external/      vendored doctest
