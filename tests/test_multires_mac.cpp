@@ -36,8 +36,19 @@ TEST_CASE("multires MAC: odd domains omit padded face segments") {
   layout.setCoarseEverywhere(1);
 
   MRMacGrid2D<8> g(layout);
+  std::vector<MRFaceKey> ufaces = g.uFaces();
+  std::vector<MRFaceKey> vfaces = g.vFaces();
+  std::set<MRFaceKey> ukeys(ufaces.begin(), ufaces.end());
+  std::set<MRFaceKey> vkeys(vfaces.begin(), vfaces.end());
 
-  for (const MRFaceKey& f : g.uFaces()) {
+  for (int fineY = 0; fineY < 17; ++fineY) {
+    CHECK(ukeys.count(MRFaceKey{0, 21, fineY, 1}) == 1);
+  }
+  for (int fineX = 0; fineX < 21; ++fineX) {
+    CHECK(vkeys.count(MRFaceKey{1, fineX, 17, 1}) == 1);
+  }
+
+  for (const MRFaceKey& f : ufaces) {
     CHECK(f.axis == 0);
     CHECK(f.fineLength == 1);
     CHECK(f.fineX >= 0);
@@ -46,7 +57,7 @@ TEST_CASE("multires MAC: odd domains omit padded face segments") {
     CHECK(f.fineY + f.fineLength <= 17);
   }
 
-  for (const MRFaceKey& f : g.vFaces()) {
+  for (const MRFaceKey& f : vfaces) {
     CHECK(f.axis == 1);
     CHECK(f.fineLength == 1);
     CHECK(f.fineX >= 0);
@@ -54,6 +65,23 @@ TEST_CASE("multires MAC: odd domains omit padded face segments") {
     CHECK(f.fineY >= 0);
     CHECK(f.fineY <= 17);
   }
+}
+
+TEST_CASE("multires MAC: face enumeration follows MAC layout if scalar layout diverges") {
+  MRLayout2D<8> layout(32, 32, 1.0);
+  layout.setCoarseEverywhere(1);
+
+  MRMacGrid2D<8> g(layout);
+  g.p.layout.leaf_blocks.clear();
+  g.marker.layout.leaf_blocks.clear();
+
+  std::vector<MRFaceKey> ufaces = g.uFaces();
+  std::vector<MRFaceKey> vfaces = g.vFaces();
+  std::set<MRFaceKey> ukeys(ufaces.begin(), ufaces.end());
+  std::set<MRFaceKey> vkeys(vfaces.begin(), vfaces.end());
+
+  CHECK(ukeys.count(MRFaceKey{0, 32, 0, 1}) == 1);
+  CHECK(vkeys.count(MRFaceKey{1, 0, 32, 1}) == 1);
 }
 
 TEST_CASE("multires MAC: absent reads do not allocate and mutating access allocates one field") {
