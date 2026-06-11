@@ -16,4 +16,5 @@ TEST_CASE("sparse bubble tank: gas rises by buoyancy, headspace blocks never all
   CHECK(meanY(1) > gy0 + 0.5);                       // bubble rose
   CHECK(maxActive > 0);
   CHECK(maxActive < sim.grid.totalCellBlocks());     // headspace stayed unallocated (sparsity)
+  CHECK(maxActive <= 24);   // upper headspace (block-rows 4-5) NEVER allocates; surface bulge may touch row 3
 }
