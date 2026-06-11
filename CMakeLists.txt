@@ -86,4 +86,5 @@ add_executable(run_sparse_dambreak apps/run_sparse_dambreak.cpp)
 target_link_libraries(run_sparse_dambreak pfflip2d)
 add_executable(run_sparse_bubble apps/run_sparse_bubble.cpp)
 target_link_libraries(run_sparse_bubble pfflip2d)
-
+add_executable(run_multires_bubble apps/run_multires_bubble.cpp)
+target_link_libraries(run_multires_bubble pfflip2d)
