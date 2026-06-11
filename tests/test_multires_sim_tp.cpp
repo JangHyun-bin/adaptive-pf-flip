@@ -1,6 +1,13 @@
 #include "doctest.h"
 #include "driver/multires_sim2d_tp.h"
+#include "driver/viz_multires_tp.h"
 #include "driver/sparse_sim2d_tp.h"
+
+#include <cstdio>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -9,7 +16,48 @@ int markerAtFineCell(const MRSim2DTP& sim, int i, int j) {
   return static_cast<int>(sim.grid.marker.get(c) + 0.5f);
 }
 
+std::vector<unsigned char> readP6(const std::string& path, int& W, int& H) {
+  std::ifstream f(path, std::ios::binary);
+  std::string magic;
+  int maxv = 0;
+  f >> magic >> W >> H >> maxv;
+  f.get();
+  std::vector<unsigned char> img(static_cast<size_t>(W * H * 3));
+  f.read(reinterpret_cast<char*>(img.data()), static_cast<std::streamsize>(img.size()));
+  return img;
+}
+
 } // namespace
+
+TEST_CASE("multires viz skips negative particles before pixel cast") {
+  const char* path = "test_multires_negative_particle.ppm";
+  std::remove(path);
+
+  MRSim2DTP mr(4, 4, 1.0);
+  mr.layout.setCoarseEverywhere(1);
+  mr.particles.add({-0.1, 0.5}, {0.0, 0.0}, 0);
+
+  writeMRTPPM(mr, path, 2);
+
+  int W = 0, H = 0;
+  std::vector<unsigned char> img = readP6(path, W, H);
+  std::remove(path);
+
+  REQUIRE(W == 8);
+  REQUIRE(H == 8);
+  int o = (0 + W * 6) * 3;
+  CHECK(img[o] == 28);
+  CHECK(img[o + 1] == 32);
+  CHECK(img[o + 2] == 48);
+}
+
+TEST_CASE("multires viz validates output settings and writes") {
+  MRSim2DTP mr(4, 4, 1.0);
+  mr.layout.setCoarseEverywhere(1);
+
+  CHECK_THROWS_AS(writeMRTPPM(mr, "test_multires_invalid_scale.ppm", 0), std::invalid_argument);
+  CHECK_THROWS_AS(writeMRTPPM(mr, "", 2), std::runtime_error);
+}
 
 TEST_CASE("multires bubble tank: boundary-adjacent fluid marker remains fine") {
   MRSim2DTP mr(64, 64, 1.0);
