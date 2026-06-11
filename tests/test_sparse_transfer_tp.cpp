@@ -6,10 +6,12 @@
 #include "particles/particles2d_tp.h"
 TEST_CASE("sparse tp p2g: momentum conserved (normalized cubic)") {
   SparseMacGrid2D<8> g(6,6,1.0); PhaseParams pp; double Vp=1.0;
-  Particles2DTP ps; ps.add({3.0,2.5},{4.0,0.0},0);   // liquid, m_p=rho_l*Vp=1
+  Particles2DTP ps; ps.add({3.0,2.5},{4.0,3.0},0);   // liquid, m_p=rho_l*Vp=1
   spP2G_tp(g, ps, pp, Vp);
   double mom=0; for(int j=0;j<g.ny;++j)for(int i=0;i<=g.nx;++i) mom += g.gu(i,j)*g.gmu(i,j);
   CHECK(mom == doctest::Approx(4.0).epsilon(1e-6));
+  double momv=0; for(int j=0;j<=g.ny;++j)for(int i=0;i<g.nx;++i) momv += g.gv(i,j)*g.gmv(i,j);
+  CHECK(momv == doctest::Approx(3.0).epsilon(1e-6));
 }
 TEST_CASE("sparse tp p2g: phase separation phi_liq~1 / phi_gas~0") {
   SparseMacGrid2D<8> g(8,8,1.0); PhaseParams pp; double Vp=1.0;
