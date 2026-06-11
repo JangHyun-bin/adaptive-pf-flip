@@ -52,6 +52,7 @@ add_executable(unit_tests
   tests/test_sim3d_tp.cpp
   tests/test_multires_layout.cpp
   tests/test_multires_scalar.cpp
+  tests/test_multires_mac.cpp
   tests/test_sparse_grid.cpp
   tests/test_sparse_stencil.cpp
   tests/test_block_color.cpp
