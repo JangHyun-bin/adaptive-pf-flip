@@ -43,3 +43,32 @@ TEST_CASE("multires layout: active leaves cover domain exactly once") {
   }
   CHECK(covered.size() == 32 * 32);
 }
+
+TEST_CASE("multires layout: refined boundary leaves intersect non-multiple domain") {
+  MRLayout2D<8> layout(20, 18, 1.0);
+  layout.setCoarseEverywhere(1);
+  layout.refineFineCellBox(16, 16, 20, 18);
+  layout.enforceTwoToOneBalance();
+
+  for (const MRBlockKey& key : layout.leaves()) {
+    int s = layout.blockFineSize(key.level);
+    int x0 = key.bx * s;
+    int y0 = key.by * s;
+    int x1 = x0 + s;
+    int y1 = y0 + s;
+    CHECK(x0 < 20);
+    CHECK(x1 > 0);
+    CHECK(y0 < 18);
+    CHECK(y1 > 0);
+  }
+}
+
+TEST_CASE("multires layout: leaf lookup outside domain returns sentinel") {
+  MRLayout2D<8> layout(20, 18, 1.0);
+  layout.setCoarseEverywhere(1);
+
+  const MRBlockKey missing{-1, -1, -1};
+  CHECK(layout.leafAtFineCell(-1, 0) == missing);
+  CHECK(layout.leafAtFineCell(20, 0) == missing);
+  CHECK(layout.leafAtFineCell(0, 18) == missing);
+}
