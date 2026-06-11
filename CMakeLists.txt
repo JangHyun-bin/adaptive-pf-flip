@@ -7,7 +7,9 @@ enable_testing()
 add_library(pfflip2d
   src/grid/uniform_grid2d.cpp
   src/driver/sparse_ops2d.cpp
+  src/driver/sparse_ops2d_tp.cpp
   src/driver/sparse_sim2d.cpp
+  src/driver/sparse_sim2d_tp.cpp
   src/transfer/transfer2d.cpp
   src/transfer/transfer2d_tp.cpp
   src/transfer/transfer3d.cpp
@@ -54,7 +56,11 @@ add_executable(unit_tests
   tests/test_sparse_splat.cpp
   tests/test_sparse_mac.cpp
   tests/test_sparse_pressure.cpp
-  tests/test_sparse_sim.cpp)
+  tests/test_sparse_sim.cpp
+  tests/test_sparse_transfer_tp.cpp
+  tests/test_sparse_vc.cpp
+  tests/test_sparse_sim_tp.cpp
+  tests/test_sparse_bubble.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
@@ -69,4 +75,6 @@ add_executable(dump_render apps/dump_render.cpp)
 target_link_libraries(dump_render pfflip2d)
 add_executable(run_sparse_dambreak apps/run_sparse_dambreak.cpp)
 target_link_libraries(run_sparse_dambreak pfflip2d)
+add_executable(run_sparse_bubble apps/run_sparse_bubble.cpp)
+target_link_libraries(run_sparse_bubble pfflip2d)
 
