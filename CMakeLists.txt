@@ -9,6 +9,7 @@ add_library(pfflip2d
   src/driver/sparse_ops2d.cpp
   src/driver/sparse_ops2d_tp.cpp
   src/driver/sparse_sim2d.cpp
+  src/driver/sparse_sim2d_tp.cpp
   src/transfer/transfer2d.cpp
   src/transfer/transfer2d_tp.cpp
   src/transfer/transfer3d.cpp
@@ -57,7 +58,8 @@ add_executable(unit_tests
   tests/test_sparse_pressure.cpp
   tests/test_sparse_sim.cpp
   tests/test_sparse_transfer_tp.cpp
-  tests/test_sparse_vc.cpp)
+  tests/test_sparse_vc.cpp
+  tests/test_sparse_sim_tp.cpp)
 target_link_libraries(unit_tests pfflip2d)
 add_test(NAME unit_tests COMMAND unit_tests)
 add_executable(run_dambreak apps/run_dambreak.cpp)
