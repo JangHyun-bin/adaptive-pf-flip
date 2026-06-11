@@ -286,6 +286,7 @@ void projectMR(MRMacGrid2D<8>& g, double dt, int maxIter, double tol) {
 void projectMR(MRMacGrid2D<8>& g, const PhaseParams& pp, double dt, int maxIter, double tol) {
   std::vector<ProjectionCell> cells = fluidProjectionCells(g);
   const int N = static_cast<int>(cells.size());
+  g.p.blocks.clear();
   if (N == 0) return;
 
   std::map<std::tuple<int, int, int, int, int>, int> idx;
@@ -397,7 +398,6 @@ void projectMR(MRMacGrid2D<8>& g, const PhaseParams& pp, double dt, int maxIter,
     }
   }
 
-  g.p.blocks.clear();
   for (const ProjectionCell& c : cells) {
     g.p.ref(c.key) = static_cast<float>(x[c.index]);
   }

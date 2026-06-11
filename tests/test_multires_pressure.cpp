@@ -1,6 +1,7 @@
 #include "doctest.h"
 #include "pressure/multires_pressure2d.h"
 #include "grid/multires_mac_grid2d.h"
+#include "physics/phasefield.h"
 
 #include <algorithm>
 #include <cmath>
@@ -16,6 +17,37 @@ double totalConductance(const MRPressureSystem2D& sys) {
     total += e.conductance;
   }
   return total;
+}
+
+void setMarker(MRMacGrid2D<8>& g, int i, int j, int marker) {
+  g.marker.ref(g.marker.cellAtFineCell(i, j)) = static_cast<float>(marker);
+}
+
+int markerAt(const MRMacGrid2D<8>& g, int i, int j) {
+  if (i < 0 || i >= g.layout.nx || j < 0 || j >= g.layout.ny) return 2;
+  return static_cast<int>(g.marker.get(g.marker.cellAtFineCell(i, j)) + 0.5f);
+}
+
+double markerAwareMaxDivergence(const MRMacGrid2D<8>& g) {
+  double mx = 0.0;
+  for (int j = 0; j < g.layout.ny; ++j) {
+    for (int i = 0; i < g.layout.nx; ++i) {
+      if (markerAt(g, i, j) != 1) continue;
+
+      bool solidLeft = markerAt(g, i - 1, j) == 2;
+      bool solidRight = markerAt(g, i + 1, j) == 2;
+      bool solidBottom = markerAt(g, i, j - 1) == 2;
+      bool solidTop = markerAt(g, i, j + 1) == 2;
+
+      double uR = solidRight ? 0.0 : static_cast<double>(g.gu(MRFaceKey{0, i + 1, j, 1}));
+      double uL = solidLeft ? 0.0 : static_cast<double>(g.gu(MRFaceKey{0, i, j, 1}));
+      double vT = solidTop ? 0.0 : static_cast<double>(g.gv(MRFaceKey{1, i, j + 1, 1}));
+      double vB = solidBottom ? 0.0 : static_cast<double>(g.gv(MRFaceKey{1, i, j, 1}));
+
+      mx = std::max(mx, std::abs(((uR - uL) + (vT - vB)) / g.layout.dx));
+    }
+  }
+  return mx;
 }
 
 } // namespace
@@ -213,4 +245,51 @@ TEST_CASE("multires pressure: coarse-fine native conductance is exact") {
     }
   }
   CHECK(mixedEdges > 0);
+}
+
+TEST_CASE("multires pressure: phase-aware projection clears stale pressure without fluid") {
+  MRLayout2D<8> layout(16, 16, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+  PhaseParams pp;
+
+  g.p.ref(g.p.cellAtFineCell(3, 3)) = 9.0f;
+  setMarker(g, 3, 3, 0);
+  setMarker(g, 0, 3, 2);
+
+  projectMR(g, pp, 1.0, 20, 1e-8);
+
+  CHECK(g.p.blocks.empty());
+}
+
+TEST_CASE("multires pressure: phase-aware projection reduces marked divergence and zeros solid faces") {
+  MRLayout2D<8> layout(8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+  PhaseParams pp;
+
+  setMarker(g, 2, 3, 2);
+  setMarker(g, 3, 3, 1);
+  setMarker(g, 4, 3, 1);
+  setMarker(g, 3, 4, 1);
+  setMarker(g, 4, 4, 1);
+
+  for (const MRFaceKey& f : g.uFaces()) {
+    g.mU(f) = 1.0f;
+  }
+  for (const MRFaceKey& f : g.vFaces()) {
+    g.mV(f) = 1.0f;
+  }
+
+  g.u(MRFaceKey{0, 3, 3, 1}) = 7.0f;
+  g.u(MRFaceKey{0, 5, 3, 1}) = 4.0f;
+  g.v(MRFaceKey{1, 4, 5, 1}) = -3.0f;
+
+  double before = markerAwareMaxDivergence(g);
+  projectMR(g, pp, 1.0, 80, 1e-10);
+  double after = markerAwareMaxDivergence(g);
+
+  CHECK(before > 1.0);
+  CHECK(after < before * 0.5);
+  CHECK(g.gu(MRFaceKey{0, 3, 3, 1}) == doctest::Approx(0.0).epsilon(1e-12));
 }

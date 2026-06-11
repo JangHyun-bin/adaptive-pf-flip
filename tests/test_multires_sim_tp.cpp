@@ -2,6 +2,31 @@
 #include "driver/multires_sim2d_tp.h"
 #include "driver/sparse_sim2d_tp.h"
 
+namespace {
+
+int markerAtFineCell(const MRSim2DTP& sim, int i, int j) {
+  MRCellKey c = sim.grid.marker.cellAtFineCell(i, j);
+  return static_cast<int>(sim.grid.marker.get(c) + 0.5f);
+}
+
+} // namespace
+
+TEST_CASE("multires bubble tank: boundary-adjacent fluid marker remains fine") {
+  MRSim2DTP mr(64, 64, 1.0);
+  mr.initBubbleTankInterfaceBand();
+
+  CHECK(mr.layout.leafAtFineCell(63, 1).level == 0);
+  CHECK(mr.layout.leafAtFineCell(62, 1).level == 0);
+  CHECK(mr.layout.leafAtFineCell(62, 0).level == 0);
+
+  mr.step();
+
+  CHECK(markerAtFineCell(mr, 63, 1) == 2);
+  CHECK(markerAtFineCell(mr, 62, 0) == 2);
+  CHECK(markerAtFineCell(mr, 62, 1) == 1);
+  CHECK(mr.activePressureCellCount() < 64 * 64);
+}
+
 TEST_CASE("multires bubble tank: matches fine sparse rise with fewer pressure cells") {
   SparseSim2DTP fine(48, 48, 1.0);
   fine.initBubbleTank();

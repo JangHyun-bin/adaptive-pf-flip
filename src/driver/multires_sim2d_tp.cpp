@@ -4,6 +4,7 @@
 #include "pressure/multires_pressure2d.h"
 #include "transfer/transfer2d_tp.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace {
@@ -74,12 +75,14 @@ void MRSim2DTP::initBubbleTankInterfaceBand() {
   particles = Particles2DTP();
   phase.rho_tilde_0 = calibrateRhoTilde0_2d(phase, Vp);
 
+  int wl = layout.ny / 2;
+  int markerBandTop = std::min(layout.ny, wl + 4);
   layout.setCoarseEverywhere(1);
+  layout.refineFineCellBox(0, 0, layout.nx, markerBandTop);
   layout.refineFineCellBox(12, 4, 36, 28);
   layout.enforceTwoToOneBalance();
   grid = MRMacGrid2D<8>(layout);
 
-  int wl = layout.ny / 2;
   double cx = layout.nx * 0.5;
   double cy = wl * 0.375;
   double r = layout.nx * 0.09375;
