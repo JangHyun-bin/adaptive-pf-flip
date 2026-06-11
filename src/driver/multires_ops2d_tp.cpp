@@ -28,22 +28,44 @@ double faceCenterY(const MRFaceKey& f) {
                      : static_cast<double>(f.fineY);
 }
 
-double sampleU(const MRMacGrid2D<8>& g) {
-  std::vector<MRFaceKey> faces = g.uFaces();
-  double sum = 0.0;
-  for (const MRFaceKey& f : faces) {
-    sum += g.gu(f);
-  }
-  return faces.empty() ? 0.0 : sum / static_cast<double>(faces.size());
+double sampleU(const MRMacGrid2D<8>& g, double x, double y) {
+  double px = x / g.layout.dx;
+  double py = y / g.layout.dx;
+  int i0 = static_cast<int>(std::floor(px));
+  int j0 = static_cast<int>(std::floor(py - 0.5));
+  double fx = px - i0;
+  double fy = (py - 0.5) - j0;
+
+  auto value = [&](int i, int j) {
+    i = std::max(0, std::min(g.layout.nx, i));
+    j = std::max(0, std::min(g.layout.ny - 1, j));
+    return static_cast<double>(g.gu(MRFaceKey{0, i, j, 1}));
+  };
+
+  return (1.0 - fx) * (1.0 - fy) * value(i0, j0) +
+         fx * (1.0 - fy) * value(i0 + 1, j0) +
+         (1.0 - fx) * fy * value(i0, j0 + 1) +
+         fx * fy * value(i0 + 1, j0 + 1);
 }
 
-double sampleV(const MRMacGrid2D<8>& g) {
-  std::vector<MRFaceKey> faces = g.vFaces();
-  double sum = 0.0;
-  for (const MRFaceKey& f : faces) {
-    sum += g.gv(f);
-  }
-  return faces.empty() ? 0.0 : sum / static_cast<double>(faces.size());
+double sampleV(const MRMacGrid2D<8>& g, double x, double y) {
+  double px = x / g.layout.dx;
+  double py = y / g.layout.dx;
+  int i0 = static_cast<int>(std::floor(px - 0.5));
+  int j0 = static_cast<int>(std::floor(py));
+  double fx = (px - 0.5) - i0;
+  double fy = py - j0;
+
+  auto value = [&](int i, int j) {
+    i = std::max(0, std::min(g.layout.nx - 1, i));
+    j = std::max(0, std::min(g.layout.ny, j));
+    return static_cast<double>(g.gv(MRFaceKey{1, i, j, 1}));
+  };
+
+  return (1.0 - fx) * (1.0 - fy) * value(i0, j0) +
+         fx * (1.0 - fy) * value(i0 + 1, j0) +
+         (1.0 - fx) * fy * value(i0, j0 + 1) +
+         fx * fy * value(i0 + 1, j0 + 1);
 }
 
 } // namespace
@@ -114,13 +136,12 @@ void mrP2G_tp(MRMacGrid2D<8>& g, const Particles2DTP& ps, const PhaseParams& pp,
 
 void mrG2P_tp(const MRMacGrid2D<8>& g, Particles2DTP& ps, const MRMacGrid2D<8>& saved,
               double aL, double aG) {
-  double un = sampleU(g);
-  double vn = sampleV(g);
-  double du = un - sampleU(saved);
-  double dv = vn - sampleV(saved);
-
   for (size_t k = 0; k < ps.size(); ++k) {
     double a = ps.type[k] == 0 ? aL : aG;
+    double un = sampleU(g, ps.pos[k].x, ps.pos[k].y);
+    double vn = sampleV(g, ps.pos[k].x, ps.pos[k].y);
+    double du = un - sampleU(saved, ps.pos[k].x, ps.pos[k].y);
+    double dv = vn - sampleV(saved, ps.pos[k].x, ps.pos[k].y);
     double flipX = ps.vel[k].x + du;
     double flipY = ps.vel[k].y + dv;
     ps.vel[k].x = a * flipX + (1.0 - a) * un;
@@ -129,15 +150,19 @@ void mrG2P_tp(const MRMacGrid2D<8>& g, Particles2DTP& ps, const MRMacGrid2D<8>& 
 }
 
 void mrAdvect_tp(Particles2DTP& ps, const MRMacGrid2D<8>& g, double dt) {
-  double u = sampleU(g);
-  double v = sampleV(g);
   double minX = 0.5 * g.layout.dx;
   double maxX = (static_cast<double>(g.layout.nx) - 0.5) * g.layout.dx;
   double minY = 0.5 * g.layout.dx;
   double maxY = (static_cast<double>(g.layout.ny) - 0.5) * g.layout.dx;
 
   for (size_t k = 0; k < ps.size(); ++k) {
-    ps.pos[k].x = std::max(minX, std::min(maxX, ps.pos[k].x + dt * u));
-    ps.pos[k].y = std::max(minY, std::min(maxY, ps.pos[k].y + dt * v));
+    double u1 = sampleU(g, ps.pos[k].x, ps.pos[k].y);
+    double v1 = sampleV(g, ps.pos[k].x, ps.pos[k].y);
+    double mx = ps.pos[k].x + 0.5 * dt * u1;
+    double my = ps.pos[k].y + 0.5 * dt * v1;
+    double u2 = sampleU(g, mx, my);
+    double v2 = sampleV(g, mx, my);
+    ps.pos[k].x = std::max(minX, std::min(maxX, ps.pos[k].x + dt * u2));
+    ps.pos[k].y = std::max(minY, std::min(maxY, ps.pos[k].y + dt * v2));
   }
 }

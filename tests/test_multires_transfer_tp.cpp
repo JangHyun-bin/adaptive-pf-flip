@@ -99,6 +99,27 @@ TEST_CASE("multires tp g2p: typed alpha still blends FLIP and PIC") {
   CHECK(ps.vel[1].x == doctest::Approx(5.0).epsilon(1e-6));
 }
 
+TEST_CASE("multires tp g2p: samples velocity at particle position") {
+  MRLayout2D<8> layout(32, 32, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+  MRMacGrid2D<8> saved(layout);
+
+  for (const MRFaceKey& f : g.uFaces()) {
+    g.u(f) = (f.fineX < 16) ? 2.0f : 10.0f;
+    saved.u(f) = g.gu(f);
+  }
+
+  Particles2DTP ps;
+  ps.add({4.5, 12.5}, {0.0, 0.0}, 0);
+  ps.add({27.5, 12.5}, {0.0, 0.0}, 0);
+
+  mrG2P_tp(g, ps, saved, 0.0, 0.0);
+
+  CHECK(ps.vel[0].x == doctest::Approx(2.0).epsilon(1e-6));
+  CHECK(ps.vel[1].x == doctest::Approx(10.0).epsilon(1e-6));
+}
+
 TEST_CASE("multires tp p2g: odd boundary writes only enumerated face keys") {
   MRLayout2D<8> layout(29, 31, 1.0);
   layout.setCoarseEverywhere(1);

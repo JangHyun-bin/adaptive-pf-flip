@@ -4,6 +4,7 @@
 
 template<int B>
 struct MRMacGrid2D;
+struct PhaseParams;
 
 struct MREdge {
   int a = -1;
@@ -23,3 +24,4 @@ struct MRPressureSystem2D {
 MRPressureSystem2D buildMRPressureSystem(const MRMacGrid2D<8>& g, double dt);
 double maxMRDivergence(const MRMacGrid2D<8>& g);
 void projectMR(MRMacGrid2D<8>& g, double dt, int maxIter, double tol);
+void projectMR(MRMacGrid2D<8>& g, const PhaseParams& pp, double dt, int maxIter, double tol);
