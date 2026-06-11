@@ -18,13 +18,18 @@ TEST_CASE("multires scalar: write/read leaf cell without activating unrelated le
   CHECK(g.sampleCellCenter(10.5, 10.5) == doctest::Approx(3.25).epsilon(1e-6));
 }
 
-TEST_CASE("multires scalar: linear field samples continuously across coarse-fine boundary") {
+TEST_CASE("multires scalar: linear field samples geometric centers across coarse-fine boundary") {
   MRLayout2D<8> layout(32, 32, 1.0);
   layout.setCoarseEverywhere(1);
   layout.refineFineCellBox(8, 8, 16, 24);
   layout.enforceTwoToOneBalance();
 
   MRScalarGrid2D<8> g(layout);
+  MRCellKey coarse = g.cellAtFineCell(16, 12);
+  CHECK(coarse.block.level == 1);
+  CHECK(g.centerX(coarse) == doctest::Approx(17.0));
+  CHECK(g.centerY(coarse) == doctest::Approx(13.0));
+
   for (const MRCellKey& c : g.leafCells()) {
     double x = g.centerX(c);
     double y = g.centerY(c);
@@ -32,7 +37,7 @@ TEST_CASE("multires scalar: linear field samples continuously across coarse-fine
   }
 
   CHECK(g.sampleCellCenter(15.5, 12.5) == doctest::Approx(24.75).epsilon(1e-5));
-  CHECK(g.sampleCellCenter(16.5, 12.5) == doctest::Approx(26.75).epsilon(1e-5));
+  CHECK(g.sampleCellCenter(16.5, 12.5) == doctest::Approx(27.5).epsilon(1e-5));
 }
 
 TEST_CASE("multires scalar: out-of-range lookup returns invalid cell without storage") {

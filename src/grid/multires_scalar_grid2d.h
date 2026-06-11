@@ -24,16 +24,12 @@ struct MRScalarGrid2D {
 
   double cellSize(int level) const { return layout.dx * (1 << level); }
 
-  // Sampling is addressed by fine-cell centers; coarse slots use the first
-  // fine-cell center inside their covered region as their representative.
   double centerX(const MRCellKey& c) const {
-    int step = 1 << c.block.level;
-    return (c.block.bx * B * step + c.lx * step + 0.5) * layout.dx;
+    return (c.block.bx * B + c.lx + 0.5) * cellSize(c.block.level);
   }
 
   double centerY(const MRCellKey& c) const {
-    int step = 1 << c.block.level;
-    return (c.block.by * B * step + c.ly * step + 0.5) * layout.dx;
+    return (c.block.by * B + c.ly + 0.5) * cellSize(c.block.level);
   }
 
   MRCellKey cellAtFineCell(int x, int y) const {
