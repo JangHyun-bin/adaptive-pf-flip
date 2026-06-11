@@ -83,3 +83,80 @@ void spAdvect_tp(Particles2DTP& ps, const SparseMacGrid2D<8>& g, double dt){
     ps.pos[k].x=std::max(lox,std::min(hix,ps.pos[k].x+dt*u2));
     ps.pos[k].y=std::max(loy,std::min(hiy,ps.pos[k].y+dt*v2)); }
 }
+
+static std::vector<int> fluidCellsTP(const SparseMacGrid2D<8>& g){
+  std::vector<int> cells;
+  for(int b: g.mkf.activeBlocks()){ int bx,by; g.mkf.blockCoords(b,bx,by);
+    for(int ly=0;ly<8;++ly)for(int lx=0;lx<8;++lx){ int i=bx*8+lx,j=by*8+ly;
+      if(g.inBounds(i,j) && g.cell(i,j)==1) cells.push_back(i + g.nx*j); } }
+  return cells;
+}
+void spProjectStepVC(SparseMacGrid2D<8>& g, const PhaseParams& pp, double dt, int cg_iters, double cg_tol){
+  g.pf.clear();                                 // p-blocks track LIVE fluid (sparsity metric/viz read pf)
+  auto cells = fluidCellsTP(g);
+  int N=(int)cells.size(); if(N==0) return;
+  std::unordered_map<int,int> idx; idx.reserve(N*2);
+  for(int t=0;t<N;++t) idx[cells[t]]=t;
+  auto isFluid=[&](int i,int j){ return g.inBounds(i,j) && g.cell(i,j)==1; };
+  auto isSolid=[&](int i,int j){ return !g.inBounds(i,j) || g.cell(i,j)==2; };
+  auto isAir  =[&](int i,int j){ return g.inBounds(i,j) && g.cell(i,j)==0; };
+  // face beta on the fly from raw face density (== dense per-face bu/bv computation)
+  auto bU=[&](int i,int j){ return betaFromPhi(phiFromRawDensity((double)g.gmu(i,j),pp),pp); };
+  auto bV=[&](int i,int j){ return betaFromPhi(phiFromRawDensity((double)g.gmv(i,j),pp),pp); };
+  // pure-Neumann pin (dense findPinCell mirror): pin first enumerated fluid cell iff no fluid cell touches AIR
+  int pc=-1;
+  { bool dirichlet=false; const int di[4]={1,-1,0,0},dj[4]={0,0,1,-1};
+    for(int t=0;t<N && !dirichlet;++t){ int i=cells[t]%g.nx,j=cells[t]/g.nx;
+      for(int n=0;n<4;++n) if(isAir(i+di[n],j+dj[n])){ dirichlet=true; break; } }
+    if(!dirichlet) pc=cells[0]; }
+  double scale=dt/(g.dx*g.dx);
+  // rhs = -divergence, BC-aware: solid-adjacent face velocities count as 0 (dense divergenceVC mirror)
+  std::vector<double> x(N,0),r(N),z(N),pd(N),Ap(N);
+  for(int t=0;t<N;++t){ int i=cells[t]%g.nx,j=cells[t]/g.nx;
+    if(cells[t]==pc){ r[t]=0.0; continue; }
+    double uR=isSolid(i+1,j)?0.0:(double)g.gu(i+1,j), uL=isSolid(i-1,j)?0.0:(double)g.gu(i,j);
+    double vT=isSolid(i,j+1)?0.0:(double)g.gv(i,j+1), vB=isSolid(i,j-1)?0.0:(double)g.gv(i,j);
+    r[t]=-((uR-uL)+(vT-vB))/g.dx; }
+  auto diagOf=[&](int i,int j){
+    double d=0; struct F{int ni,nj;double b;};
+    F fs[4]={ {i+1,j,bU(i+1,j)},{i-1,j,bU(i,j)},{i,j+1,bV(i,j+1)},{i,j-1,bV(i,j)} };
+    for(auto& f:fs) if(!isSolid(f.ni,f.nj)) d+=f.b;
+    return scale*d; };
+  auto applyA=[&](const std::vector<double>& xx,std::vector<double>& out){
+    for(int t=0;t<N;++t){ int i=cells[t]%g.nx,j=cells[t]/g.nx;
+      if(cells[t]==pc){ out[t]=xx[t]; continue; }            // identity row pins pressure
+      double diag=0,off=0; struct F{int ni,nj;double b;};
+      F fs[4]={ {i+1,j,bU(i+1,j)},{i-1,j,bU(i,j)},{i,j+1,bV(i,j+1)},{i,j-1,bV(i,j)} };
+      for(auto& f:fs){ if(isSolid(f.ni,f.nj)) continue; diag+=f.b;
+        int nc=f.ni+g.nx*f.nj;
+        if(isFluid(f.ni,f.nj) && nc!=pc) off+=f.b*xx[idx[nc]]; }
+      out[t]=scale*(diag*xx[t]-off); } };
+  auto prec=[&](const std::vector<double>& in,std::vector<double>& o){
+    for(int t=0;t<N;++t){ int i=cells[t]%g.nx,j=cells[t]/g.nx;
+      double d=(cells[t]==pc)?1.0:diagOf(i,j); o[t]=(d>0)?in[t]/d:0.0; } };
+  auto dotp=[&](const std::vector<double>& a,const std::vector<double>& b){ double s=0; for(int t=0;t<N;++t) s+=a[t]*b[t]; return s; };
+  double res0=0; for(int t=0;t<N;++t) res0=std::max(res0,std::abs(r[t])); if(res0<cg_tol) return;
+  prec(r,z); pd=z; double rz=dotp(r,z),res=res0;
+  for(int it=0;it<cg_iters;++it){ applyA(pd,Ap); double pAp=dotp(pd,Ap); if(std::abs(pAp)<1e-30) break;
+    double al=rz/pAp; for(int t=0;t<N;++t){x[t]+=al*pd[t];r[t]-=al*Ap[t];}
+    res=0; for(int t=0;t<N;++t) res=std::max(res,std::abs(r[t])); if(res<cg_tol) break;
+    prec(r,z); double rzn=dotp(r,z),be=rzn/rz; rz=rzn; for(int t=0;t<N;++t) pd[t]=z[t]+be*pd[t]; }
+  for(int t=0;t<N;++t){ int i=cells[t]%g.nx,j=cells[t]/g.nx; g.p(i,j)=(float)x[t]; }
+  // project with face beta: single-touch face sweeps (Phase A corrected pattern + dense projectVC beta)
+  double s=dt/g.dx;
+  // NOTE: dense index sweep, sparse writes (skip = no block activation); sparsifying the sweep = Phase 3b/4
+  for(int j=0;j<g.ny;++j)for(int i=1;i<g.nx;++i){
+    bool lf=isFluid(i-1,j), rf=isFluid(i,j);
+    if(!lf&&!rf) continue;
+    if(isSolid(i-1,j)||isSolid(i,j)){ g.u(i,j)=0.0f; continue; }
+    double pl=lf?(double)g.gp(i-1,j):0.0, pr=rf?(double)g.gp(i,j):0.0;
+    g.u(i,j)=g.gu(i,j)-(float)(s*bU(i,j)*(pr-pl));
+  }
+  for(int j=1;j<g.ny;++j)for(int i=0;i<g.nx;++i){
+    bool bf=isFluid(i,j-1), tf=isFluid(i,j);
+    if(!bf&&!tf) continue;
+    if(isSolid(i,j-1)||isSolid(i,j)){ g.v(i,j)=0.0f; continue; }
+    double pb=bf?(double)g.gp(i,j-1):0.0, pt=tf?(double)g.gp(i,j):0.0;
+    g.v(i,j)=g.gv(i,j)-(float)(s*bV(i,j)*(pt-pb));
+  }
+}
