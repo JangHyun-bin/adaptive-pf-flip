@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cstddef>
+#include <algorithm>
 
 // Treeless sparse block grid: dense flat array of block slots, blocks allocated on demand.
 // Single-resolution, scalar float. B = block edge length (compile-time).
@@ -41,4 +42,5 @@ struct SparseBlockGrid2D {
     std::vector<int> v; for(size_t b=0;b<blockmap.size();++b) if(blockmap[b]>=0) v.push_back((int)b); return v;
   }
   void blockCoords(int b, int& bx, int& by) const { bx = b % nbx; by = b / nbx; }
+  void clear() { std::fill(blockmap.begin(), blockmap.end(), -1); pool.clear(); }
 };
