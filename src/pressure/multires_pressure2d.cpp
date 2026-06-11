@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <stdexcept>
 #include <utility>
 
 namespace {
@@ -65,7 +66,11 @@ PressureCellInfo pressureCellInfo(const MRCellKey& c, int index, double dx) {
 } // namespace
 
 void MRPressureSystem2D::apply(const std::vector<double>& x, std::vector<double>& out) const {
-  out.assign(x.size(), 0.0);
+  if (x.size() != volumes.size()) {
+    throw std::invalid_argument("MRPressureSystem2D::apply input size must match volume count");
+  }
+
+  out.assign(volumes.size(), 0.0);
 
   for (const MREdge& e : edges) {
     double flux = e.conductance * (x[e.b] - x[e.a]);
@@ -78,6 +83,7 @@ MRPressureSystem2D buildMRPressureSystem(const MRMacGrid2D<8>& g, double dt) {
   (void)dt;
 
   MRPressureSystem2D sys;
+  const auto& layout = g.p.layout;
   std::vector<PressureCellInfo> cells;
   std::vector<MRCellKey> leafCells = g.p.leafCells();
   cells.reserve(leafCells.size());
@@ -86,12 +92,12 @@ MRPressureSystem2D buildMRPressureSystem(const MRMacGrid2D<8>& g, double dt) {
   for (const MRCellKey& c : leafCells) {
     double h = g.p.cellSize(c.block.level);
     sys.volumes.push_back(h * h);
-    cells.push_back(pressureCellInfo(c, static_cast<int>(cells.size()), g.layout.dx));
+    cells.push_back(pressureCellInfo(c, static_cast<int>(cells.size()), layout.dx));
   }
 
   std::map<std::pair<int, int>, double> conductanceByPair;
-  double domainWidth = static_cast<double>(g.layout.nx) * g.layout.dx;
-  double domainHeight = static_cast<double>(g.layout.ny) * g.layout.dx;
+  double domainWidth = static_cast<double>(layout.nx) * layout.dx;
+  double domainHeight = static_cast<double>(layout.ny) * layout.dx;
   for (size_t i = 0; i < cells.size(); ++i) {
     for (size_t j = i + 1; j < cells.size(); ++j) {
       double conductance = edgeConductance(cells[i], cells[j], domainWidth, domainHeight);

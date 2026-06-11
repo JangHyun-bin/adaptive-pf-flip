@@ -5,7 +5,20 @@
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include <stdexcept>
 #include <vector>
+
+namespace {
+
+double totalConductance(const MRPressureSystem2D& sys) {
+  double total = 0.0;
+  for (const MREdge& e : sys.edges) {
+    total += e.conductance;
+  }
+  return total;
+}
+
+} // namespace
 
 // Task 5 is smoke-only; native finite-volume coarse-fine coupling is Task 6.
 TEST_CASE("multires pressure: smoke mean operator annihilates constant pressure") {
@@ -135,4 +148,69 @@ TEST_CASE("multires pressure: native edges include mixed-level coupling") {
 
   CHECK(!sys.edges.empty());
   CHECK(sawMixedVolumeEdge);
+}
+
+TEST_CASE("multires pressure: apply rejects mismatched vector sizes") {
+  MRPressureSystem2D sys;
+  sys.volumes.push_back(1.0);
+
+  std::vector<double> out;
+  std::vector<double> shortInput;
+  std::vector<double> longInput{1.0, 2.0};
+
+  CHECK_THROWS_AS(sys.apply(shortInput, out), std::invalid_argument);
+  CHECK_THROWS_AS(sys.apply(longInput, out), std::invalid_argument);
+}
+
+TEST_CASE("multires pressure: build uses pressure grid layout for geometry") {
+  MRLayout2D<8> layout(32, 32, 1.0);
+  layout.setCoarseEverywhere(1);
+  layout.refineFineCellBox(8, 8, 16, 24);
+  layout.enforceTwoToOneBalance();
+  MRMacGrid2D<8> g(layout);
+
+  MRPressureSystem2D expected = buildMRPressureSystem(g, 1.0);
+  g.layout.nx = 1;
+  g.layout.ny = 1;
+  g.layout.dx = 8.0;
+  g.marker.layout.nx = 1;
+  g.marker.layout.ny = 1;
+  g.marker.layout.dx = 8.0;
+  MRPressureSystem2D actual = buildMRPressureSystem(g, 1.0);
+
+  CHECK(actual.cellCount() == expected.cellCount());
+  CHECK(actual.edges.size() == expected.edges.size());
+  CHECK(totalConductance(actual) == doctest::Approx(totalConductance(expected)).epsilon(1e-12));
+}
+
+TEST_CASE("multires pressure: same-level native conductance is exact") {
+  MRLayout2D<8> layout(16, 16, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+
+  MRPressureSystem2D sys = buildMRPressureSystem(g, 1.0);
+  CHECK(!sys.edges.empty());
+  for (const MREdge& e : sys.edges) {
+    CHECK(sys.volume(e.a) == doctest::Approx(1.0));
+    CHECK(sys.volume(e.b) == doctest::Approx(1.0));
+    CHECK(e.conductance == doctest::Approx(1.0).epsilon(1e-12));
+  }
+}
+
+TEST_CASE("multires pressure: coarse-fine native conductance is exact") {
+  MRLayout2D<8> layout(32, 32, 1.0);
+  layout.setCoarseEverywhere(1);
+  layout.refineFineCellBox(8, 8, 16, 24);
+  layout.enforceTwoToOneBalance();
+  MRMacGrid2D<8> g(layout);
+
+  MRPressureSystem2D sys = buildMRPressureSystem(g, 1.0);
+  int mixedEdges = 0;
+  for (const MREdge& e : sys.edges) {
+    if (sys.volume(e.a) != doctest::Approx(sys.volume(e.b))) {
+      ++mixedEdges;
+      CHECK(e.conductance == doctest::Approx(2.0 / 3.0).epsilon(1e-12));
+    }
+  }
+  CHECK(mixedEdges > 0);
 }
