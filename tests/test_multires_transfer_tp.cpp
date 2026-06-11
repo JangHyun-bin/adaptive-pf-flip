@@ -5,6 +5,27 @@
 #include "physics/phasefield.h"
 
 #include <set>
+#include <vector>
+
+namespace {
+
+double totalUMomentum(const MRMacGrid2D<8>& g) {
+  double mx = 0.0;
+  for (const MRFaceKey& f : g.uFaces()) {
+    mx += static_cast<double>(g.gu(f)) * static_cast<double>(g.gmu(f));
+  }
+  return mx;
+}
+
+double totalVMomentum(const MRMacGrid2D<8>& g) {
+  double my = 0.0;
+  for (const MRFaceKey& f : g.vFaces()) {
+    my += static_cast<double>(g.gv(f)) * static_cast<double>(g.gmv(f));
+  }
+  return my;
+}
+
+} // namespace
 
 TEST_CASE("multires tp p2g: momentum conserved across a coarse-fine boundary") {
   MRLayout2D<8> layout(32, 32, 1.0);
@@ -20,17 +41,41 @@ TEST_CASE("multires tp p2g: momentum conserved across a coarse-fine boundary") {
 
   mrP2G_tp(g, ps, pp, Vp);
 
-  double mx = 0.0;
-  for (const MRFaceKey& f : g.uFaces()) {
-    mx += static_cast<double>(g.gu(f)) * static_cast<double>(g.gmu(f));
-  }
-  CHECK(mx == doctest::Approx(pp.rho_l * Vp * 4.0).epsilon(1e-6));
+  CHECK(totalUMomentum(g) == doctest::Approx(pp.rho_l * Vp * 4.0).epsilon(1e-6));
+  CHECK(totalVMomentum(g) == doctest::Approx(pp.rho_l * Vp * 1.0).epsilon(1e-6));
+}
 
-  double my = 0.0;
-  for (const MRFaceKey& f : g.vFaces()) {
-    my += static_cast<double>(g.gv(f)) * static_cast<double>(g.gmv(f));
-  }
-  CHECK(my == doctest::Approx(pp.rho_l * Vp * 1.0).epsilon(1e-6));
+TEST_CASE("multires tp p2g: gas momentum uses gas density") {
+  MRLayout2D<8> layout(32, 32, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+
+  PhaseParams pp;
+  const double Vp = 2.0;
+  Particles2DTP ps;
+  ps.add({10.0, 9.5}, {-6.0, 3.0}, 1);
+
+  mrP2G_tp(g, ps, pp, Vp);
+
+  CHECK(totalUMomentum(g) == doctest::Approx(pp.rho_g * Vp * -6.0).epsilon(1e-6));
+  CHECK(totalVMomentum(g) == doctest::Approx(pp.rho_g * Vp * 3.0).epsilon(1e-6));
+}
+
+TEST_CASE("multires tp p2g: dx converts physical particle position to fine coordinates") {
+  MRLayout2D<8> layout(32, 32, 0.5);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+
+  PhaseParams pp;
+  const double Vp = 1.25;
+  Particles2DTP ps;
+  ps.add({12.0, 5.75}, {3.0, -2.0}, 0);
+
+  mrP2G_tp(g, ps, pp, Vp);
+
+  CHECK(totalUMomentum(g) == doctest::Approx(pp.rho_l * Vp * 3.0).epsilon(1e-6));
+  CHECK(totalVMomentum(g) == doctest::Approx(pp.rho_l * Vp * -2.0).epsilon(1e-6));
+  CHECK(g.gmu(MRFaceKey{0, 24, 11, 1}) > 0.0f);
 }
 
 TEST_CASE("multires tp g2p: typed alpha still blends FLIP and PIC") {
@@ -88,4 +133,25 @@ TEST_CASE("multires tp p2g: odd boundary writes only enumerated face keys") {
 
   CHECK(g.mu.count(MRFaceKey{0, 30, 17, 1}) == 0);
   CHECK(g.mv.count(MRFaceKey{1, 18, 32, 1}) == 0);
+}
+
+TEST_CASE("multires tp advect: dx scales physical clamp bounds") {
+  MRLayout2D<8> layout(32, 32, 0.5);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid2D<8> g(layout);
+
+  for (const MRFaceKey& f : g.uFaces()) {
+    g.u(f) = 10.0f;
+  }
+  for (const MRFaceKey& f : g.vFaces()) {
+    g.v(f) = 10.0f;
+  }
+
+  Particles2DTP ps;
+  ps.add({15.70, 15.70}, {0.0, 0.0}, 0);
+
+  mrAdvect_tp(ps, g, 0.1);
+
+  CHECK(ps.pos[0].x == doctest::Approx((layout.nx - 0.5) * layout.dx).epsilon(1e-12));
+  CHECK(ps.pos[0].y == doctest::Approx((layout.ny - 0.5) * layout.dx).epsilon(1e-12));
 }

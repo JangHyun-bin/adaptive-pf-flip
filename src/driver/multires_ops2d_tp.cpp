@@ -60,17 +60,19 @@ void mrP2G_tp(MRMacGrid2D<8>& g, const Particles2DTP& ps, const PhaseParams& pp,
   for (size_t k = 0; k < ps.size(); ++k) {
     double rho = ps.type[k] == 0 ? pp.rho_l : pp.rho_g;
     double mp = rho * Vp;
+    double px = ps.pos[k].x / g.layout.dx;
+    double py = ps.pos[k].y / g.layout.dx;
 
     double wsum = 0.0;
     for (const MRFaceKey& f : ufaces) {
-      double dx = ps.pos[k].x - faceCenterX(f);
-      double dy = ps.pos[k].y - faceCenterY(f);
+      double dx = px - faceCenterX(f);
+      double dy = py - faceCenterY(f);
       wsum += kernel(dx * dx + dy * dy, KR);
     }
     if (wsum > 0.0) {
       for (const MRFaceKey& f : ufaces) {
-        double dx = ps.pos[k].x - faceCenterX(f);
-        double dy = ps.pos[k].y - faceCenterY(f);
+        double dx = px - faceCenterX(f);
+        double dy = py - faceCenterY(f);
         double w = kernel(dx * dx + dy * dy, KR) / wsum;
         if (w <= 0.0) continue;
         g.u(f) += static_cast<float>(w * mp * ps.vel[k].x);
@@ -80,14 +82,14 @@ void mrP2G_tp(MRMacGrid2D<8>& g, const Particles2DTP& ps, const PhaseParams& pp,
 
     wsum = 0.0;
     for (const MRFaceKey& f : vfaces) {
-      double dx = ps.pos[k].x - faceCenterX(f);
-      double dy = ps.pos[k].y - faceCenterY(f);
+      double dx = px - faceCenterX(f);
+      double dy = py - faceCenterY(f);
       wsum += kernel(dx * dx + dy * dy, KR);
     }
     if (wsum > 0.0) {
       for (const MRFaceKey& f : vfaces) {
-        double dx = ps.pos[k].x - faceCenterX(f);
-        double dy = ps.pos[k].y - faceCenterY(f);
+        double dx = px - faceCenterX(f);
+        double dy = py - faceCenterY(f);
         double w = kernel(dx * dx + dy * dy, KR) / wsum;
         if (w <= 0.0) continue;
         g.v(f) += static_cast<float>(w * mp * ps.vel[k].y);
@@ -129,10 +131,10 @@ void mrG2P_tp(const MRMacGrid2D<8>& g, Particles2DTP& ps, const MRMacGrid2D<8>& 
 void mrAdvect_tp(Particles2DTP& ps, const MRMacGrid2D<8>& g, double dt) {
   double u = sampleU(g);
   double v = sampleV(g);
-  double minX = 0.5;
-  double maxX = static_cast<double>(g.layout.nx) - 0.5;
-  double minY = 0.5;
-  double maxY = static_cast<double>(g.layout.ny) - 0.5;
+  double minX = 0.5 * g.layout.dx;
+  double maxX = (static_cast<double>(g.layout.nx) - 0.5) * g.layout.dx;
+  double minY = 0.5 * g.layout.dx;
+  double maxY = (static_cast<double>(g.layout.ny) - 0.5) * g.layout.dx;
 
   for (size_t k = 0; k < ps.size(); ++k) {
     ps.pos[k].x = std::max(minX, std::min(maxX, ps.pos[k].x + dt * u));
