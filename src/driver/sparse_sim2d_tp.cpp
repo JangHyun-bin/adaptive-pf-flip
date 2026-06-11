@@ -16,7 +16,16 @@ void SparseSim2DTP::initRayleighTaylor(){
     seedCell(particles,i,j,grid.dx, heavy?0:1);
   }
 }
-void SparseSim2DTP::initBubbleTank(){ /* Task 4 */ }
+void SparseSim2DTP::initBubbleTank(){
+  phase.rho_tilde_0 = calibrateRhoTilde0_2d(phase, Vp);
+  int wl = grid.ny/2;                                  // water level: liquid rows [1, wl)
+  double cx = grid.nx*0.5, cy = wl*0.375, r = grid.nx*0.09375;   // 48x48 -> cx=24, cy=9, r=4.5
+  for(int j=1;j<wl;++j)for(int i=1;i<grid.nx-1;++i){
+    double dxc=(i+0.5)-cx, dyc=(j+0.5)-cy;
+    bool gas = (dxc*dxc+dyc*dyc) < r*r;
+    seedCell(particles,i,j,grid.dx, gas?1:0);          // bubble=gas, pool=liquid; above wl: EMPTY (AIR)
+  }
+}
 static void markCells(SparseMacGrid2D<8>& g, const Particles2DTP& ps){
   g.mkf.clear();
   for(int j=0;j<g.ny;++j){ g.setCell(0,j,2); g.setCell(g.nx-1,j,2); }
