@@ -11,6 +11,7 @@ add_library(pfflip2d
   src/driver/sparse_ops3d.cpp
   src/driver/sparse_ops3d_tp.cpp
   src/driver/multires_ops2d_tp.cpp
+  src/driver/multires_ops3d_tp.cpp
   src/driver/multires_sim2d_tp.cpp
   src/driver/sparse_sim2d.cpp
   src/driver/sparse_sim3d.cpp
@@ -67,6 +68,7 @@ add_executable(unit_tests
   tests/test_multires_mac.cpp
   tests/test_multires_mac3d.cpp
   tests/test_multires_transfer_tp.cpp
+  tests/test_multires_transfer3d_tp.cpp
   tests/test_multires_pressure.cpp
   tests/test_multires_sim_tp.cpp
   tests/test_sparse_grid.cpp

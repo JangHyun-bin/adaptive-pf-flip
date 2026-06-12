@@ -59,6 +59,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **D1** | **Sparse 3D FLIP** - 3D sparse block/MAC grids, 8-color transfer, sparse 3D pressure projection, and a single-phase sparse 3D simulation step. | done |
 | **D2** | **Sparse 3D two-phase** - 3D sparse phase-field FLIP, variable-coefficient pressure, RT/bubble validation, and demo runners. | done |
 | **E1** | **3D multires foundation** - 3D multires layout, scalar grid, and MAC face-patch enumeration for the later 3D multires pressure/transfer path. | done |
+| **E2** | **3D multires transfer** - 3D two-phase P2G/G2P/advect on multires MAC face patches, with mass-normalized u/v/w transfer tests. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -127,7 +128,7 @@ src/
   advect/      RK2 advection, velocity extrapolation
   physics/     viscosity <-> FLIP alpha mapping (Eq. 13)
   driver/      Sim2D / Sim3D / SparseSim2D / SparseSim2DTP / SparseSim3D / SparseSim3DTP / MRSim2DTP step loops + scenes + viz
-               sparse_ops2d / sparse_ops2d_tp / sparse_ops3d / sparse_ops3d_tp / multires_ops2d_tp  (P2G / pressure projection / G2P / advect)
+               sparse_ops2d / sparse_ops2d_tp / sparse_ops3d / sparse_ops3d_tp / multires_ops2d_tp / multires_ops3d_tp  (P2G / pressure projection / G2P / advect)
 apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak, run_sparse_bubble,
                run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble
 tests/         doctest unit + integration tests (one per module)
