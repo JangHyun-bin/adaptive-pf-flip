@@ -15,3 +15,17 @@ TEST_CASE("4-color: same-color blocks are never 4-neighbors") {
   size_t tot=0; for(auto& v: buckets) tot+=v.size();
   CHECK(tot == g.activeBlockCount());
 }
+
+TEST_CASE("8-color: same-color blocks are never 6-neighbors") {
+  SparseBlockGrid3D<4> g(16,12,8,1.0);
+  for(int bz=0;bz<g.nbz;++bz)for(int by=0;by<g.nby;++by)for(int bx=0;bx<g.nbx;++bx) g.activateBlock(bx,by,bz);
+  auto buckets = partitionByColor8(g);
+  CHECK(buckets.size()==8);
+  for(int c=0;c<8;++c){
+    for(int b: buckets[c]){ int bx,by,bz; g.blockCoords(b,bx,by,bz);
+      int nb[6][3]={{bx+1,by,bz},{bx-1,by,bz},{bx,by+1,bz},{bx,by-1,bz},{bx,by,bz+1},{bx,by,bz-1}};
+      for(auto& n: nb){ if(g.inBlockRange(n[0],n[1],n[2])) CHECK(color8(n[0],n[1],n[2])!=c); } }
+  }
+  size_t tot=0; for(auto& v: buckets) tot+=v.size();
+  CHECK(tot == g.activeBlockCount());
+}

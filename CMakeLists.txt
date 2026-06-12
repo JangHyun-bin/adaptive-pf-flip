@@ -60,10 +60,12 @@ add_executable(unit_tests
   tests/test_multires_pressure.cpp
   tests/test_multires_sim_tp.cpp
   tests/test_sparse_grid.cpp
+  tests/test_sparse_grid3d.cpp
   tests/test_sparse_stencil.cpp
   tests/test_block_color.cpp
   tests/test_sparse_splat.cpp
   tests/test_sparse_mac.cpp
+  tests/test_sparse_mac3d.cpp
   tests/test_sparse_pressure.cpp
   tests/test_sparse_sim.cpp
   tests/test_sparse_transfer_tp.cpp
