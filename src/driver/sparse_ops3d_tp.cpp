@@ -1,4 +1,5 @@
 #include "driver/sparse_ops3d_tp.h"
+#include "driver/sparse_ops3d_common.h"
 #include "grid/block_color.h"
 #include "grid/sparse_mac_grid3d.h"
 #include "particles/particles3d_tp.h"
@@ -7,7 +8,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <future>
 #include <vector>
 
 namespace {
@@ -19,23 +19,6 @@ static inline double kern(double d2, double r) {
 }
 
 constexpr double KR = 1.5;
-
-int cidx(const SparseMacGrid3D<4>& g, int i, int j, int k) {
-  return i + g.nx * (j + g.ny * k);
-}
-
-template<typename Fn>
-void runColor8(size_t workItems, Fn&& fn) {
-  if (workItems < 2048) {
-    for (int color = 0; color < 8; ++color) fn(color);
-    return;
-  }
-  std::array<std::future<void>, 8> jobs;
-  for (int color = 0; color < 8; ++color) {
-    jobs[(size_t)color] = std::async(std::launch::async, [&, color]() { fn(color); });
-  }
-  for (auto& job : jobs) job.get();
-}
 
 void preactivateKernel(SparseBlockGrid3D<4>& field, double gx, double gy, double gz,
                        int nx, int ny, int nz) {
@@ -91,66 +74,6 @@ void splatKernelColor(SparseBlockGrid3D<4>& field, SparseBlockGrid3D<4>& massFie
   }
 }
 
-float sampleField(const SparseBlockGrid3D<4>& f, int nx, int ny, int nz,
-                  double gx, double gy, double gz) {
-  int i0 = (int)std::floor(gx);
-  int j0 = (int)std::floor(gy);
-  int k0 = (int)std::floor(gz);
-  double fx = gx - i0, fy = gy - j0, fz = gz - k0;
-  double wx[2] = {1.0 - fx, fx};
-  double wy[2] = {1.0 - fy, fy};
-  double wz[2] = {1.0 - fz, fz};
-  double s = 0.0;
-  for (int dk = 0; dk < 2; ++dk) {
-    for (int dj = 0; dj < 2; ++dj) {
-      for (int di = 0; di < 2; ++di) {
-        int i = std::max(0, std::min(nx - 1, i0 + di));
-        int j = std::max(0, std::min(ny - 1, j0 + dj));
-        int k = std::max(0, std::min(nz - 1, k0 + dk));
-        s += wx[di] * wy[dj] * wz[dk] * f.get(i, j, k);
-      }
-    }
-  }
-  return (float)s;
-}
-
-float sampleU(const SparseMacGrid3D<4>& g, double px, double py, double pz) {
-  return sampleField(g.uf, g.nx + 1, g.ny, g.nz, px, py - 0.5, pz - 0.5);
-}
-
-float sampleV(const SparseMacGrid3D<4>& g, double px, double py, double pz) {
-  return sampleField(g.vf, g.nx, g.ny + 1, g.nz, px - 0.5, py, pz - 0.5);
-}
-
-float sampleW(const SparseMacGrid3D<4>& g, double px, double py, double pz) {
-  return sampleField(g.wf, g.nx, g.ny, g.nz + 1, px - 0.5, py - 0.5, pz);
-}
-
-std::vector<int> collectCellsWithMarker(const SparseMacGrid3D<4>& g, int marker) {
-  std::vector<int> cells;
-  for (int b : g.mkf.activeBlockIds()) {
-    int bx, by, bz;
-    g.mkf.blockCoords(b, bx, by, bz);
-    for (int lz = 0; lz < 4; ++lz) {
-      for (int ly = 0; ly < 4; ++ly) {
-        for (int lx = 0; lx < 4; ++lx) {
-          int i = bx * 4 + lx, j = by * 4 + ly, k = bz * 4 + lz;
-          if (g.inBounds(i, j, k) && g.cell(i, j, k) == marker) {
-            cells.push_back(cidx(g, i, j, k));
-          }
-        }
-      }
-    }
-  }
-  std::sort(cells.begin(), cells.end());
-  return cells;
-}
-
-int findSortedIndex(const std::vector<int>& sorted, int value) {
-  auto it = std::lower_bound(sorted.begin(), sorted.end(), value);
-  return (it != sorted.end() && *it == value) ? (int)(it - sorted.begin()) : -1;
-}
-
 bool isFluid(const SparseMacGrid3D<4>& g, int i, int j, int k) {
   return g.inBounds(i, j, k) && g.cell(i, j, k) == 1;
 }
@@ -165,54 +88,6 @@ bool isAir(const SparseMacGrid3D<4>& g, int i, int j, int k) {
 
 double betaOfRaw(double raw, const PhaseParams& pp) {
   return betaFromPhi(phiFromRawDensity(raw, pp), pp);
-}
-
-std::vector<int> collectProjectUFaces(const SparseMacGrid3D<4>& g, const std::vector<int>& cells) {
-  std::vector<int> faces;
-  faces.reserve(cells.size() * 2);
-  for (int c : cells) {
-    int i = c % g.nx;
-    int q = c / g.nx;
-    int j = q % g.ny;
-    int k = q / g.ny;
-    if (i > 0) faces.push_back(i + (g.nx + 1) * (j + g.ny * k));
-    if (i + 1 < g.nx) faces.push_back((i + 1) + (g.nx + 1) * (j + g.ny * k));
-  }
-  std::sort(faces.begin(), faces.end());
-  faces.erase(std::unique(faces.begin(), faces.end()), faces.end());
-  return faces;
-}
-
-std::vector<int> collectProjectVFaces(const SparseMacGrid3D<4>& g, const std::vector<int>& cells) {
-  std::vector<int> faces;
-  faces.reserve(cells.size() * 2);
-  for (int c : cells) {
-    int i = c % g.nx;
-    int q = c / g.nx;
-    int j = q % g.ny;
-    int k = q / g.ny;
-    if (j > 0) faces.push_back(i + g.nx * (j + (g.ny + 1) * k));
-    if (j + 1 < g.ny) faces.push_back(i + g.nx * ((j + 1) + (g.ny + 1) * k));
-  }
-  std::sort(faces.begin(), faces.end());
-  faces.erase(std::unique(faces.begin(), faces.end()), faces.end());
-  return faces;
-}
-
-std::vector<int> collectProjectWFaces(const SparseMacGrid3D<4>& g, const std::vector<int>& cells) {
-  std::vector<int> faces;
-  faces.reserve(cells.size() * 2);
-  for (int c : cells) {
-    int i = c % g.nx;
-    int q = c / g.nx;
-    int j = q % g.ny;
-    int k = q / g.ny;
-    if (k > 0) faces.push_back(i + g.nx * (j + g.ny * k));
-    if (k + 1 < g.nz) faces.push_back(i + g.nx * (j + g.ny * (k + 1)));
-  }
-  std::sort(faces.begin(), faces.end());
-  faces.erase(std::unique(faces.begin(), faces.end()), faces.end());
-  return faces;
 }
 
 } // namespace
@@ -232,7 +107,7 @@ void spP2G3D_tp(SparseMacGrid3D<4>& g, const Particles3DTP& ps, const PhaseParam
     preactivateKernel(g.mwf, px - 0.5, py - 0.5, pz, g.nx, g.ny, g.nz + 1);
   }
 
-  runColor8(ps.size(), [&](int color) {
+  sparse3d::runColor8(ps.size(), [&](int color) {
     for (size_t p = 0; p < ps.size(); ++p) {
       double rho = (ps.type[p] == 0) ? pp.rho_l : pp.rho_g;
       double mp = rho * Vp;
@@ -284,12 +159,12 @@ void spG2P3D_tp(const SparseMacGrid3D<4>& g, Particles3DTP& ps, const SparseMacG
     double px = (ps.pos[p].x - g.ox) / g.dx;
     double py = (ps.pos[p].y - g.oy) / g.dx;
     double pz = (ps.pos[p].z - g.oz) / g.dx;
-    double un = sampleU(g, px, py, pz);
-    double vn = sampleV(g, px, py, pz);
-    double wn = sampleW(g, px, py, pz);
-    double du = un - sampleU(saved, px, py, pz);
-    double dv = vn - sampleV(saved, px, py, pz);
-    double dw = wn - sampleW(saved, px, py, pz);
+    double un = sparse3d::sampleU(g, px, py, pz);
+    double vn = sparse3d::sampleV(g, px, py, pz);
+    double wn = sparse3d::sampleW(g, px, py, pz);
+    double du = un - sparse3d::sampleU(saved, px, py, pz);
+    double dv = vn - sparse3d::sampleV(saved, px, py, pz);
+    double dw = wn - sparse3d::sampleW(saved, px, py, pz);
     Vec3 pic{un, vn, wn};
     Vec3 flip{ps.vel[p].x + du, ps.vel[p].y + dv, ps.vel[p].z + dw};
     ps.vel[p] = flip * a + pic * (1.0 - a);
@@ -304,18 +179,18 @@ void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt) {
     double px = (ps.pos[p].x - g.ox) / g.dx;
     double py = (ps.pos[p].y - g.oy) / g.dx;
     double pz = (ps.pos[p].z - g.oz) / g.dx;
-    double u1 = sampleU(g, px, py, pz);
-    double v1 = sampleV(g, px, py, pz);
-    double w1 = sampleW(g, px, py, pz);
+    double u1 = sparse3d::sampleU(g, px, py, pz);
+    double v1 = sparse3d::sampleV(g, px, py, pz);
+    double w1 = sparse3d::sampleW(g, px, py, pz);
     double mx = ps.pos[p].x + 0.5 * dt * u1;
     double my = ps.pos[p].y + 0.5 * dt * v1;
     double mz = ps.pos[p].z + 0.5 * dt * w1;
     double mpx = (mx - g.ox) / g.dx;
     double mpy = (my - g.oy) / g.dx;
     double mpz = (mz - g.oz) / g.dx;
-    double u2 = sampleU(g, mpx, mpy, mpz);
-    double v2 = sampleV(g, mpx, mpy, mpz);
-    double w2 = sampleW(g, mpx, mpy, mpz);
+    double u2 = sparse3d::sampleU(g, mpx, mpy, mpz);
+    double v2 = sparse3d::sampleV(g, mpx, mpy, mpz);
+    double w2 = sparse3d::sampleW(g, mpx, mpy, mpz);
     ps.pos[p].x = std::max(lox, std::min(hix, ps.pos[p].x + dt * u2));
     ps.pos[p].y = std::max(loy, std::min(hiy, ps.pos[p].y + dt * v2));
     ps.pos[p].z = std::max(loz, std::min(hiz, ps.pos[p].z + dt * w2));
@@ -324,7 +199,7 @@ void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt) {
 
 void spProjectStepVC3D(SparseMacGrid3D<4>& g, const PhaseParams& pp, double dt, int cg_iters, double cg_tol) {
   g.pf.clear();
-  auto cells = collectCellsWithMarker(g, 1);
+  auto cells = sparse3d::collectCellsWithMarker(g, 1);
   int N = (int)cells.size();
   if (N == 0) return;
 
@@ -391,9 +266,9 @@ void spProjectStepVC3D(SparseMacGrid3D<4>& g, const PhaseParams& pp, double dt, 
       if (isSolid(g, faces[n].ni, faces[n].nj, faces[n].nk)) continue;
       diag[t] += faces[n].beta;
       coeff[t][n] = faces[n].beta;
-      int nc = cidx(g, faces[n].ni, faces[n].nj, faces[n].nk);
+      int nc = sparse3d::cidx(g, faces[n].ni, faces[n].nj, faces[n].nk);
       if (isFluid(g, faces[n].ni, faces[n].nj, faces[n].nk) && nc != pc) {
-        nbr[t][n] = findSortedIndex(cells, nc);
+        nbr[t][n] = sparse3d::findSortedIndex(cells, nc);
       }
     }
   }
@@ -458,9 +333,9 @@ void spProjectStepVC3D(SparseMacGrid3D<4>& g, const PhaseParams& pp, double dt, 
   }
 
   double s = dt / g.dx;
-  auto uFaces = collectProjectUFaces(g, cells);
-  auto vFaces = collectProjectVFaces(g, cells);
-  auto wFaces = collectProjectWFaces(g, cells);
+  auto uFaces = sparse3d::collectProjectUFaces(g, cells);
+  auto vFaces = sparse3d::collectProjectVFaces(g, cells);
+  auto wFaces = sparse3d::collectProjectWFaces(g, cells);
   for (int fid : uFaces) {
     int i = fid % (g.nx + 1);
     int q = fid / (g.nx + 1);
