@@ -8,6 +8,7 @@ add_library(pfflip2d
   src/grid/uniform_grid2d.cpp
   src/driver/sparse_ops2d.cpp
   src/driver/sparse_ops2d_tp.cpp
+  src/driver/sparse_ops3d.cpp
   src/driver/multires_ops2d_tp.cpp
   src/driver/multires_sim2d_tp.cpp
   src/driver/sparse_sim2d.cpp
@@ -67,6 +68,7 @@ add_executable(unit_tests
   tests/test_sparse_mac.cpp
   tests/test_sparse_mac3d.cpp
   tests/test_sparse_pressure.cpp
+  tests/test_sparse_pressure3d.cpp
   tests/test_sparse_sim.cpp
   tests/test_sparse_transfer_tp.cpp
   tests/test_sparse_vc.cpp
