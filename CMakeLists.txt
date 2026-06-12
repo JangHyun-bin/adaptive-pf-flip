@@ -42,6 +42,7 @@ add_executable(unit_tests
   tests/test_sim.cpp
   tests/test_grid3d.cpp
   tests/test_transfer3d.cpp
+  tests/test_sparse_transfer3d.cpp
   tests/test_pressure3d.cpp
   tests/test_advect3d.cpp
   tests/test_viscosity.cpp

@@ -1,9 +1,12 @@
 #include "driver/sparse_ops3d.h"
+#include "grid/block_color.h"
 #include "grid/sparse_mac_grid3d.h"
+#include "particles/particles3d.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <future>
 #include <vector>
 
 namespace {
@@ -95,7 +98,201 @@ bool isSolid(const SparseMacGrid3D<4>& g, int i, int j, int k) {
   return !g.inBounds(i, j, k) || g.cell(i, j, k) == 2;
 }
 
+template<typename Fn>
+void runColor8(size_t workItems, Fn&& fn) {
+  if (workItems < 2048) {
+    for (int color = 0; color < 8; ++color) fn(color);
+    return;
+  }
+  std::array<std::future<void>, 8> jobs;
+  for (int color = 0; color < 8; ++color) {
+    jobs[(size_t)color] = std::async(std::launch::async, [&, color]() { fn(color); });
+  }
+  for (auto& job : jobs) job.get();
+}
+
+void preactivateField(SparseBlockGrid3D<4>& f, double gx, double gy, double gz,
+                      int nx, int ny, int nz) {
+  int i0 = (int)std::floor(gx);
+  int j0 = (int)std::floor(gy);
+  int k0 = (int)std::floor(gz);
+  for (int dk = 0; dk < 2; ++dk) {
+    for (int dj = 0; dj < 2; ++dj) {
+      for (int di = 0; di < 2; ++di) {
+        int i = i0 + di;
+        int j = j0 + dj;
+        int k = k0 + dk;
+        if (i < 0 || i >= nx || j < 0 || j >= ny || k < 0 || k >= nz) continue;
+        f.activateBlock(i / 4, j / 4, k / 4);
+      }
+    }
+  }
+}
+
+void splatFieldColor(SparseBlockGrid3D<4>& f, SparseBlockGrid3D<4>& mfield,
+                     double gx, double gy, double gz, double mom, double mass,
+                     int nx, int ny, int nz, int color) {
+  int i0 = (int)std::floor(gx);
+  int j0 = (int)std::floor(gy);
+  int k0 = (int)std::floor(gz);
+  double fx = gx - i0, fy = gy - j0, fz = gz - k0;
+  double wx[2] = {1.0 - fx, fx};
+  double wy[2] = {1.0 - fy, fy};
+  double wz[2] = {1.0 - fz, fz};
+  for (int dk = 0; dk < 2; ++dk) {
+    for (int dj = 0; dj < 2; ++dj) {
+      for (int di = 0; di < 2; ++di) {
+        int i = i0 + di;
+        int j = j0 + dj;
+        int k = k0 + dk;
+        if (i < 0 || i >= nx || j < 0 || j >= ny || k < 0 || k >= nz) continue;
+        if (color8(i / 4, j / 4, k / 4) != color) continue;
+        float w = (float)(wx[di] * wy[dj] * wz[dk]);
+        f.ref(i, j, k) += (float)(w * mom);
+        mfield.ref(i, j, k) += (float)(w * mass);
+      }
+    }
+  }
+}
+
+float sampleField(const SparseBlockGrid3D<4>& f, int nx, int ny, int nz,
+                  double gx, double gy, double gz) {
+  int i0 = (int)std::floor(gx);
+  int j0 = (int)std::floor(gy);
+  int k0 = (int)std::floor(gz);
+  double fx = gx - i0, fy = gy - j0, fz = gz - k0;
+  double wx[2] = {1.0 - fx, fx};
+  double wy[2] = {1.0 - fy, fy};
+  double wz[2] = {1.0 - fz, fz};
+  double s = 0.0;
+  for (int dk = 0; dk < 2; ++dk) {
+    for (int dj = 0; dj < 2; ++dj) {
+      for (int di = 0; di < 2; ++di) {
+        int i = std::max(0, std::min(nx - 1, i0 + di));
+        int j = std::max(0, std::min(ny - 1, j0 + dj));
+        int k = std::max(0, std::min(nz - 1, k0 + dk));
+        s += wx[di] * wy[dj] * wz[dk] * f.get(i, j, k);
+      }
+    }
+  }
+  return (float)s;
+}
+
+float sampleU(const SparseMacGrid3D<4>& g, double px, double py, double pz) {
+  return sampleField(g.uf, g.nx + 1, g.ny, g.nz, px, py - 0.5, pz - 0.5);
+}
+
+float sampleV(const SparseMacGrid3D<4>& g, double px, double py, double pz) {
+  return sampleField(g.vf, g.nx, g.ny + 1, g.nz, px - 0.5, py, pz - 0.5);
+}
+
+float sampleW(const SparseMacGrid3D<4>& g, double px, double py, double pz) {
+  return sampleField(g.wf, g.nx, g.ny, g.nz + 1, px - 0.5, py - 0.5, pz);
+}
+
 } // namespace
+
+void spP2G3D(SparseMacGrid3D<4>& g, const Particles3D& ps) {
+  g.uf.clear(); g.vf.clear(); g.wf.clear();
+  g.muf.clear(); g.mvf.clear(); g.mwf.clear();
+  const double mp = 1.0;
+  for (size_t p = 0; p < ps.size(); ++p) {
+    double px = (ps.pos[p].x - g.ox) / g.dx;
+    double py = (ps.pos[p].y - g.oy) / g.dx;
+    double pz = (ps.pos[p].z - g.oz) / g.dx;
+    preactivateField(g.uf, px, py - 0.5, pz - 0.5, g.nx + 1, g.ny, g.nz);
+    preactivateField(g.muf, px, py - 0.5, pz - 0.5, g.nx + 1, g.ny, g.nz);
+    preactivateField(g.vf, px - 0.5, py, pz - 0.5, g.nx, g.ny + 1, g.nz);
+    preactivateField(g.mvf, px - 0.5, py, pz - 0.5, g.nx, g.ny + 1, g.nz);
+    preactivateField(g.wf, px - 0.5, py - 0.5, pz, g.nx, g.ny, g.nz + 1);
+    preactivateField(g.mwf, px - 0.5, py - 0.5, pz, g.nx, g.ny, g.nz + 1);
+  }
+
+  runColor8(ps.size(), [&](int color) {
+    for (size_t p = 0; p < ps.size(); ++p) {
+      double px = (ps.pos[p].x - g.ox) / g.dx;
+      double py = (ps.pos[p].y - g.oy) / g.dx;
+      double pz = (ps.pos[p].z - g.oz) / g.dx;
+      splatFieldColor(g.uf, g.muf, px, py - 0.5, pz - 0.5, mp * ps.vel[p].x, mp,
+                      g.nx + 1, g.ny, g.nz, color);
+      splatFieldColor(g.vf, g.mvf, px - 0.5, py, pz - 0.5, mp * ps.vel[p].y, mp,
+                      g.nx, g.ny + 1, g.nz, color);
+      splatFieldColor(g.wf, g.mwf, px - 0.5, py - 0.5, pz, mp * ps.vel[p].z, mp,
+                      g.nx, g.ny, g.nz + 1, color);
+    }
+  });
+
+  for (int b : g.muf.activeBlockIds()) {
+    int bx, by, bz; g.muf.blockCoords(b, bx, by, bz);
+    for (int lz = 0; lz < 4; ++lz) for (int ly = 0; ly < 4; ++ly) for (int lx = 0; lx < 4; ++lx) {
+      int i = bx * 4 + lx, j = by * 4 + ly, k = bz * 4 + lz;
+      if (i > g.nx || j >= g.ny || k >= g.nz) continue;
+      float m = g.gmu(i, j, k);
+      if (m > 0.0f) g.u(i, j, k) = g.gu(i, j, k) / m;
+    }
+  }
+  for (int b : g.mvf.activeBlockIds()) {
+    int bx, by, bz; g.mvf.blockCoords(b, bx, by, bz);
+    for (int lz = 0; lz < 4; ++lz) for (int ly = 0; ly < 4; ++ly) for (int lx = 0; lx < 4; ++lx) {
+      int i = bx * 4 + lx, j = by * 4 + ly, k = bz * 4 + lz;
+      if (i >= g.nx || j > g.ny || k >= g.nz) continue;
+      float m = g.gmv(i, j, k);
+      if (m > 0.0f) g.v(i, j, k) = g.gv(i, j, k) / m;
+    }
+  }
+  for (int b : g.mwf.activeBlockIds()) {
+    int bx, by, bz; g.mwf.blockCoords(b, bx, by, bz);
+    for (int lz = 0; lz < 4; ++lz) for (int ly = 0; ly < 4; ++ly) for (int lx = 0; lx < 4; ++lx) {
+      int i = bx * 4 + lx, j = by * 4 + ly, k = bz * 4 + lz;
+      if (i >= g.nx || j >= g.ny || k > g.nz) continue;
+      float m = g.gmw(i, j, k);
+      if (m > 0.0f) g.w(i, j, k) = g.gw(i, j, k) / m;
+    }
+  }
+}
+
+void spG2P3D(const SparseMacGrid3D<4>& g, Particles3D& ps, const SparseMacGrid3D<4>& saved, double alpha) {
+  for (size_t p = 0; p < ps.size(); ++p) {
+    double px = (ps.pos[p].x - g.ox) / g.dx;
+    double py = (ps.pos[p].y - g.oy) / g.dx;
+    double pz = (ps.pos[p].z - g.oz) / g.dx;
+    double un = sampleU(g, px, py, pz);
+    double vn = sampleV(g, px, py, pz);
+    double wn = sampleW(g, px, py, pz);
+    double du = un - sampleU(saved, px, py, pz);
+    double dv = vn - sampleV(saved, px, py, pz);
+    double dw = wn - sampleW(saved, px, py, pz);
+    Vec3 pic{un, vn, wn};
+    Vec3 flip{ps.vel[p].x + du, ps.vel[p].y + dv, ps.vel[p].z + dw};
+    ps.vel[p] = flip * alpha + pic * (1.0 - alpha);
+  }
+}
+
+void spAdvect3D(Particles3D& ps, const SparseMacGrid3D<4>& g, double dt) {
+  double lox = g.ox + 0.5 * g.dx, hix = g.ox + (g.nx - 0.5) * g.dx;
+  double loy = g.oy + 0.5 * g.dx, hiy = g.oy + (g.ny - 0.5) * g.dx;
+  double loz = g.oz + 0.5 * g.dx, hiz = g.oz + (g.nz - 0.5) * g.dx;
+  for (size_t p = 0; p < ps.size(); ++p) {
+    double px = (ps.pos[p].x - g.ox) / g.dx;
+    double py = (ps.pos[p].y - g.oy) / g.dx;
+    double pz = (ps.pos[p].z - g.oz) / g.dx;
+    double u1 = sampleU(g, px, py, pz);
+    double v1 = sampleV(g, px, py, pz);
+    double w1 = sampleW(g, px, py, pz);
+    double mx = ps.pos[p].x + 0.5 * dt * u1;
+    double my = ps.pos[p].y + 0.5 * dt * v1;
+    double mz = ps.pos[p].z + 0.5 * dt * w1;
+    double mpx = (mx - g.ox) / g.dx;
+    double mpy = (my - g.oy) / g.dx;
+    double mpz = (mz - g.oz) / g.dx;
+    double u2 = sampleU(g, mpx, mpy, mpz);
+    double v2 = sampleV(g, mpx, mpy, mpz);
+    double w2 = sampleW(g, mpx, mpy, mpz);
+    ps.pos[p].x = std::max(lox, std::min(hix, ps.pos[p].x + dt * u2));
+    ps.pos[p].y = std::max(loy, std::min(hiy, ps.pos[p].y + dt * v2));
+    ps.pos[p].z = std::max(loz, std::min(hiz, ps.pos[p].z + dt * w2));
+  }
+}
 
 void spProjectStep3D(SparseMacGrid3D<4>& g, double dt, int cg_iters, double cg_tol) {
   g.pf.clear();
