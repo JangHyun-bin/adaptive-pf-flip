@@ -58,6 +58,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **C** | **Multires sparse-grid path** - 2D multires layout, scalar/MAC grids, transfer, pressure projection, bubble simulation, and visualization runner. | done |
 | **D1** | **Sparse 3D FLIP** - 3D sparse block/MAC grids, 8-color transfer, sparse 3D pressure projection, and a single-phase sparse 3D simulation step. | done |
 | **D2** | **Sparse 3D two-phase** - 3D sparse phase-field FLIP, variable-coefficient pressure, RT/bubble validation, and demo runners. | done |
+| **E1** | **3D multires foundation** - 3D multires layout, scalar grid, and MAC face-patch enumeration for the later 3D multires pressure/transfer path. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -119,6 +120,7 @@ src/
                SparseBlockGrid2D / SparseMacGrid2D  (treeless block-sparse, Phase 3/A)
                SparseBlockGrid3D / SparseMacGrid3D  (3D treeless block-sparse, Phase D)
                MRLayout2D / MRScalarGrid2D / MRMacGrid2D  (2D multires sparse grid, Phase C)
+               MRLayout3D / MRScalarGrid3D / MRMacGrid3D  (3D multires sparse grid foundation, Phase E1)
   particles/   Particles2D / Particles3D
   transfer/    P2G / G2P  (bilinear/trilinear splat + FLIP/PIC blend)
   pressure/    divergence, pressure Poisson CG, projection, multires pressure

@@ -61,8 +61,11 @@ add_executable(unit_tests
   tests/test_sparse_vc3d.cpp
   tests/test_sim3d_tp.cpp
   tests/test_multires_layout.cpp
+  tests/test_multires_layout3d.cpp
   tests/test_multires_scalar.cpp
+  tests/test_multires_scalar3d.cpp
   tests/test_multires_mac.cpp
+  tests/test_multires_mac3d.cpp
   tests/test_multires_transfer_tp.cpp
   tests/test_multires_pressure.cpp
   tests/test_multires_sim_tp.cpp
