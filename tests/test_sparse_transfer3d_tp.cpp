@@ -1,9 +1,12 @@
 #include "doctest.h"
 #include "driver/sparse_ops3d_tp.h"
 #include "grid/sparse_mac_grid3d.h"
+#include "grid/uniform_grid3d.h"
 #include "particles/particles3d_tp.h"
 #include "physics/phasefield.h"
 #include "transfer/transfer3d_tp.h"
+#include <algorithm>
+#include <cmath>
 
 TEST_CASE("sparse 3D tp p2g conserves normalized cubic momentum") {
   SparseMacGrid3D<4> g(8, 8, 8, 1.0);
@@ -72,4 +75,47 @@ TEST_CASE("sparse 3D tp g2p uses phase-specific FLIP alpha") {
 
   CHECK(ps.vel[0].x == doctest::Approx(13.0));
   CHECK(ps.vel[1].x == doctest::Approx(5.0));
+}
+
+TEST_CASE("sparse 3D tp p2g matches uniform transfer on touched faces") {
+  UniformGrid3D dense(8, 8, 8, 1.0);
+  SparseMacGrid3D<4> sparse(8, 8, 8, 1.0);
+  PhaseParams pp;
+  double Vp = 1.0;
+  Particles3DTP ps;
+  ps.add({3.0, 2.5, 2.5}, {4.0, 3.0, 2.0}, 0);
+  ps.add({4.25, 4.0, 3.75}, {-1.0, 0.5, -2.0}, 1);
+
+  p2g_tp(dense, ps, pp, Vp);
+  spP2G3D_tp(sparse, ps, pp, Vp);
+
+  double maxMassDiff = 0.0;
+  double maxVelDiff = 0.0;
+  for (int k = 0; k < sparse.nz; ++k) {
+    for (int j = 0; j < sparse.ny; ++j) {
+      for (int i = 0; i <= sparse.nx; ++i) {
+        maxMassDiff = std::max(maxMassDiff, std::abs(dense.mu[dense.uidx(i, j, k)] - sparse.gmu(i, j, k)));
+        maxVelDiff = std::max(maxVelDiff, std::abs(dense.u(i, j, k) - sparse.gu(i, j, k)));
+      }
+    }
+  }
+  for (int k = 0; k < sparse.nz; ++k) {
+    for (int j = 0; j <= sparse.ny; ++j) {
+      for (int i = 0; i < sparse.nx; ++i) {
+        maxMassDiff = std::max(maxMassDiff, std::abs(dense.mv[dense.vidx(i, j, k)] - sparse.gmv(i, j, k)));
+        maxVelDiff = std::max(maxVelDiff, std::abs(dense.v(i, j, k) - sparse.gv(i, j, k)));
+      }
+    }
+  }
+  for (int k = 0; k <= sparse.nz; ++k) {
+    for (int j = 0; j < sparse.ny; ++j) {
+      for (int i = 0; i < sparse.nx; ++i) {
+        maxMassDiff = std::max(maxMassDiff, std::abs(dense.mw[dense.widx(i, j, k)] - sparse.gmw(i, j, k)));
+        maxVelDiff = std::max(maxVelDiff, std::abs(dense.w(i, j, k) - sparse.gw(i, j, k)));
+      }
+    }
+  }
+
+  CHECK(maxMassDiff < 1e-6);
+  CHECK(maxVelDiff < 1e-6);
 }
