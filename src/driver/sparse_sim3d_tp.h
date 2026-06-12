@@ -14,5 +14,6 @@ struct SparseSim3DTP {
   SparseSim3DTP(int nx, int ny, int nz, double dx) : grid(nx, ny, nz, dx) {}
   void initTwoPhaseDamBreak();
   void initRayleighTaylor();
+  void initBubbleTank();
   void step();
 };

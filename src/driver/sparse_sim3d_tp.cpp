@@ -123,6 +123,26 @@ void SparseSim3DTP::initRayleighTaylor() {
   }
 }
 
+void SparseSim3DTP::initBubbleTank() {
+  phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  int waterLevel = grid.ny / 2;
+  double cx = grid.nx * 0.5;
+  double cy = waterLevel * 0.375;
+  double cz = grid.nz * 0.5;
+  double r = std::max(1.25, std::min(grid.nx, grid.nz) * 0.1875);
+  for (int k = 1; k < grid.nz - 1; ++k) {
+    for (int j = 1; j < waterLevel; ++j) {
+      for (int i = 1; i < grid.nx - 1; ++i) {
+        double dx = (i + 0.5) - cx;
+        double dy = (j + 0.5) - cy;
+        double dz = (k + 0.5) - cz;
+        bool gas = dx * dx + dy * dy + dz * dz < r * r;
+        seedCell(particles, i, j, k, grid.dx, gas ? 1 : 0);
+      }
+    }
+  }
+}
+
 void SparseSim3DTP::step() {
   markCells(grid, particles);
   spP2G3D_tp(grid, particles, phase, Vp);
