@@ -21,7 +21,7 @@ TEST_CASE("iterate active blocks covers all written cells") {
   SparseBlockGrid2D<8> g(32,32,1.0);
   g.ref(3,3)=1; g.ref(20,20)=2;
   int seen=0;
-  for(int b: g.activeBlocks()){ int bx,by; g.blockCoords(b,bx,by);
+  for(int b: g.activeBlockIds()){ int bx,by; g.blockCoords(b,bx,by);
     for(int ly=0;ly<8;++ly)for(int lx=0;lx<8;++lx){ int i=bx*8+lx, j=by*8+ly; if(g.get(i,j)!=0.f) ++seen; } }
   CHECK(seen == 2);
 }

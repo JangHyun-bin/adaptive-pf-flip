@@ -37,7 +37,7 @@ void SparseSim2DTP::step(){
   markCells(grid, particles);
   spP2G_tp(grid, particles, phase, Vp);
   SparseMacGrid2D<8> saved = grid;                 // FLIP snapshot (pre-forces)
-  for(int b: grid.mvf.activeBlocks()){ int bx,by; grid.mvf.blockCoords(b,bx,by);
+  for(int b: grid.mvf.activeBlockIds()){ int bx,by; grid.mvf.blockCoords(b,bx,by);
     for(int ly=0;ly<8;++ly)for(int lx=0;lx<8;++lx){ int i=bx*8+lx,j=by*8+ly; if(i>=grid.nx||j>grid.ny) continue;
       if(grid.gmv(i,j)>0) grid.v(i,j)=grid.gv(i,j)+(float)(dt*gravity); } }
   for(int j=0;j<grid.ny;++j){ grid.u(0,j)=0; grid.u(1,j)=0; grid.u(grid.nx-1,j)=0; grid.u(grid.nx,j)=0; }

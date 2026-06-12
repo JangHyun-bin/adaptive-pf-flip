@@ -16,3 +16,26 @@ TEST_CASE("sparse grid allocate/access/sparsity") {
   CHECK(g.blockActive(1, 0));
   CHECK(!g.blockActive(0, 0));
 }
+
+TEST_CASE("sparse grid clear reuses block pool storage") {
+  SparseBlockGrid2D<8> g(64, 64, 1.0);
+  g.ref(10, 5) = 3.5f;
+  g.ref(40, 20) = 2.0f;
+  REQUIRE(g.activeBlockCount() == 2);
+  REQUIRE(g.pool.size() == 2);
+  auto* firstStorage = g.pool.data();
+
+  g.clear();
+
+  CHECK(g.activeBlockCount() == 0);
+  CHECK(g.pool.size() == 2);
+  CHECK(g.pool.data() == firstStorage);
+  CHECK(g.get(10, 5) == doctest::Approx(0.0f));
+
+  g.ref(40, 20) = 7.0f;
+  CHECK(g.activeBlockCount() == 1);
+  CHECK(g.pool.size() == 2);
+  CHECK(g.pool.data() == firstStorage);
+  CHECK(g.get(40, 20) == doctest::Approx(7.0f));
+  CHECK(g.get(10, 5) == doctest::Approx(0.0f));
+}

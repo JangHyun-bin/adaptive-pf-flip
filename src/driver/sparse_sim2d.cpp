@@ -18,7 +18,7 @@ void SparseSim2D::step(){
   spP2G(grid, particles);
   SparseMacGrid2D<8> saved = grid;                 // copy for FLIP delta
   // gravity on active v-faces with mass
-  for(int b: grid.mvf.activeBlocks()){ int bx,by; grid.mvf.blockCoords(b,bx,by);
+  for(int b: grid.mvf.activeBlockIds()){ int bx,by; grid.mvf.blockCoords(b,bx,by);
     for(int ly=0;ly<8;++ly)for(int lx=0;lx<8;++lx){ int i=bx*8+lx,j=by*8+ly; if(i>=grid.nx||j>grid.ny) continue;
       if(grid.gmv(i,j)>0) grid.v(i,j)=grid.gv(i,j)+(float)(dt*gravity); } }
   // wall BC: zero normal velocity at the solid-interface faces (cols/rows 0,1,nx-1,nx ; 0,1,ny-1,ny)

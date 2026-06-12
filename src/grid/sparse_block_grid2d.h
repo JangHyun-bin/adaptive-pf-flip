@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstddef>
 #include <algorithm>
+#include <array>
 
 // Treeless sparse block grid: dense flat array of block slots, blocks allocated on demand.
 // Single-resolution, scalar float. B = block edge length (compile-time).
@@ -10,7 +11,9 @@ struct SparseBlockGrid2D {
   int nx, ny, nbx, nby;
   double dx, ox = 0.0, oy = 0.0;
   std::vector<int> blockmap;                  // bid -> pool index, or -1 (inactive)
-  std::vector<std::vector<float>> pool;       // active block data (B*B each)
+  using Block = std::array<float, B*B>;
+  std::vector<Block> pool;                    // reusable block storage; size is high-water mark
+  std::vector<int> active_block_ids;          // active block ids in allocation order
 
   SparseBlockGrid2D(int nx_, int ny_, double dx_)
     : nx(nx_), ny(ny_), nbx((nx_+B-1)/B), nby((ny_+B-1)/B), dx(dx_),
@@ -20,12 +23,18 @@ struct SparseBlockGrid2D {
   int bid(int bx, int by) const { return bx + nbx*by; }
   bool inBlockRange(int bx, int by) const { return bx>=0 && bx<nbx && by>=0 && by<nby; }
   bool blockActive(int bx, int by) const { return inBlockRange(bx,by) && blockmap[bid(bx,by)]>=0; }
-  size_t activeBlockCount() const { size_t c=0; for(int m: blockmap) if(m>=0) ++c; return c; }
+  size_t activeBlockCount() const { return active_block_ids.size(); }
   size_t totalBlocks() const { return blockmap.size(); }
 
   int activateBlock(int bx, int by) {
     int b = bid(bx,by);
-    if (blockmap[b] < 0) { blockmap[b] = (int)pool.size(); pool.emplace_back(blockVol(), 0.0f); }
+    if (blockmap[b] < 0) {
+      int pi = (int)active_block_ids.size();
+      blockmap[b] = pi;
+      active_block_ids.push_back(b);
+      if (pi == (int)pool.size()) pool.emplace_back();
+      pool[pi].fill(0.0f);
+    }
     return blockmap[b];
   }
   float& ref(int i, int j) {
@@ -39,8 +48,12 @@ struct SparseBlockGrid2D {
     return pool[m][(i%B) + B*(j%B)];
   }
   std::vector<int> activeBlocks() const {
-    std::vector<int> v; for(size_t b=0;b<blockmap.size();++b) if(blockmap[b]>=0) v.push_back((int)b); return v;
+    return active_block_ids;
   }
+  const std::vector<int>& activeBlockIds() const { return active_block_ids; }
   void blockCoords(int b, int& bx, int& by) const { bx = b % nbx; by = b / nbx; }
-  void clear() { std::fill(blockmap.begin(), blockmap.end(), -1); pool.clear(); }
+  void clear() {
+    for (int b : active_block_ids) blockmap[(size_t)b] = -1;
+    active_block_ids.clear();
+  }
 };
