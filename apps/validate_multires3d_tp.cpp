@@ -64,7 +64,8 @@ void usage() {
   std::fprintf(stderr,
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi]\n");
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
+               "[--no-restart] [--restart-growth G]\n");
 }
 
 } // namespace
@@ -86,8 +87,14 @@ int main(int argc, char** argv) {
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
   sim.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", sim.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
+  if (hasFlag(argc, argv, "--no-restart")) sim.cg_adaptive_restart = false;
+  sim.cg_restart_growth = argDouble(argc, argv, "--restart-growth", sim.cg_restart_growth);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
+  if (sim.cg_restart_growth < 0.0) {
+    usage();
+    return 2;
+  }
   sim.initBubbleTankInterfaceBand();
 
   size_t n0 = sim.particles.size();
@@ -120,6 +127,8 @@ int main(int argc, char** argv) {
   std::printf("cg_tol=%.9g\n", sim.cg_tol);
   std::printf("cg_rel_tol=%.9g\n", sim.cg_rel_tol);
   std::printf("cg_jacobi_preconditioner=%s\n", sim.cg_jacobi_preconditioner ? "true" : "false");
+  std::printf("cg_adaptive_restart=%s\n", sim.cg_adaptive_restart ? "true" : "false");
+  std::printf("cg_restart_growth=%.9g\n", sim.cg_restart_growth);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("finite=%s\n", finite ? "true" : "false");
@@ -145,6 +154,11 @@ int main(int argc, char** argv) {
   std::printf("pressure_max_diag=%.9g\n", sim.last_pressure_stats.max_diag);
   std::printf("pressure_jacobi_preconditioner=%s\n",
               sim.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
+  std::printf("pressure_adaptive_restart=%s\n",
+              sim.last_pressure_stats.adaptive_restart ? "true" : "false");
+  std::printf("pressure_restart_growth=%.9g\n",
+              sim.last_pressure_stats.restart_growth_threshold);
+  std::printf("pressure_restarts=%d\n", sim.last_pressure_stats.restarts);
   std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
   std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("active_pressure_cells=%d\n", pressureCells);

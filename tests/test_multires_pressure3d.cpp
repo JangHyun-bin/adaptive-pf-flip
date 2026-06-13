@@ -60,6 +60,25 @@ double markerAwareMaxDivergence(const MRMacGrid3D<4>& g) {
   return mx;
 }
 
+void seedMarkedDivergenceCase(MRMacGrid3D<4>& g) {
+  setMarker(g, 2, 3, 3, 2);
+  setMarker(g, 3, 3, 3, 1);
+  setMarker(g, 4, 3, 3, 1);
+  setMarker(g, 3, 4, 3, 1);
+  setMarker(g, 4, 4, 3, 1);
+  setMarker(g, 3, 3, 4, 1);
+  setMarker(g, 4, 3, 4, 1);
+
+  for (const MRFaceKey3D& f : g.uFaces()) g.mU(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.vFaces()) g.mV(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.wFaces()) g.mW(f) = 1.0f;
+
+  g.u(MRFaceKey3D{0, 3, 3, 3, 1, 1}) = 7.0f;
+  g.u(MRFaceKey3D{0, 5, 3, 3, 1, 1}) = 4.0f;
+  g.v(MRFaceKey3D{1, 4, 5, 3, 1, 1}) = -3.0f;
+  g.w(MRFaceKey3D{2, 4, 3, 5, 1, 1}) = 2.0f;
+}
+
 } // namespace
 
 TEST_CASE("multires 3D pressure: constant pressure has zero native operator") {
@@ -366,6 +385,56 @@ TEST_CASE("multires 3D pressure: non-jacobi CG mode reports stats and stays fini
   projectMR3D(g, pp, 1.0, config, &stats);
 
   CHECK(!stats.used_jacobi_preconditioner);
+  CHECK(stats.iterations > 0);
+  CHECK(stats.iterations <= config.max_iterations);
+  CHECK(std::isfinite(stats.final_residual));
+  CHECK(!stats.breakdown);
+}
+
+TEST_CASE("multires 3D pressure: adaptive restart reports stats and stays finite") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  seedMarkedDivergenceCase(g);
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 100;
+  config.absolute_tolerance = 1e-8;
+  config.adaptive_restart = true;
+  config.restart_growth_threshold = 1.0;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  CHECK(stats.adaptive_restart);
+  CHECK(stats.restart_growth_threshold == doctest::Approx(1.0));
+  CHECK(stats.restarts >= 0);
+  CHECK(stats.iterations > 0);
+  CHECK(stats.iterations <= config.max_iterations);
+  CHECK(std::isfinite(stats.final_residual));
+  CHECK(!stats.breakdown);
+}
+
+TEST_CASE("multires 3D pressure: adaptive restart can be disabled") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  seedMarkedDivergenceCase(g);
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 100;
+  config.absolute_tolerance = 1e-8;
+  config.adaptive_restart = false;
+  config.restart_growth_threshold = 1.01;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  CHECK(!stats.adaptive_restart);
+  CHECK(stats.restart_growth_threshold == doctest::Approx(1.01));
+  CHECK(stats.restarts == 0);
   CHECK(stats.iterations > 0);
   CHECK(stats.iterations <= config.max_iterations);
   CHECK(std::isfinite(stats.final_residual));

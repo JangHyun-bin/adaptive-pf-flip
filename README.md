@@ -71,6 +71,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F1** | **SPEC-3 solver prep** - 3D multires pressure solve stats for iterations, residuals, convergence, breakdown, and high-density-ratio smoke coverage. | done |
 | **F2** | **SPEC-3 adaptive PCG baseline** - explicit 3D multires solve config with relative residual stopping and Jacobi preconditioner toggle/metrics. | done |
 | **F3** | **SPEC-3 solver comparison harness** - 3D multires bubble workload runner comparing Jacobi abs/relative stopping and no-Jacobi relative stopping. | done |
+| **F4** | **SPEC-3 adaptive PCG restart** - residual-growth restart guard, non-finite breakdown checks, and runner metrics/CLI toggles for 3D multires pressure solves. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -132,7 +133,7 @@ cmake --build build --config Release --target bench_multires_sparse3d_tp
 
 # compare 3D multires pressure solver variants
 cmake --build build --config Release --target bench_multires3d_solver
-./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5
+./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5 --restart-growth 10
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).

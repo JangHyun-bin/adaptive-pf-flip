@@ -19,6 +19,8 @@ struct MRSim3DTP {
   double cg_tol = 1e-7;
   double cg_rel_tol = 1e-6;
   bool cg_jacobi_preconditioner = true;
+  bool cg_adaptive_restart = true;
+  double cg_restart_growth = 10.0;
   bool dynamic_refinement = true;
   int dynamic_particle_padding = 1;
   int dynamic_gas_padding = 2;

@@ -384,6 +384,8 @@ void MRSim3DTP::step() {
   pressureConfig.absolute_tolerance = cg_tol;
   pressureConfig.relative_tolerance = cg_rel_tol;
   pressureConfig.use_jacobi_preconditioner = cg_jacobi_preconditioner;
+  pressureConfig.adaptive_restart = cg_adaptive_restart;
+  pressureConfig.restart_growth_threshold = cg_restart_growth;
   projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   mrAdvect3D_tp(particles, grid, dt);

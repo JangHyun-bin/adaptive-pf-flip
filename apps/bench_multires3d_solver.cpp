@@ -23,6 +23,13 @@ double argDouble(int argc, char** argv, const char* key, double fallback) {
   return fallback;
 }
 
+bool hasFlag(int argc, char** argv, const char* key) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return true;
+  }
+  return false;
+}
+
 double meanY(const Particles3DTP& ps, unsigned char type) {
   double sum = 0.0;
   int count = 0;
@@ -51,7 +58,7 @@ void usage() {
                "usage: bench_multires3d_solver [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--abs-tol T] "
                "[--rel-tol T] [--rho-ratio R] [--hysteresis N] "
-               "[--max-fine-leaves N]\n");
+               "[--max-fine-leaves N] [--no-restart] [--restart-growth G]\n");
 }
 
 struct Variant {
@@ -70,7 +77,9 @@ bool runVariant(const Variant& variant,
                 double absTol,
                 double rhoRatio,
                 int hysteresis,
-                int maxFineLeaves) {
+                int maxFineLeaves,
+                bool adaptiveRestart,
+                double restartGrowth) {
   MRSim3DTP sim(nx, ny, nz, 1.0);
   if (rhoRatio > 0.0) {
     sim.phase.rho_l = rhoRatio;
@@ -81,6 +90,8 @@ bool runVariant(const Variant& variant,
   sim.cg_tol = absTol;
   sim.cg_rel_tol = variant.relTol;
   sim.cg_jacobi_preconditioner = variant.jacobi;
+  sim.cg_adaptive_restart = adaptiveRestart;
+  sim.cg_restart_growth = restartGrowth;
   sim.dynamic_hysteresis_cells = hysteresis;
   sim.dynamic_max_fine_leaves = maxFineLeaves;
   sim.initBubbleTankInterfaceBand();
@@ -107,15 +118,18 @@ bool runVariant(const Variant& variant,
     : 0.0;
 
   std::printf("result variant=%s jacobi=%s rel_tol=%.9g abs_tol=%.9g "
+              "adaptive_restart=%s restart_growth=%.9g "
               "steps=%d elapsed_ms=%lld particles=%zu stable_particles=%s finite=%s "
               "gas_rise=%.9g active_cells=%d pressure_ratio=%.9g "
               "iters=%d max_iters=%d initial_residual=%.9g final_residual=%.9g "
-              "effective_tol=%.9g converged=%s breakdown=%s "
+              "effective_tol=%.9g restarts=%d converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
               variant.name,
               variant.jacobi ? "true" : "false",
               variant.relTol,
               absTol,
+              st.adaptive_restart ? "true" : "false",
+              st.restart_growth_threshold,
               steps,
               elapsedMs,
               sim.particles.size(),
@@ -129,6 +143,7 @@ bool runVariant(const Variant& variant,
               st.initial_residual,
               st.final_residual,
               st.effective_tolerance,
+              st.restarts,
               st.converged ? "true" : "false",
               st.breakdown ? "true" : "false",
               sim.layout.countLevel(0),
@@ -153,10 +168,12 @@ int main(int argc, char** argv) {
   double rhoRatio = argDouble(argc, argv, "--rho-ratio", 0.0);
   int hysteresis = argInt(argc, argv, "--hysteresis", defaults.dynamic_hysteresis_cells);
   int maxFineLeaves = argInt(argc, argv, "--max-fine-leaves", defaults.dynamic_max_fine_leaves);
+  bool adaptiveRestart = !hasFlag(argc, argv, "--no-restart");
+  double restartGrowth = argDouble(argc, argv, "--restart-growth", defaults.cg_restart_growth);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
       cgIters < 0 || absTol < 0.0 || relTol < 0.0 ||
-      hysteresis < 0 || maxFineLeaves < 0) {
+      hysteresis < 0 || maxFineLeaves < 0 || restartGrowth < 0.0) {
     usage();
     return 2;
   }
@@ -170,6 +187,8 @@ int main(int argc, char** argv) {
   std::printf("rho_ratio=%.9g\n", rhoRatio);
   std::printf("hysteresis=%d\n", hysteresis);
   std::printf("max_fine_leaves=%d\n", maxFineLeaves);
+  std::printf("adaptive_restart=%s\n", adaptiveRestart ? "true" : "false");
+  std::printf("restart_growth=%.9g\n", restartGrowth);
 
   Variant variants[] = {
     {"jacobi_abs", true, 0.0},
@@ -180,7 +199,8 @@ int main(int argc, char** argv) {
   bool ok = true;
   for (const Variant& variant : variants) {
     ok = runVariant(variant, nx, ny, nz, steps, dt, cgIters, absTol,
-                    rhoRatio, hysteresis, maxFineLeaves) && ok;
+                    rhoRatio, hysteresis, maxFineLeaves,
+                    adaptiveRestart, restartGrowth) && ok;
   }
 
   std::printf("overall_status=%s\n", ok ? "ok" : "fail");

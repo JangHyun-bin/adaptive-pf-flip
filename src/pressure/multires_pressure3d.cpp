@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <tuple>
@@ -242,13 +243,20 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.tolerance = config.absolute_tolerance;
   stats.relative_tolerance = config.relative_tolerance;
   stats.effective_tolerance = config.absolute_tolerance;
+  stats.restart_growth_threshold = config.restart_growth_threshold;
+  stats.adaptive_restart = config.adaptive_restart;
   stats.used_jacobi_preconditioner = config.use_jacobi_preconditioner;
   return stats;
 }
 
 double maxAbs(const std::vector<double>& v) {
   double mx = 0.0;
-  for (double x : v) mx = std::max(mx, std::abs(x));
+  for (double x : v) {
+    if (!std::isfinite(x)) {
+      return std::numeric_limits<double>::infinity();
+    }
+    mx = std::max(mx, std::abs(x));
+  }
   return mx;
 }
 
@@ -487,32 +495,82 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
     };
 
     double rz = dot(r, z);
-    for (int it = 0; it < config.max_iterations; ++it) {
+    if (!std::isfinite(rz)) {
+      localStats.breakdown = true;
+      localStats.final_residual = maxAbs(r);
+    }
+    double previousRes = res0;
+    for (int it = 0; !localStats.breakdown && it < config.max_iterations; ++it) {
       applyA(p, Ap);
       double pAp = dot(p, Ap);
-      if (std::abs(pAp) < 1e-30) {
+      if (!std::isfinite(pAp) || std::abs(pAp) < 1e-30) {
         localStats.breakdown = true;
         localStats.final_residual = maxAbs(r);
         break;
       }
 
       double alpha = rz / pAp;
+      if (!std::isfinite(alpha)) {
+        localStats.breakdown = true;
+        localStats.final_residual = maxAbs(r);
+        break;
+      }
       double res = 0.0;
+      bool finiteState = true;
       for (int i = 0; i < N; ++i) {
         x[i] += alpha * p[i];
         r[i] -= alpha * Ap[i];
-        res = std::max(res, std::abs(r[i]));
+        finiteState = finiteState && std::isfinite(x[i]) && std::isfinite(r[i]);
+        if (std::isfinite(r[i])) {
+          res = std::max(res, std::abs(r[i]));
+        }
       }
       localStats.iterations = it + 1;
       localStats.final_residual = res;
+      if (!finiteState || !std::isfinite(res)) {
+        localStats.breakdown = true;
+        localStats.final_residual = maxAbs(r);
+        break;
+      }
       if (res < effectiveTol) {
         localStats.converged = true;
         break;
       }
 
+      if (config.adaptive_restart &&
+          config.restart_growth_threshold > 0.0 &&
+          res > previousRes * config.restart_growth_threshold &&
+          res > res0 * config.restart_growth_threshold &&
+          it + 1 < config.max_iterations) {
+        applyPreconditioner();
+        rz = dot(r, z);
+        if (!std::isfinite(rz)) {
+          localStats.breakdown = true;
+          localStats.final_residual = maxAbs(r);
+          break;
+        }
+        for (int i = 0; i < N; ++i) {
+          p[i] = z[i];
+        }
+        ++localStats.restarts;
+        previousRes = res;
+        continue;
+      }
+      previousRes = res;
+
       applyPreconditioner();
       double rzNext = dot(r, z);
+      if (!std::isfinite(rzNext)) {
+        localStats.breakdown = true;
+        localStats.final_residual = maxAbs(r);
+        break;
+      }
       double beta = rz == 0.0 ? 0.0 : rzNext / rz;
+      if (!std::isfinite(beta)) {
+        localStats.breakdown = true;
+        localStats.final_residual = maxAbs(r);
+        break;
+      }
       rz = rzNext;
       for (int i = 0; i < N; ++i) {
         p[i] = z[i] + beta * p[i];

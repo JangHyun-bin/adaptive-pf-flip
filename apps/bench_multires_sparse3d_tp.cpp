@@ -58,7 +58,8 @@ void usage() {
   std::fprintf(stderr,
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi]\n");
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
+               "[--no-restart] [--restart-growth G]\n");
 }
 
 } // namespace
@@ -84,8 +85,14 @@ int main(int argc, char** argv) {
   mr.cg_iters = cgIters;
   mr.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", mr.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) mr.cg_jacobi_preconditioner = false;
+  if (hasFlag(argc, argv, "--no-restart")) mr.cg_adaptive_restart = false;
+  mr.cg_restart_growth = argDouble(argc, argv, "--restart-growth", mr.cg_restart_growth);
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
+  if (mr.cg_restart_growth < 0.0) {
+    usage();
+    return 2;
+  }
 
   sparse.initBubbleTank();
   mr.initBubbleTankInterfaceBand();
@@ -131,6 +138,8 @@ int main(int argc, char** argv) {
   std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
   std::printf("mr_cg_rel_tol=%.9g\n", mr.cg_rel_tol);
   std::printf("mr_cg_jacobi_preconditioner=%s\n", mr.cg_jacobi_preconditioner ? "true" : "false");
+  std::printf("mr_cg_adaptive_restart=%s\n", mr.cg_adaptive_restart ? "true" : "false");
+  std::printf("mr_cg_restart_growth=%.9g\n", mr.cg_restart_growth);
   std::printf("sparse_particles_start=%zu\n", sparseN0);
   std::printf("sparse_particles_end=%zu\n", sparse.particles.size());
   std::printf("mr_particles_start=%zu\n", mrN0);
@@ -156,6 +165,11 @@ int main(int argc, char** argv) {
   std::printf("mr_pressure_relative_tolerance=%.9g\n", mr.last_pressure_stats.relative_tolerance);
   std::printf("mr_pressure_jacobi_preconditioner=%s\n",
               mr.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
+  std::printf("mr_pressure_adaptive_restart=%s\n",
+              mr.last_pressure_stats.adaptive_restart ? "true" : "false");
+  std::printf("mr_pressure_restart_growth=%.9g\n",
+              mr.last_pressure_stats.restart_growth_threshold);
+  std::printf("mr_pressure_restarts=%d\n", mr.last_pressure_stats.restarts);
   std::printf("mr_pressure_converged=%s\n", mr.last_pressure_stats.converged ? "true" : "false");
   std::printf("mr_pressure_breakdown=%s\n", mr.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));

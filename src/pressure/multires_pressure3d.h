@@ -26,15 +26,18 @@ struct MRPressureSolveStats3D {
   int pinned_cell = -1;
   int max_iterations = 0;
   int iterations = 0;
+  int restarts = 0;
   double tolerance = 0.0;
   double relative_tolerance = 0.0;
   double effective_tolerance = 0.0;
+  double restart_growth_threshold = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_positive_diag = 0.0;
   double max_diag = 0.0;
   bool converged = false;
   bool breakdown = false;
+  bool adaptive_restart = true;
   bool used_average_projection = false;
   bool used_jacobi_preconditioner = true;
 };
@@ -44,6 +47,8 @@ struct MRPressureSolveConfig3D {
   double absolute_tolerance = 0.0;
   double relative_tolerance = 0.0;
   bool use_jacobi_preconditioner = true;
+  bool adaptive_restart = true;
+  double restart_growth_threshold = 10.0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);
