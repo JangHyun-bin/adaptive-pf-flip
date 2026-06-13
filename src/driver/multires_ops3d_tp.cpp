@@ -12,25 +12,15 @@ namespace {
 
 constexpr double KR = 1.5;
 
+struct WeightedFace {
+  MRFaceKey3D face;
+  double weight = 0.0;
+};
+
 double kernel(double d2, double r) {
   double q = d2 / (r * r);
   double t = 1.0 - q;
   return t > 0.0 ? t * t * t : 0.0;
-}
-
-double faceCenterX(const MRFaceKey3D& f) {
-  if (f.axis == 0) return static_cast<double>(f.fineX);
-  return static_cast<double>(f.fineX) + 0.5 * f.fineLengthA;
-}
-
-double faceCenterY(const MRFaceKey3D& f) {
-  if (f.axis == 1) return static_cast<double>(f.fineY);
-  return static_cast<double>(f.fineY) + 0.5 * (f.axis == 0 ? f.fineLengthA : f.fineLengthB);
-}
-
-double faceCenterZ(const MRFaceKey3D& f) {
-  if (f.axis == 2) return static_cast<double>(f.fineZ);
-  return static_cast<double>(f.fineZ) + 0.5 * f.fineLengthB;
 }
 
 double trilerp(double fx, double fy, double fz, const double v[2][2][2]) {
@@ -46,6 +36,97 @@ double trilerp(double fx, double fy, double fz, const double v[2][2][2]) {
     }
   }
   return s;
+}
+
+int loRange(double c, double r, int lo, int hi) {
+  return std::max(lo, std::min(hi, static_cast<int>(std::floor(c - r))));
+}
+
+int hiRange(double c, double r, int lo, int hi) {
+  return std::max(lo, std::min(hi, static_cast<int>(std::ceil(c + r))));
+}
+
+void pushWeightedFace(const std::vector<MRFaceKey3D>& validFaces,
+                      const MRFaceKey3D& face,
+                      double dx,
+                      double dy,
+                      double dz,
+                      std::vector<WeightedFace>& out,
+                      double& sum) {
+  double w = kernel(dx * dx + dy * dy + dz * dz, KR);
+  if (w <= 0.0) return;
+  if (!std::binary_search(validFaces.begin(), validFaces.end(), face)) return;
+  out.push_back(WeightedFace{face, w});
+  sum += w;
+}
+
+double collectWeightedFaces(const MRMacGrid3D<4>& g,
+                            const std::vector<MRFaceKey3D>& validFaces,
+                            int axis,
+                            double px,
+                            double py,
+                            double pz,
+                            std::vector<WeightedFace>& out) {
+  out.clear();
+  double sum = 0.0;
+
+  if (axis == 0) {
+    int ix0 = loRange(px, KR, 0, g.layout.nx);
+    int ix1 = hiRange(px, KR, 0, g.layout.nx);
+    int iy0 = loRange(py - 0.5, KR, 0, g.layout.ny - 1);
+    int iy1 = hiRange(py - 0.5, KR, 0, g.layout.ny - 1);
+    int iz0 = loRange(pz - 0.5, KR, 0, g.layout.nz - 1);
+    int iz1 = hiRange(pz - 0.5, KR, 0, g.layout.nz - 1);
+    for (int k = iz0; k <= iz1; ++k) {
+      for (int j = iy0; j <= iy1; ++j) {
+        for (int i = ix0; i <= ix1; ++i) {
+          pushWeightedFace(validFaces, MRFaceKey3D{0, i, j, k, 1, 1},
+                           px - static_cast<double>(i),
+                           py - (static_cast<double>(j) + 0.5),
+                           pz - (static_cast<double>(k) + 0.5),
+                           out, sum);
+        }
+      }
+    }
+  } else if (axis == 1) {
+    int ix0 = loRange(px - 0.5, KR, 0, g.layout.nx - 1);
+    int ix1 = hiRange(px - 0.5, KR, 0, g.layout.nx - 1);
+    int iy0 = loRange(py, KR, 0, g.layout.ny);
+    int iy1 = hiRange(py, KR, 0, g.layout.ny);
+    int iz0 = loRange(pz - 0.5, KR, 0, g.layout.nz - 1);
+    int iz1 = hiRange(pz - 0.5, KR, 0, g.layout.nz - 1);
+    for (int k = iz0; k <= iz1; ++k) {
+      for (int j = iy0; j <= iy1; ++j) {
+        for (int i = ix0; i <= ix1; ++i) {
+          pushWeightedFace(validFaces, MRFaceKey3D{1, i, j, k, 1, 1},
+                           px - (static_cast<double>(i) + 0.5),
+                           py - static_cast<double>(j),
+                           pz - (static_cast<double>(k) + 0.5),
+                           out, sum);
+        }
+      }
+    }
+  } else {
+    int ix0 = loRange(px - 0.5, KR, 0, g.layout.nx - 1);
+    int ix1 = hiRange(px - 0.5, KR, 0, g.layout.nx - 1);
+    int iy0 = loRange(py - 0.5, KR, 0, g.layout.ny - 1);
+    int iy1 = hiRange(py - 0.5, KR, 0, g.layout.ny - 1);
+    int iz0 = loRange(pz, KR, 0, g.layout.nz);
+    int iz1 = hiRange(pz, KR, 0, g.layout.nz);
+    for (int k = iz0; k <= iz1; ++k) {
+      for (int j = iy0; j <= iy1; ++j) {
+        for (int i = ix0; i <= ix1; ++i) {
+          pushWeightedFace(validFaces, MRFaceKey3D{2, i, j, k, 1, 1},
+                           px - (static_cast<double>(i) + 0.5),
+                           py - (static_cast<double>(j) + 0.5),
+                           pz - static_cast<double>(k),
+                           out, sum);
+        }
+      }
+    }
+  }
+
+  return sum;
 }
 
 double sampleU(const MRMacGrid3D<4>& g, double x, double y, double z) {
@@ -133,9 +214,10 @@ void mrP2G3D_tp(MRMacGrid3D<4>& g, const Particles3DTP& ps, const PhaseParams& p
   g.mv.clear();
   g.mw.clear();
 
-  std::vector<MRFaceKey3D> ufaces = g.uFaces();
-  std::vector<MRFaceKey3D> vfaces = g.vFaces();
-  std::vector<MRFaceKey3D> wfaces = g.wFaces();
+  const std::vector<MRFaceKey3D>& ufaces = g.uFaceRefs();
+  const std::vector<MRFaceKey3D>& vfaces = g.vFaceRefs();
+  const std::vector<MRFaceKey3D>& wfaces = g.wFaceRefs();
+  std::vector<WeightedFace> weighted;
 
   for (size_t p = 0; p < ps.size(); ++p) {
     double rho = ps.type[p] == 0 ? pp.rho_l : pp.rho_g;
@@ -144,75 +226,51 @@ void mrP2G3D_tp(MRMacGrid3D<4>& g, const Particles3DTP& ps, const PhaseParams& p
     double py = ps.pos[p].y / g.layout.dx;
     double pz = ps.pos[p].z / g.layout.dx;
 
-    double wsum = 0.0;
-    for (const MRFaceKey3D& f : ufaces) {
-      double dx = px - faceCenterX(f);
-      double dy = py - faceCenterY(f);
-      double dz = pz - faceCenterZ(f);
-      wsum += kernel(dx * dx + dy * dy + dz * dz, KR);
-    }
+    double wsum = collectWeightedFaces(g, ufaces, 0, px, py, pz, weighted);
     if (wsum > 0.0) {
-      for (const MRFaceKey3D& f : ufaces) {
-        double dx = px - faceCenterX(f);
-        double dy = py - faceCenterY(f);
-        double dz = pz - faceCenterZ(f);
-        double w = kernel(dx * dx + dy * dy + dz * dz, KR) / wsum;
+      for (const WeightedFace& wf : weighted) {
+        double w = wf.weight / wsum;
         if (w <= 0.0) continue;
-        g.u(f) += static_cast<float>(w * mp * ps.vel[p].x);
-        g.mU(f) += static_cast<float>(w * mp);
+        g.u(wf.face) += static_cast<float>(w * mp * ps.vel[p].x);
+        g.mU(wf.face) += static_cast<float>(w * mp);
       }
     }
 
-    wsum = 0.0;
-    for (const MRFaceKey3D& f : vfaces) {
-      double dx = px - faceCenterX(f);
-      double dy = py - faceCenterY(f);
-      double dz = pz - faceCenterZ(f);
-      wsum += kernel(dx * dx + dy * dy + dz * dz, KR);
-    }
+    wsum = collectWeightedFaces(g, vfaces, 1, px, py, pz, weighted);
     if (wsum > 0.0) {
-      for (const MRFaceKey3D& f : vfaces) {
-        double dx = px - faceCenterX(f);
-        double dy = py - faceCenterY(f);
-        double dz = pz - faceCenterZ(f);
-        double w = kernel(dx * dx + dy * dy + dz * dz, KR) / wsum;
+      for (const WeightedFace& wf : weighted) {
+        double w = wf.weight / wsum;
         if (w <= 0.0) continue;
-        g.v(f) += static_cast<float>(w * mp * ps.vel[p].y);
-        g.mV(f) += static_cast<float>(w * mp);
+        g.v(wf.face) += static_cast<float>(w * mp * ps.vel[p].y);
+        g.mV(wf.face) += static_cast<float>(w * mp);
       }
     }
 
-    wsum = 0.0;
-    for (const MRFaceKey3D& f : wfaces) {
-      double dx = px - faceCenterX(f);
-      double dy = py - faceCenterY(f);
-      double dz = pz - faceCenterZ(f);
-      wsum += kernel(dx * dx + dy * dy + dz * dz, KR);
-    }
+    wsum = collectWeightedFaces(g, wfaces, 2, px, py, pz, weighted);
     if (wsum > 0.0) {
-      for (const MRFaceKey3D& f : wfaces) {
-        double dx = px - faceCenterX(f);
-        double dy = py - faceCenterY(f);
-        double dz = pz - faceCenterZ(f);
-        double w = kernel(dx * dx + dy * dy + dz * dz, KR) / wsum;
+      for (const WeightedFace& wf : weighted) {
+        double w = wf.weight / wsum;
         if (w <= 0.0) continue;
-        g.w(f) += static_cast<float>(w * mp * ps.vel[p].z);
-        g.mW(f) += static_cast<float>(w * mp);
+        g.w(wf.face) += static_cast<float>(w * mp * ps.vel[p].z);
+        g.mW(wf.face) += static_cast<float>(w * mp);
       }
     }
   }
 
-  for (const MRFaceKey3D& f : ufaces) {
-    float m = g.gmu(f);
-    if (m > 0.0f) g.u(f) = g.gu(f) / m;
+  for (const auto& kv : g.mu) {
+    if (kv.second <= 0.0f) continue;
+    auto it = g.ufield.find(kv.first);
+    if (it != g.ufield.end()) it->second /= kv.second;
   }
-  for (const MRFaceKey3D& f : vfaces) {
-    float m = g.gmv(f);
-    if (m > 0.0f) g.v(f) = g.gv(f) / m;
+  for (const auto& kv : g.mv) {
+    if (kv.second <= 0.0f) continue;
+    auto it = g.vfield.find(kv.first);
+    if (it != g.vfield.end()) it->second /= kv.second;
   }
-  for (const MRFaceKey3D& f : wfaces) {
-    float m = g.gmw(f);
-    if (m > 0.0f) g.w(f) = g.gw(f) / m;
+  for (const auto& kv : g.mw) {
+    if (kv.second <= 0.0f) continue;
+    auto it = g.wfield.find(kv.first);
+    if (it != g.wfield.end()) it->second /= kv.second;
   }
 }
 

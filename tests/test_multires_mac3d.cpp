@@ -115,6 +115,18 @@ TEST_CASE("multires 3D MAC: face enumeration follows MAC layout if scalar layout
   CHECK(wkeys.count(MRFaceKey3D{2, 0, 0, 16, 1, 1}) == 1);
 }
 
+TEST_CASE("multires 3D MAC: cached face refs refresh when layout changes") {
+  MRLayout3D<4> layout(16, 16, 16, 1.0);
+  layout.setCoarseEverywhere(1);
+
+  MRMacGrid3D<4> g(layout);
+  size_t coarseU = g.uFaceRefs().size();
+  g.layout.refineFineCellBox(4, 4, 4, 12, 12, 12);
+  g.layout.enforceTwoToOneBalance();
+
+  CHECK(g.uFaceRefs().size() > coarseU);
+}
+
 TEST_CASE("multires 3D MAC: absent reads do not allocate and mutating access allocates one field") {
   MRLayout3D<4> layout(16, 16, 16, 1.0);
   layout.setCoarseEverywhere(1);

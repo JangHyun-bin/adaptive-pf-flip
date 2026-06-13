@@ -71,7 +71,7 @@ void markCells(MRMacGrid3D<4>& g, const Particles3DTP& ps) {
 }
 
 void applyGravity(MRMacGrid3D<4>& g, double dt, double gravity) {
-  for (const MRFaceKey3D& f : g.vFaces()) {
+  for (const MRFaceKey3D& f : g.vFaceRefs()) {
     if (g.gmv(f) > 0.0f) {
       g.v(f) = g.gv(f) + static_cast<float>(dt * gravity);
     }
@@ -79,17 +79,17 @@ void applyGravity(MRMacGrid3D<4>& g, double dt, double gravity) {
 }
 
 void applyWallBoundary(MRMacGrid3D<4>& g) {
-  for (const MRFaceKey3D& f : g.uFaces()) {
+  for (const MRFaceKey3D& f : g.uFaceRefs()) {
     if (f.fineX == 0 || f.fineX == 1 || f.fineX == g.layout.nx - 1 || f.fineX == g.layout.nx) {
       g.u(f) = 0.0f;
     }
   }
-  for (const MRFaceKey3D& f : g.vFaces()) {
+  for (const MRFaceKey3D& f : g.vFaceRefs()) {
     if (f.fineY == 0 || f.fineY == 1 || f.fineY == g.layout.ny - 1 || f.fineY == g.layout.ny) {
       g.v(f) = 0.0f;
     }
   }
-  for (const MRFaceKey3D& f : g.wFaces()) {
+  for (const MRFaceKey3D& f : g.wFaceRefs()) {
     if (f.fineZ == 0 || f.fineZ == 1 || f.fineZ == g.layout.nz - 1 || f.fineZ == g.layout.nz) {
       g.w(f) = 0.0f;
     }
@@ -154,13 +154,13 @@ int MRSim3DTP::activePressureCellCount() const {
 }
 
 int MRSim3DTP::uFaceCount() const {
-  return static_cast<int>(grid.uFaces().size());
+  return static_cast<int>(grid.uFaceRefs().size());
 }
 
 int MRSim3DTP::vFaceCount() const {
-  return static_cast<int>(grid.vFaces().size());
+  return static_cast<int>(grid.vFaceRefs().size());
 }
 
 int MRSim3DTP::wFaceCount() const {
-  return static_cast<int>(grid.wFaces().size());
+  return static_cast<int>(grid.wFaceRefs().size());
 }

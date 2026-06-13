@@ -210,19 +210,19 @@ double projectionCoefficient(const MRMacGrid3D<4>& g,
 }
 
 void averageVelocityProjection(MRMacGrid3D<4>& g) {
-  auto averageU = g.uFaces();
+  const std::vector<MRFaceKey3D>& averageU = g.uFaceRefs();
   double avg = 0.0;
   for (const MRFaceKey3D& f : averageU) avg += g.gu(f);
   if (!averageU.empty()) avg /= static_cast<double>(averageU.size());
   for (const MRFaceKey3D& f : averageU) g.u(f) = static_cast<float>(avg);
 
-  auto averageV = g.vFaces();
+  const std::vector<MRFaceKey3D>& averageV = g.vFaceRefs();
   avg = 0.0;
   for (const MRFaceKey3D& f : averageV) avg += g.gv(f);
   if (!averageV.empty()) avg /= static_cast<double>(averageV.size());
   for (const MRFaceKey3D& f : averageV) g.v(f) = static_cast<float>(avg);
 
-  auto averageW = g.wFaces();
+  const std::vector<MRFaceKey3D>& averageW = g.wFaceRefs();
   avg = 0.0;
   for (const MRFaceKey3D& f : averageW) avg += g.gw(f);
   if (!averageW.empty()) avg /= static_cast<double>(averageW.size());
@@ -299,7 +299,7 @@ double maxMRDivergence3D(const MRMacGrid3D<4>& g) {
   double mx = 0.0;
   bool first = true;
 
-  for (const MRFaceKey3D& f : g.uFaces()) {
+  for (const MRFaceKey3D& f : g.uFaceRefs()) {
     double v = g.gu(f);
     if (first) {
       mn = v;
@@ -456,7 +456,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     return nidx >= 0 ? x[nidx] : 0.0;
   };
 
-  for (const MRFaceKey3D& f : g.uFaces()) {
+  for (const MRFaceKey3D& f : g.uFaceRefs()) {
     int lm = markerAtFineCell(g, f.fineX - 1, f.fineY, f.fineZ);
     int rm = markerAtFineCell(g, f.fineX, f.fineY, f.fineZ);
     bool lf = lm == 1;
@@ -478,7 +478,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     g.u(f) = static_cast<float>(g.gu(f) - dt * beta * (pr - pl) / distance);
   }
 
-  for (const MRFaceKey3D& f : g.vFaces()) {
+  for (const MRFaceKey3D& f : g.vFaceRefs()) {
     int bm = markerAtFineCell(g, f.fineX, f.fineY - 1, f.fineZ);
     int tm = markerAtFineCell(g, f.fineX, f.fineY, f.fineZ);
     bool bf = bm == 1;
@@ -500,7 +500,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     g.v(f) = static_cast<float>(g.gv(f) - dt * beta * (pt - pb) / distance);
   }
 
-  for (const MRFaceKey3D& f : g.wFaces()) {
+  for (const MRFaceKey3D& f : g.wFaceRefs()) {
     int bm = markerAtFineCell(g, f.fineX, f.fineY, f.fineZ - 1);
     int fm = markerAtFineCell(g, f.fineX, f.fineY, f.fineZ);
     bool bf = bm == 1;
