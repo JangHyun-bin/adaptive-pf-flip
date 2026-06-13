@@ -70,6 +70,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **E12** | **3D multires refinement stability** - retained-box hysteresis and optional fine-leaf budget controls for dynamic refinement. | done |
 | **F1** | **SPEC-3 solver prep** - 3D multires pressure solve stats for iterations, residuals, convergence, breakdown, and high-density-ratio smoke coverage. | done |
 | **F2** | **SPEC-3 adaptive PCG baseline** - explicit 3D multires solve config with relative residual stopping and Jacobi preconditioner toggle/metrics. | done |
+| **F3** | **SPEC-3 solver comparison harness** - 3D multires bubble workload runner comparing Jacobi abs/relative stopping and no-Jacobi relative stopping. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -128,6 +129,10 @@ cmake --build build --config Release --target run_multires_bubble3d
 # compare sparse 3D and multires 3D bubble metrics
 cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4
+
+# compare 3D multires pressure solver variants
+cmake --build build --config Release --target bench_multires3d_solver
+./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).
@@ -153,7 +158,7 @@ src/
                sparse_ops2d / sparse_ops2d_tp / sparse_ops3d / sparse_ops3d_tp / multires_ops2d_tp / multires_ops3d_tp  (P2G / pressure projection / G2P / advect)
 apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak, run_sparse_bubble,
                run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble, run_multires_bubble3d,
-               validate_multires3d_tp, bench_multires_sparse3d_tp
+               validate_multires3d_tp, bench_multires_sparse3d_tp, bench_multires3d_solver
 tests/         doctest unit + integration tests (one per module)
 docs/          design specs and implementation plans
 external/      vendored doctest
