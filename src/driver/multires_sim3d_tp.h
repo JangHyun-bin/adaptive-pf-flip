@@ -21,4 +21,7 @@ struct MRSim3DTP {
   void initBubbleTankInterfaceBand();
   void step();
   int activePressureCellCount() const;
+  int uFaceCount() const;
+  int vFaceCount() const;
+  int wFaceCount() const;
 };

@@ -82,6 +82,9 @@ int main(int argc, char** argv) {
   double gas0 = meanY(sim.particles, 1);
   int pressureCells = sim.activePressureCellCount();
   int fineCells = nx * ny * nz;
+  int uFaces = sim.uFaceCount();
+  int vFaces = sim.vFaceCount();
+  int wFaces = sim.wFaceCount();
 
   auto start = std::chrono::steady_clock::now();
   for (int s = 0; s < steps; ++s) {
@@ -92,6 +95,7 @@ int main(int argc, char** argv) {
   double gas1 = meanY(sim.particles, 1);
   bool finite = finiteParticles(sim.particles);
   long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  double elapsedPerStep = steps > 0 ? static_cast<double>(elapsedMs) / static_cast<double>(steps) : 0.0;
 
   std::printf("scenario=%s\n", scenario);
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
@@ -105,9 +109,13 @@ int main(int argc, char** argv) {
   std::printf("gas_mean_y_end=%.9g\n", gas1);
   std::printf("active_pressure_cells=%d\n", pressureCells);
   std::printf("fine_pressure_cells=%d\n", fineCells);
+  std::printf("u_faces=%d\n", uFaces);
+  std::printf("v_faces=%d\n", vFaces);
+  std::printf("w_faces=%d\n", wFaces);
   std::printf("leaf_level0=%zu\n", sim.layout.countLevel(0));
   std::printf("leaf_level1=%zu\n", sim.layout.countLevel(1));
   std::printf("elapsed_ms=%lld\n", elapsedMs);
+  std::printf("elapsed_ms_per_step=%.9g\n", elapsedPerStep);
 
   bool ok = true;
   if (!finite) ok = false;

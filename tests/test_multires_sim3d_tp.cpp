@@ -38,6 +38,9 @@ TEST_CASE("multires 3D bubble tank initializes refined lower band and coarse hea
   CHECK(sim.particles.size() > 0);
   CHECK(meanY(sim, 1) > 0.0);
   CHECK(sim.activePressureCellCount() < 8 * 12 * 8);
+  CHECK(sim.uFaceCount() > 0);
+  CHECK(sim.vFaceCount() > 0);
+  CHECK(sim.wFaceCount() > 0);
 }
 
 TEST_CASE("multires 3D bubble tank step conserves particles and stays finite") {

@@ -60,6 +60,9 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **D2** | **Sparse 3D two-phase** - 3D sparse phase-field FLIP, variable-coefficient pressure, RT/bubble validation, and demo runners. | done |
 | **E1** | **3D multires foundation** - 3D multires layout, scalar grid, and MAC face-patch enumeration for the later 3D multires pressure/transfer path. | done |
 | **E2** | **3D multires transfer** - 3D two-phase P2G/G2P/advect on multires MAC face patches, with mass-normalized u/v/w transfer tests. | done |
+| **E3** | **3D multires pressure system** - 3D finite-volume cell volumes, face-area conductance, and coarse-fine pressure graph tests. | done |
+| **E4** | **3D multires projection** - 3D marker-aware variable-coefficient pressure projection with solid-face zeroing. | done |
+| **E5** | **3D multires two-phase validation** - 3D multires bubble scene, sim step loop, and metrics-only validation runner. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -106,6 +109,10 @@ cmake --build build --config Release --target run_sparse_rt3d
 # run sparse 3D two-phase bubble tank -> spb3_###.ppm
 cmake --build build --config Release --target run_sparse_bubble3d
 ./build/Release/run_sparse_bubble3d.exe
+
+# validate 3D multires two-phase bubble metrics
+cmake --build build --config Release --target validate_multires3d_tp
+./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).
@@ -127,10 +134,10 @@ src/
   pressure/    divergence, pressure Poisson CG, projection, multires pressure
   advect/      RK2 advection, velocity extrapolation
   physics/     viscosity <-> FLIP alpha mapping (Eq. 13)
-  driver/      Sim2D / Sim3D / SparseSim2D / SparseSim2DTP / SparseSim3D / SparseSim3DTP / MRSim2DTP step loops + scenes + viz
+  driver/      Sim2D / Sim3D / SparseSim2D / SparseSim2DTP / SparseSim3D / SparseSim3DTP / MRSim2DTP / MRSim3DTP step loops + scenes + viz
                sparse_ops2d / sparse_ops2d_tp / sparse_ops3d / sparse_ops3d_tp / multires_ops2d_tp / multires_ops3d_tp  (P2G / pressure projection / G2P / advect)
 apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak, run_sparse_bubble,
-               run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble
+               run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble, validate_multires3d_tp
 tests/         doctest unit + integration tests (one per module)
 docs/          design specs and implementation plans
 external/      vendored doctest

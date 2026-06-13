@@ -152,3 +152,15 @@ void MRSim3DTP::step() {
 int MRSim3DTP::activePressureCellCount() const {
   return static_cast<int>(grid.p.leafCells().size());
 }
+
+int MRSim3DTP::uFaceCount() const {
+  return static_cast<int>(grid.uFaces().size());
+}
+
+int MRSim3DTP::vFaceCount() const {
+  return static_cast<int>(grid.vFaces().size());
+}
+
+int MRSim3DTP::wFaceCount() const {
+  return static_cast<int>(grid.wFaces().size());
+}
