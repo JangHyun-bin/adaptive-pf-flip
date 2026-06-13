@@ -13,17 +13,6 @@
 
 namespace {
 
-struct PressureCellInfo3D {
-  int index = -1;
-  double x0 = 0.0;
-  double y0 = 0.0;
-  double z0 = 0.0;
-  double x1 = 0.0;
-  double y1 = 0.0;
-  double z1 = 0.0;
-  double h = 0.0;
-};
-
 struct ProjectionCell3D {
   MRCellKey3D key;
   int index = -1;
@@ -31,62 +20,16 @@ struct ProjectionCell3D {
   double volume = 0.0;
 };
 
-bool nearlyEqual(double a, double b) {
-  double scale = std::max(1.0, std::max(std::abs(a), std::abs(b)));
-  return std::abs(a - b) <= 1e-12 * scale;
-}
+struct ProjectionTerm3D {
+  int index = -1;
+  double coeff = 0.0;
+};
 
-double clippedOverlap(double a0, double a1, double b0, double b1, double domain1) {
-  double lo = std::max(std::max(a0, b0), 0.0);
-  double hi = std::min(std::min(a1, b1), domain1);
-  return std::max(0.0, hi - lo);
-}
-
-double edgeConductance(const PressureCellInfo3D& a,
-                       const PressureCellInfo3D& b,
-                       double domainWidth,
-                       double domainHeight,
-                       double domainDepth) {
-  double faceArea = 0.0;
-
-  if (nearlyEqual(a.x1, b.x0) || nearlyEqual(b.x1, a.x0)) {
-    double faceX = nearlyEqual(a.x1, b.x0) ? a.x1 : b.x1;
-    if (faceX >= 0.0 && faceX <= domainWidth) {
-      double oy = clippedOverlap(a.y0, a.y1, b.y0, b.y1, domainHeight);
-      double oz = clippedOverlap(a.z0, a.z1, b.z0, b.z1, domainDepth);
-      faceArea = oy * oz;
-    }
-  } else if (nearlyEqual(a.y1, b.y0) || nearlyEqual(b.y1, a.y0)) {
-    double faceY = nearlyEqual(a.y1, b.y0) ? a.y1 : b.y1;
-    if (faceY >= 0.0 && faceY <= domainHeight) {
-      double ox = clippedOverlap(a.x0, a.x1, b.x0, b.x1, domainWidth);
-      double oz = clippedOverlap(a.z0, a.z1, b.z0, b.z1, domainDepth);
-      faceArea = ox * oz;
-    }
-  } else if (nearlyEqual(a.z1, b.z0) || nearlyEqual(b.z1, a.z0)) {
-    double faceZ = nearlyEqual(a.z1, b.z0) ? a.z1 : b.z1;
-    if (faceZ >= 0.0 && faceZ <= domainDepth) {
-      double ox = clippedOverlap(a.x0, a.x1, b.x0, b.x1, domainWidth);
-      double oy = clippedOverlap(a.y0, a.y1, b.y0, b.y1, domainHeight);
-      faceArea = ox * oy;
-    }
-  }
-
-  if (faceArea <= 0.0) return 0.0;
-
-  double centerDistance = 0.5 * a.h + 0.5 * b.h;
-  return centerDistance > 0.0 ? faceArea / centerDistance : 0.0;
-}
-
-PressureCellInfo3D pressureCellInfo(const MRCellKey3D& c, int index, double dx) {
-  constexpr int B = 4;
-  int step = 1 << c.block.level;
-  double h = dx * static_cast<double>(step);
-  double x0 = static_cast<double>(c.block.bx * B * step + c.lx * step) * dx;
-  double y0 = static_cast<double>(c.block.by * B * step + c.ly * step) * dx;
-  double z0 = static_cast<double>(c.block.bz * B * step + c.lz * step) * dx;
-  return PressureCellInfo3D{index, x0, y0, z0, x0 + h, y0 + h, z0 + h, h};
-}
+struct ProjectionRow3D {
+  double divergence = 0.0;
+  double diag = 0.0;
+  std::vector<ProjectionTerm3D> offdiag;
+};
 
 std::tuple<int, int, int, int, int, int, int> cellTuple(const MRCellKey3D& c) {
   return std::make_tuple(c.block.level, c.block.bx, c.block.by, c.block.bz, c.lx, c.ly, c.lz);
@@ -154,6 +97,44 @@ void visitCellFaces(const MRMacGrid3D<4>& g, const MRCellKey3D& c, Fn&& fn) {
     for (int x = cx0; x < cx1; ++x) {
       fn(MRFaceKey3D{2, x, y, z0, 1, 1}, x, y, z0 - 1, -1.0);
       fn(MRFaceKey3D{2, x, y, std::min(z1, g.layout.nz), 1, 1}, x, y, z1, 1.0);
+    }
+  }
+}
+
+template<class Fn>
+void visitPressureCellFaces(const MRScalarGrid3D<4>& p, const MRCellKey3D& c, Fn&& fn) {
+  constexpr int B = 4;
+  int step = 1 << c.block.level;
+  int x0 = c.block.bx * B * step + c.lx * step;
+  int y0 = c.block.by * B * step + c.ly * step;
+  int z0 = c.block.bz * B * step + c.lz * step;
+  int x1 = x0 + step;
+  int y1 = y0 + step;
+  int z1 = z0 + step;
+  int cx0 = std::max(0, x0);
+  int cx1 = std::min(p.layout.nx, x1);
+  int cy0 = std::max(0, y0);
+  int cy1 = std::min(p.layout.ny, y1);
+  int cz0 = std::max(0, z0);
+  int cz1 = std::min(p.layout.nz, z1);
+  double area = p.layout.dx * p.layout.dx;
+
+  for (int z = cz0; z < cz1; ++z) {
+    for (int y = cy0; y < cy1; ++y) {
+      fn(x0 - 1, y, z, area);
+      fn(x1, y, z, area);
+    }
+  }
+  for (int z = cz0; z < cz1; ++z) {
+    for (int x = cx0; x < cx1; ++x) {
+      fn(x, y0 - 1, z, area);
+      fn(x, y1, z, area);
+    }
+  }
+  for (int y = cy0; y < cy1; ++y) {
+    for (int x = cx0; x < cx1; ++x) {
+      fn(x, y, z0 - 1, area);
+      fn(x, y, z1, area);
     }
   }
 }
@@ -269,28 +250,39 @@ MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt) {
 
   MRPressureSystem3D sys;
   const auto& layout = g.p.layout;
-  std::vector<PressureCellInfo3D> cells;
   std::vector<MRCellKey3D> leafCells = g.p.leafCells();
-  cells.reserve(leafCells.size());
   sys.volumes.reserve(leafCells.size());
 
-  for (const MRCellKey3D& c : leafCells) {
+  std::map<std::tuple<int, int, int, int, int, int, int>, int> idx;
+  for (size_t n = 0; n < leafCells.size(); ++n) {
+    const MRCellKey3D& c = leafCells[n];
     double h = g.p.cellSize(c.block.level);
     sys.volumes.push_back(h * h * h);
-    cells.push_back(pressureCellInfo(c, static_cast<int>(cells.size()), layout.dx));
+    idx[cellTuple(c)] = static_cast<int>(n);
   }
 
   std::map<std::pair<int, int>, double> conductanceByPair;
-  double domainWidth = static_cast<double>(layout.nx) * layout.dx;
-  double domainHeight = static_cast<double>(layout.ny) * layout.dx;
-  double domainDepth = static_cast<double>(layout.nz) * layout.dx;
-  for (size_t i = 0; i < cells.size(); ++i) {
-    for (size_t j = i + 1; j < cells.size(); ++j) {
-      double conductance = edgeConductance(cells[i], cells[j], domainWidth, domainHeight, domainDepth);
-      if (conductance > 0.0) {
-        conductanceByPair[{cells[i].index, cells[j].index}] += conductance;
+  for (size_t i = 0; i < leafCells.size(); ++i) {
+    const MRCellKey3D& c = leafCells[i];
+    double h = g.p.cellSize(c.block.level);
+    visitPressureCellFaces(g.p, c, [&](int nx, int ny, int nz, double area) {
+      if (nx < 0 || nx >= layout.nx ||
+          ny < 0 || ny >= layout.ny ||
+          nz < 0 || nz >= layout.nz) {
+        return;
       }
-    }
+      MRCellKey3D other = g.p.cellAtFineCell(nx, ny, nz);
+      auto it = idx.find(cellTuple(other));
+      if (it == idx.end()) return;
+      int j = it->second;
+      if (static_cast<int>(i) >= j) return;
+
+      double otherH = g.p.cellSize(other.block.level);
+      double distance = 0.5 * h + 0.5 * otherH;
+      if (distance > 0.0) {
+        conductanceByPair[{static_cast<int>(i), j}] += area / distance;
+      }
+    });
   }
 
   sys.edges.reserve(conductanceByPair.size());
@@ -359,10 +351,22 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     return it == idx.end() ? -1 : it->second;
   };
 
-  auto divergence = [&](const ProjectionCell3D& c) {
-    double flux = 0.0;
+  std::vector<ProjectionRow3D> rows(N);
+  for (const ProjectionCell3D& c : cells) {
+    if (c.index == pinCell) {
+      rows[c.index].diag = 1.0;
+      continue;
+    }
+
     visitCellFaces(g, c.key, [&](const MRFaceKey3D& f, int nx, int ny, int nz, double sign) {
       if (markerAtFineCell(g, nx, ny, nz) == 2) return;
+      double coeff = projectionCoefficient(g, c, f, nx, ny, nz, pp, dt);
+      rows[c.index].diag += coeff;
+      int nidx = pressureIndexAtFine(nx, ny, nz);
+      if (nidx >= 0 && nidx != pinCell) {
+        rows[c.index].offdiag.push_back(ProjectionTerm3D{nidx, coeff});
+      }
+
       double v = 0.0;
       if (f.axis == 0) {
         v = static_cast<double>(g.gu(f));
@@ -371,20 +375,9 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
       } else {
         v = static_cast<double>(g.gw(f));
       }
-      flux += sign * v * faceArea(g, f);
+      rows[c.index].divergence += sign * v * faceArea(g, f) / c.volume;
     });
-    return flux / c.volume;
-  };
-
-  auto rowDiagonal = [&](const ProjectionCell3D& c) {
-    if (c.index == pinCell) return 1.0;
-    double diag = 0.0;
-    visitCellFaces(g, c.key, [&](const MRFaceKey3D& f, int nx, int ny, int nz, double) {
-      if (markerAtFineCell(g, nx, ny, nz) == 2) return;
-      diag += projectionCoefficient(g, c, f, nx, ny, nz, pp, dt);
-    });
-    return diag;
-  };
+  }
 
   auto applyA = [&](const std::vector<double>& x, std::vector<double>& out) {
     out.assign(N, 0.0);
@@ -394,18 +387,11 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
         continue;
       }
 
-      double diag = 0.0;
       double off = 0.0;
-      visitCellFaces(g, c.key, [&](const MRFaceKey3D& f, int nx, int ny, int nz, double) {
-        if (markerAtFineCell(g, nx, ny, nz) == 2) return;
-        double coeff = projectionCoefficient(g, c, f, nx, ny, nz, pp, dt);
-        diag += coeff;
-        int nidx = pressureIndexAtFine(nx, ny, nz);
-        if (nidx >= 0 && nidx != pinCell) {
-          off += coeff * x[nidx];
-        }
-      });
-      out[c.index] = diag * x[c.index] - off;
+      for (const ProjectionTerm3D& term : rows[c.index].offdiag) {
+        off += term.coeff * x[term.index];
+      }
+      out[c.index] = rows[c.index].diag * x[c.index] - off;
     }
   };
 
@@ -417,12 +403,12 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
 
   double res0 = 0.0;
   for (const ProjectionCell3D& c : cells) {
-    r[c.index] = c.index == pinCell ? 0.0 : -divergence(c);
+    r[c.index] = c.index == pinCell ? 0.0 : -rows[c.index].divergence;
     res0 = std::max(res0, std::abs(r[c.index]));
   }
   if (res0 >= tol) {
     for (const ProjectionCell3D& c : cells) {
-      double d = rowDiagonal(c);
+      double d = rows[c.index].diag;
       z[c.index] = d > 0.0 ? r[c.index] / d : 0.0;
       p[c.index] = z[c.index];
     }
@@ -449,7 +435,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
       if (res < tol) break;
 
       for (const ProjectionCell3D& c : cells) {
-        double d = rowDiagonal(c);
+        double d = rows[c.index].diag;
         z[c.index] = d > 0.0 ? r[c.index] / d : 0.0;
       }
       double rzNext = dot(r, z);
