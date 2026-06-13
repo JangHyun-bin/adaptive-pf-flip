@@ -17,6 +17,8 @@ struct MRSim3DTP {
   double alpha_gas = 0.95;
   int cg_iters = 160;
   double cg_tol = 1e-7;
+  double cg_rel_tol = 1e-6;
+  bool cg_jacobi_preconditioner = true;
   bool dynamic_refinement = true;
   int dynamic_particle_padding = 1;
   int dynamic_gas_padding = 2;

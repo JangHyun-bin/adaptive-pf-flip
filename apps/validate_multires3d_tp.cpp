@@ -23,6 +23,13 @@ double argDouble(int argc, char** argv, const char* key, double fallback) {
   return fallback;
 }
 
+bool hasFlag(int argc, char** argv, const char* key) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return true;
+  }
+  return false;
+}
+
 const char* argString(int argc, char** argv, const char* key, const char* fallback) {
   for (int i = 1; i + 1 < argc; ++i) {
     if (std::strcmp(argv[i], key) == 0) return argv[i + 1];
@@ -57,7 +64,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N]\n");
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi]\n");
 }
 
 } // namespace
@@ -77,6 +84,8 @@ int main(int argc, char** argv) {
   MRSim3DTP sim(nx, ny, nz, 1.0);
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
+  sim.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", sim.cg_rel_tol);
+  if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   sim.initBubbleTankInterfaceBand();
@@ -109,6 +118,8 @@ int main(int argc, char** argv) {
   std::printf("dt=%.9g\n", sim.dt);
   std::printf("cg_iters=%d\n", sim.cg_iters);
   std::printf("cg_tol=%.9g\n", sim.cg_tol);
+  std::printf("cg_rel_tol=%.9g\n", sim.cg_rel_tol);
+  std::printf("cg_jacobi_preconditioner=%s\n", sim.cg_jacobi_preconditioner ? "true" : "false");
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("finite=%s\n", finite ? "true" : "false");
@@ -128,8 +139,12 @@ int main(int argc, char** argv) {
   std::printf("pressure_max_iterations=%d\n", sim.last_pressure_stats.max_iterations);
   std::printf("pressure_initial_residual=%.9g\n", sim.last_pressure_stats.initial_residual);
   std::printf("pressure_final_residual=%.9g\n", sim.last_pressure_stats.final_residual);
+  std::printf("pressure_effective_tolerance=%.9g\n", sim.last_pressure_stats.effective_tolerance);
+  std::printf("pressure_relative_tolerance=%.9g\n", sim.last_pressure_stats.relative_tolerance);
   std::printf("pressure_min_positive_diag=%.9g\n", sim.last_pressure_stats.min_positive_diag);
   std::printf("pressure_max_diag=%.9g\n", sim.last_pressure_stats.max_diag);
+  std::printf("pressure_jacobi_preconditioner=%s\n",
+              sim.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
   std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
   std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("active_pressure_cells=%d\n", pressureCells);

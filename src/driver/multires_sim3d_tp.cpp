@@ -379,7 +379,12 @@ void MRSim3DTP::step() {
 
   applyGravity(grid, dt, gravity);
   applyWallBoundary(grid);
-  projectMR3D(grid, phase, dt, cg_iters, cg_tol, &last_pressure_stats);
+  MRPressureSolveConfig3D pressureConfig;
+  pressureConfig.max_iterations = cg_iters;
+  pressureConfig.absolute_tolerance = cg_tol;
+  pressureConfig.relative_tolerance = cg_rel_tol;
+  pressureConfig.use_jacobi_preconditioner = cg_jacobi_preconditioner;
+  projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   mrAdvect3D_tp(particles, grid, dt);
 }

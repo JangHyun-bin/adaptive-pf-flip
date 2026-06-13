@@ -24,6 +24,13 @@ double argDouble(int argc, char** argv, const char* key, double fallback) {
   return fallback;
 }
 
+bool hasFlag(int argc, char** argv, const char* key) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return true;
+  }
+  return false;
+}
+
 double meanY(const Particles3DTP& ps, unsigned char type) {
   double sum = 0.0;
   int count = 0;
@@ -51,7 +58,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N]\n");
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi]\n");
 }
 
 } // namespace
@@ -75,6 +82,8 @@ int main(int argc, char** argv) {
   mr.dt = dt;
   sparse.cg_iters = cgIters;
   mr.cg_iters = cgIters;
+  mr.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", mr.cg_rel_tol);
+  if (hasFlag(argc, argv, "--no-jacobi")) mr.cg_jacobi_preconditioner = false;
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
 
@@ -120,6 +129,8 @@ int main(int argc, char** argv) {
   std::printf("dt=%.9g\n", dt);
   std::printf("cg_iters=%d\n", cgIters);
   std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
+  std::printf("mr_cg_rel_tol=%.9g\n", mr.cg_rel_tol);
+  std::printf("mr_cg_jacobi_preconditioner=%s\n", mr.cg_jacobi_preconditioner ? "true" : "false");
   std::printf("sparse_particles_start=%zu\n", sparseN0);
   std::printf("sparse_particles_end=%zu\n", sparse.particles.size());
   std::printf("mr_particles_start=%zu\n", mrN0);
@@ -141,6 +152,10 @@ int main(int argc, char** argv) {
   std::printf("mr_pressure_max_iterations=%d\n", mr.last_pressure_stats.max_iterations);
   std::printf("mr_pressure_initial_residual=%.9g\n", mr.last_pressure_stats.initial_residual);
   std::printf("mr_pressure_final_residual=%.9g\n", mr.last_pressure_stats.final_residual);
+  std::printf("mr_pressure_effective_tolerance=%.9g\n", mr.last_pressure_stats.effective_tolerance);
+  std::printf("mr_pressure_relative_tolerance=%.9g\n", mr.last_pressure_stats.relative_tolerance);
+  std::printf("mr_pressure_jacobi_preconditioner=%s\n",
+              mr.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
   std::printf("mr_pressure_converged=%s\n", mr.last_pressure_stats.converged ? "true" : "false");
   std::printf("mr_pressure_breakdown=%s\n", mr.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));

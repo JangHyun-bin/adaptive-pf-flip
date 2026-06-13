@@ -229,10 +229,20 @@ void averageVelocityProjection(MRMacGrid3D<4>& g) {
   for (const MRFaceKey3D& f : averageW) g.w(f) = static_cast<float>(avg);
 }
 
-MRPressureSolveStats3D makeInitialStats(int maxIter, double tol) {
+MRPressureSolveConfig3D makeSolveConfig(int maxIter, double tol) {
+  MRPressureSolveConfig3D config;
+  config.max_iterations = maxIter;
+  config.absolute_tolerance = tol;
+  return config;
+}
+
+MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   MRPressureSolveStats3D stats;
-  stats.max_iterations = maxIter;
-  stats.tolerance = tol;
+  stats.max_iterations = config.max_iterations;
+  stats.tolerance = config.absolute_tolerance;
+  stats.relative_tolerance = config.relative_tolerance;
+  stats.effective_tolerance = config.absolute_tolerance;
+  stats.used_jacobi_preconditioner = config.use_jacobi_preconditioner;
   return stats;
 }
 
@@ -329,7 +339,17 @@ double maxMRDivergence3D(const MRMacGrid3D<4>& g) {
 
 void projectMR3D(MRMacGrid3D<4>& g, double dt, int maxIter, double tol,
                  MRPressureSolveStats3D* stats) {
-  MRPressureSolveStats3D localStats = makeInitialStats(maxIter, tol);
+  projectMR3D(g, dt, makeSolveConfig(maxIter, tol), stats);
+}
+
+void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIter, double tol,
+                 MRPressureSolveStats3D* stats) {
+  projectMR3D(g, pp, dt, makeSolveConfig(maxIter, tol), stats);
+}
+
+void projectMR3D(MRMacGrid3D<4>& g, double dt, const MRPressureSolveConfig3D& config,
+                 MRPressureSolveStats3D* stats) {
+  MRPressureSolveStats3D localStats = makeInitialStats(config);
   if (!hasAnyMarker(g)) {
     (void)dt;
     localStats.used_average_projection = true;
@@ -340,12 +360,13 @@ void projectMR3D(MRMacGrid3D<4>& g, double dt, int maxIter, double tol,
   }
 
   PhaseParams pp;
-  projectMR3D(g, pp, dt, maxIter, tol, stats);
+  projectMR3D(g, pp, dt, config, stats);
 }
 
-void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIter, double tol,
+void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
+                 const MRPressureSolveConfig3D& config,
                  MRPressureSolveStats3D* stats) {
-  MRPressureSolveStats3D localStats = makeInitialStats(maxIter, tol);
+  MRPressureSolveStats3D localStats = makeInitialStats(config);
   std::vector<ProjectionCell3D> cells = fluidProjectionCells(g);
   const int N = static_cast<int>(cells.size());
   localStats.active_cells = N;
@@ -441,11 +462,21 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
   }
   localStats.initial_residual = res0;
   localStats.final_residual = res0;
-  localStats.converged = res0 < tol;
-  if (res0 >= tol) {
+  double absTol = std::max(0.0, config.absolute_tolerance);
+  double relTol = std::max(0.0, config.relative_tolerance);
+  double effectiveTol = std::max(absTol, relTol * res0);
+  localStats.effective_tolerance = effectiveTol;
+  localStats.converged = res0 < effectiveTol;
+  if (res0 >= effectiveTol) {
+    auto applyPreconditioner = [&]() {
+      for (const ProjectionCell3D& c : cells) {
+        double d = rows[c.index].diag;
+        z[c.index] = (config.use_jacobi_preconditioner && d > 0.0) ? r[c.index] / d : r[c.index];
+      }
+    };
+
+    applyPreconditioner();
     for (const ProjectionCell3D& c : cells) {
-      double d = rows[c.index].diag;
-      z[c.index] = d > 0.0 ? r[c.index] / d : 0.0;
       p[c.index] = z[c.index];
     }
 
@@ -456,7 +487,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     };
 
     double rz = dot(r, z);
-    for (int it = 0; it < maxIter; ++it) {
+    for (int it = 0; it < config.max_iterations; ++it) {
       applyA(p, Ap);
       double pAp = dot(p, Ap);
       if (std::abs(pAp) < 1e-30) {
@@ -474,15 +505,12 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
       }
       localStats.iterations = it + 1;
       localStats.final_residual = res;
-      if (res < tol) {
+      if (res < effectiveTol) {
         localStats.converged = true;
         break;
       }
 
-      for (const ProjectionCell3D& c : cells) {
-        double d = rows[c.index].diag;
-        z[c.index] = d > 0.0 ? r[c.index] / d : 0.0;
-      }
+      applyPreconditioner();
       double rzNext = dot(r, z);
       double beta = rz == 0.0 ? 0.0 : rzNext / rz;
       rz = rzNext;
