@@ -1,6 +1,7 @@
 #include "doctest.h"
 #include "pressure/multires_pressure3d.h"
 #include "grid/multires_mac_grid3d.h"
+#include "physics/phasefield.h"
 
 #include <algorithm>
 #include <cmath>
@@ -16,6 +17,47 @@ double totalConductance(const MRPressureSystem3D& sys) {
     total += e.conductance;
   }
   return total;
+}
+
+void setMarker(MRMacGrid3D<4>& g, int i, int j, int k, int marker) {
+  g.marker.ref(g.marker.cellAtFineCell(i, j, k)) = static_cast<float>(marker);
+}
+
+int markerAt(const MRMacGrid3D<4>& g, int i, int j, int k) {
+  if (i < 0 || i >= g.layout.nx ||
+      j < 0 || j >= g.layout.ny ||
+      k < 0 || k >= g.layout.nz) {
+    return 2;
+  }
+  return static_cast<int>(g.marker.get(g.marker.cellAtFineCell(i, j, k)) + 0.5f);
+}
+
+double markerAwareMaxDivergence(const MRMacGrid3D<4>& g) {
+  double mx = 0.0;
+  for (int k = 0; k < g.layout.nz; ++k) {
+    for (int j = 0; j < g.layout.ny; ++j) {
+      for (int i = 0; i < g.layout.nx; ++i) {
+        if (markerAt(g, i, j, k) != 1) continue;
+
+        bool solidLeft = markerAt(g, i - 1, j, k) == 2;
+        bool solidRight = markerAt(g, i + 1, j, k) == 2;
+        bool solidBottom = markerAt(g, i, j - 1, k) == 2;
+        bool solidTop = markerAt(g, i, j + 1, k) == 2;
+        bool solidBack = markerAt(g, i, j, k - 1) == 2;
+        bool solidFront = markerAt(g, i, j, k + 1) == 2;
+
+        double uR = solidRight ? 0.0 : static_cast<double>(g.gu(MRFaceKey3D{0, i + 1, j, k, 1, 1}));
+        double uL = solidLeft ? 0.0 : static_cast<double>(g.gu(MRFaceKey3D{0, i, j, k, 1, 1}));
+        double vT = solidTop ? 0.0 : static_cast<double>(g.gv(MRFaceKey3D{1, i, j + 1, k, 1, 1}));
+        double vB = solidBottom ? 0.0 : static_cast<double>(g.gv(MRFaceKey3D{1, i, j, k, 1, 1}));
+        double wF = solidFront ? 0.0 : static_cast<double>(g.gw(MRFaceKey3D{2, i, j, k + 1, 1, 1}));
+        double wK = solidBack ? 0.0 : static_cast<double>(g.gw(MRFaceKey3D{2, i, j, k, 1, 1}));
+
+        mx = std::max(mx, std::abs(((uR - uL) + (vT - vB) + (wF - wK)) / g.layout.dx));
+      }
+    }
+  }
+  return mx;
 }
 
 } // namespace
@@ -166,4 +208,67 @@ TEST_CASE("multires 3D pressure: coarse-fine native conductance is exact") {
     }
   }
   CHECK(mixedEdges > 0);
+}
+
+TEST_CASE("multires 3D pressure: phase-aware projection clears stale pressure without fluid") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+
+  g.p.ref(g.p.cellAtFineCell(3, 3, 3)) = 9.0f;
+  setMarker(g, 3, 3, 3, 0);
+  setMarker(g, 0, 3, 3, 2);
+
+  projectMR3D(g, pp, 1.0, 20, 1e-8);
+
+  CHECK(g.p.blocks.empty());
+}
+
+TEST_CASE("multires 3D pressure: phase-aware projection reduces marked divergence and zeros solid faces") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+
+  setMarker(g, 2, 3, 3, 2);
+  setMarker(g, 3, 3, 3, 1);
+  setMarker(g, 4, 3, 3, 1);
+  setMarker(g, 3, 4, 3, 1);
+  setMarker(g, 4, 4, 3, 1);
+  setMarker(g, 3, 3, 4, 1);
+  setMarker(g, 4, 3, 4, 1);
+
+  for (const MRFaceKey3D& f : g.uFaces()) g.mU(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.vFaces()) g.mV(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.wFaces()) g.mW(f) = 1.0f;
+
+  g.u(MRFaceKey3D{0, 3, 3, 3, 1, 1}) = 7.0f;
+  g.u(MRFaceKey3D{0, 5, 3, 3, 1, 1}) = 4.0f;
+  g.v(MRFaceKey3D{1, 4, 5, 3, 1, 1}) = -3.0f;
+  g.w(MRFaceKey3D{2, 4, 3, 5, 1, 1}) = 2.0f;
+
+  double before = markerAwareMaxDivergence(g);
+  projectMR3D(g, pp, 1.0, 100, 1e-10);
+  double after = markerAwareMaxDivergence(g);
+
+  CHECK(before > 1.0);
+  CHECK(after < before * 0.55);
+  CHECK(g.gu(MRFaceKey3D{0, 3, 3, 3, 1, 1}) == doctest::Approx(0.0).epsilon(1e-12));
+}
+
+TEST_CASE("multires 3D pressure: no-marker smoke projection reduces u spread") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+
+  for (const MRFaceKey3D& f : g.uFaces()) {
+    g.u(f) = static_cast<float>(f.fineX);
+  }
+  double before = maxMRDivergence3D(g);
+  projectMR3D(g, 1.0, 100, 1e-8);
+  double after = maxMRDivergence3D(g);
+
+  CHECK(before > 1.0);
+  CHECK(after < before * 0.1);
 }

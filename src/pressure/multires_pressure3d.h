@@ -23,3 +23,5 @@ struct MRPressureSystem3D {
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);
 double maxMRDivergence3D(const MRMacGrid3D<4>& g);
+void projectMR3D(MRMacGrid3D<4>& g, double dt, int maxIter, double tol);
+void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIter, double tol);
