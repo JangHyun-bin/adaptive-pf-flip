@@ -1,7 +1,13 @@
 #include "doctest.h"
 #include "driver/multires_sim3d_tp.h"
+#include "driver/viz_multires3d_tp.h"
 
 #include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -27,7 +33,76 @@ bool finiteParticles(const MRSim3DTP& sim) {
   return true;
 }
 
+std::vector<unsigned char> readP6(const std::string& path, int& W, int& H) {
+  std::ifstream f(path, std::ios::binary);
+  std::string magic;
+  int maxv = 0;
+  f >> magic >> W >> H >> maxv;
+  f.get();
+  std::vector<unsigned char> img(static_cast<size_t>(W * H * 3));
+  f.read(reinterpret_cast<char*>(img.data()), static_cast<std::streamsize>(img.size()));
+  return img;
+}
+
 } // namespace
+
+TEST_CASE("multires 3D viz validates output settings and writes") {
+  MRSim3DTP sim(4, 4, 4, 1.0);
+  sim.layout.setCoarseEverywhere(1);
+
+  CHECK_THROWS_AS(writeMR3DTPPM(sim, "test_mr3_invalid_scale.ppm", 0), std::invalid_argument);
+  CHECK_THROWS_AS(writeMR3DTPPM(sim, "", 2), std::runtime_error);
+}
+
+TEST_CASE("multires 3D viz skips negative and out-of-slice particles") {
+  const char* path = "test_mr3_slice_skip.ppm";
+  std::remove(path);
+
+  MRSim3DTP sim(4, 4, 4, 1.0);
+  sim.layout.setCoarseEverywhere(1);
+  sim.particles.add({-0.1, 0.5, 2.0}, {0.0, 0.0, 0.0}, 0);
+  sim.particles.add({1.5, 1.5, 0.0}, {0.0, 0.0, 0.0}, 1);
+
+  writeMR3DTPPM(sim, path, 2, 0.1);
+
+  int W = 0, H = 0;
+  std::vector<unsigned char> img = readP6(path, W, H);
+  std::remove(path);
+
+  REQUIRE(W == 8);
+  REQUIRE(H == 8);
+  int o = (0 + W * 6) * 3;
+  CHECK(img[o] == 28);
+  CHECK(img[o + 1] == 32);
+  CHECK(img[o + 2] == 48);
+}
+
+TEST_CASE("multires 3D viz writes in-slice liquid and gas particles") {
+  const char* path = "test_mr3_slice_particles.ppm";
+  std::remove(path);
+
+  MRSim3DTP sim(4, 4, 4, 1.0);
+  sim.layout.setCoarseEverywhere(0);
+  sim.particles.add({1.5, 1.5, 2.0}, {0.0, 0.0, 0.0}, 0);
+  sim.particles.add({2.5, 1.5, 2.0}, {0.0, 0.0, 0.0}, 1);
+
+  writeMR3DTPPM(sim, path, 2, 0.1);
+
+  int W = 0, H = 0;
+  std::vector<unsigned char> img = readP6(path, W, H);
+  std::remove(path);
+
+  REQUIRE(W == 8);
+  REQUIRE(H == 8);
+  int liquid = (3 + W * 4) * 3;
+  int gas = (5 + W * 4) * 3;
+  CHECK(img[liquid] == 60);
+  CHECK(img[liquid + 1] == 140);
+  CHECK(img[liquid + 2] == 230);
+  CHECK(img[gas] == 235);
+  CHECK(img[gas + 1] == 160);
+  CHECK(img[gas + 2] == 60);
+}
 
 TEST_CASE("multires 3D bubble tank initializes refined lower band and coarse headspace") {
   MRSim3DTP sim(8, 12, 8, 1.0);

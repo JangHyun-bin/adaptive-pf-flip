@@ -63,6 +63,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **E3** | **3D multires pressure system** - 3D finite-volume cell volumes, face-area conductance, and coarse-fine pressure graph tests. | done |
 | **E4** | **3D multires projection** - 3D marker-aware variable-coefficient pressure projection with solid-face zeroing. | done |
 | **E5** | **3D multires two-phase validation** - 3D multires bubble scene, sim step loop, and metrics-only validation runner. | done |
+| **E8** | **3D multires visual demo** - 3D multires bubble slice writer and `mrb3_###.ppm` demo runner. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -113,6 +114,10 @@ cmake --build build --config Release --target run_sparse_bubble3d
 # validate 3D multires two-phase bubble metrics
 cmake --build build --config Release --target validate_multires3d_tp
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6
+
+# run 3D multires two-phase bubble slices -> mrb3_###.ppm
+cmake --build build --config Release --target run_multires_bubble3d
+./build/Release/run_multires_bubble3d.exe --steps 60 --every 5
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).
@@ -137,7 +142,7 @@ src/
   driver/      Sim2D / Sim3D / SparseSim2D / SparseSim2DTP / SparseSim3D / SparseSim3DTP / MRSim2DTP / MRSim3DTP step loops + scenes + viz
                sparse_ops2d / sparse_ops2d_tp / sparse_ops3d / sparse_ops3d_tp / multires_ops2d_tp / multires_ops3d_tp  (P2G / pressure projection / G2P / advect)
 apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, run_sparse_dambreak, run_sparse_bubble,
-               run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble, validate_multires3d_tp
+               run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble, run_multires_bubble3d, validate_multires3d_tp
 tests/         doctest unit + integration tests (one per module)
 docs/          design specs and implementation plans
 external/      vendored doctest
