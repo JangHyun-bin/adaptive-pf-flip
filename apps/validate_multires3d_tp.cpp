@@ -56,7 +56,8 @@ bool finiteParticles(const Particles3DTP& ps) {
 void usage() {
   std::fprintf(stderr,
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
-               "[--steps N] [--dt DT] [--cg-iters N]\n");
+               "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
+               "[--max-fine-leaves N]\n");
 }
 
 } // namespace
@@ -76,6 +77,8 @@ int main(int argc, char** argv) {
   MRSim3DTP sim(nx, ny, nz, 1.0);
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
+  sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
+  sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   sim.initBubbleTankInterfaceBand();
 
   size_t n0 = sim.particles.size();
@@ -111,6 +114,13 @@ int main(int argc, char** argv) {
   std::printf("gas_mean_y_start=%.9g\n", gas0);
   std::printf("gas_mean_y_end=%.9g\n", gas1);
   std::printf("dynamic_refinement=%s\n", sim.dynamic_refinement ? "true" : "false");
+  std::printf("dynamic_hysteresis_cells=%d\n", sim.dynamic_hysteresis_cells);
+  std::printf("dynamic_max_fine_leaves=%d\n", sim.dynamic_max_fine_leaves);
+  std::printf("dynamic_budget_limited=%s\n", sim.dynamic_budget_limited ? "true" : "false");
+  std::printf("dynamic_last_fine_leaves=%d\n", sim.dynamic_last_fine_leaves);
+  std::printf("dynamic_retained_box=%d,%d,%d,%d,%d,%d\n",
+              sim.dynamic_retained_x0, sim.dynamic_retained_y0, sim.dynamic_retained_z0,
+              sim.dynamic_retained_x1, sim.dynamic_retained_y1, sim.dynamic_retained_z1);
   std::printf("active_pressure_cells=%d\n", pressureCells);
   std::printf("active_pressure_cells_end=%d\n", pressureCellsEnd);
   std::printf("fine_pressure_cells=%d\n", fineCells);

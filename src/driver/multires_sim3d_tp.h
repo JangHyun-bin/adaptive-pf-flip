@@ -19,6 +19,17 @@ struct MRSim3DTP {
   bool dynamic_refinement = true;
   int dynamic_particle_padding = 1;
   int dynamic_gas_padding = 2;
+  int dynamic_hysteresis_cells = 1;
+  int dynamic_max_fine_leaves = 0;
+  bool dynamic_budget_limited = false;
+  int dynamic_last_fine_leaves = 0;
+  bool dynamic_retained_box_valid = false;
+  int dynamic_retained_x0 = 0;
+  int dynamic_retained_y0 = 0;
+  int dynamic_retained_z0 = 0;
+  int dynamic_retained_x1 = 0;
+  int dynamic_retained_y1 = 0;
+  int dynamic_retained_z1 = 0;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);
   void initBubbleTankInterfaceBand();

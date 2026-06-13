@@ -50,7 +50,8 @@ bool finiteParticles(const Particles3DTP& ps) {
 void usage() {
   std::fprintf(stderr,
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
-               "[--steps N] [--dt DT] [--cg-iters N]\n");
+               "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
+               "[--max-fine-leaves N]\n");
 }
 
 } // namespace
@@ -74,6 +75,8 @@ int main(int argc, char** argv) {
   mr.dt = dt;
   sparse.cg_iters = cgIters;
   mr.cg_iters = cgIters;
+  mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
+  mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
 
   sparse.initBubbleTank();
   mr.initBubbleTankInterfaceBand();
@@ -129,6 +132,10 @@ int main(int argc, char** argv) {
   std::printf("sparse_active_pressure_blocks_max=%zu\n", sparseMaxBlocks);
   std::printf("sparse_total_pressure_blocks=%zu\n", sparse.grid.totalCellBlocks());
   std::printf("mr_dynamic_refinement=%s\n", mr.dynamic_refinement ? "true" : "false");
+  std::printf("mr_dynamic_hysteresis_cells=%d\n", mr.dynamic_hysteresis_cells);
+  std::printf("mr_dynamic_max_fine_leaves=%d\n", mr.dynamic_max_fine_leaves);
+  std::printf("mr_dynamic_budget_limited=%s\n", mr.dynamic_budget_limited ? "true" : "false");
+  std::printf("mr_dynamic_last_fine_leaves=%d\n", mr.dynamic_last_fine_leaves);
   std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));
   std::printf("mr_leaf_level1=%zu\n", mr.layout.countLevel(1));
   std::printf("mr_pressure_cells=%d\n", mrPressureCells);

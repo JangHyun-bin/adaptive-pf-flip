@@ -67,6 +67,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **E9** | **Sparse vs 3D multires benchmark** - paired sparse/MR bubble metrics for particles, rise, pressure cells, face counts, and elapsed time. | done |
 | **E10** | **3D multires performance cleanup** - cached 3D face enumeration and local-radius multires transfer for the P2G hot path. | done |
 | **E11** | **3D multires dynamic refinement** - per-step particle/gas occupancy driven 3D layout refresh with coarse headspace preserved. | done |
+| **E12** | **3D multires refinement stability** - retained-box hysteresis and optional fine-leaf budget controls for dynamic refinement. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

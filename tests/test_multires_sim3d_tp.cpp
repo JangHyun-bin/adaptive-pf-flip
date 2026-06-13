@@ -140,6 +140,42 @@ TEST_CASE("multires 3D dynamic refinement follows particle occupancy") {
   CHECK(sim.grid.layout.leaves() == sim.layout.leaves());
 }
 
+TEST_CASE("multires 3D dynamic refinement hysteresis retains small moves") {
+  MRSim3DTP sim(16, 16, 16, 1.0);
+  sim.dynamic_particle_padding = 0;
+  sim.dynamic_gas_padding = 0;
+  sim.dynamic_hysteresis_cells = 2;
+  sim.particles.add({2.5, 2.5, 2.5}, {0.0, 0.0, 0.0}, 0);
+
+  sim.updateDynamicRefinement();
+  size_t initialLeaves = sim.layout.countLevel(0);
+
+  sim.particles.pos[0] = {4.5, 2.5, 2.5};
+  sim.updateDynamicRefinement();
+
+  CHECK(sim.dynamic_retained_box_valid);
+  CHECK(sim.layout.countLevel(0) == initialLeaves);
+  CHECK(sim.layout.leafAtFineCell(2, 2, 2).level == 0);
+  CHECK(sim.layout.leafAtFineCell(4, 2, 2).level == 0);
+}
+
+TEST_CASE("multires 3D dynamic refinement respects fine leaf budget") {
+  MRSim3DTP sim(32, 32, 32, 1.0);
+  sim.dynamic_particle_padding = 8;
+  sim.dynamic_gas_padding = 0;
+  sim.dynamic_hysteresis_cells = 0;
+  sim.dynamic_max_fine_leaves = 8;
+  sim.particles.add({2.5, 2.5, 2.5}, {0.0, 0.0, 0.0}, 0);
+  sim.particles.add({29.5, 29.5, 29.5}, {0.0, 0.0, 0.0}, 0);
+
+  sim.updateDynamicRefinement();
+
+  CHECK(sim.dynamic_budget_limited);
+  CHECK(sim.dynamic_last_fine_leaves == static_cast<int>(sim.layout.countLevel(0)));
+  CHECK(sim.layout.countLevel(0) <= static_cast<size_t>(sim.dynamic_max_fine_leaves));
+  CHECK(sim.grid.layout.leaves() == sim.layout.leaves());
+}
+
 TEST_CASE("multires 3D bubble tank step conserves particles and stays finite") {
   MRSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.02;

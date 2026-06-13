@@ -104,6 +104,55 @@ bool sameLeaves(const MRLayout3D<4>& a, const MRLayout3D<4>& b) {
          a.leaves() == b.leaves();
 }
 
+struct Box3I {
+  int x0 = 0;
+  int y0 = 0;
+  int z0 = 0;
+  int x1 = 0;
+  int y1 = 0;
+  int z1 = 0;
+  bool valid = false;
+};
+
+void includeBox(Box3I& box, int x0, int y0, int z0, int x1, int y1, int z1) {
+  if (x0 >= x1 || y0 >= y1 || z0 >= z1) return;
+  if (!box.valid) {
+    box = Box3I{x0, y0, z0, x1, y1, z1, true};
+    return;
+  }
+  box.x0 = std::min(box.x0, x0);
+  box.y0 = std::min(box.y0, y0);
+  box.z0 = std::min(box.z0, z0);
+  box.x1 = std::max(box.x1, x1);
+  box.y1 = std::max(box.y1, y1);
+  box.z1 = std::max(box.z1, z1);
+}
+
+Box3I clampBox(const MRLayout3D<4>& layout, Box3I box) {
+  if (!box.valid) return box;
+  box.x0 = std::max(0, std::min(layout.nx, box.x0));
+  box.y0 = std::max(0, std::min(layout.ny, box.y0));
+  box.z0 = std::max(0, std::min(layout.nz, box.z0));
+  box.x1 = std::max(0, std::min(layout.nx, box.x1));
+  box.y1 = std::max(0, std::min(layout.ny, box.y1));
+  box.z1 = std::max(0, std::min(layout.nz, box.z1));
+  box.valid = box.x0 < box.x1 && box.y0 < box.y1 && box.z0 < box.z1;
+  return box;
+}
+
+Box3I expandBox(const MRLayout3D<4>& layout, const Box3I& box, int pad) {
+  if (!box.valid) return box;
+  pad = std::max(0, pad);
+  return clampBox(layout, Box3I{box.x0 - pad, box.y0 - pad, box.z0 - pad,
+                                box.x1 + pad, box.y1 + pad, box.z1 + pad, true});
+}
+
+bool containsBox(const Box3I& outer, const Box3I& inner) {
+  return outer.valid && inner.valid &&
+         outer.x0 <= inner.x0 && outer.y0 <= inner.y0 && outer.z0 <= inner.z0 &&
+         outer.x1 >= inner.x1 && outer.y1 >= inner.y1 && outer.z1 >= inner.z1;
+}
+
 void refineBox(MRLayout3D<4>& layout,
                int x0, int y0, int z0,
                int x1, int y1, int z1) {
@@ -116,6 +165,63 @@ void refineBox(MRLayout3D<4>& layout,
   if (x0 < x1 && y0 < y1 && z0 < z1) {
     layout.refineFineCellBox(x0, y0, z0, x1, y1, z1);
   }
+}
+
+MRLayout3D<4> layoutWithFineBox(const MRLayout3D<4>& base, const Box3I& box) {
+  MRLayout3D<4> next(base.nx, base.ny, base.nz, base.dx);
+  next.setCoarseEverywhere(1);
+  if (box.valid) {
+    refineBox(next, box.x0, box.y0, box.z0, box.x1, box.y1, box.z1);
+  }
+  next.enforceTwoToOneBalance();
+  return next;
+}
+
+size_t fineLeafCountForBox(const MRLayout3D<4>& base, const Box3I& box) {
+  return layoutWithFineBox(base, box).countLevel(0);
+}
+
+int boxExtent(const Box3I& box, int axis) {
+  if (axis == 0) return box.x1 - box.x0;
+  if (axis == 1) return box.y1 - box.y0;
+  return box.z1 - box.z0;
+}
+
+bool shrinkLargestAxis(Box3I& box, double cx, double cy, double cz) {
+  int axis = 0;
+  if (boxExtent(box, 1) > boxExtent(box, axis)) axis = 1;
+  if (boxExtent(box, 2) > boxExtent(box, axis)) axis = 2;
+  if (boxExtent(box, axis) <= 1) return false;
+
+  if (axis == 0) {
+    if ((box.x1 - cx) >= (cx - box.x0)) --box.x1;
+    else ++box.x0;
+  } else if (axis == 1) {
+    if ((box.y1 - cy) >= (cy - box.y0)) --box.y1;
+    else ++box.y0;
+  } else {
+    if ((box.z1 - cz) >= (cz - box.z0)) --box.z1;
+    else ++box.z0;
+  }
+  box.valid = box.x0 < box.x1 && box.y0 < box.y1 && box.z0 < box.z1;
+  return box.valid;
+}
+
+Box3I fitBoxToFineLeafBudget(const MRLayout3D<4>& base, Box3I box, int maxFineLeaves, bool& limited) {
+  limited = false;
+  if (!box.valid || maxFineLeaves <= 0) return box;
+
+  const size_t budget = static_cast<size_t>(maxFineLeaves);
+  if (fineLeafCountForBox(base, box) <= budget) return box;
+
+  limited = true;
+  double cx = 0.5 * static_cast<double>(box.x0 + box.x1);
+  double cy = 0.5 * static_cast<double>(box.y0 + box.y1);
+  double cz = 0.5 * static_cast<double>(box.z0 + box.z1);
+  while (fineLeafCountForBox(base, box) > budget) {
+    if (!shrinkLargestAxis(box, cx, cy, cz)) break;
+  }
+  return box;
 }
 
 void refineBubbleStaticBand(MRLayout3D<4>& layout) {
@@ -141,6 +247,9 @@ MRSim3DTP::MRSim3DTP(int nx, int ny, int nz, double dx)
 void MRSim3DTP::initBubbleTankInterfaceBand() {
   particles = Particles3DTP();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  dynamic_budget_limited = false;
+  dynamic_last_fine_leaves = 0;
+  dynamic_retained_box_valid = false;
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -171,18 +280,15 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
 void MRSim3DTP::updateDynamicRefinement() {
   if (!dynamic_refinement) return;
 
-  MRLayout3D<4> next(layout.nx, layout.ny, layout.nz, layout.dx);
-  next.setCoarseEverywhere(1);
-
-  int minX = next.nx;
-  int minY = next.ny;
-  int minZ = next.nz;
+  int minX = layout.nx;
+  int minY = layout.ny;
+  int minZ = layout.nz;
   int maxX = -1;
   int maxY = -1;
   int maxZ = -1;
-  int gasMinX = next.nx;
-  int gasMinY = next.ny;
-  int gasMinZ = next.nz;
+  int gasMinX = layout.nx;
+  int gasMinY = layout.ny;
+  int gasMinZ = layout.nz;
   int gasMaxX = -1;
   int gasMaxY = -1;
   int gasMaxZ = -1;
@@ -193,12 +299,12 @@ void MRSim3DTP::updateDynamicRefinement() {
       continue;
     }
 
-    int i = static_cast<int>(pos.x / next.dx);
-    int j = static_cast<int>(pos.y / next.dx);
-    int k = static_cast<int>(pos.z / next.dx);
-    if (i < 0 || i >= next.nx ||
-        j < 0 || j >= next.ny ||
-        k < 0 || k >= next.nz) {
+    int i = static_cast<int>(pos.x / layout.dx);
+    int j = static_cast<int>(pos.y / layout.dx);
+    int k = static_cast<int>(pos.z / layout.dx);
+    if (i < 0 || i >= layout.nx ||
+        j < 0 || j >= layout.ny ||
+        k < 0 || k >= layout.nz) {
       continue;
     }
 
@@ -219,21 +325,46 @@ void MRSim3DTP::updateDynamicRefinement() {
     }
   }
 
+  Box3I desired;
   if (maxX >= 0) {
     int pad = std::max(0, dynamic_particle_padding);
-    refineBox(next,
-              minX - pad, minY - pad, minZ - pad,
-              maxX + pad + 1, maxY + pad + 1, maxZ + pad + 1);
+    includeBox(desired,
+               minX - pad, minY - pad, minZ - pad,
+               maxX + pad + 1, maxY + pad + 1, maxZ + pad + 1);
   }
 
   if (gasMaxX >= 0) {
     int pad = std::max(0, dynamic_gas_padding);
-    refineBox(next,
-              gasMinX - pad, gasMinY - pad, gasMinZ - pad,
-              gasMaxX + pad + 1, gasMaxY + pad + 1, gasMaxZ + pad + 1);
+    includeBox(desired,
+               gasMinX - pad, gasMinY - pad, gasMinZ - pad,
+               gasMaxX + pad + 1, gasMaxY + pad + 1, gasMaxZ + pad + 1);
   }
 
-  next.enforceTwoToOneBalance();
+  desired = clampBox(layout, desired);
+  Box3I target;
+  dynamic_budget_limited = false;
+  if (desired.valid) {
+    Box3I retained{dynamic_retained_x0, dynamic_retained_y0, dynamic_retained_z0,
+                   dynamic_retained_x1, dynamic_retained_y1, dynamic_retained_z1,
+                   dynamic_retained_box_valid};
+    target = containsBox(retained, desired)
+      ? retained
+      : expandBox(layout, desired, dynamic_hysteresis_cells);
+    target = fitBoxToFineLeafBudget(layout, target, dynamic_max_fine_leaves, dynamic_budget_limited);
+  }
+
+  dynamic_retained_box_valid = target.valid;
+  if (target.valid) {
+    dynamic_retained_x0 = target.x0;
+    dynamic_retained_y0 = target.y0;
+    dynamic_retained_z0 = target.z0;
+    dynamic_retained_x1 = target.x1;
+    dynamic_retained_y1 = target.y1;
+    dynamic_retained_z1 = target.z1;
+  }
+
+  MRLayout3D<4> next = layoutWithFineBox(layout, target);
+  dynamic_last_fine_leaves = static_cast<int>(next.countLevel(0));
   if (!sameLeaves(layout, next) || !sameLeaves(grid.layout, next)) {
     layout = next;
     grid = MRMacGrid3D<4>(layout);
