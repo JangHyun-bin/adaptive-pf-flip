@@ -13,6 +13,7 @@ add_library(pfflip2d
   src/driver/multires_ops2d_tp.cpp
   src/driver/multires_ops3d_tp.cpp
   src/driver/multires_sim2d_tp.cpp
+  src/driver/multires_sim3d_tp.cpp
   src/driver/sparse_sim2d.cpp
   src/driver/sparse_sim3d.cpp
   src/driver/sparse_sim2d_tp.cpp
@@ -73,6 +74,7 @@ add_executable(unit_tests
   tests/test_multires_pressure.cpp
   tests/test_multires_pressure3d.cpp
   tests/test_multires_sim_tp.cpp
+  tests/test_multires_sim3d_tp.cpp
   tests/test_sparse_grid.cpp
   tests/test_sparse_grid3d.cpp
   tests/test_sparse_stencil.cpp
@@ -111,5 +113,7 @@ add_executable(run_sparse_bubble3d apps/run_sparse_bubble3d.cpp)
 target_link_libraries(run_sparse_bubble3d pfflip2d)
 add_executable(validate_sparse3d_tp apps/validate_sparse3d_tp.cpp)
 target_link_libraries(validate_sparse3d_tp pfflip2d)
+add_executable(validate_multires3d_tp apps/validate_multires3d_tp.cpp)
+target_link_libraries(validate_multires3d_tp pfflip2d)
 add_executable(run_multires_bubble apps/run_multires_bubble.cpp)
 target_link_libraries(run_multires_bubble pfflip2d)
