@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", dt);
   std::printf("cg_iters=%d\n", cgIters);
+  std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
   std::printf("sparse_particles_start=%zu\n", sparseN0);
   std::printf("sparse_particles_end=%zu\n", sparse.particles.size());
   std::printf("mr_particles_start=%zu\n", mrN0);
@@ -136,6 +137,12 @@ int main(int argc, char** argv) {
   std::printf("mr_dynamic_max_fine_leaves=%d\n", mr.dynamic_max_fine_leaves);
   std::printf("mr_dynamic_budget_limited=%s\n", mr.dynamic_budget_limited ? "true" : "false");
   std::printf("mr_dynamic_last_fine_leaves=%d\n", mr.dynamic_last_fine_leaves);
+  std::printf("mr_pressure_iterations=%d\n", mr.last_pressure_stats.iterations);
+  std::printf("mr_pressure_max_iterations=%d\n", mr.last_pressure_stats.max_iterations);
+  std::printf("mr_pressure_initial_residual=%.9g\n", mr.last_pressure_stats.initial_residual);
+  std::printf("mr_pressure_final_residual=%.9g\n", mr.last_pressure_stats.final_residual);
+  std::printf("mr_pressure_converged=%s\n", mr.last_pressure_stats.converged ? "true" : "false");
+  std::printf("mr_pressure_breakdown=%s\n", mr.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));
   std::printf("mr_leaf_level1=%zu\n", mr.layout.countLevel(1));
   std::printf("mr_pressure_cells=%d\n", mrPressureCells);
@@ -157,6 +164,8 @@ int main(int argc, char** argv) {
   if (!(sparseRise > 0.0) || !(mrRise > 0.0)) ok = false;
   if (!(mrPressureCells < finePressureCells)) ok = false;
   if (!(riseDelta <= allowedRiseDelta)) ok = false;
+  if (steps > 0 && mr.last_pressure_stats.breakdown) ok = false;
+  if (steps > 0 && !std::isfinite(mr.last_pressure_stats.final_residual)) ok = false;
 
   std::printf("status=%s\n", ok ? "ok" : "fail");
   return ok ? 0 : 1;

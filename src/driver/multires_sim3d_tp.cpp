@@ -379,7 +379,7 @@ void MRSim3DTP::step() {
 
   applyGravity(grid, dt, gravity);
   applyWallBoundary(grid);
-  projectMR3D(grid, phase, dt, cg_iters, cg_tol);
+  projectMR3D(grid, phase, dt, cg_iters, cg_tol, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   mrAdvect3D_tp(particles, grid, dt);
 }

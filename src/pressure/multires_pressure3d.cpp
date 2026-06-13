@@ -229,6 +229,19 @@ void averageVelocityProjection(MRMacGrid3D<4>& g) {
   for (const MRFaceKey3D& f : averageW) g.w(f) = static_cast<float>(avg);
 }
 
+MRPressureSolveStats3D makeInitialStats(int maxIter, double tol) {
+  MRPressureSolveStats3D stats;
+  stats.max_iterations = maxIter;
+  stats.tolerance = tol;
+  return stats;
+}
+
+double maxAbs(const std::vector<double>& v) {
+  double mx = 0.0;
+  for (double x : v) mx = std::max(mx, std::abs(x));
+  return mx;
+}
+
 } // namespace
 
 void MRPressureSystem3D::apply(const std::vector<double>& x, std::vector<double>& out) const {
@@ -314,24 +327,34 @@ double maxMRDivergence3D(const MRMacGrid3D<4>& g) {
   return first ? 0.0 : std::abs(mx - mn);
 }
 
-void projectMR3D(MRMacGrid3D<4>& g, double dt, int maxIter, double tol) {
+void projectMR3D(MRMacGrid3D<4>& g, double dt, int maxIter, double tol,
+                 MRPressureSolveStats3D* stats) {
+  MRPressureSolveStats3D localStats = makeInitialStats(maxIter, tol);
   if (!hasAnyMarker(g)) {
     (void)dt;
-    (void)maxIter;
-    (void)tol;
+    localStats.used_average_projection = true;
+    localStats.converged = true;
     averageVelocityProjection(g);
+    if (stats) *stats = localStats;
     return;
   }
 
   PhaseParams pp;
-  projectMR3D(g, pp, dt, maxIter, tol);
+  projectMR3D(g, pp, dt, maxIter, tol, stats);
 }
 
-void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIter, double tol) {
+void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIter, double tol,
+                 MRPressureSolveStats3D* stats) {
+  MRPressureSolveStats3D localStats = makeInitialStats(maxIter, tol);
   std::vector<ProjectionCell3D> cells = fluidProjectionCells(g);
   const int N = static_cast<int>(cells.size());
+  localStats.active_cells = N;
   g.p.blocks.clear();
-  if (N == 0) return;
+  if (N == 0) {
+    localStats.converged = true;
+    if (stats) *stats = localStats;
+    return;
+  }
 
   std::map<std::tuple<int, int, int, int, int, int, int>, int> idx;
   for (const ProjectionCell3D& c : cells) {
@@ -339,6 +362,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
   }
 
   int pinCell = findPinCell(g, cells);
+  localStats.pinned_cell = pinCell;
 
   auto pressureIndexAtFine = [&](int x, int y, int z) {
     if (x < 0 || x >= g.layout.nx ||
@@ -379,6 +403,15 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     });
   }
 
+  for (const ProjectionRow3D& row : rows) {
+    if (row.diag > 0.0) {
+      localStats.min_positive_diag = localStats.min_positive_diag == 0.0
+        ? row.diag
+        : std::min(localStats.min_positive_diag, row.diag);
+      localStats.max_diag = std::max(localStats.max_diag, row.diag);
+    }
+  }
+
   auto applyA = [&](const std::vector<double>& x, std::vector<double>& out) {
     out.assign(N, 0.0);
     for (const ProjectionCell3D& c : cells) {
@@ -406,6 +439,9 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     r[c.index] = c.index == pinCell ? 0.0 : -rows[c.index].divergence;
     res0 = std::max(res0, std::abs(r[c.index]));
   }
+  localStats.initial_residual = res0;
+  localStats.final_residual = res0;
+  localStats.converged = res0 < tol;
   if (res0 >= tol) {
     for (const ProjectionCell3D& c : cells) {
       double d = rows[c.index].diag;
@@ -423,7 +459,11 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     for (int it = 0; it < maxIter; ++it) {
       applyA(p, Ap);
       double pAp = dot(p, Ap);
-      if (std::abs(pAp) < 1e-30) break;
+      if (std::abs(pAp) < 1e-30) {
+        localStats.breakdown = true;
+        localStats.final_residual = maxAbs(r);
+        break;
+      }
 
       double alpha = rz / pAp;
       double res = 0.0;
@@ -432,7 +472,12 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
         r[i] -= alpha * Ap[i];
         res = std::max(res, std::abs(r[i]));
       }
-      if (res < tol) break;
+      localStats.iterations = it + 1;
+      localStats.final_residual = res;
+      if (res < tol) {
+        localStats.converged = true;
+        break;
+      }
 
       for (const ProjectionCell3D& c : cells) {
         double d = rows[c.index].diag;
@@ -521,4 +566,6 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
     double beta = faceBeta(g, f, pp);
     g.w(f) = static_cast<float>(g.gw(f) - dt * beta * (pf - pb) / distance);
   }
+
+  if (stats) *stats = localStats;
 }

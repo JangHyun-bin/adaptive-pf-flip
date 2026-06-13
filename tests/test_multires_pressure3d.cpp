@@ -257,6 +257,83 @@ TEST_CASE("multires 3D pressure: phase-aware projection reduces marked divergenc
   CHECK(g.gu(MRFaceKey3D{0, 3, 3, 3, 1, 1}) == doctest::Approx(0.0).epsilon(1e-12));
 }
 
+TEST_CASE("multires 3D pressure: solve stats track residual and iterations") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+
+  setMarker(g, 2, 3, 3, 2);
+  setMarker(g, 3, 3, 3, 1);
+  setMarker(g, 4, 3, 3, 1);
+  setMarker(g, 3, 4, 3, 1);
+  setMarker(g, 4, 4, 3, 1);
+  setMarker(g, 3, 3, 4, 1);
+  setMarker(g, 4, 3, 4, 1);
+
+  for (const MRFaceKey3D& f : g.uFaces()) g.mU(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.vFaces()) g.mV(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.wFaces()) g.mW(f) = 1.0f;
+
+  g.u(MRFaceKey3D{0, 3, 3, 3, 1, 1}) = 7.0f;
+  g.u(MRFaceKey3D{0, 5, 3, 3, 1, 1}) = 4.0f;
+  g.v(MRFaceKey3D{1, 4, 5, 3, 1, 1}) = -3.0f;
+  g.w(MRFaceKey3D{2, 4, 3, 5, 1, 1}) = 2.0f;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, 100, 1e-10, &stats);
+
+  CHECK(stats.active_cells == 6);
+  CHECK(stats.max_iterations == 100);
+  CHECK(stats.tolerance == doctest::Approx(1e-10));
+  CHECK(stats.iterations > 0);
+  CHECK(stats.iterations <= stats.max_iterations);
+  CHECK(stats.initial_residual > 0.0);
+  CHECK(stats.final_residual >= 0.0);
+  CHECK(stats.final_residual <= stats.initial_residual);
+  CHECK(stats.max_diag >= stats.min_positive_diag);
+  CHECK(stats.min_positive_diag > 0.0);
+  CHECK(!stats.used_average_projection);
+}
+
+TEST_CASE("multires 3D pressure: high density ratio stats remain finite") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  pp.rho_l = 1000.0;
+  pp.rho_g = 1.0;
+  pp.rho_tilde_0 = 1.0;
+
+  setMarker(g, 2, 3, 3, 2);
+  setMarker(g, 3, 3, 3, 1);
+  setMarker(g, 4, 3, 3, 1);
+  setMarker(g, 3, 4, 3, 1);
+  setMarker(g, 4, 4, 3, 1);
+  setMarker(g, 3, 3, 4, 1);
+  setMarker(g, 4, 3, 4, 1);
+
+  for (const MRFaceKey3D& f : g.uFaces()) g.mU(f) = static_cast<float>(pp.rho_l);
+  for (const MRFaceKey3D& f : g.vFaces()) g.mV(f) = static_cast<float>(pp.rho_l);
+  for (const MRFaceKey3D& f : g.wFaces()) g.mW(f) = static_cast<float>(pp.rho_l);
+
+  g.u(MRFaceKey3D{0, 3, 3, 3, 1, 1}) = 7.0f;
+  g.u(MRFaceKey3D{0, 5, 3, 3, 1, 1}) = 4.0f;
+  g.v(MRFaceKey3D{1, 4, 5, 3, 1, 1}) = -3.0f;
+  g.w(MRFaceKey3D{2, 4, 3, 5, 1, 1}) = 2.0f;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, 200, 1e-8, &stats);
+
+  CHECK(stats.active_cells == 6);
+  CHECK(stats.iterations > 0);
+  CHECK(stats.iterations <= stats.max_iterations);
+  CHECK(std::isfinite(stats.initial_residual));
+  CHECK(std::isfinite(stats.final_residual));
+  CHECK(stats.final_residual <= stats.initial_residual);
+  CHECK(!stats.breakdown);
+}
+
 TEST_CASE("multires 3D pressure: no-marker smoke projection reduces u spread") {
   MRLayout3D<4> layout(8, 8, 8, 1.0);
   layout.setCoarseEverywhere(0);

@@ -2,6 +2,7 @@
 
 #include "grid/multires_mac_grid3d.h"
 #include "particles/particles3d_tp.h"
+#include "pressure/multires_pressure3d.h"
 #include "physics/phasefield.h"
 
 struct MRSim3DTP {
@@ -30,6 +31,7 @@ struct MRSim3DTP {
   int dynamic_retained_x1 = 0;
   int dynamic_retained_y1 = 0;
   int dynamic_retained_z1 = 0;
+  MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);
   void initBubbleTankInterfaceBand();

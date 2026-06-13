@@ -108,6 +108,7 @@ int main(int argc, char** argv) {
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", sim.dt);
   std::printf("cg_iters=%d\n", sim.cg_iters);
+  std::printf("cg_tol=%.9g\n", sim.cg_tol);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("finite=%s\n", finite ? "true" : "false");
@@ -121,6 +122,16 @@ int main(int argc, char** argv) {
   std::printf("dynamic_retained_box=%d,%d,%d,%d,%d,%d\n",
               sim.dynamic_retained_x0, sim.dynamic_retained_y0, sim.dynamic_retained_z0,
               sim.dynamic_retained_x1, sim.dynamic_retained_y1, sim.dynamic_retained_z1);
+  std::printf("pressure_active_cells=%d\n", sim.last_pressure_stats.active_cells);
+  std::printf("pressure_pinned_cell=%d\n", sim.last_pressure_stats.pinned_cell);
+  std::printf("pressure_iterations=%d\n", sim.last_pressure_stats.iterations);
+  std::printf("pressure_max_iterations=%d\n", sim.last_pressure_stats.max_iterations);
+  std::printf("pressure_initial_residual=%.9g\n", sim.last_pressure_stats.initial_residual);
+  std::printf("pressure_final_residual=%.9g\n", sim.last_pressure_stats.final_residual);
+  std::printf("pressure_min_positive_diag=%.9g\n", sim.last_pressure_stats.min_positive_diag);
+  std::printf("pressure_max_diag=%.9g\n", sim.last_pressure_stats.max_diag);
+  std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
+  std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("active_pressure_cells=%d\n", pressureCells);
   std::printf("active_pressure_cells_end=%d\n", pressureCellsEnd);
   std::printf("fine_pressure_cells=%d\n", fineCells);
@@ -139,6 +150,8 @@ int main(int argc, char** argv) {
   if (sim.particles.size() != n0) ok = false;
   if (!(gas1 > gas0)) ok = false;
   if (!(pressureCellsEnd < fineCells)) ok = false;
+  if (steps > 0 && sim.last_pressure_stats.breakdown) ok = false;
+  if (steps > 0 && !std::isfinite(sim.last_pressure_stats.final_residual)) ok = false;
 
   std::printf("status=%s\n", ok ? "ok" : "fail");
   return ok ? 0 : 1;
