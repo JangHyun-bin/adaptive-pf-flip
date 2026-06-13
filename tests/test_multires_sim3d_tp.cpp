@@ -118,6 +118,28 @@ TEST_CASE("multires 3D bubble tank initializes refined lower band and coarse hea
   CHECK(sim.wFaceCount() > 0);
 }
 
+TEST_CASE("multires 3D dynamic refinement follows particle occupancy") {
+  MRSim3DTP sim(16, 16, 16, 1.0);
+  sim.dynamic_particle_padding = 0;
+  sim.dynamic_gas_padding = 1;
+  sim.particles.add({2.5, 2.5, 2.5}, {0.0, 0.0, 0.0}, 0);
+  sim.particles.add({3.5, 2.5, 2.5}, {0.0, 0.0, 0.0}, 1);
+
+  sim.updateDynamicRefinement();
+
+  CHECK(sim.layout.leafAtFineCell(2, 2, 2).level == 0);
+  CHECK(sim.layout.leafAtFineCell(14, 14, 14).level == 1);
+  CHECK(sim.grid.layout.leaves() == sim.layout.leaves());
+
+  sim.particles.pos[0] = {13.5, 13.5, 13.5};
+  sim.particles.pos[1] = {12.5, 13.5, 13.5};
+  sim.updateDynamicRefinement();
+
+  CHECK(sim.layout.leafAtFineCell(13, 13, 13).level == 0);
+  CHECK(sim.layout.leafAtFineCell(2, 2, 2).level == 1);
+  CHECK(sim.grid.layout.leaves() == sim.layout.leaves());
+}
+
 TEST_CASE("multires 3D bubble tank step conserves particles and stays finite") {
   MRSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.02;

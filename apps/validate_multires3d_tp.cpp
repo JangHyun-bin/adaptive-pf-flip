@@ -85,6 +85,8 @@ int main(int argc, char** argv) {
   int uFaces = sim.uFaceCount();
   int vFaces = sim.vFaceCount();
   int wFaces = sim.wFaceCount();
+  size_t leaf0Start = sim.layout.countLevel(0);
+  size_t leaf1Start = sim.layout.countLevel(1);
 
   auto start = std::chrono::steady_clock::now();
   for (int s = 0; s < steps; ++s) {
@@ -94,6 +96,7 @@ int main(int argc, char** argv) {
 
   double gas1 = meanY(sim.particles, 1);
   bool finite = finiteParticles(sim.particles);
+  int pressureCellsEnd = sim.activePressureCellCount();
   long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
   double elapsedPerStep = steps > 0 ? static_cast<double>(elapsedMs) / static_cast<double>(steps) : 0.0;
 
@@ -107,11 +110,15 @@ int main(int argc, char** argv) {
   std::printf("finite=%s\n", finite ? "true" : "false");
   std::printf("gas_mean_y_start=%.9g\n", gas0);
   std::printf("gas_mean_y_end=%.9g\n", gas1);
+  std::printf("dynamic_refinement=%s\n", sim.dynamic_refinement ? "true" : "false");
   std::printf("active_pressure_cells=%d\n", pressureCells);
+  std::printf("active_pressure_cells_end=%d\n", pressureCellsEnd);
   std::printf("fine_pressure_cells=%d\n", fineCells);
   std::printf("u_faces=%d\n", uFaces);
   std::printf("v_faces=%d\n", vFaces);
   std::printf("w_faces=%d\n", wFaces);
+  std::printf("leaf_level0_start=%zu\n", leaf0Start);
+  std::printf("leaf_level1_start=%zu\n", leaf1Start);
   std::printf("leaf_level0=%zu\n", sim.layout.countLevel(0));
   std::printf("leaf_level1=%zu\n", sim.layout.countLevel(1));
   std::printf("elapsed_ms=%lld\n", elapsedMs);
@@ -121,7 +128,7 @@ int main(int argc, char** argv) {
   if (!finite) ok = false;
   if (sim.particles.size() != n0) ok = false;
   if (!(gas1 > gas0)) ok = false;
-  if (!(pressureCells < fineCells)) ok = false;
+  if (!(pressureCellsEnd < fineCells)) ok = false;
 
   std::printf("status=%s\n", ok ? "ok" : "fail");
   return ok ? 0 : 1;

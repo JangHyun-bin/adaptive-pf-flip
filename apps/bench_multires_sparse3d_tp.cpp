@@ -128,6 +128,9 @@ int main(int argc, char** argv) {
   std::printf("mr_gas_mean_y_end=%.9g\n", mrGas1);
   std::printf("sparse_active_pressure_blocks_max=%zu\n", sparseMaxBlocks);
   std::printf("sparse_total_pressure_blocks=%zu\n", sparse.grid.totalCellBlocks());
+  std::printf("mr_dynamic_refinement=%s\n", mr.dynamic_refinement ? "true" : "false");
+  std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));
+  std::printf("mr_leaf_level1=%zu\n", mr.layout.countLevel(1));
   std::printf("mr_pressure_cells=%d\n", mrPressureCells);
   std::printf("fine_pressure_cells=%d\n", finePressureCells);
   std::printf("mr_u_faces=%d\n", mr.uFaceCount());

@@ -65,6 +65,8 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **E5** | **3D multires two-phase validation** - 3D multires bubble scene, sim step loop, and metrics-only validation runner. | done |
 | **E8** | **3D multires visual demo** - 3D multires bubble slice writer and `mrb3_###.ppm` demo runner. | done |
 | **E9** | **Sparse vs 3D multires benchmark** - paired sparse/MR bubble metrics for particles, rise, pressure cells, face counts, and elapsed time. | done |
+| **E10** | **3D multires performance cleanup** - cached 3D face enumeration and local-radius multires transfer for the P2G hot path. | done |
+| **E11** | **3D multires dynamic refinement** - per-step particle/gas occupancy driven 3D layout refresh with coarse headspace preserved. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
