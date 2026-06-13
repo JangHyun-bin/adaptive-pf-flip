@@ -1,0 +1,25 @@
+#pragma once
+
+#include <vector>
+
+template<int B>
+struct MRMacGrid3D;
+struct PhaseParams;
+
+struct MREdge3D {
+  int a = -1;
+  int b = -1;
+  double conductance = 0.0;
+};
+
+struct MRPressureSystem3D {
+  std::vector<double> volumes;
+  std::vector<MREdge3D> edges;
+
+  int cellCount() const { return static_cast<int>(volumes.size()); }
+  double volume(int i) const { return volumes[i]; }
+  void apply(const std::vector<double>& x, std::vector<double>& out) const;
+};
+
+MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);
+double maxMRDivergence3D(const MRMacGrid3D<4>& g);
