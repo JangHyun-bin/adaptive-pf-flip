@@ -58,7 +58,8 @@ void usage() {
   std::fprintf(stderr,
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] [--flexible-cg] "
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
+               "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
@@ -79,6 +80,13 @@ int main(int argc, char** argv) {
 
   SparseSim3DTP sparse(nx, ny, nz, 1.0);
   MRSim3DTP mr(nx, ny, nz, 1.0);
+  double requestedRhoRatio = argDouble(argc, argv, "--rho-ratio", 0.0);
+  if (requestedRhoRatio > 0.0) {
+    sparse.phase.rho_l = requestedRhoRatio;
+    sparse.phase.rho_g = 1.0;
+    mr.phase.rho_l = requestedRhoRatio;
+    mr.phase.rho_g = 1.0;
+  }
   double dt = argDouble(argc, argv, "--dt", mr.dt);
   int cgIters = argInt(argc, argv, "--cg-iters", mr.cg_iters);
   sparse.dt = dt;
@@ -97,7 +105,12 @@ int main(int argc, char** argv) {
   mr.cg_residual_history_limit = argInt(argc, argv, "--history-limit", mr.cg_residual_history_limit);
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
-  if (mr.cg_restart_growth < 0.0 ||
+  if (requestedRhoRatio < 0.0 ||
+      sparse.phase.rho_l <= 0.0 ||
+      sparse.phase.rho_g <= 0.0 ||
+      mr.phase.rho_l <= 0.0 ||
+      mr.phase.rho_g <= 0.0 ||
+      mr.cg_restart_growth < 0.0 ||
       mr.cg_relaxation_sweeps < 0 ||
       mr.cg_relaxation_omega < 0.0 ||
       mr.cg_relaxation_min_omega < 0.0 ||
@@ -106,6 +119,9 @@ int main(int argc, char** argv) {
     usage();
     return 2;
   }
+  const double activeRhoRatio = mr.phase.rho_l / mr.phase.rho_g;
+  const bool highDensityRatio = activeRhoRatio >= 1000.0;
+  const bool requireConverged = hasFlag(argc, argv, "--require-converged") || highDensityRatio;
 
   sparse.initBubbleTank();
   mr.initBubbleTankInterfaceBand();
@@ -143,10 +159,28 @@ int main(int argc, char** argv) {
   double mrRise = mrGas1 - mrGas0;
   double riseDelta = std::abs(mrRise - sparseRise);
   double allowedRiseDelta = std::max(0.35, std::abs(sparseRise) * 3.0);
+  const MRPressureSolveStats3D& st = mr.last_pressure_stats;
+  const double finalOverInitial = st.initial_residual > 0.0
+    ? st.final_residual / st.initial_residual
+    : 0.0;
+  const bool pressureDiagFinite =
+    std::isfinite(st.min_positive_diag) &&
+    std::isfinite(st.max_diag) &&
+    st.min_positive_diag > 0.0 &&
+    st.max_diag >= st.min_positive_diag;
+  const bool convergenceOk =
+    !requireConverged ||
+    steps == 0 ||
+    (st.converged && st.final_residual <= st.effective_tolerance);
 
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", dt);
+  std::printf("rho_l=%.9g\n", mr.phase.rho_l);
+  std::printf("rho_g=%.9g\n", mr.phase.rho_g);
+  std::printf("rho_ratio=%.9g\n", activeRhoRatio);
+  std::printf("high_density_ratio=%s\n", highDensityRatio ? "true" : "false");
+  std::printf("require_converged=%s\n", requireConverged ? "true" : "false");
   std::printf("cg_iters=%d\n", cgIters);
   std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
   std::printf("mr_cg_rel_tol=%.9g\n", mr.cg_rel_tol);
@@ -180,10 +214,14 @@ int main(int argc, char** argv) {
   std::printf("mr_pressure_max_iterations=%d\n", mr.last_pressure_stats.max_iterations);
   std::printf("mr_pressure_initial_residual=%.9g\n", mr.last_pressure_stats.initial_residual);
   std::printf("mr_pressure_final_residual=%.9g\n", mr.last_pressure_stats.final_residual);
+  std::printf("mr_pressure_final_over_initial=%.9g\n", finalOverInitial);
   std::printf("mr_pressure_min_residual=%.9g\n", mr.last_pressure_stats.min_residual);
   std::printf("mr_pressure_max_residual=%.9g\n", mr.last_pressure_stats.max_residual);
   std::printf("mr_pressure_effective_tolerance=%.9g\n", mr.last_pressure_stats.effective_tolerance);
   std::printf("mr_pressure_relative_tolerance=%.9g\n", mr.last_pressure_stats.relative_tolerance);
+  std::printf("mr_pressure_min_positive_diag=%.9g\n", mr.last_pressure_stats.min_positive_diag);
+  std::printf("mr_pressure_max_diag=%.9g\n", mr.last_pressure_stats.max_diag);
+  std::printf("mr_pressure_diag_finite=%s\n", pressureDiagFinite ? "true" : "false");
   std::printf("mr_pressure_jacobi_preconditioner=%s\n",
               mr.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
   std::printf("mr_pressure_flexible_cg_beta=%s\n",
@@ -219,6 +257,7 @@ int main(int argc, char** argv) {
   std::printf("mr_pressure_residual_history_last=%.9g\n",
               mr.last_pressure_stats.residual_history.empty() ? 0.0 : mr.last_pressure_stats.residual_history.back());
   std::printf("mr_pressure_converged=%s\n", mr.last_pressure_stats.converged ? "true" : "false");
+  std::printf("mr_pressure_convergence_ok=%s\n", convergenceOk ? "true" : "false");
   std::printf("mr_pressure_breakdown=%s\n", mr.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));
   std::printf("mr_leaf_level1=%zu\n", mr.layout.countLevel(1));
@@ -243,6 +282,9 @@ int main(int argc, char** argv) {
   if (!(riseDelta <= allowedRiseDelta)) ok = false;
   if (steps > 0 && mr.last_pressure_stats.breakdown) ok = false;
   if (steps > 0 && !std::isfinite(mr.last_pressure_stats.final_residual)) ok = false;
+  if (steps > 0 && mr.last_pressure_stats.final_residual > mr.last_pressure_stats.initial_residual) ok = false;
+  if (steps > 0 && !convergenceOk) ok = false;
+  if (steps > 0 && highDensityRatio && !pressureDiagFinite) ok = false;
 
   std::printf("status=%s\n", ok ? "ok" : "fail");
   return ok ? 0 : 1;

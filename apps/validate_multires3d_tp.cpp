@@ -64,7 +64,8 @@ void usage() {
   std::fprintf(stderr,
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] [--flexible-cg] "
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
+               "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
@@ -85,6 +86,11 @@ int main(int argc, char** argv) {
   }
 
   MRSim3DTP sim(nx, ny, nz, 1.0);
+  double requestedRhoRatio = argDouble(argc, argv, "--rho-ratio", 0.0);
+  if (requestedRhoRatio > 0.0) {
+    sim.phase.rho_l = requestedRhoRatio;
+    sim.phase.rho_g = 1.0;
+  }
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
   sim.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", sim.cg_rel_tol);
@@ -99,7 +105,10 @@ int main(int argc, char** argv) {
   sim.cg_residual_history_limit = argInt(argc, argv, "--history-limit", sim.cg_residual_history_limit);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
-  if (sim.cg_restart_growth < 0.0 ||
+  if (requestedRhoRatio < 0.0 ||
+      sim.phase.rho_l <= 0.0 ||
+      sim.phase.rho_g <= 0.0 ||
+      sim.cg_restart_growth < 0.0 ||
       sim.cg_relaxation_sweeps < 0 ||
       sim.cg_relaxation_omega < 0.0 ||
       sim.cg_relaxation_min_omega < 0.0 ||
@@ -108,6 +117,9 @@ int main(int argc, char** argv) {
     usage();
     return 2;
   }
+  const double activeRhoRatio = sim.phase.rho_l / sim.phase.rho_g;
+  const bool highDensityRatio = activeRhoRatio >= 1000.0;
+  const bool requireConverged = hasFlag(argc, argv, "--require-converged") || highDensityRatio;
   sim.initBubbleTankInterfaceBand();
 
   size_t n0 = sim.particles.size();
@@ -131,11 +143,29 @@ int main(int argc, char** argv) {
   int pressureCellsEnd = sim.activePressureCellCount();
   long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
   double elapsedPerStep = steps > 0 ? static_cast<double>(elapsedMs) / static_cast<double>(steps) : 0.0;
+  const MRPressureSolveStats3D& st = sim.last_pressure_stats;
+  const double finalOverInitial = st.initial_residual > 0.0
+    ? st.final_residual / st.initial_residual
+    : 0.0;
+  const bool pressureDiagFinite =
+    std::isfinite(st.min_positive_diag) &&
+    std::isfinite(st.max_diag) &&
+    st.min_positive_diag > 0.0 &&
+    st.max_diag >= st.min_positive_diag;
+  const bool convergenceOk =
+    !requireConverged ||
+    steps == 0 ||
+    (st.converged && st.final_residual <= st.effective_tolerance);
 
   std::printf("scenario=%s\n", scenario);
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", sim.dt);
+  std::printf("rho_l=%.9g\n", sim.phase.rho_l);
+  std::printf("rho_g=%.9g\n", sim.phase.rho_g);
+  std::printf("rho_ratio=%.9g\n", activeRhoRatio);
+  std::printf("high_density_ratio=%s\n", highDensityRatio ? "true" : "false");
+  std::printf("require_converged=%s\n", requireConverged ? "true" : "false");
   std::printf("cg_iters=%d\n", sim.cg_iters);
   std::printf("cg_tol=%.9g\n", sim.cg_tol);
   std::printf("cg_rel_tol=%.9g\n", sim.cg_rel_tol);
@@ -167,12 +197,14 @@ int main(int argc, char** argv) {
   std::printf("pressure_max_iterations=%d\n", sim.last_pressure_stats.max_iterations);
   std::printf("pressure_initial_residual=%.9g\n", sim.last_pressure_stats.initial_residual);
   std::printf("pressure_final_residual=%.9g\n", sim.last_pressure_stats.final_residual);
+  std::printf("pressure_final_over_initial=%.9g\n", finalOverInitial);
   std::printf("pressure_min_residual=%.9g\n", sim.last_pressure_stats.min_residual);
   std::printf("pressure_max_residual=%.9g\n", sim.last_pressure_stats.max_residual);
   std::printf("pressure_effective_tolerance=%.9g\n", sim.last_pressure_stats.effective_tolerance);
   std::printf("pressure_relative_tolerance=%.9g\n", sim.last_pressure_stats.relative_tolerance);
   std::printf("pressure_min_positive_diag=%.9g\n", sim.last_pressure_stats.min_positive_diag);
   std::printf("pressure_max_diag=%.9g\n", sim.last_pressure_stats.max_diag);
+  std::printf("pressure_diag_finite=%s\n", pressureDiagFinite ? "true" : "false");
   std::printf("pressure_jacobi_preconditioner=%s\n",
               sim.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
   std::printf("pressure_flexible_cg_beta=%s\n",
@@ -208,6 +240,7 @@ int main(int argc, char** argv) {
   std::printf("pressure_residual_history_last=%.9g\n",
               sim.last_pressure_stats.residual_history.empty() ? 0.0 : sim.last_pressure_stats.residual_history.back());
   std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
+  std::printf("pressure_convergence_ok=%s\n", convergenceOk ? "true" : "false");
   std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("active_pressure_cells=%d\n", pressureCells);
   std::printf("active_pressure_cells_end=%d\n", pressureCellsEnd);
@@ -229,6 +262,9 @@ int main(int argc, char** argv) {
   if (!(pressureCellsEnd < fineCells)) ok = false;
   if (steps > 0 && sim.last_pressure_stats.breakdown) ok = false;
   if (steps > 0 && !std::isfinite(sim.last_pressure_stats.final_residual)) ok = false;
+  if (steps > 0 && sim.last_pressure_stats.final_residual > sim.last_pressure_stats.initial_residual) ok = false;
+  if (steps > 0 && !convergenceOk) ok = false;
+  if (steps > 0 && highDensityRatio && !pressureDiagFinite) ok = false;
 
   std::printf("status=%s\n", ok ? "ok" : "fail");
   return ok ? 0 : 1;

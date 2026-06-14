@@ -194,3 +194,24 @@ TEST_CASE("multires 3D bubble tank step conserves particles and stays finite") {
   CHECK(meanY(sim, 1) >= gas0 - 0.05);
   CHECK(sim.activePressureCellCount() < 8 * 12 * 8);
 }
+
+TEST_CASE("multires 3D bubble high density ratio pressure converges") {
+  MRSim3DTP sim(8, 12, 8, 1.0);
+  sim.phase.rho_l = 1000.0;
+  sim.phase.rho_g = 1.0;
+  sim.dt = 0.02;
+  sim.cg_iters = 160;
+  sim.cg_rel_tol = 1e-5;
+  sim.initBubbleTankInterfaceBand();
+  size_t n0 = sim.particles.size();
+
+  sim.step();
+
+  CHECK(sim.particles.size() == n0);
+  CHECK(finiteParticles(sim));
+  CHECK(sim.last_pressure_stats.converged);
+  CHECK(sim.last_pressure_stats.final_residual <= sim.last_pressure_stats.effective_tolerance);
+  CHECK(std::isfinite(sim.last_pressure_stats.min_positive_diag));
+  CHECK(sim.last_pressure_stats.min_positive_diag > 0.0);
+  CHECK(!sim.last_pressure_stats.breakdown);
+}

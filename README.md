@@ -75,6 +75,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F5** | **SPEC-3 solver diagnostics** - optional residual-history sampling plus min/max residual metrics in 3D multires validation and benchmark runners. | done |
 | **F6** | **SPEC-3 adaptive relaxation prep** - optional damped-Jacobi pre-relaxation with backoff, stats, and runner sweep controls before PCG. | done |
 | **F7** | **SPEC-3 flexible CG prep** - selectable flexible-CG beta recurrence with beta-reset stats and a solver harness comparison variant. | done |
+| **F8** | **SPEC-3 high-density validation gate** - 1000:1 density-ratio runner options with convergence, residual, and diagonal sanity checks. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -137,6 +138,10 @@ cmake --build build --config Release --target bench_multires_sparse3d_tp
 # compare 3D multires pressure solver variants, including flexible-CG beta
 cmake --build build --config Release --target bench_multires3d_solver
 ./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5 --restart-growth 10 --relax-sweeps 2 --relax-omega 0.1 --history-stride 1 --history-limit 8
+
+# validate the 3D multires solver gate at a 1000:1 density ratio
+./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6 --rho-ratio 1000 --history-stride 1 --history-limit 8
+./build/Release/bench_multires3d_solver.exe --steps 4 --rho-ratio 1000 --rel-tol 1e-5
 ```
 
 PPM frames can be assembled into a GIF with any tool (e.g. Pillow: `Image.open('frame_000.ppm')...`).

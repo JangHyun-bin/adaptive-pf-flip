@@ -58,6 +58,7 @@ void usage() {
                "usage: bench_multires3d_solver [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--abs-tol T] "
                "[--rel-tol T] [--rho-ratio R] [--hysteresis N] "
+               "[--require-converged] "
                "[--max-fine-leaves N] [--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
@@ -81,6 +82,7 @@ bool runVariant(const Variant& variant,
                 double rhoRatio,
                 int hysteresis,
                 int maxFineLeaves,
+                bool requireConverged,
                 bool adaptiveRestart,
                 double restartGrowth,
                 int relaxSweeps,
@@ -125,7 +127,11 @@ bool runVariant(const Variant& variant,
   const long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
   const MRPressureSolveStats3D& st = sim.last_pressure_stats;
   const bool residualFinite = std::isfinite(st.initial_residual) && std::isfinite(st.final_residual);
-  const bool ok = finite && stableCount && residualFinite && !st.breakdown;
+  const bool convergenceOk =
+    !requireConverged ||
+    steps == 0 ||
+    (st.converged && st.final_residual <= st.effective_tolerance);
+  const bool ok = finite && stableCount && residualFinite && !st.breakdown && convergenceOk;
   const double rise = gas1 - gas0;
   const double pressureRatio = (nx * ny * nz) > 0
     ? static_cast<double>(sim.activePressureCellCount()) / static_cast<double>(nx * ny * nz)
@@ -135,6 +141,7 @@ bool runVariant(const Variant& variant,
               "adaptive_restart=%s restart_growth=%.9g "
               "steps=%d elapsed_ms=%lld particles=%zu stable_particles=%s finite=%s "
               "gas_rise=%.9g active_cells=%d pressure_ratio=%.9g "
+              "require_converged=%s convergence_ok=%s "
               "iters=%d max_iters=%d initial_residual=%.9g final_residual=%.9g "
               "min_residual=%.9g max_residual=%.9g effective_tol=%.9g "
               "restarts=%d beta_resets=%d relax_sweeps=%d relax_accepted=%d relax_rejected=%d "
@@ -156,6 +163,8 @@ bool runVariant(const Variant& variant,
               rise,
               st.active_cells,
               pressureRatio,
+              requireConverged ? "true" : "false",
+              convergenceOk ? "true" : "false",
               st.iterations,
               st.max_iterations,
               st.initial_residual,
@@ -206,13 +215,15 @@ int main(int argc, char** argv) {
   int historyLimit = argInt(argc, argv, "--history-limit", defaults.cg_residual_history_limit);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
-      cgIters < 0 || absTol < 0.0 || relTol < 0.0 ||
+      cgIters < 0 || absTol < 0.0 || relTol < 0.0 || rhoRatio < 0.0 ||
       hysteresis < 0 || maxFineLeaves < 0 || restartGrowth < 0.0 ||
       relaxSweeps < 0 || relaxOmega < 0.0 || relaxMinOmega < 0.0 ||
       historyStride < 0 || historyLimit < 0) {
     usage();
     return 2;
   }
+  const bool highDensityRatio = rhoRatio >= 1000.0;
+  const bool requireConverged = hasFlag(argc, argv, "--require-converged") || highDensityRatio;
 
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
@@ -221,6 +232,8 @@ int main(int argc, char** argv) {
   std::printf("abs_tol=%.9g\n", absTol);
   std::printf("rel_tol=%.9g\n", relTol);
   std::printf("rho_ratio=%.9g\n", rhoRatio);
+  std::printf("high_density_ratio=%s\n", highDensityRatio ? "true" : "false");
+  std::printf("require_converged=%s\n", requireConverged ? "true" : "false");
   std::printf("hysteresis=%d\n", hysteresis);
   std::printf("max_fine_leaves=%d\n", maxFineLeaves);
   std::printf("adaptive_restart=%s\n", adaptiveRestart ? "true" : "false");
@@ -242,6 +255,7 @@ int main(int argc, char** argv) {
   for (const Variant& variant : variants) {
     ok = runVariant(variant, nx, ny, nz, steps, dt, cgIters, absTol,
                     rhoRatio, hysteresis, maxFineLeaves,
+                    requireConverged,
                     adaptiveRestart, restartGrowth,
                     relaxSweeps, relaxOmega, relaxMinOmega,
                     historyStride, historyLimit) && ok;
