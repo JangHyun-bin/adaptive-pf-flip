@@ -58,7 +58,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
@@ -87,6 +87,7 @@ int main(int argc, char** argv) {
   mr.cg_iters = cgIters;
   mr.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", mr.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) mr.cg_jacobi_preconditioner = false;
+  if (hasFlag(argc, argv, "--flexible-cg")) mr.cg_flexible_beta = true;
   if (hasFlag(argc, argv, "--no-restart")) mr.cg_adaptive_restart = false;
   mr.cg_restart_growth = argDouble(argc, argv, "--restart-growth", mr.cg_restart_growth);
   mr.cg_relaxation_sweeps = argInt(argc, argv, "--relax-sweeps", mr.cg_relaxation_sweeps);
@@ -150,6 +151,7 @@ int main(int argc, char** argv) {
   std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
   std::printf("mr_cg_rel_tol=%.9g\n", mr.cg_rel_tol);
   std::printf("mr_cg_jacobi_preconditioner=%s\n", mr.cg_jacobi_preconditioner ? "true" : "false");
+  std::printf("mr_cg_flexible_beta=%s\n", mr.cg_flexible_beta ? "true" : "false");
   std::printf("mr_cg_adaptive_restart=%s\n", mr.cg_adaptive_restart ? "true" : "false");
   std::printf("mr_cg_restart_growth=%.9g\n", mr.cg_restart_growth);
   std::printf("mr_cg_relaxation_sweeps=%d\n", mr.cg_relaxation_sweeps);
@@ -184,6 +186,9 @@ int main(int argc, char** argv) {
   std::printf("mr_pressure_relative_tolerance=%.9g\n", mr.last_pressure_stats.relative_tolerance);
   std::printf("mr_pressure_jacobi_preconditioner=%s\n",
               mr.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
+  std::printf("mr_pressure_flexible_cg_beta=%s\n",
+              mr.last_pressure_stats.used_flexible_cg_beta ? "true" : "false");
+  std::printf("mr_pressure_beta_resets=%d\n", mr.last_pressure_stats.beta_resets);
   std::printf("mr_pressure_adaptive_restart=%s\n",
               mr.last_pressure_stats.adaptive_restart ? "true" : "false");
   std::printf("mr_pressure_restart_growth=%.9g\n",

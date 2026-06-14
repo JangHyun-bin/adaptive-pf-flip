@@ -19,6 +19,7 @@ struct MRSim3DTP {
   double cg_tol = 1e-7;
   double cg_rel_tol = 1e-6;
   bool cg_jacobi_preconditioner = true;
+  bool cg_flexible_beta = false;
   bool cg_adaptive_restart = true;
   double cg_restart_growth = 10.0;
   int cg_relaxation_sweeps = 0;

@@ -66,6 +66,7 @@ void usage() {
 struct Variant {
   const char* name = "";
   bool jacobi = true;
+  bool flexibleBeta = false;
   double relTol = 0.0;
 };
 
@@ -97,6 +98,7 @@ bool runVariant(const Variant& variant,
   sim.cg_tol = absTol;
   sim.cg_rel_tol = variant.relTol;
   sim.cg_jacobi_preconditioner = variant.jacobi;
+  sim.cg_flexible_beta = variant.flexibleBeta;
   sim.cg_adaptive_restart = adaptiveRestart;
   sim.cg_restart_growth = restartGrowth;
   sim.cg_relaxation_sweeps = relaxSweeps;
@@ -129,18 +131,19 @@ bool runVariant(const Variant& variant,
     ? static_cast<double>(sim.activePressureCellCount()) / static_cast<double>(nx * ny * nz)
     : 0.0;
 
-  std::printf("result variant=%s jacobi=%s rel_tol=%.9g abs_tol=%.9g "
+  std::printf("result variant=%s jacobi=%s flexible_beta=%s rel_tol=%.9g abs_tol=%.9g "
               "adaptive_restart=%s restart_growth=%.9g "
               "steps=%d elapsed_ms=%lld particles=%zu stable_particles=%s finite=%s "
               "gas_rise=%.9g active_cells=%d pressure_ratio=%.9g "
               "iters=%d max_iters=%d initial_residual=%.9g final_residual=%.9g "
               "min_residual=%.9g max_residual=%.9g effective_tol=%.9g "
-              "restarts=%d relax_sweeps=%d relax_accepted=%d relax_rejected=%d "
+              "restarts=%d beta_resets=%d relax_sweeps=%d relax_accepted=%d relax_rejected=%d "
               "relax_final_omega=%.9g history_count=%zu history_first=%.9g history_last=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
               variant.name,
               variant.jacobi ? "true" : "false",
+              variant.flexibleBeta ? "true" : "false",
               variant.relTol,
               absTol,
               st.adaptive_restart ? "true" : "false",
@@ -161,6 +164,7 @@ bool runVariant(const Variant& variant,
               st.max_residual,
               st.effective_tolerance,
               st.restarts,
+              st.beta_resets,
               st.relaxation_sweeps,
               st.relaxation_accepted,
               st.relaxation_rejected,
@@ -228,9 +232,10 @@ int main(int argc, char** argv) {
   std::printf("history_limit=%d\n", historyLimit);
 
   Variant variants[] = {
-    {"jacobi_abs", true, 0.0},
-    {"jacobi_rel", true, relTol},
-    {"no_jacobi_rel", false, relTol},
+    {"jacobi_abs", true, false, 0.0},
+    {"jacobi_rel", true, false, relTol},
+    {"flex_jacobi_rel", true, true, relTol},
+    {"no_jacobi_rel", false, false, relTol},
   };
 
   bool ok = true;

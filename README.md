@@ -74,6 +74,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F4** | **SPEC-3 adaptive PCG restart** - residual-growth restart guard, non-finite breakdown checks, and runner metrics/CLI toggles for 3D multires pressure solves. | done |
 | **F5** | **SPEC-3 solver diagnostics** - optional residual-history sampling plus min/max residual metrics in 3D multires validation and benchmark runners. | done |
 | **F6** | **SPEC-3 adaptive relaxation prep** - optional damped-Jacobi pre-relaxation with backoff, stats, and runner sweep controls before PCG. | done |
+| **F7** | **SPEC-3 flexible CG prep** - selectable flexible-CG beta recurrence with beta-reset stats and a solver harness comparison variant. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -133,7 +134,7 @@ cmake --build build --config Release --target run_multires_bubble3d
 cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4
 
-# compare 3D multires pressure solver variants
+# compare 3D multires pressure solver variants, including flexible-CG beta
 cmake --build build --config Release --target bench_multires3d_solver
 ./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5 --restart-growth 10 --relax-sweeps 2 --relax-omega 0.1 --history-stride 1 --history-limit 8
 ```

@@ -384,6 +384,7 @@ void MRSim3DTP::step() {
   pressureConfig.absolute_tolerance = cg_tol;
   pressureConfig.relative_tolerance = cg_rel_tol;
   pressureConfig.use_jacobi_preconditioner = cg_jacobi_preconditioner;
+  pressureConfig.use_flexible_cg_beta = cg_flexible_beta;
   pressureConfig.adaptive_restart = cg_adaptive_restart;
   pressureConfig.restart_growth_threshold = cg_restart_growth;
   pressureConfig.relaxation_sweeps = cg_relaxation_sweeps;

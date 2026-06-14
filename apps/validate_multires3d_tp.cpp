@@ -64,7 +64,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
-               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
+               "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
@@ -89,6 +89,7 @@ int main(int argc, char** argv) {
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
   sim.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", sim.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
+  if (hasFlag(argc, argv, "--flexible-cg")) sim.cg_flexible_beta = true;
   if (hasFlag(argc, argv, "--no-restart")) sim.cg_adaptive_restart = false;
   sim.cg_restart_growth = argDouble(argc, argv, "--restart-growth", sim.cg_restart_growth);
   sim.cg_relaxation_sweeps = argInt(argc, argv, "--relax-sweeps", sim.cg_relaxation_sweeps);
@@ -139,6 +140,7 @@ int main(int argc, char** argv) {
   std::printf("cg_tol=%.9g\n", sim.cg_tol);
   std::printf("cg_rel_tol=%.9g\n", sim.cg_rel_tol);
   std::printf("cg_jacobi_preconditioner=%s\n", sim.cg_jacobi_preconditioner ? "true" : "false");
+  std::printf("cg_flexible_beta=%s\n", sim.cg_flexible_beta ? "true" : "false");
   std::printf("cg_adaptive_restart=%s\n", sim.cg_adaptive_restart ? "true" : "false");
   std::printf("cg_restart_growth=%.9g\n", sim.cg_restart_growth);
   std::printf("cg_relaxation_sweeps=%d\n", sim.cg_relaxation_sweeps);
@@ -173,6 +175,9 @@ int main(int argc, char** argv) {
   std::printf("pressure_max_diag=%.9g\n", sim.last_pressure_stats.max_diag);
   std::printf("pressure_jacobi_preconditioner=%s\n",
               sim.last_pressure_stats.used_jacobi_preconditioner ? "true" : "false");
+  std::printf("pressure_flexible_cg_beta=%s\n",
+              sim.last_pressure_stats.used_flexible_cg_beta ? "true" : "false");
+  std::printf("pressure_beta_resets=%d\n", sim.last_pressure_stats.beta_resets);
   std::printf("pressure_adaptive_restart=%s\n",
               sim.last_pressure_stats.adaptive_restart ? "true" : "false");
   std::printf("pressure_restart_growth=%.9g\n",

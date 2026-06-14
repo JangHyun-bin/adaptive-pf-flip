@@ -312,6 +312,8 @@ TEST_CASE("multires 3D pressure: solve stats track residual and iterations") {
   CHECK(stats.final_residual <= stats.initial_residual);
   CHECK(stats.min_residual <= stats.initial_residual);
   CHECK(stats.max_residual >= stats.initial_residual);
+  CHECK(!stats.used_flexible_cg_beta);
+  CHECK(stats.beta_resets == 0);
   CHECK(stats.relaxation_sweeps == 0);
   CHECK(stats.relaxation_accepted == 0);
   CHECK(stats.relaxation_rejected == 0);
@@ -419,6 +421,32 @@ TEST_CASE("multires 3D pressure: adaptive restart reports stats and stays finite
   CHECK(stats.iterations > 0);
   CHECK(stats.iterations <= config.max_iterations);
   CHECK(std::isfinite(stats.final_residual));
+  CHECK(!stats.breakdown);
+}
+
+TEST_CASE("multires 3D pressure: flexible CG beta reports stats and stays finite") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  seedMarkedDivergenceCase(g);
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 100;
+  config.absolute_tolerance = 1e-8;
+  config.use_flexible_cg_beta = true;
+  config.relaxation_sweeps = 2;
+  config.relaxation_omega = 0.1;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  CHECK(stats.used_flexible_cg_beta);
+  CHECK(stats.iterations > 0);
+  CHECK(stats.iterations <= config.max_iterations);
+  CHECK(stats.beta_resets >= 0);
+  CHECK(std::isfinite(stats.final_residual));
+  CHECK(stats.final_residual <= stats.initial_residual);
   CHECK(!stats.breakdown);
 }
 

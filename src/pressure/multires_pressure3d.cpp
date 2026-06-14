@@ -246,6 +246,7 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.restart_growth_threshold = config.restart_growth_threshold;
   stats.adaptive_restart = config.adaptive_restart;
   stats.used_jacobi_preconditioner = config.use_jacobi_preconditioner;
+  stats.used_flexible_cg_beta = config.use_flexible_cg_beta;
   stats.relaxation_sweeps = config.relaxation_sweeps;
   stats.relaxation_omega = config.relaxation_omega;
   stats.relaxation_min_omega = config.relaxation_min_omega;
@@ -484,6 +485,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
   std::vector<double> rhs(N, 0.0);
   std::vector<double> r(N, 0.0);
   std::vector<double> z(N, 0.0);
+  std::vector<double> zPrev(N, 0.0);
   std::vector<double> p(N, 0.0);
   std::vector<double> Ap(N, 0.0);
   std::vector<double> candidateX(N, 0.0);
@@ -665,6 +667,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
       }
       previousRes = res;
 
+      zPrev = z;
       applyPreconditioner();
       double rzNext = dot(r, z);
       if (!std::isfinite(rzNext)) {
@@ -672,11 +675,25 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
         localStats.final_residual = maxAbs(r);
         break;
       }
-      double beta = rz == 0.0 ? 0.0 : rzNext / rz;
+      double beta = 0.0;
+      if (rz != 0.0) {
+        if (config.use_flexible_cg_beta) {
+          double flexNumerator = 0.0;
+          for (int i = 0; i < N; ++i) {
+            flexNumerator += r[i] * (z[i] - zPrev[i]);
+          }
+          beta = flexNumerator / rz;
+        } else {
+          beta = rzNext / rz;
+        }
+      }
       if (!std::isfinite(beta)) {
-        localStats.breakdown = true;
-        localStats.final_residual = maxAbs(r);
-        break;
+        beta = 0.0;
+        ++localStats.beta_resets;
+      }
+      if (beta < 0.0) {
+        beta = 0.0;
+        ++localStats.beta_resets;
       }
       rz = rzNext;
       for (int i = 0; i < N; ++i) {
