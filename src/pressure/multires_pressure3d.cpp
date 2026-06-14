@@ -284,6 +284,25 @@ double maxAbs(const std::vector<double>& v) {
   return mx;
 }
 
+void requireSize(const std::vector<double>& v, size_t n, const char* message) {
+  if (v.size() != n) {
+    throw std::invalid_argument(message);
+  }
+}
+
+double weightedDotVolumes(const std::vector<double>& volumes,
+                          const std::vector<double>& a,
+                          const std::vector<double>& b) {
+  requireSize(a, volumes.size(), "weighted dot input size must match volume count");
+  requireSize(b, volumes.size(), "weighted dot input size must match volume count");
+
+  double sum = 0.0;
+  for (size_t i = 0; i < volumes.size(); ++i) {
+    sum += volumes[i] * a[i] * b[i];
+  }
+  return sum;
+}
+
 } // namespace
 
 void MRPressureSystem3D::apply(const std::vector<double>& x, std::vector<double>& out) const {
@@ -298,6 +317,29 @@ void MRPressureSystem3D::apply(const std::vector<double>& x, std::vector<double>
     out[e.a] -= flux / volumes[e.a];
     out[e.b] += flux / volumes[e.b];
   }
+}
+
+void MRPressureSystem3D::residual(const std::vector<double>& x,
+                                  const std::vector<double>& rhs,
+                                  std::vector<double>& out) const {
+  requireSize(rhs, volumes.size(), "MRPressureSystem3D::residual rhs size must match volume count");
+
+  std::vector<double> Ax;
+  apply(x, Ax);
+  out.resize(volumes.size());
+  for (size_t i = 0; i < volumes.size(); ++i) {
+    out[i] = rhs[i] - Ax[i];
+  }
+}
+
+double MRPressureSystem3D::weightedDot(const std::vector<double>& a,
+                                       const std::vector<double>& b) const {
+  return weightedDotVolumes(volumes, a, b);
+}
+
+double MRPressureSystem3D::weightedL2Norm(const std::vector<double>& x) const {
+  double norm2 = weightedDot(x, x);
+  return norm2 > 0.0 ? std::sqrt(norm2) : 0.0;
 }
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt) {
@@ -347,6 +389,108 @@ MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt) {
     }
   }
   return sys;
+}
+
+MRPressureAggregation3D buildMRPressureAggregation3D(
+  const MRPressureSystem3D& sys,
+  const std::vector<int>& fineToCoarse) {
+  if (fineToCoarse.size() != static_cast<size_t>(sys.cellCount())) {
+    throw std::invalid_argument("buildMRPressureAggregation3D fine map size must match cell count");
+  }
+
+  int coarseCount = 0;
+  for (int coarse : fineToCoarse) {
+    if (coarse < 0) {
+      throw std::invalid_argument("buildMRPressureAggregation3D coarse index must be non-negative");
+    }
+    coarseCount = std::max(coarseCount, coarse + 1);
+  }
+
+  MRPressureAggregation3D aggregation;
+  aggregation.fine_to_coarse = fineToCoarse;
+  aggregation.fine_volumes = sys.volumes;
+  aggregation.coarse_volumes.assign(static_cast<size_t>(coarseCount), 0.0);
+
+  for (int i = 0; i < sys.cellCount(); ++i) {
+    double volume = sys.volume(i);
+    if (volume <= 0.0 || !std::isfinite(volume)) {
+      throw std::invalid_argument("buildMRPressureAggregation3D fine volume must be positive and finite");
+    }
+    aggregation.coarse_volumes[static_cast<size_t>(fineToCoarse[static_cast<size_t>(i)])] += volume;
+  }
+
+  for (double volume : aggregation.coarse_volumes) {
+    if (volume <= 0.0 || !std::isfinite(volume)) {
+      throw std::invalid_argument("buildMRPressureAggregation3D coarse ids must be dense");
+    }
+  }
+
+  return aggregation;
+}
+
+void restrictMRPressureVolumeWeighted3D(
+  const MRPressureAggregation3D& aggregation,
+  const std::vector<double>& fineValues,
+  std::vector<double>& coarseValues) {
+  requireSize(fineValues, aggregation.fine_to_coarse.size(),
+              "restrictMRPressureVolumeWeighted3D fine size must match aggregation");
+
+  coarseValues.assign(aggregation.coarse_volumes.size(), 0.0);
+  for (size_t i = 0; i < fineValues.size(); ++i) {
+    int coarse = aggregation.fine_to_coarse[i];
+    double fineVolume = aggregation.fine_volumes[i];
+    coarseValues[static_cast<size_t>(coarse)] += fineVolume * fineValues[i];
+  }
+
+  for (size_t c = 0; c < coarseValues.size(); ++c) {
+    double coarseVolume = aggregation.coarse_volumes[c];
+    if (coarseVolume <= 0.0) {
+      throw std::invalid_argument("restrictMRPressureVolumeWeighted3D coarse volume must be positive");
+    }
+    coarseValues[c] /= coarseVolume;
+  }
+}
+
+void prolongMRPressurePiecewiseConstant3D(
+  const MRPressureAggregation3D& aggregation,
+  const std::vector<double>& coarseValues,
+  std::vector<double>& fineValues) {
+  requireSize(coarseValues, aggregation.coarse_volumes.size(),
+              "prolongMRPressurePiecewiseConstant3D coarse size must match aggregation");
+
+  fineValues.resize(aggregation.fine_to_coarse.size());
+  for (size_t i = 0; i < fineValues.size(); ++i) {
+    fineValues[i] = coarseValues[static_cast<size_t>(aggregation.fine_to_coarse[i])];
+  }
+}
+
+MRPressureSystem3D buildGalerkinCoarseSystem3D(
+  const MRPressureSystem3D& fine,
+  const MRPressureAggregation3D& aggregation) {
+  if (aggregation.fine_to_coarse.size() != static_cast<size_t>(fine.cellCount()) ||
+      aggregation.fine_volumes.size() != static_cast<size_t>(fine.cellCount())) {
+    throw std::invalid_argument("buildGalerkinCoarseSystem3D aggregation size must match fine system");
+  }
+
+  MRPressureSystem3D coarse;
+  coarse.volumes = aggregation.coarse_volumes;
+
+  std::map<std::pair<int, int>, double> conductanceByPair;
+  for (const MREdge3D& e : fine.edges) {
+    int a = aggregation.fine_to_coarse[static_cast<size_t>(e.a)];
+    int b = aggregation.fine_to_coarse[static_cast<size_t>(e.b)];
+    if (a == b) continue;
+    if (a > b) std::swap(a, b);
+    conductanceByPair[{a, b}] += e.conductance;
+  }
+
+  coarse.edges.reserve(conductanceByPair.size());
+  for (const auto& entry : conductanceByPair) {
+    if (entry.second > 0.0) {
+      coarse.edges.push_back(MREdge3D{entry.first.first, entry.first.second, entry.second});
+    }
+  }
+  return coarse;
 }
 
 double maxMRDivergence3D(const MRMacGrid3D<4>& g) {

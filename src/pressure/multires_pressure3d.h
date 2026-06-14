@@ -19,6 +19,20 @@ struct MRPressureSystem3D {
   int cellCount() const { return static_cast<int>(volumes.size()); }
   double volume(int i) const { return volumes[i]; }
   void apply(const std::vector<double>& x, std::vector<double>& out) const;
+  void residual(const std::vector<double>& x,
+                const std::vector<double>& rhs,
+                std::vector<double>& out) const;
+  double weightedDot(const std::vector<double>& a, const std::vector<double>& b) const;
+  double weightedL2Norm(const std::vector<double>& x) const;
+};
+
+struct MRPressureAggregation3D {
+  std::vector<int> fine_to_coarse;
+  std::vector<double> fine_volumes;
+  std::vector<double> coarse_volumes;
+
+  int fineCount() const { return static_cast<int>(fine_to_coarse.size()); }
+  int coarseCount() const { return static_cast<int>(coarse_volumes.size()); }
 };
 
 struct MRPressureSolveStats3D {
@@ -72,6 +86,20 @@ struct MRPressureSolveConfig3D {
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);
+MRPressureAggregation3D buildMRPressureAggregation3D(
+  const MRPressureSystem3D& sys,
+  const std::vector<int>& fineToCoarse);
+void restrictMRPressureVolumeWeighted3D(
+  const MRPressureAggregation3D& aggregation,
+  const std::vector<double>& fineValues,
+  std::vector<double>& coarseValues);
+void prolongMRPressurePiecewiseConstant3D(
+  const MRPressureAggregation3D& aggregation,
+  const std::vector<double>& coarseValues,
+  std::vector<double>& fineValues);
+MRPressureSystem3D buildGalerkinCoarseSystem3D(
+  const MRPressureSystem3D& fine,
+  const MRPressureAggregation3D& aggregation);
 double maxMRDivergence3D(const MRMacGrid3D<4>& g);
 void projectMR3D(MRMacGrid3D<4>& g, double dt, const MRPressureSolveConfig3D& config,
                  MRPressureSolveStats3D* stats = nullptr);

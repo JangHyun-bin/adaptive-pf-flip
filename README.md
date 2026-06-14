@@ -76,6 +76,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F6** | **SPEC-3 adaptive relaxation prep** - optional damped-Jacobi pre-relaxation with backoff, stats, and runner sweep controls before PCG. | done |
 | **F7** | **SPEC-3 flexible CG prep** - selectable flexible-CG beta recurrence with beta-reset stats and a solver harness comparison variant. | done |
 | **F8** | **SPEC-3 high-density validation gate** - 1000:1 density-ratio runner options with convergence, residual, and diagonal sanity checks. | done |
+| **F9** | **SPEC-3 Galerkin MG prep** - volume-weighted residual norms, restriction/prolongation helpers, and Galerkin coarse pressure graph energy tests. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
