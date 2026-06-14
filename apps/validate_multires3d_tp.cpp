@@ -65,7 +65,8 @@ void usage() {
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
-               "[--no-restart] [--restart-growth G]\n");
+               "[--no-restart] [--restart-growth G] "
+               "[--history-stride N] [--history-limit N]\n");
 }
 
 } // namespace
@@ -89,9 +90,13 @@ int main(int argc, char** argv) {
   if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
   if (hasFlag(argc, argv, "--no-restart")) sim.cg_adaptive_restart = false;
   sim.cg_restart_growth = argDouble(argc, argv, "--restart-growth", sim.cg_restart_growth);
+  sim.cg_residual_history_stride = argInt(argc, argv, "--history-stride", sim.cg_residual_history_stride);
+  sim.cg_residual_history_limit = argInt(argc, argv, "--history-limit", sim.cg_residual_history_limit);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
-  if (sim.cg_restart_growth < 0.0) {
+  if (sim.cg_restart_growth < 0.0 ||
+      sim.cg_residual_history_stride < 0 ||
+      sim.cg_residual_history_limit < 0) {
     usage();
     return 2;
   }
@@ -129,6 +134,8 @@ int main(int argc, char** argv) {
   std::printf("cg_jacobi_preconditioner=%s\n", sim.cg_jacobi_preconditioner ? "true" : "false");
   std::printf("cg_adaptive_restart=%s\n", sim.cg_adaptive_restart ? "true" : "false");
   std::printf("cg_restart_growth=%.9g\n", sim.cg_restart_growth);
+  std::printf("cg_residual_history_stride=%d\n", sim.cg_residual_history_stride);
+  std::printf("cg_residual_history_limit=%d\n", sim.cg_residual_history_limit);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("finite=%s\n", finite ? "true" : "false");
@@ -148,6 +155,8 @@ int main(int argc, char** argv) {
   std::printf("pressure_max_iterations=%d\n", sim.last_pressure_stats.max_iterations);
   std::printf("pressure_initial_residual=%.9g\n", sim.last_pressure_stats.initial_residual);
   std::printf("pressure_final_residual=%.9g\n", sim.last_pressure_stats.final_residual);
+  std::printf("pressure_min_residual=%.9g\n", sim.last_pressure_stats.min_residual);
+  std::printf("pressure_max_residual=%.9g\n", sim.last_pressure_stats.max_residual);
   std::printf("pressure_effective_tolerance=%.9g\n", sim.last_pressure_stats.effective_tolerance);
   std::printf("pressure_relative_tolerance=%.9g\n", sim.last_pressure_stats.relative_tolerance);
   std::printf("pressure_min_positive_diag=%.9g\n", sim.last_pressure_stats.min_positive_diag);
@@ -159,6 +168,18 @@ int main(int argc, char** argv) {
   std::printf("pressure_restart_growth=%.9g\n",
               sim.last_pressure_stats.restart_growth_threshold);
   std::printf("pressure_restarts=%d\n", sim.last_pressure_stats.restarts);
+  std::printf("pressure_residual_history_stride=%d\n",
+              sim.last_pressure_stats.residual_history_stride);
+  std::printf("pressure_residual_history_limit=%d\n",
+              sim.last_pressure_stats.residual_history_limit);
+  std::printf("pressure_residual_history_count=%zu\n",
+              sim.last_pressure_stats.residual_history.size());
+  std::printf("pressure_residual_history_truncated=%s\n",
+              sim.last_pressure_stats.residual_history_truncated ? "true" : "false");
+  std::printf("pressure_residual_history_first=%.9g\n",
+              sim.last_pressure_stats.residual_history.empty() ? 0.0 : sim.last_pressure_stats.residual_history.front());
+  std::printf("pressure_residual_history_last=%.9g\n",
+              sim.last_pressure_stats.residual_history.empty() ? 0.0 : sim.last_pressure_stats.residual_history.back());
   std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
   std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");
   std::printf("active_pressure_cells=%d\n", pressureCells);

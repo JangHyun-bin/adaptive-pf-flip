@@ -33,8 +33,14 @@ struct MRPressureSolveStats3D {
   double restart_growth_threshold = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
+  double min_residual = 0.0;
+  double max_residual = 0.0;
   double min_positive_diag = 0.0;
   double max_diag = 0.0;
+  int residual_history_stride = 0;
+  int residual_history_limit = 0;
+  bool residual_history_truncated = false;
+  std::vector<double> residual_history;
   bool converged = false;
   bool breakdown = false;
   bool adaptive_restart = true;
@@ -49,6 +55,8 @@ struct MRPressureSolveConfig3D {
   bool use_jacobi_preconditioner = true;
   bool adaptive_restart = true;
   double restart_growth_threshold = 10.0;
+  int residual_history_stride = 0;
+  int residual_history_limit = 0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);

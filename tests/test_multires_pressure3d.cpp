@@ -310,6 +310,9 @@ TEST_CASE("multires 3D pressure: solve stats track residual and iterations") {
   CHECK(stats.initial_residual > 0.0);
   CHECK(stats.final_residual >= 0.0);
   CHECK(stats.final_residual <= stats.initial_residual);
+  CHECK(stats.min_residual <= stats.initial_residual);
+  CHECK(stats.max_residual >= stats.initial_residual);
+  CHECK(stats.residual_history.empty());
   CHECK(stats.max_diag >= stats.min_positive_diag);
   CHECK(stats.min_positive_diag > 0.0);
   CHECK(!stats.used_average_projection);
@@ -438,6 +441,36 @@ TEST_CASE("multires 3D pressure: adaptive restart can be disabled") {
   CHECK(stats.iterations > 0);
   CHECK(stats.iterations <= config.max_iterations);
   CHECK(std::isfinite(stats.final_residual));
+  CHECK(!stats.breakdown);
+}
+
+TEST_CASE("multires 3D pressure: residual history records bounded samples") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  seedMarkedDivergenceCase(g);
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 100;
+  config.absolute_tolerance = 1e-8;
+  config.residual_history_stride = 1;
+  config.residual_history_limit = 2;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  REQUIRE(!stats.residual_history.empty());
+  CHECK(stats.residual_history_stride == 1);
+  CHECK(stats.residual_history_limit == 2);
+  CHECK(stats.residual_history.size() <= 2);
+  CHECK(stats.residual_history.front() == doctest::Approx(stats.initial_residual));
+  CHECK(stats.min_residual <= stats.final_residual);
+  CHECK(stats.max_residual >= stats.initial_residual);
+  if (stats.iterations >= 2) {
+    CHECK(stats.residual_history_truncated);
+  }
+  CHECK(std::isfinite(stats.residual_history.back()));
   CHECK(!stats.breakdown);
 }
 

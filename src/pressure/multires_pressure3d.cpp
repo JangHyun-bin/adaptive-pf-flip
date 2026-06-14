@@ -246,7 +246,26 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.restart_growth_threshold = config.restart_growth_threshold;
   stats.adaptive_restart = config.adaptive_restart;
   stats.used_jacobi_preconditioner = config.use_jacobi_preconditioner;
+  stats.residual_history_stride = config.residual_history_stride;
+  stats.residual_history_limit = config.residual_history_limit;
   return stats;
+}
+
+void recordResidualHistory(MRPressureSolveStats3D& stats,
+                           const MRPressureSolveConfig3D& config,
+                           int iteration,
+                           double residual) {
+  if (config.residual_history_stride <= 0 || config.residual_history_limit <= 0) {
+    return;
+  }
+  if (iteration > 0 && iteration % config.residual_history_stride != 0) {
+    return;
+  }
+  if (static_cast<int>(stats.residual_history.size()) >= config.residual_history_limit) {
+    stats.residual_history_truncated = true;
+    return;
+  }
+  stats.residual_history.push_back(residual);
 }
 
 double maxAbs(const std::vector<double>& v) {
@@ -470,10 +489,13 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
   }
   localStats.initial_residual = res0;
   localStats.final_residual = res0;
+  localStats.min_residual = res0;
+  localStats.max_residual = res0;
   double absTol = std::max(0.0, config.absolute_tolerance);
   double relTol = std::max(0.0, config.relative_tolerance);
   double effectiveTol = std::max(absTol, relTol * res0);
   localStats.effective_tolerance = effectiveTol;
+  recordResidualHistory(localStats, config, 0, res0);
   localStats.converged = res0 < effectiveTol;
   if (res0 >= effectiveTol) {
     auto applyPreconditioner = [&]() {
@@ -530,8 +552,12 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
       if (!finiteState || !std::isfinite(res)) {
         localStats.breakdown = true;
         localStats.final_residual = maxAbs(r);
+        localStats.max_residual = std::numeric_limits<double>::infinity();
         break;
       }
+      localStats.min_residual = std::min(localStats.min_residual, res);
+      localStats.max_residual = std::max(localStats.max_residual, res);
+      recordResidualHistory(localStats, config, it + 1, res);
       if (res < effectiveTol) {
         localStats.converged = true;
         break;
