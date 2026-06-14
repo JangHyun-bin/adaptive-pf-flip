@@ -341,6 +341,53 @@ TEST_CASE("multires 3D pressure: Galerkin coarse graph preserves prolongated ene
   CHECK(fineEnergy == doctest::Approx(coarseEnergy).epsilon(1e-12));
 }
 
+TEST_CASE("multires 3D pressure: Galerkin coarse correction reduces restricted residual") {
+  MRPressureSystem3D fine = makeMixedLevelSystem();
+  MRPressureAggregation3D aggregation =
+    buildMRPressureAggregation3D(fine, fineVsCoarseAggregation(fine));
+  REQUIRE(aggregation.coarseCount() == 2);
+
+  std::vector<double> coarseResidual{
+    1.0,
+    -aggregation.coarse_volumes[0] / aggregation.coarse_volumes[1],
+  };
+  std::vector<double> fineResidual;
+  prolongMRPressurePiecewiseConstant3D(aggregation, coarseResidual, fineResidual);
+
+  MRPressureCoarseCorrectionConfig3D config;
+  config.max_iterations = 16;
+  config.absolute_tolerance = 1e-12;
+  config.relative_tolerance = 1e-12;
+  MRPressureCoarseCorrectionStats3D stats;
+  std::vector<double> correction;
+  applyGalerkinCoarseCorrection3D(fine, aggregation, fineResidual, config, correction, &stats);
+
+  std::vector<double> fineAcorrection;
+  fine.apply(correction, fineAcorrection);
+  std::vector<double> correctedResidual(fineResidual.size(), 0.0);
+  for (size_t i = 0; i < fineResidual.size(); ++i) {
+    correctedResidual[i] = fineResidual[i] - fineAcorrection[i];
+  }
+
+  std::vector<double> restrictedAfter;
+  restrictMRPressureVolumeWeighted3D(aggregation, correctedResidual, restrictedAfter);
+  double before = std::sqrt(weightedDot(aggregation.coarse_volumes, coarseResidual, coarseResidual));
+  double after = std::sqrt(weightedDot(aggregation.coarse_volumes, restrictedAfter, restrictedAfter));
+
+  CHECK(stats.coarse_cells == aggregation.coarseCount());
+  CHECK(stats.coarse_edges > 0);
+  CHECK(stats.pinned_cell == 0);
+  CHECK(stats.iterations > 0);
+  CHECK(stats.converged);
+  CHECK(!stats.breakdown);
+  CHECK(stats.final_residual < stats.initial_residual);
+  CHECK(after < before * 1e-8);
+  CHECK_THROWS_AS(applyGalerkinCoarseCorrection3D(fine, aggregation, fineResidual,
+                                                  MRPressureCoarseCorrectionConfig3D{-1, 1e-12, 1e-12, 0},
+                                                  correction, nullptr),
+                  std::invalid_argument);
+}
+
 TEST_CASE("multires 3D pressure: phase-aware projection clears stale pressure without fluid") {
   MRLayout3D<4> layout(8, 8, 8, 1.0);
   layout.setCoarseEverywhere(0);

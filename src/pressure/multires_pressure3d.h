@@ -35,6 +35,28 @@ struct MRPressureAggregation3D {
   int coarseCount() const { return static_cast<int>(coarse_volumes.size()); }
 };
 
+struct MRPressureCoarseCorrectionConfig3D {
+  int max_iterations = 64;
+  double absolute_tolerance = 1e-12;
+  double relative_tolerance = 1e-10;
+  int pinned_cell = 0;
+};
+
+struct MRPressureCoarseCorrectionStats3D {
+  int coarse_cells = 0;
+  int coarse_edges = 0;
+  int pinned_cell = -1;
+  int max_iterations = 0;
+  int iterations = 0;
+  double tolerance = 0.0;
+  double relative_tolerance = 0.0;
+  double effective_tolerance = 0.0;
+  double initial_residual = 0.0;
+  double final_residual = 0.0;
+  bool converged = false;
+  bool breakdown = false;
+};
+
 struct MRPressureSolveStats3D {
   int active_cells = 0;
   int pinned_cell = -1;
@@ -100,6 +122,13 @@ void prolongMRPressurePiecewiseConstant3D(
 MRPressureSystem3D buildGalerkinCoarseSystem3D(
   const MRPressureSystem3D& fine,
   const MRPressureAggregation3D& aggregation);
+void applyGalerkinCoarseCorrection3D(
+  const MRPressureSystem3D& fine,
+  const MRPressureAggregation3D& aggregation,
+  const std::vector<double>& fineResidual,
+  const MRPressureCoarseCorrectionConfig3D& config,
+  std::vector<double>& fineCorrection,
+  MRPressureCoarseCorrectionStats3D* stats = nullptr);
 double maxMRDivergence3D(const MRMacGrid3D<4>& g);
 void projectMR3D(MRMacGrid3D<4>& g, double dt, const MRPressureSolveConfig3D& config,
                  MRPressureSolveStats3D* stats = nullptr);

@@ -493,6 +493,125 @@ MRPressureSystem3D buildGalerkinCoarseSystem3D(
   return coarse;
 }
 
+void applyGalerkinCoarseCorrection3D(
+  const MRPressureSystem3D& fine,
+  const MRPressureAggregation3D& aggregation,
+  const std::vector<double>& fineResidual,
+  const MRPressureCoarseCorrectionConfig3D& config,
+  std::vector<double>& fineCorrection,
+  MRPressureCoarseCorrectionStats3D* stats) {
+  if (config.max_iterations < 0 ||
+      config.absolute_tolerance < 0.0 ||
+      config.relative_tolerance < 0.0) {
+    throw std::invalid_argument("applyGalerkinCoarseCorrection3D invalid solve config");
+  }
+
+  MRPressureSystem3D coarse = buildGalerkinCoarseSystem3D(fine, aggregation);
+  std::vector<double> coarseRhs;
+  restrictMRPressureVolumeWeighted3D(aggregation, fineResidual, coarseRhs);
+
+  MRPressureCoarseCorrectionStats3D localStats;
+  localStats.coarse_cells = coarse.cellCount();
+  localStats.coarse_edges = static_cast<int>(coarse.edges.size());
+  localStats.max_iterations = config.max_iterations;
+  localStats.tolerance = config.absolute_tolerance;
+  localStats.relative_tolerance = config.relative_tolerance;
+
+  if (coarse.cellCount() == 0) {
+    fineCorrection.clear();
+    localStats.converged = true;
+    if (stats) *stats = localStats;
+    return;
+  }
+
+  int pin = config.pinned_cell < 0 ? 0 : config.pinned_cell;
+  if (pin >= coarse.cellCount()) {
+    throw std::invalid_argument("applyGalerkinCoarseCorrection3D pinned cell out of range");
+  }
+  localStats.pinned_cell = pin;
+
+  std::vector<double> x(static_cast<size_t>(coarse.cellCount()), 0.0);
+  std::vector<double> r = coarseRhs;
+  std::vector<double> p = r;
+  std::vector<double> Ap;
+  r[static_cast<size_t>(pin)] = 0.0;
+  p[static_cast<size_t>(pin)] = 0.0;
+
+  auto applyPinned = [&](const std::vector<double>& in, std::vector<double>& out) {
+    coarse.apply(in, out);
+    out[static_cast<size_t>(pin)] = in[static_cast<size_t>(pin)];
+  };
+
+  double res0 = coarse.weightedL2Norm(r);
+  localStats.initial_residual = res0;
+  localStats.final_residual = res0;
+  localStats.effective_tolerance =
+    std::max(config.absolute_tolerance, config.relative_tolerance * res0);
+  localStats.converged = res0 <= localStats.effective_tolerance;
+
+  double rr = coarse.weightedDot(r, r);
+  if (!std::isfinite(rr)) {
+    localStats.breakdown = true;
+  }
+
+  for (int it = 0;
+       !localStats.converged && !localStats.breakdown && it < config.max_iterations;
+       ++it) {
+    applyPinned(p, Ap);
+    double pAp = coarse.weightedDot(p, Ap);
+    if (!std::isfinite(pAp) || std::abs(pAp) < 1e-30) {
+      localStats.breakdown = true;
+      break;
+    }
+
+    double alpha = rr / pAp;
+    if (!std::isfinite(alpha)) {
+      localStats.breakdown = true;
+      break;
+    }
+
+    for (int i = 0; i < coarse.cellCount(); ++i) {
+      size_t n = static_cast<size_t>(i);
+      x[n] += alpha * p[n];
+      r[n] -= alpha * Ap[n];
+    }
+    x[static_cast<size_t>(pin)] = 0.0;
+    r[static_cast<size_t>(pin)] = 0.0;
+
+    localStats.iterations = it + 1;
+    double res = coarse.weightedL2Norm(r);
+    localStats.final_residual = res;
+    if (!std::isfinite(res)) {
+      localStats.breakdown = true;
+      break;
+    }
+    if (res <= localStats.effective_tolerance) {
+      localStats.converged = true;
+      break;
+    }
+
+    double rrNext = coarse.weightedDot(r, r);
+    if (!std::isfinite(rrNext) || std::abs(rr) < 1e-30) {
+      localStats.breakdown = true;
+      break;
+    }
+    double beta = rrNext / rr;
+    if (!std::isfinite(beta)) {
+      localStats.breakdown = true;
+      break;
+    }
+    rr = rrNext;
+    for (int i = 0; i < coarse.cellCount(); ++i) {
+      size_t n = static_cast<size_t>(i);
+      p[n] = r[n] + beta * p[n];
+    }
+    p[static_cast<size_t>(pin)] = 0.0;
+  }
+
+  prolongMRPressurePiecewiseConstant3D(aggregation, x, fineCorrection);
+  if (stats) *stats = localStats;
+}
+
 double maxMRDivergence3D(const MRMacGrid3D<4>& g) {
   double mn = 0.0;
   double mx = 0.0;
