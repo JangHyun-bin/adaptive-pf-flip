@@ -27,10 +27,16 @@ struct MRPressureSolveStats3D {
   int max_iterations = 0;
   int iterations = 0;
   int restarts = 0;
+  int relaxation_sweeps = 0;
+  int relaxation_accepted = 0;
+  int relaxation_rejected = 0;
   double tolerance = 0.0;
   double relative_tolerance = 0.0;
   double effective_tolerance = 0.0;
   double restart_growth_threshold = 0.0;
+  double relaxation_omega = 0.0;
+  double relaxation_min_omega = 0.0;
+  double relaxation_final_omega = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_residual = 0.0;
@@ -55,6 +61,9 @@ struct MRPressureSolveConfig3D {
   bool use_jacobi_preconditioner = true;
   bool adaptive_restart = true;
   double restart_growth_threshold = 10.0;
+  int relaxation_sweeps = 0;
+  double relaxation_omega = 0.67;
+  double relaxation_min_omega = 0.05;
   int residual_history_stride = 0;
   int residual_history_limit = 0;
 };

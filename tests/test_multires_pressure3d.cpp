@@ -312,6 +312,9 @@ TEST_CASE("multires 3D pressure: solve stats track residual and iterations") {
   CHECK(stats.final_residual <= stats.initial_residual);
   CHECK(stats.min_residual <= stats.initial_residual);
   CHECK(stats.max_residual >= stats.initial_residual);
+  CHECK(stats.relaxation_sweeps == 0);
+  CHECK(stats.relaxation_accepted == 0);
+  CHECK(stats.relaxation_rejected == 0);
   CHECK(stats.residual_history.empty());
   CHECK(stats.max_diag >= stats.min_positive_diag);
   CHECK(stats.min_positive_diag > 0.0);
@@ -471,6 +474,34 @@ TEST_CASE("multires 3D pressure: residual history records bounded samples") {
     CHECK(stats.residual_history_truncated);
   }
   CHECK(std::isfinite(stats.residual_history.back()));
+  CHECK(!stats.breakdown);
+}
+
+TEST_CASE("multires 3D pressure: adaptive relaxation reports finite stats") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  seedMarkedDivergenceCase(g);
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 100;
+  config.absolute_tolerance = 1e-8;
+  config.relaxation_sweeps = 3;
+  config.relaxation_omega = 0.1;
+  config.relaxation_min_omega = 0.0125;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  CHECK(stats.relaxation_sweeps == 3);
+  CHECK(stats.relaxation_omega == doctest::Approx(0.1));
+  CHECK(stats.relaxation_min_omega == doctest::Approx(0.0125));
+  CHECK(stats.relaxation_accepted > 0);
+  CHECK(stats.relaxation_final_omega >= stats.relaxation_min_omega);
+  CHECK(stats.relaxation_final_omega <= stats.relaxation_omega);
+  CHECK(std::isfinite(stats.final_residual));
+  CHECK(stats.final_residual <= stats.initial_residual);
   CHECK(!stats.breakdown);
 }
 

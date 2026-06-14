@@ -59,6 +59,7 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] [--abs-tol T] "
                "[--rel-tol T] [--rho-ratio R] [--hysteresis N] "
                "[--max-fine-leaves N] [--no-restart] [--restart-growth G] "
+               "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
 }
 
@@ -81,6 +82,9 @@ bool runVariant(const Variant& variant,
                 int maxFineLeaves,
                 bool adaptiveRestart,
                 double restartGrowth,
+                int relaxSweeps,
+                double relaxOmega,
+                double relaxMinOmega,
                 int historyStride,
                 int historyLimit) {
   MRSim3DTP sim(nx, ny, nz, 1.0);
@@ -95,6 +99,9 @@ bool runVariant(const Variant& variant,
   sim.cg_jacobi_preconditioner = variant.jacobi;
   sim.cg_adaptive_restart = adaptiveRestart;
   sim.cg_restart_growth = restartGrowth;
+  sim.cg_relaxation_sweeps = relaxSweeps;
+  sim.cg_relaxation_omega = relaxOmega;
+  sim.cg_relaxation_min_omega = relaxMinOmega;
   sim.cg_residual_history_stride = historyStride;
   sim.cg_residual_history_limit = historyLimit;
   sim.dynamic_hysteresis_cells = hysteresis;
@@ -128,7 +135,8 @@ bool runVariant(const Variant& variant,
               "gas_rise=%.9g active_cells=%d pressure_ratio=%.9g "
               "iters=%d max_iters=%d initial_residual=%.9g final_residual=%.9g "
               "min_residual=%.9g max_residual=%.9g effective_tol=%.9g "
-              "restarts=%d history_count=%zu history_first=%.9g history_last=%.9g "
+              "restarts=%d relax_sweeps=%d relax_accepted=%d relax_rejected=%d "
+              "relax_final_omega=%.9g history_count=%zu history_first=%.9g history_last=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
               variant.name,
@@ -153,6 +161,10 @@ bool runVariant(const Variant& variant,
               st.max_residual,
               st.effective_tolerance,
               st.restarts,
+              st.relaxation_sweeps,
+              st.relaxation_accepted,
+              st.relaxation_rejected,
+              st.relaxation_final_omega,
               st.residual_history.size(),
               st.residual_history.empty() ? 0.0 : st.residual_history.front(),
               st.residual_history.empty() ? 0.0 : st.residual_history.back(),
@@ -183,12 +195,16 @@ int main(int argc, char** argv) {
   int maxFineLeaves = argInt(argc, argv, "--max-fine-leaves", defaults.dynamic_max_fine_leaves);
   bool adaptiveRestart = !hasFlag(argc, argv, "--no-restart");
   double restartGrowth = argDouble(argc, argv, "--restart-growth", defaults.cg_restart_growth);
+  int relaxSweeps = argInt(argc, argv, "--relax-sweeps", defaults.cg_relaxation_sweeps);
+  double relaxOmega = argDouble(argc, argv, "--relax-omega", defaults.cg_relaxation_omega);
+  double relaxMinOmega = argDouble(argc, argv, "--relax-min-omega", defaults.cg_relaxation_min_omega);
   int historyStride = argInt(argc, argv, "--history-stride", defaults.cg_residual_history_stride);
   int historyLimit = argInt(argc, argv, "--history-limit", defaults.cg_residual_history_limit);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
       cgIters < 0 || absTol < 0.0 || relTol < 0.0 ||
       hysteresis < 0 || maxFineLeaves < 0 || restartGrowth < 0.0 ||
+      relaxSweeps < 0 || relaxOmega < 0.0 || relaxMinOmega < 0.0 ||
       historyStride < 0 || historyLimit < 0) {
     usage();
     return 2;
@@ -205,6 +221,9 @@ int main(int argc, char** argv) {
   std::printf("max_fine_leaves=%d\n", maxFineLeaves);
   std::printf("adaptive_restart=%s\n", adaptiveRestart ? "true" : "false");
   std::printf("restart_growth=%.9g\n", restartGrowth);
+  std::printf("relax_sweeps=%d\n", relaxSweeps);
+  std::printf("relax_omega=%.9g\n", relaxOmega);
+  std::printf("relax_min_omega=%.9g\n", relaxMinOmega);
   std::printf("history_stride=%d\n", historyStride);
   std::printf("history_limit=%d\n", historyLimit);
 
@@ -219,6 +238,7 @@ int main(int argc, char** argv) {
     ok = runVariant(variant, nx, ny, nz, steps, dt, cgIters, absTol,
                     rhoRatio, hysteresis, maxFineLeaves,
                     adaptiveRestart, restartGrowth,
+                    relaxSweeps, relaxOmega, relaxMinOmega,
                     historyStride, historyLimit) && ok;
   }
 

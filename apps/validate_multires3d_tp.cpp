@@ -66,6 +66,7 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
                "[--no-restart] [--restart-growth G] "
+               "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
 }
 
@@ -90,11 +91,17 @@ int main(int argc, char** argv) {
   if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
   if (hasFlag(argc, argv, "--no-restart")) sim.cg_adaptive_restart = false;
   sim.cg_restart_growth = argDouble(argc, argv, "--restart-growth", sim.cg_restart_growth);
+  sim.cg_relaxation_sweeps = argInt(argc, argv, "--relax-sweeps", sim.cg_relaxation_sweeps);
+  sim.cg_relaxation_omega = argDouble(argc, argv, "--relax-omega", sim.cg_relaxation_omega);
+  sim.cg_relaxation_min_omega = argDouble(argc, argv, "--relax-min-omega", sim.cg_relaxation_min_omega);
   sim.cg_residual_history_stride = argInt(argc, argv, "--history-stride", sim.cg_residual_history_stride);
   sim.cg_residual_history_limit = argInt(argc, argv, "--history-limit", sim.cg_residual_history_limit);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   if (sim.cg_restart_growth < 0.0 ||
+      sim.cg_relaxation_sweeps < 0 ||
+      sim.cg_relaxation_omega < 0.0 ||
+      sim.cg_relaxation_min_omega < 0.0 ||
       sim.cg_residual_history_stride < 0 ||
       sim.cg_residual_history_limit < 0) {
     usage();
@@ -134,6 +141,9 @@ int main(int argc, char** argv) {
   std::printf("cg_jacobi_preconditioner=%s\n", sim.cg_jacobi_preconditioner ? "true" : "false");
   std::printf("cg_adaptive_restart=%s\n", sim.cg_adaptive_restart ? "true" : "false");
   std::printf("cg_restart_growth=%.9g\n", sim.cg_restart_growth);
+  std::printf("cg_relaxation_sweeps=%d\n", sim.cg_relaxation_sweeps);
+  std::printf("cg_relaxation_omega=%.9g\n", sim.cg_relaxation_omega);
+  std::printf("cg_relaxation_min_omega=%.9g\n", sim.cg_relaxation_min_omega);
   std::printf("cg_residual_history_stride=%d\n", sim.cg_residual_history_stride);
   std::printf("cg_residual_history_limit=%d\n", sim.cg_residual_history_limit);
   std::printf("particles_start=%zu\n", n0);
@@ -168,6 +178,18 @@ int main(int argc, char** argv) {
   std::printf("pressure_restart_growth=%.9g\n",
               sim.last_pressure_stats.restart_growth_threshold);
   std::printf("pressure_restarts=%d\n", sim.last_pressure_stats.restarts);
+  std::printf("pressure_relaxation_sweeps=%d\n",
+              sim.last_pressure_stats.relaxation_sweeps);
+  std::printf("pressure_relaxation_accepted=%d\n",
+              sim.last_pressure_stats.relaxation_accepted);
+  std::printf("pressure_relaxation_rejected=%d\n",
+              sim.last_pressure_stats.relaxation_rejected);
+  std::printf("pressure_relaxation_omega=%.9g\n",
+              sim.last_pressure_stats.relaxation_omega);
+  std::printf("pressure_relaxation_min_omega=%.9g\n",
+              sim.last_pressure_stats.relaxation_min_omega);
+  std::printf("pressure_relaxation_final_omega=%.9g\n",
+              sim.last_pressure_stats.relaxation_final_omega);
   std::printf("pressure_residual_history_stride=%d\n",
               sim.last_pressure_stats.residual_history_stride);
   std::printf("pressure_residual_history_limit=%d\n",

@@ -246,6 +246,10 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.restart_growth_threshold = config.restart_growth_threshold;
   stats.adaptive_restart = config.adaptive_restart;
   stats.used_jacobi_preconditioner = config.use_jacobi_preconditioner;
+  stats.relaxation_sweeps = config.relaxation_sweeps;
+  stats.relaxation_omega = config.relaxation_omega;
+  stats.relaxation_min_omega = config.relaxation_min_omega;
+  stats.relaxation_final_omega = config.relaxation_omega;
   stats.residual_history_stride = config.residual_history_stride;
   stats.residual_history_limit = config.residual_history_limit;
   return stats;
@@ -477,14 +481,18 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
   };
 
   std::vector<double> x(N, 0.0);
+  std::vector<double> rhs(N, 0.0);
   std::vector<double> r(N, 0.0);
   std::vector<double> z(N, 0.0);
   std::vector<double> p(N, 0.0);
   std::vector<double> Ap(N, 0.0);
+  std::vector<double> candidateX(N, 0.0);
+  std::vector<double> candidateR(N, 0.0);
 
   double res0 = 0.0;
   for (const ProjectionCell3D& c : cells) {
-    r[c.index] = c.index == pinCell ? 0.0 : -rows[c.index].divergence;
+    rhs[c.index] = c.index == pinCell ? 0.0 : -rows[c.index].divergence;
+    r[c.index] = rhs[c.index];
     res0 = std::max(res0, std::abs(r[c.index]));
   }
   localStats.initial_residual = res0;
@@ -498,6 +506,79 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
   recordResidualHistory(localStats, config, 0, res0);
   localStats.converged = res0 < effectiveTol;
   if (res0 >= effectiveTol) {
+    auto applyPreconditioner = [&]() {
+      for (const ProjectionCell3D& c : cells) {
+        double d = rows[c.index].diag;
+        z[c.index] = (config.use_jacobi_preconditioner && d > 0.0) ? r[c.index] / d : r[c.index];
+      }
+    };
+
+    auto residualFromPressure = [&](const std::vector<double>& pressure,
+                                    std::vector<double>& outResidual) {
+      applyA(pressure, Ap);
+      double res = 0.0;
+      for (int i = 0; i < N; ++i) {
+        outResidual[i] = rhs[i] - Ap[i];
+        if (!std::isfinite(outResidual[i])) {
+          return std::numeric_limits<double>::infinity();
+        }
+        res = std::max(res, std::abs(outResidual[i]));
+      }
+      return res;
+    };
+
+    double currentRes = res0;
+    double relaxationOmega = std::max(0.0, config.relaxation_omega);
+    double minRelaxationOmega = std::max(0.0, config.relaxation_min_omega);
+    if (minRelaxationOmega > relaxationOmega) {
+      minRelaxationOmega = relaxationOmega;
+    }
+    localStats.relaxation_final_omega = relaxationOmega;
+    for (int sweep = 0;
+         sweep < config.relaxation_sweeps && currentRes >= effectiveTol;
+         ++sweep) {
+      applyPreconditioner();
+      double trialOmega = relaxationOmega;
+      bool accepted = false;
+      while (trialOmega >= minRelaxationOmega && trialOmega > 0.0) {
+        candidateX = x;
+        for (int i = 0; i < N; ++i) {
+          candidateX[i] += trialOmega * z[i];
+        }
+
+        double candidateRes = residualFromPressure(candidateX, candidateR);
+        if (std::isfinite(candidateRes) && candidateRes <= currentRes) {
+          x.swap(candidateX);
+          r.swap(candidateR);
+          currentRes = candidateRes;
+          localStats.final_residual = currentRes;
+          localStats.min_residual = std::min(localStats.min_residual, currentRes);
+          localStats.max_residual = std::max(localStats.max_residual, currentRes);
+          relaxationOmega = trialOmega;
+          localStats.relaxation_final_omega = relaxationOmega;
+          ++localStats.relaxation_accepted;
+          accepted = true;
+          break;
+        }
+
+        ++localStats.relaxation_rejected;
+        if (trialOmega <= minRelaxationOmega) {
+          break;
+        }
+        trialOmega = std::max(minRelaxationOmega, trialOmega * 0.5);
+      }
+
+      if (!accepted) {
+        break;
+      }
+    }
+    localStats.converged = currentRes < effectiveTol;
+    if (localStats.converged) {
+      localStats.final_residual = currentRes;
+    }
+  }
+
+  if (!localStats.converged && res0 >= effectiveTol) {
     auto applyPreconditioner = [&]() {
       for (const ProjectionCell3D& c : cells) {
         double d = rows[c.index].diag;
@@ -521,7 +602,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
       localStats.breakdown = true;
       localStats.final_residual = maxAbs(r);
     }
-    double previousRes = res0;
+    double previousRes = localStats.final_residual;
     for (int it = 0; !localStats.breakdown && it < config.max_iterations; ++it) {
       applyA(p, Ap);
       double pAp = dot(p, Ap);

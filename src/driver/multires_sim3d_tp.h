@@ -21,6 +21,9 @@ struct MRSim3DTP {
   bool cg_jacobi_preconditioner = true;
   bool cg_adaptive_restart = true;
   double cg_restart_growth = 10.0;
+  int cg_relaxation_sweeps = 0;
+  double cg_relaxation_omega = 0.67;
+  double cg_relaxation_min_omega = 0.05;
   int cg_residual_history_stride = 0;
   int cg_residual_history_limit = 64;
   bool dynamic_refinement = true;

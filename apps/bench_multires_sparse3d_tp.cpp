@@ -60,6 +60,7 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--no-jacobi] "
                "[--no-restart] [--restart-growth G] "
+               "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N]\n");
 }
 
@@ -88,11 +89,17 @@ int main(int argc, char** argv) {
   if (hasFlag(argc, argv, "--no-jacobi")) mr.cg_jacobi_preconditioner = false;
   if (hasFlag(argc, argv, "--no-restart")) mr.cg_adaptive_restart = false;
   mr.cg_restart_growth = argDouble(argc, argv, "--restart-growth", mr.cg_restart_growth);
+  mr.cg_relaxation_sweeps = argInt(argc, argv, "--relax-sweeps", mr.cg_relaxation_sweeps);
+  mr.cg_relaxation_omega = argDouble(argc, argv, "--relax-omega", mr.cg_relaxation_omega);
+  mr.cg_relaxation_min_omega = argDouble(argc, argv, "--relax-min-omega", mr.cg_relaxation_min_omega);
   mr.cg_residual_history_stride = argInt(argc, argv, "--history-stride", mr.cg_residual_history_stride);
   mr.cg_residual_history_limit = argInt(argc, argv, "--history-limit", mr.cg_residual_history_limit);
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
   if (mr.cg_restart_growth < 0.0 ||
+      mr.cg_relaxation_sweeps < 0 ||
+      mr.cg_relaxation_omega < 0.0 ||
+      mr.cg_relaxation_min_omega < 0.0 ||
       mr.cg_residual_history_stride < 0 ||
       mr.cg_residual_history_limit < 0) {
     usage();
@@ -145,6 +152,9 @@ int main(int argc, char** argv) {
   std::printf("mr_cg_jacobi_preconditioner=%s\n", mr.cg_jacobi_preconditioner ? "true" : "false");
   std::printf("mr_cg_adaptive_restart=%s\n", mr.cg_adaptive_restart ? "true" : "false");
   std::printf("mr_cg_restart_growth=%.9g\n", mr.cg_restart_growth);
+  std::printf("mr_cg_relaxation_sweeps=%d\n", mr.cg_relaxation_sweeps);
+  std::printf("mr_cg_relaxation_omega=%.9g\n", mr.cg_relaxation_omega);
+  std::printf("mr_cg_relaxation_min_omega=%.9g\n", mr.cg_relaxation_min_omega);
   std::printf("mr_cg_residual_history_stride=%d\n", mr.cg_residual_history_stride);
   std::printf("mr_cg_residual_history_limit=%d\n", mr.cg_residual_history_limit);
   std::printf("sparse_particles_start=%zu\n", sparseN0);
@@ -179,6 +189,18 @@ int main(int argc, char** argv) {
   std::printf("mr_pressure_restart_growth=%.9g\n",
               mr.last_pressure_stats.restart_growth_threshold);
   std::printf("mr_pressure_restarts=%d\n", mr.last_pressure_stats.restarts);
+  std::printf("mr_pressure_relaxation_sweeps=%d\n",
+              mr.last_pressure_stats.relaxation_sweeps);
+  std::printf("mr_pressure_relaxation_accepted=%d\n",
+              mr.last_pressure_stats.relaxation_accepted);
+  std::printf("mr_pressure_relaxation_rejected=%d\n",
+              mr.last_pressure_stats.relaxation_rejected);
+  std::printf("mr_pressure_relaxation_omega=%.9g\n",
+              mr.last_pressure_stats.relaxation_omega);
+  std::printf("mr_pressure_relaxation_min_omega=%.9g\n",
+              mr.last_pressure_stats.relaxation_min_omega);
+  std::printf("mr_pressure_relaxation_final_omega=%.9g\n",
+              mr.last_pressure_stats.relaxation_final_omega);
   std::printf("mr_pressure_residual_history_stride=%d\n",
               mr.last_pressure_stats.residual_history_stride);
   std::printf("mr_pressure_residual_history_limit=%d\n",
