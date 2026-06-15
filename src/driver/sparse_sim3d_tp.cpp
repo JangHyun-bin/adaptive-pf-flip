@@ -94,12 +94,36 @@ void applyWallBoundary(SparseMacGrid3D<4>& g) {
   }
 }
 
+size_t cellIndex(const SparseMacGrid3D<4>& g, int i, int j, int k) {
+  return static_cast<size_t>(i) +
+         static_cast<size_t>(g.nx) *
+           (static_cast<size_t>(j) + static_cast<size_t>(g.ny) * static_cast<size_t>(k));
+}
+
+bool particleCell(const SparseMacGrid3D<4>& g,
+                  const Particles3DTP& particles,
+                  size_t p,
+                  int& i,
+                  int& j,
+                  int& k) {
+  const Vec3& x = particles.pos[p];
+  if (!std::isfinite(x.x) || !std::isfinite(x.y) || !std::isfinite(x.z)) {
+    return false;
+  }
+  i = static_cast<int>((x.x - g.ox) / g.dx);
+  j = static_cast<int>((x.y - g.oy) / g.dx);
+  k = static_cast<int>((x.z - g.oz) / g.dx);
+  return g.inBounds(i, j, k);
+}
+
 } // namespace
 
 void SparseSim3DTP::initTwoPhaseDamBreak() {
   particles = Particles3DTP();
   narrow_band_air_removed_last = 0;
   narrow_band_air_removed_total = 0;
+  gas_particle_coarsening_removed_last = 0;
+  gas_particle_coarsening_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -111,13 +135,15 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
       }
     }
   }
-  applyNarrowBandAir();
+  applyParticleAdaptivity();
 }
 
 void SparseSim3DTP::initRayleighTaylor() {
   particles = Particles3DTP();
   narrow_band_air_removed_last = 0;
   narrow_band_air_removed_total = 0;
+  gas_particle_coarsening_removed_last = 0;
+  gas_particle_coarsening_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -130,13 +156,15 @@ void SparseSim3DTP::initRayleighTaylor() {
       }
     }
   }
-  applyNarrowBandAir();
+  applyParticleAdaptivity();
 }
 
 void SparseSim3DTP::initBubbleTank() {
   particles = Particles3DTP();
   narrow_band_air_removed_last = 0;
   narrow_band_air_removed_total = 0;
+  gas_particle_coarsening_removed_last = 0;
+  gas_particle_coarsening_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -154,7 +182,7 @@ void SparseSim3DTP::initBubbleTank() {
       }
     }
   }
-  applyNarrowBandAir();
+  applyParticleAdaptivity();
 }
 
 void SparseSim3DTP::applyNarrowBandAir() {
@@ -168,27 +196,12 @@ void SparseSim3DTP::applyNarrowBandAir() {
                                            static_cast<size_t>(grid.ny) *
                                            static_cast<size_t>(grid.nz),
                                          0);
-  auto cellIndex = [&](int i, int j, int k) {
-    return static_cast<size_t>(i) +
-           static_cast<size_t>(grid.nx) *
-             (static_cast<size_t>(j) + static_cast<size_t>(grid.ny) * static_cast<size_t>(k));
-  };
-  auto particleCell = [&](size_t p, int& i, int& j, int& k) {
-    const Vec3& x = particles.pos[p];
-    if (!std::isfinite(x.x) || !std::isfinite(x.y) || !std::isfinite(x.z)) {
-      return false;
-    }
-    i = static_cast<int>((x.x - grid.ox) / grid.dx);
-    j = static_cast<int>((x.y - grid.oy) / grid.dx);
-    k = static_cast<int>((x.z - grid.oz) / grid.dx);
-    return grid.inBounds(i, j, k);
-  };
 
   for (size_t p = 0; p < particles.size(); ++p) {
     if (particles.type[p] != 0) continue;
     int i = 0, j = 0, k = 0;
-    if (!particleCell(p, i, j, k)) continue;
-    unsigned char& occupied = liquidCells[cellIndex(i, j, k)];
+    if (!particleCell(grid, particles, p, i, j, k)) continue;
+    unsigned char& occupied = liquidCells[cellIndex(grid, i, j, k)];
     if (!occupied) {
       occupied = 1;
       ++narrow_band_air_liquid_cells_last;
@@ -207,7 +220,7 @@ void SparseSim3DTP::applyNarrowBandAir() {
         for (int di = -radius; di <= radius; ++di) {
           int ii = i + di;
           if (ii < 0 || ii >= grid.nx) continue;
-          if (liquidCells[cellIndex(ii, jj, kk)]) return true;
+          if (liquidCells[cellIndex(grid, ii, jj, kk)]) return true;
         }
       }
     }
@@ -218,7 +231,7 @@ void SparseSim3DTP::applyNarrowBandAir() {
     if (particles.type[p] != 1) return false;
     ++narrow_band_air_gas_particles_before_last;
     int i = 0, j = 0, k = 0;
-    const bool keep = particleCell(p, i, j, k) && gasInLiquidBand(i, j, k);
+    const bool keep = particleCell(grid, particles, p, i, j, k) && gasInLiquidBand(i, j, k);
     if (keep) ++narrow_band_air_gas_particles_after_last;
     return !keep;
   });
@@ -226,8 +239,47 @@ void SparseSim3DTP::applyNarrowBandAir() {
   narrow_band_air_removed_total += narrow_band_air_removed_last;
 }
 
-void SparseSim3DTP::step() {
+void SparseSim3DTP::applyGasParticleCoarsening() {
+  gas_particle_coarsening_removed_last = 0;
+  gas_particle_coarsening_cells_last = 0;
+  gas_particle_coarsening_overfull_cells_last = 0;
+  gas_particle_coarsening_before_last = 0;
+  gas_particle_coarsening_after_last = 0;
+  if (!gas_particle_coarsening) return;
+
+  const int target = std::max(1, gas_particles_per_cell_target);
+  std::vector<int> gasCounts(static_cast<size_t>(grid.nx) *
+                               static_cast<size_t>(grid.ny) *
+                               static_cast<size_t>(grid.nz),
+                             0);
+  const size_t removed = particles.eraseIf([&](size_t p) {
+    if (particles.type[p] != 1) return false;
+    ++gas_particle_coarsening_before_last;
+    int i = 0, j = 0, k = 0;
+    if (!particleCell(grid, particles, p, i, j, k)) {
+      return true;
+    }
+    int& count = gasCounts[cellIndex(grid, i, j, k)];
+    if (count == 0) ++gas_particle_coarsening_cells_last;
+    ++count;
+    if (count <= target) {
+      ++gas_particle_coarsening_after_last;
+      return false;
+    }
+    if (count == target + 1) ++gas_particle_coarsening_overfull_cells_last;
+    return true;
+  });
+  gas_particle_coarsening_removed_last = static_cast<int>(removed);
+  gas_particle_coarsening_removed_total += gas_particle_coarsening_removed_last;
+}
+
+void SparseSim3DTP::applyParticleAdaptivity() {
   applyNarrowBandAir();
+  applyGasParticleCoarsening();
+}
+
+void SparseSim3DTP::step() {
+  applyParticleAdaptivity();
   markCells(grid, particles);
   spP2G3D_tp(grid, particles, phase, Vp);
   SparseMacGrid3D<4> saved = grid;

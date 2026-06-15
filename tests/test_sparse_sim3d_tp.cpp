@@ -98,6 +98,43 @@ TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   CHECK(finiteParticles(narrow.particles));
 }
 
+TEST_CASE("sparse 3D two-phase gas particle coarsening caps gas per cell") {
+  SparseSim3DTP full(12, 12, 8, 1.0);
+  full.initTwoPhaseDamBreak();
+  const size_t fullLiquid = countType(full.particles, 0);
+  const size_t fullGas = countType(full.particles, 1);
+  CHECK(fullGas > 8);
+  CHECK(fullGas % 8 == 0);
+
+  SparseSim3DTP coarse(12, 12, 8, 1.0);
+  coarse.gas_particle_coarsening = true;
+  coarse.gas_particles_per_cell_target = 2;
+  coarse.initTwoPhaseDamBreak();
+  const size_t coarseLiquid = countType(coarse.particles, 0);
+  const size_t coarseGas = countType(coarse.particles, 1);
+  const size_t fullGasCells = fullGas / 8;
+  const size_t expectedGas = fullGasCells * 2;
+
+  CHECK(coarseLiquid == fullLiquid);
+  CHECK(coarseGas == expectedGas);
+  CHECK(coarse.particles.size() == coarseLiquid + coarseGas);
+  CHECK(coarse.gas_particle_coarsening_removed_total ==
+        static_cast<int>(fullGas - expectedGas));
+  CHECK(coarse.gas_particle_coarsening_removed_last ==
+        coarse.gas_particle_coarsening_removed_total);
+  CHECK(coarse.gas_particle_coarsening_cells_last == static_cast<int>(fullGasCells));
+  CHECK(coarse.gas_particle_coarsening_overfull_cells_last == static_cast<int>(fullGasCells));
+  CHECK(coarse.gas_particle_coarsening_before_last == static_cast<int>(fullGas));
+  CHECK(coarse.gas_particle_coarsening_after_last == static_cast<int>(expectedGas));
+
+  const size_t n0 = coarse.particles.size();
+  coarse.dt = 0.02;
+  coarse.step();
+  CHECK(coarse.particles.size() <= n0);
+  CHECK(countType(coarse.particles, 0) == fullLiquid);
+  CHECK(finiteParticles(coarse.particles));
+}
+
 TEST_CASE("sparse 3D two-phase bubble tank rises and keeps headspace sparse") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.03;

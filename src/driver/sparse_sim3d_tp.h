@@ -17,11 +17,21 @@ struct SparseSim3DTP {
   int narrow_band_air_liquid_cells_last = 0;
   int narrow_band_air_gas_particles_before_last = 0;
   int narrow_band_air_gas_particles_after_last = 0;
+  bool gas_particle_coarsening = false;
+  int gas_particles_per_cell_target = 4;
+  int gas_particle_coarsening_removed_last = 0;
+  int gas_particle_coarsening_removed_total = 0;
+  int gas_particle_coarsening_cells_last = 0;
+  int gas_particle_coarsening_overfull_cells_last = 0;
+  int gas_particle_coarsening_before_last = 0;
+  int gas_particle_coarsening_after_last = 0;
 
   SparseSim3DTP(int nx, int ny, int nz, double dx) : grid(nx, ny, nz, dx) {}
   void initTwoPhaseDamBreak();
   void initRayleighTaylor();
   void initBubbleTank();
   void applyNarrowBandAir();
+  void applyGasParticleCoarsening();
+  void applyParticleAdaptivity();
   void step();
 };
