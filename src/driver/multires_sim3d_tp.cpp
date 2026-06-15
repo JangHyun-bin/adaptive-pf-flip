@@ -257,6 +257,8 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   gas_particle_coarsening_removed_total = 0;
   liquid_particle_coarsening_removed_last = 0;
   liquid_particle_coarsening_removed_total = 0;
+  liquid_particle_refill_added_last = 0;
+  liquid_particle_refill_added_total = 0;
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -329,10 +331,27 @@ void MRSim3DTP::applyLiquidParticleCoarsening() {
   liquid_particle_coarsening_removed_total += liquid_particle_coarsening_removed_last;
 }
 
+void MRSim3DTP::applyLiquidParticleRefill() {
+  const pa3d::ParticleCellDomain3D domain{layout.nx, layout.ny, layout.nz, layout.dx};
+  const pa3d::LiquidParticleRefillResult3D result =
+    pa3d::applyLiquidParticleRefill(particles,
+                                    domain,
+                                    liquid_particle_refill,
+                                    liquid_refill_particles_per_cell_target,
+                                    liquid_particle_refill_seed);
+  liquid_particle_refill_added_last = result.added;
+  liquid_particle_refill_cells_last = result.cells;
+  liquid_particle_refill_underfull_cells_last = result.underfullCells;
+  liquid_particle_refill_before_last = result.particlesBefore;
+  liquid_particle_refill_after_last = result.particlesAfter;
+  liquid_particle_refill_added_total += liquid_particle_refill_added_last;
+}
+
 void MRSim3DTP::applyParticleAdaptivity() {
   applyNarrowBandAir();
   applyGasParticleCoarsening();
   applyLiquidParticleCoarsening();
+  applyLiquidParticleRefill();
 }
 
 void MRSim3DTP::updateDynamicRefinement() {

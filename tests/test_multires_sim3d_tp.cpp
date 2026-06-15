@@ -228,6 +228,54 @@ TEST_CASE("multires 3D particle adaptivity coarsens liquid particles") {
   CHECK(coarse.activePressureCellCount() < 8 * 12 * 8);
 }
 
+TEST_CASE("multires 3D particle adaptivity refills underfilled liquid cells") {
+  MRSim3DTP full(8, 12, 8, 1.0);
+  full.initBubbleTankInterfaceBand();
+  const size_t fullLiquid = countType(full.particles, 0);
+  const size_t fullGas = countType(full.particles, 1);
+
+  REQUIRE(fullLiquid > 8);
+  REQUIRE(fullLiquid % 8 == 0);
+
+  MRSim3DTP refill(8, 12, 8, 1.0);
+  refill.liquid_particle_coarsening = true;
+  refill.liquid_particles_per_cell_target = 2;
+  refill.liquid_particle_coarsening_seed = 54321u;
+  refill.liquid_particle_refill = true;
+  refill.liquid_refill_particles_per_cell_target = 4;
+  refill.liquid_particle_refill_seed = 24680u;
+  refill.initBubbleTankInterfaceBand();
+
+  const size_t liquidCells = fullLiquid / 8;
+  const size_t coarsenedLiquid = liquidCells * 2;
+  const size_t expectedLiquid = liquidCells * 4;
+
+  CHECK(countType(refill.particles, 0) == expectedLiquid);
+  CHECK(countType(refill.particles, 1) == fullGas);
+  CHECK(refill.liquid_particle_coarsening_removed_total ==
+        static_cast<int>(fullLiquid - coarsenedLiquid));
+  CHECK(refill.liquid_particle_refill_added_total ==
+        static_cast<int>(expectedLiquid - coarsenedLiquid));
+  CHECK(refill.liquid_particle_refill_added_last ==
+        refill.liquid_particle_refill_added_total);
+  CHECK(refill.liquid_particle_refill_cells_last == static_cast<int>(liquidCells));
+  CHECK(refill.liquid_particle_refill_underfull_cells_last == static_cast<int>(liquidCells));
+  CHECK(refill.liquid_particle_refill_before_last == static_cast<int>(coarsenedLiquid));
+  CHECK(refill.liquid_particle_refill_after_last == static_cast<int>(expectedLiquid));
+
+  MRSim3DTP repeat(8, 12, 8, 1.0);
+  repeat.liquid_particle_coarsening = true;
+  repeat.liquid_particles_per_cell_target = 2;
+  repeat.liquid_particle_coarsening_seed = 54321u;
+  repeat.liquid_particle_refill = true;
+  repeat.liquid_refill_particles_per_cell_target = 4;
+  repeat.liquid_particle_refill_seed = 24680u;
+  repeat.initBubbleTankInterfaceBand();
+  CHECK(sameParticleState(refill.particles, repeat.particles));
+  CHECK(finiteParticles(refill));
+  CHECK(refill.activePressureCellCount() < 8 * 12 * 8);
+}
+
 TEST_CASE("multires 3D dynamic refinement follows particle occupancy") {
   MRSim3DTP sim(16, 16, 16, 1.0);
   sim.dynamic_particle_padding = 0;

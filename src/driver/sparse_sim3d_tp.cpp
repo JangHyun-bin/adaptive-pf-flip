@@ -104,6 +104,8 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   gas_particle_coarsening_removed_total = 0;
   liquid_particle_coarsening_removed_last = 0;
   liquid_particle_coarsening_removed_total = 0;
+  liquid_particle_refill_added_last = 0;
+  liquid_particle_refill_added_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -126,6 +128,8 @@ void SparseSim3DTP::initRayleighTaylor() {
   gas_particle_coarsening_removed_total = 0;
   liquid_particle_coarsening_removed_last = 0;
   liquid_particle_coarsening_removed_total = 0;
+  liquid_particle_refill_added_last = 0;
+  liquid_particle_refill_added_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -149,6 +153,8 @@ void SparseSim3DTP::initBubbleTank() {
   gas_particle_coarsening_removed_total = 0;
   liquid_particle_coarsening_removed_last = 0;
   liquid_particle_coarsening_removed_total = 0;
+  liquid_particle_refill_added_last = 0;
+  liquid_particle_refill_added_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -216,10 +222,28 @@ void SparseSim3DTP::applyLiquidParticleCoarsening() {
   liquid_particle_coarsening_removed_total += liquid_particle_coarsening_removed_last;
 }
 
+void SparseSim3DTP::applyLiquidParticleRefill() {
+  const pa3d::ParticleCellDomain3D domain{grid.nx, grid.ny, grid.nz, grid.dx,
+                                          grid.ox, grid.oy, grid.oz};
+  const pa3d::LiquidParticleRefillResult3D result =
+    pa3d::applyLiquidParticleRefill(particles,
+                                    domain,
+                                    liquid_particle_refill,
+                                    liquid_refill_particles_per_cell_target,
+                                    liquid_particle_refill_seed);
+  liquid_particle_refill_added_last = result.added;
+  liquid_particle_refill_cells_last = result.cells;
+  liquid_particle_refill_underfull_cells_last = result.underfullCells;
+  liquid_particle_refill_before_last = result.particlesBefore;
+  liquid_particle_refill_after_last = result.particlesAfter;
+  liquid_particle_refill_added_total += liquid_particle_refill_added_last;
+}
+
 void SparseSim3DTP::applyParticleAdaptivity() {
   applyNarrowBandAir();
   applyGasParticleCoarsening();
   applyLiquidParticleCoarsening();
+  applyLiquidParticleRefill();
 }
 
 void SparseSim3DTP::step() {

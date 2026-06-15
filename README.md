@@ -98,6 +98,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S9** | **SPEC-2 liquid coarsening runner metrics** - sparse/MR validators and paired bench expose opt-in liquid coarsening CLI controls and metrics. | done |
 | **S10** | **SPEC-2 per-phase particle metrics** - sparse/MR validators and paired bench report liquid/gas particle start/end counts for adaptivity audits. | done |
 | **S11** | **SPEC-2 per-phase adaptivity gates** - validators and paired bench now enforce liquid/gas preserve-or-nonincrease rules based on enabled adaptivity options. | done |
+| **S12** | **SPEC-2 liquid particle refill scaffold** - sparse and multires 3D TP sims can deterministically refill underfilled liquid cells up to an opt-in target. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

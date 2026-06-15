@@ -61,6 +61,14 @@ struct GasParticleCoarseningResult3D {
   int particlesAfter = 0;
 };
 
+struct LiquidParticleRefillResult3D {
+  int added = 0;
+  int cells = 0;
+  int underfullCells = 0;
+  int particlesBefore = 0;
+  int particlesAfter = 0;
+};
+
 inline uint32_t mix32(uint32_t x) {
   x ^= x >> 16;
   x *= 0x7feb352du;
@@ -88,6 +96,13 @@ inline uint32_t particleScore(const ParticleCellDomain3D& domain,
   h ^= mix32(static_cast<uint32_t>(qx & 2047) + 0x27d4eb2fu);
   h ^= mix32(static_cast<uint32_t>(qy & 2047) + 0x165667b1u);
   h ^= mix32(static_cast<uint32_t>(qz & 2047) + 0xd3a2646cu);
+  return mix32(h);
+}
+
+inline uint32_t slotScore(size_t cell, int slot, uint32_t seed) {
+  uint32_t h = seed;
+  h ^= mix32(static_cast<uint32_t>(cell) + 0x68bc21ebu);
+  h ^= mix32(static_cast<uint32_t>(slot) + 0x02e5be93u);
   return mix32(h);
 }
 
@@ -221,6 +236,77 @@ inline GasParticleCoarseningResult3D applyGasParticleCoarsening(
                                       1,
                                       particlesPerCellTarget,
                                       seed);
+}
+
+inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
+  Particles3DTP& particles,
+  const ParticleCellDomain3D& domain,
+  bool enabled,
+  int particlesPerCellTarget,
+  uint32_t seed) {
+  LiquidParticleRefillResult3D result;
+  if (!enabled) return result;
+
+  struct CellInfo {
+    int count = 0;
+    Vec3 velocitySum;
+  };
+
+  const int target = std::max(1, particlesPerCellTarget);
+  std::vector<CellInfo> cells(static_cast<size_t>(domain.nx) *
+                                static_cast<size_t>(domain.ny) *
+                                static_cast<size_t>(domain.nz));
+
+  for (size_t p = 0; p < particles.size(); ++p) {
+    if (particles.type[p] != 0) continue;
+    int i = 0, j = 0, k = 0;
+    if (!domain.particleCell(particles, p, i, j, k)) continue;
+    CellInfo& info = cells[domain.cellIndex(i, j, k)];
+    ++info.count;
+    info.velocitySum += particles.vel[p];
+  }
+
+  for (size_t cell = 0; cell < cells.size(); ++cell) {
+    const int count = cells[cell].count;
+    if (count <= 0) continue;
+    ++result.cells;
+    result.particlesBefore += count;
+    result.particlesAfter += count;
+    if (count >= target) continue;
+
+    ++result.underfullCells;
+    const int i = static_cast<int>(cell % static_cast<size_t>(domain.nx));
+    const int j = static_cast<int>((cell / static_cast<size_t>(domain.nx)) %
+                                   static_cast<size_t>(domain.ny));
+    const int k = static_cast<int>(cell /
+                                   (static_cast<size_t>(domain.nx) *
+                                    static_cast<size_t>(domain.ny)));
+    const Vec3 avgVel = cells[cell].velocitySum * (1.0 / static_cast<double>(count));
+
+    int slots[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+    std::sort(slots, slots + 8, [&](int a, int b) {
+      const uint32_t sa = slotScore(cell, a, seed);
+      const uint32_t sb = slotScore(cell, b, seed);
+      if (sa != sb) return sa < sb;
+      return a < b;
+    });
+
+    const int toAdd = target - count;
+    for (int a = 0; a < toAdd; ++a) {
+      const int slot = slots[a & 7];
+      const double sx = 0.25 + 0.5 * static_cast<double>(slot & 1);
+      const double sy = 0.25 + 0.5 * static_cast<double>((slot >> 1) & 1);
+      const double sz = 0.25 + 0.5 * static_cast<double>((slot >> 2) & 1);
+      const Vec3 pos{domain.ox + (static_cast<double>(i) + sx) * domain.dx,
+                     domain.oy + (static_cast<double>(j) + sy) * domain.dx,
+                     domain.oz + (static_cast<double>(k) + sz) * domain.dx};
+      particles.add(pos, avgVel, 0);
+      ++result.added;
+      ++result.particlesAfter;
+    }
+  }
+
+  return result;
 }
 
 } // namespace pa3d

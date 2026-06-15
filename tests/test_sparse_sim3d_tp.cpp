@@ -196,6 +196,52 @@ TEST_CASE("sparse 3D two-phase liquid particle coarsening caps liquid per cell")
   CHECK(finiteParticles(coarse.particles));
 }
 
+TEST_CASE("sparse 3D two-phase liquid refill restores underfilled liquid cells") {
+  SparseSim3DTP full(12, 12, 8, 1.0);
+  full.initTwoPhaseDamBreak();
+  const size_t fullLiquid = countType(full.particles, 0);
+  const size_t fullGas = countType(full.particles, 1);
+  REQUIRE(fullLiquid > 8);
+  REQUIRE(fullLiquid % 8 == 0);
+
+  SparseSim3DTP refill(12, 12, 8, 1.0);
+  refill.liquid_particle_coarsening = true;
+  refill.liquid_particles_per_cell_target = 2;
+  refill.liquid_particle_coarsening_seed = 54321u;
+  refill.liquid_particle_refill = true;
+  refill.liquid_refill_particles_per_cell_target = 4;
+  refill.liquid_particle_refill_seed = 24680u;
+  refill.initTwoPhaseDamBreak();
+
+  const size_t liquidCells = fullLiquid / 8;
+  const size_t coarsenedLiquid = liquidCells * 2;
+  const size_t expectedLiquid = liquidCells * 4;
+
+  CHECK(countType(refill.particles, 0) == expectedLiquid);
+  CHECK(countType(refill.particles, 1) == fullGas);
+  CHECK(refill.liquid_particle_coarsening_removed_total ==
+        static_cast<int>(fullLiquid - coarsenedLiquid));
+  CHECK(refill.liquid_particle_refill_added_total ==
+        static_cast<int>(expectedLiquid - coarsenedLiquid));
+  CHECK(refill.liquid_particle_refill_added_last ==
+        refill.liquid_particle_refill_added_total);
+  CHECK(refill.liquid_particle_refill_cells_last == static_cast<int>(liquidCells));
+  CHECK(refill.liquid_particle_refill_underfull_cells_last == static_cast<int>(liquidCells));
+  CHECK(refill.liquid_particle_refill_before_last == static_cast<int>(coarsenedLiquid));
+  CHECK(refill.liquid_particle_refill_after_last == static_cast<int>(expectedLiquid));
+
+  SparseSim3DTP repeat(12, 12, 8, 1.0);
+  repeat.liquid_particle_coarsening = true;
+  repeat.liquid_particles_per_cell_target = 2;
+  repeat.liquid_particle_coarsening_seed = 54321u;
+  repeat.liquid_particle_refill = true;
+  repeat.liquid_refill_particles_per_cell_target = 4;
+  repeat.liquid_particle_refill_seed = 24680u;
+  repeat.initTwoPhaseDamBreak();
+  CHECK(sameParticleState(refill.particles, repeat.particles));
+  CHECK(finiteParticles(refill.particles));
+}
+
 TEST_CASE("sparse 3D two-phase bubble tank rises and keeps headspace sparse") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.03;

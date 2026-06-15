@@ -35,6 +35,15 @@ struct SparseSim3DTP {
   int liquid_particle_coarsening_overfull_cells_last = 0;
   int liquid_particle_coarsening_before_last = 0;
   int liquid_particle_coarsening_after_last = 0;
+  bool liquid_particle_refill = false;
+  int liquid_refill_particles_per_cell_target = 4;
+  unsigned int liquid_particle_refill_seed = 0x6a09e667u;
+  int liquid_particle_refill_added_last = 0;
+  int liquid_particle_refill_added_total = 0;
+  int liquid_particle_refill_cells_last = 0;
+  int liquid_particle_refill_underfull_cells_last = 0;
+  int liquid_particle_refill_before_last = 0;
+  int liquid_particle_refill_after_last = 0;
 
   SparseSim3DTP(int nx, int ny, int nz, double dx) : grid(nx, ny, nz, dx) {}
   void initTwoPhaseDamBreak();
@@ -43,6 +52,7 @@ struct SparseSim3DTP {
   void applyNarrowBandAir();
   void applyGasParticleCoarsening();
   void applyLiquidParticleCoarsening();
+  void applyLiquidParticleRefill();
   void applyParticleAdaptivity();
   void step();
 };
