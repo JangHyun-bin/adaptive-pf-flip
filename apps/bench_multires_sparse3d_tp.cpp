@@ -104,7 +104,10 @@ void usage() {
                "[--history-stride N] [--history-limit N] "
                "[--sparse-narrow-band-air] [--sparse-narrow-band-radius N] "
                "[--sparse-gas-coarsening] [--sparse-gas-particles-per-cell N] "
-               "[--sparse-gas-coarsening-seed N]\n");
+               "[--sparse-gas-coarsening-seed N] "
+               "[--mr-narrow-band-air] [--mr-narrow-band-radius N] "
+               "[--mr-gas-coarsening] [--mr-gas-particles-per-cell N] "
+               "[--mr-gas-coarsening-seed N]\n");
 }
 
 } // namespace
@@ -166,6 +169,21 @@ int main(int argc, char** argv) {
   mr.cg_residual_history_limit = argInt(argc, argv, "--history-limit", mr.cg_residual_history_limit);
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
+  MRSim3DTP mrAdaptive = mr;
+  mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
+  mrAdaptive.narrow_band_air_radius =
+    argInt(argc, argv, "--mr-narrow-band-radius",
+           mrAdaptive.narrow_band_air_radius);
+  mrAdaptive.gas_particle_coarsening =
+    hasFlag(argc, argv, "--mr-gas-coarsening");
+  mrAdaptive.gas_particles_per_cell_target =
+    argInt(argc, argv, "--mr-gas-particles-per-cell",
+           mrAdaptive.gas_particles_per_cell_target);
+  mrAdaptive.gas_particle_coarsening_seed =
+    argUInt(argc, argv, "--mr-gas-coarsening-seed",
+            mrAdaptive.gas_particle_coarsening_seed);
+  const bool mrAdaptivity =
+    mrAdaptive.narrow_band_air || mrAdaptive.gas_particle_coarsening;
   if (requestedRhoRatio < 0.0 ||
       sparse.phase.rho_l <= 0.0 ||
       sparse.phase.rho_g <= 0.0 ||
@@ -173,6 +191,8 @@ int main(int argc, char** argv) {
       mr.phase.rho_g <= 0.0 ||
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
+      mrAdaptive.narrow_band_air_radius < 0 ||
+      mrAdaptive.gas_particles_per_cell_target <= 0 ||
       mr.cg_restart_growth < 0.0 ||
       mr.cg_relaxation_sweeps < 0 ||
       mr.cg_relaxation_omega < 0.0 ||
@@ -208,18 +228,47 @@ int main(int argc, char** argv) {
   double mrGas1 = meanY(mr.particles, 1);
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
+  long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
+  size_t adaptiveMrN0 = mrN0;
+  size_t adaptiveMrN1 = mr.particles.size();
+  double adaptiveMrGas0 = mrGas0;
+  double adaptiveMrGas1 = mrGas1;
+  bool adaptiveMrFinite = mrFinite;
+  int adaptiveMrPressureCells = mrPressureCells;
+  long long adaptiveMrMs = mrMs;
+  if (mrAdaptivity) {
+    mrAdaptive.initBubbleTankInterfaceBand();
+    adaptiveMrN0 = mrAdaptive.particles.size();
+    adaptiveMrGas0 = meanY(mrAdaptive.particles, 1);
+
+    auto adaptiveMrStart = std::chrono::steady_clock::now();
+    for (int s = 0; s < steps; ++s) {
+      mrAdaptive.step();
+    }
+    auto adaptiveMrEnd = std::chrono::steady_clock::now();
+
+    adaptiveMrN1 = mrAdaptive.particles.size();
+    adaptiveMrGas1 = meanY(mrAdaptive.particles, 1);
+    adaptiveMrFinite = finiteParticles(mrAdaptive.particles);
+    adaptiveMrPressureCells = mrAdaptive.activePressureCellCount();
+    adaptiveMrMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+      adaptiveMrEnd - adaptiveMrStart).count();
+  }
   int finePressureCells = nx * ny * nz;
   double pressureRatio = finePressureCells > 0 ? static_cast<double>(mrPressureCells) / finePressureCells : 0.0;
   double pressureReduction = 1.0 - pressureRatio;
-  long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
   double sparseRise = sparseMetrics.gasEnd - sparseMetrics.gasStart;
   double adaptiveRise = adaptiveMetrics.gasEnd - adaptiveMetrics.gasStart;
   double mrRise = mrGas1 - mrGas0;
+  double adaptiveMrRise = adaptiveMrGas1 - adaptiveMrGas0;
   double riseDelta = std::abs(mrRise - sparseRise);
   double allowedRiseDelta = std::max(0.35, std::abs(sparseRise) * 3.0);
   double adaptiveRiseDelta = sparseAdaptivity ? std::abs(adaptiveRise - sparseRise) : 0.0;
   double allowedAdaptiveRiseDelta =
     sparseAdaptivity ? std::max(0.35, std::abs(sparseRise) * 4.0) : 0.0;
+  double adaptiveMrRiseDelta = mrAdaptivity ? std::abs(adaptiveMrRise - mrRise) : 0.0;
+  double allowedAdaptiveMrRiseDelta =
+    mrAdaptivity ? std::max(0.35, std::abs(mrRise) * 4.0) : 0.0;
   const MRPressureSolveStats3D& st = mr.last_pressure_stats;
   const double finalOverInitial = st.initial_residual > 0.0
     ? st.final_residual / st.initial_residual
@@ -233,6 +282,18 @@ int main(int argc, char** argv) {
     !requireConverged ||
     steps == 0 ||
     (st.converged && st.final_residual <= st.effective_tolerance);
+  const MRPressureSolveStats3D& adaptiveMrStats =
+    mrAdaptivity ? mrAdaptive.last_pressure_stats : mr.last_pressure_stats;
+  const bool adaptiveMrPressureDiagFinite =
+    std::isfinite(adaptiveMrStats.min_positive_diag) &&
+    std::isfinite(adaptiveMrStats.max_diag) &&
+    adaptiveMrStats.min_positive_diag > 0.0 &&
+    adaptiveMrStats.max_diag >= adaptiveMrStats.min_positive_diag;
+  const bool adaptiveMrConvergenceOk =
+    !requireConverged ||
+    steps == 0 ||
+    (adaptiveMrStats.converged &&
+     adaptiveMrStats.final_residual <= adaptiveMrStats.effective_tolerance);
 
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
@@ -254,6 +315,17 @@ int main(int argc, char** argv) {
               sparseAdaptive.gas_particles_per_cell_target);
   std::printf("sparse_gas_coarsening_seed=%u\n",
               sparseAdaptive.gas_particle_coarsening_seed);
+  std::printf("mr_adaptivity=%s\n", mrAdaptivity ? "true" : "false");
+  std::printf("mr_narrow_band_air=%s\n",
+              mrAdaptive.narrow_band_air ? "true" : "false");
+  std::printf("mr_narrow_band_radius=%d\n",
+              mrAdaptive.narrow_band_air_radius);
+  std::printf("mr_gas_coarsening=%s\n",
+              mrAdaptive.gas_particle_coarsening ? "true" : "false");
+  std::printf("mr_gas_particles_per_cell=%d\n",
+              mrAdaptive.gas_particles_per_cell_target);
+  std::printf("mr_gas_coarsening_seed=%u\n",
+              mrAdaptive.gas_particle_coarsening_seed);
   std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
   std::printf("mr_cg_rel_tol=%.9g\n", mr.cg_rel_tol);
   std::printf("mr_cg_jacobi_preconditioner=%s\n", mr.cg_jacobi_preconditioner ? "true" : "false");
@@ -271,16 +343,21 @@ int main(int argc, char** argv) {
   std::printf("adaptive_sparse_particles_end=%zu\n", adaptiveMetrics.particlesEnd);
   std::printf("mr_particles_start=%zu\n", mrN0);
   std::printf("mr_particles_end=%zu\n", mr.particles.size());
+  std::printf("adaptive_mr_particles_start=%zu\n", adaptiveMrN0);
+  std::printf("adaptive_mr_particles_end=%zu\n", adaptiveMrN1);
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");
   std::printf("mr_finite=%s\n", mrFinite ? "true" : "false");
+  std::printf("adaptive_mr_finite=%s\n", adaptiveMrFinite ? "true" : "false");
   std::printf("sparse_gas_mean_y_start=%.9g\n", sparseMetrics.gasStart);
   std::printf("sparse_gas_mean_y_end=%.9g\n", sparseMetrics.gasEnd);
   std::printf("adaptive_sparse_gas_mean_y_start=%.9g\n", adaptiveMetrics.gasStart);
   std::printf("adaptive_sparse_gas_mean_y_end=%.9g\n", adaptiveMetrics.gasEnd);
   std::printf("mr_gas_mean_y_start=%.9g\n", mrGas0);
   std::printf("mr_gas_mean_y_end=%.9g\n", mrGas1);
+  std::printf("adaptive_mr_gas_mean_y_start=%.9g\n", adaptiveMrGas0);
+  std::printf("adaptive_mr_gas_mean_y_end=%.9g\n", adaptiveMrGas1);
   std::printf("sparse_active_pressure_blocks_max=%zu\n", sparseMetrics.maxBlocks);
   std::printf("adaptive_sparse_active_pressure_blocks_max=%zu\n",
               adaptiveMetrics.maxBlocks);
@@ -295,6 +372,14 @@ int main(int argc, char** argv) {
               sparseAdaptive.gas_particle_coarsening_cells_last);
   std::printf("adaptive_sparse_gas_coarsening_overfull_cells_last=%d\n",
               sparseAdaptive.gas_particle_coarsening_overfull_cells_last);
+  std::printf("adaptive_mr_narrow_band_removed_total=%d\n",
+              mrAdaptivity ? mrAdaptive.narrow_band_air_removed_total : 0);
+  std::printf("adaptive_mr_gas_coarsening_removed_total=%d\n",
+              mrAdaptivity ? mrAdaptive.gas_particle_coarsening_removed_total : 0);
+  std::printf("adaptive_mr_gas_coarsening_cells_last=%d\n",
+              mrAdaptivity ? mrAdaptive.gas_particle_coarsening_cells_last : 0);
+  std::printf("adaptive_mr_gas_coarsening_overfull_cells_last=%d\n",
+              mrAdaptivity ? mrAdaptive.gas_particle_coarsening_overfull_cells_last : 0);
   std::printf("mr_dynamic_refinement=%s\n", mr.dynamic_refinement ? "true" : "false");
   std::printf("mr_dynamic_hysteresis_cells=%d\n", mr.dynamic_hysteresis_cells);
   std::printf("mr_dynamic_max_fine_leaves=%d\n", mr.dynamic_max_fine_leaves);
@@ -352,6 +437,7 @@ int main(int argc, char** argv) {
   std::printf("mr_leaf_level0=%zu\n", mr.layout.countLevel(0));
   std::printf("mr_leaf_level1=%zu\n", mr.layout.countLevel(1));
   std::printf("mr_pressure_cells=%d\n", mrPressureCells);
+  std::printf("adaptive_mr_pressure_cells=%d\n", adaptiveMrPressureCells);
   std::printf("fine_pressure_cells=%d\n", finePressureCells);
   std::printf("mr_u_faces=%d\n", mr.uFaceCount());
   std::printf("mr_v_faces=%d\n", mr.vFaceCount());
@@ -361,10 +447,17 @@ int main(int argc, char** argv) {
   std::printf("sparse_elapsed_ms=%lld\n", sparseMetrics.elapsedMs);
   std::printf("adaptive_sparse_elapsed_ms=%lld\n", adaptiveMetrics.elapsedMs);
   std::printf("mr_elapsed_ms=%lld\n", mrMs);
+  std::printf("adaptive_mr_elapsed_ms=%lld\n", adaptiveMrMs);
   std::printf("rise_delta=%.9g\n", riseDelta);
   std::printf("allowed_rise_delta=%.9g\n", allowedRiseDelta);
   std::printf("adaptive_rise_delta=%.9g\n", adaptiveRiseDelta);
   std::printf("allowed_adaptive_rise_delta=%.9g\n", allowedAdaptiveRiseDelta);
+  std::printf("adaptive_mr_rise_delta=%.9g\n", adaptiveMrRiseDelta);
+  std::printf("allowed_adaptive_mr_rise_delta=%.9g\n", allowedAdaptiveMrRiseDelta);
+  std::printf("adaptive_mr_pressure_convergence_ok=%s\n",
+              adaptiveMrConvergenceOk ? "true" : "false");
+  std::printf("adaptive_mr_pressure_diag_finite=%s\n",
+              adaptiveMrPressureDiagFinite ? "true" : "false");
 
   bool ok = true;
   if (!sparseMetrics.finite || !mrFinite) ok = false;
@@ -378,6 +471,18 @@ int main(int argc, char** argv) {
     if (adaptiveMetrics.particlesEnd > adaptiveMetrics.particlesStart) ok = false;
     if (!(adaptiveRise > 0.0)) ok = false;
     if (!(adaptiveRiseDelta <= allowedAdaptiveRiseDelta)) ok = false;
+  }
+  if (mrAdaptivity) {
+    if (!adaptiveMrFinite) ok = false;
+    if (adaptiveMrN1 > adaptiveMrN0) ok = false;
+    if (!(adaptiveMrRise > 0.0)) ok = false;
+    if (!(adaptiveMrRiseDelta <= allowedAdaptiveMrRiseDelta)) ok = false;
+    if (!(adaptiveMrPressureCells < finePressureCells)) ok = false;
+    if (steps > 0 && adaptiveMrStats.breakdown) ok = false;
+    if (steps > 0 && !std::isfinite(adaptiveMrStats.final_residual)) ok = false;
+    if (steps > 0 && adaptiveMrStats.final_residual > adaptiveMrStats.initial_residual) ok = false;
+    if (steps > 0 && !adaptiveMrConvergenceOk) ok = false;
+    if (steps > 0 && highDensityRatio && !adaptiveMrPressureDiagFinite) ok = false;
   }
   if (!(mrPressureCells < finePressureCells)) ok = false;
   if (!(riseDelta <= allowedRiseDelta)) ok = false;
