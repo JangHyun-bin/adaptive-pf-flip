@@ -85,6 +85,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F15** | **SPEC-3 coarse preconditioner sweep** - solver bench sweep variants for coarse-preconditioner inner iterations and additive scale. | done |
 | **F16** | **SPEC-3 solver bench summary** - baseline-relative iteration, elapsed, and coarse-work summaries for coarse-preconditioner sweeps. | done |
 | **F17** | **SPEC-3 coarse preconditioner guard** - min-rz-gain acceptance guard and runner diagnostics for rejecting weak additive coarse solves. | done |
+| **F18** | **SPEC-3 coarse preconditioner work cap** - max-work-ratio budget guard, skip diagnostics, and sweep variants for bounded coarse-pre work. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -152,6 +153,7 @@ cmake --build build --config Release --target bench_multires3d_solver
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6 --rho-ratio 1000 --history-stride 1 --history-limit 8
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6 --rho-ratio 1000 --coarse-correction --coarse-sweeps 2
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6 --rho-ratio 1000 --coarse-preconditioner
+./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --rho-ratio 1000 --cg-rel-tol 1e-5 --coarse-preconditioner --coarse-pre-iters 4 --coarse-pre-scale 0.5 --coarse-pre-max-work-ratio 2
 ./build/Release/bench_multires3d_solver.exe --steps 4 --rho-ratio 1000 --rel-tol 1e-5
 ./build/Release/bench_multires3d_solver.exe --steps 4 --rho-ratio 1000 --rel-tol 1e-5 --coarse-pre-sweep --coarse-pre-min-rz-gain 0.01
 ```

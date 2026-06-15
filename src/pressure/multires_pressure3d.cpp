@@ -297,6 +297,7 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.coarse_preconditioner_relative_tolerance = config.coarse_preconditioner_relative_tolerance;
   stats.coarse_preconditioner_scale = config.coarse_preconditioner_scale;
   stats.coarse_preconditioner_min_rz_gain = config.coarse_preconditioner_min_rz_gain;
+  stats.coarse_preconditioner_max_work_ratio = config.coarse_preconditioner_max_work_ratio;
   return stats;
 }
 
@@ -320,7 +321,8 @@ void validateSolveConfig(const MRPressureSolveConfig3D& config) {
       config.coarse_preconditioner_absolute_tolerance < 0.0 ||
       config.coarse_preconditioner_relative_tolerance < 0.0 ||
       config.coarse_preconditioner_scale < 0.0 ||
-      config.coarse_preconditioner_min_rz_gain < 0.0) {
+      config.coarse_preconditioner_min_rz_gain < 0.0 ||
+      config.coarse_preconditioner_max_work_ratio < 0.0) {
     throw std::invalid_argument("projectMR3D invalid solve config");
   }
 }
@@ -1160,6 +1162,21 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
 
     auto solveCoarsePreconditioner = [&]() {
       if (!coarsePreconditionerReady) return false;
+      int maxCoarseIterations = config.coarse_preconditioner_iterations;
+      if (config.coarse_preconditioner_max_work_ratio > 0.0) {
+        const double allowedWork =
+          config.coarse_preconditioner_max_work_ratio *
+          static_cast<double>(std::max(1, localStats.iterations + 1));
+        const int remainingWork =
+          static_cast<int>(std::floor(allowedWork + 1e-12)) -
+          localStats.coarse_preconditioner_iterations;
+        if (remainingWork < maxCoarseIterations) {
+          ++localStats.coarse_preconditioner_budget_limited_applications;
+          ++localStats.coarse_preconditioner_skipped_applications;
+          localStats.coarse_preconditioner_budget_exhausted = true;
+          return false;
+        }
+      }
       ++localStats.coarse_preconditioner_applications;
       restrictMRPressureVolumeWeighted3D(coarsePreconditionerAggregation, r, coarseRhs);
 
@@ -1184,7 +1201,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
 
       int iterations = 0;
       for (int it = 0;
-           it < config.coarse_preconditioner_iterations &&
+           it < maxCoarseIterations &&
            coarseRes0 > localStats.coarse_preconditioner_effective_tolerance;
            ++it) {
         applyCoarsePreconditionerA(coarseP, coarseAp);

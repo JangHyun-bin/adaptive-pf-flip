@@ -77,6 +77,8 @@ struct MRPressureSolveStats3D {
   int coarse_preconditioner_applications = 0;
   int coarse_preconditioner_accepted_applications = 0;
   int coarse_preconditioner_rejected_applications = 0;
+  int coarse_preconditioner_skipped_applications = 0;
+  int coarse_preconditioner_budget_limited_applications = 0;
   int coarse_preconditioner_iterations = 0;
   int coarse_preconditioner_max_iterations = 0;
   double tolerance = 0.0;
@@ -99,6 +101,7 @@ struct MRPressureSolveStats3D {
   double coarse_preconditioner_scale = 0.0;
   double coarse_preconditioner_min_rz_gain = 0.0;
   double coarse_preconditioner_last_rz_gain = 0.0;
+  double coarse_preconditioner_max_work_ratio = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_residual = 0.0;
@@ -121,6 +124,7 @@ struct MRPressureSolveStats3D {
   bool coarse_correction_breakdown = false;
   bool used_coarse_preconditioner = false;
   bool coarse_preconditioner_breakdown = false;
+  bool coarse_preconditioner_budget_exhausted = false;
 };
 
 struct MRPressureSolveConfig3D {
@@ -148,6 +152,7 @@ struct MRPressureSolveConfig3D {
   double coarse_preconditioner_relative_tolerance = 1e-2;
   double coarse_preconditioner_scale = 1.0;
   double coarse_preconditioner_min_rz_gain = 0.0;
+  double coarse_preconditioner_max_work_ratio = 0.0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);

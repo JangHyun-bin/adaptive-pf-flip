@@ -39,6 +39,7 @@ struct MRSim3DTP {
   double cg_coarse_preconditioner_rel_tol = 1e-2;
   double cg_coarse_preconditioner_scale = 1.0;
   double cg_coarse_preconditioner_min_rz_gain = 0.0;
+  double cg_coarse_preconditioner_max_work_ratio = 0.0;
   bool dynamic_refinement = true;
   int dynamic_particle_padding = 1;
   int dynamic_gas_padding = 2;

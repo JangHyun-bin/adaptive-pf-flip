@@ -69,6 +69,7 @@ void usage() {
                "[--coarse-pre-iters N] [--coarse-pre-rel-tol T] "
                "[--coarse-pre-abs-tol T] [--coarse-pre-scale S] "
                "[--coarse-pre-min-rz-gain G] "
+               "[--coarse-pre-max-work-ratio W] "
                "[--coarse-pre-sweep]\n");
 }
 
@@ -82,6 +83,7 @@ struct Variant {
   int coarsePreItersOverride = -1;
   double coarsePreScaleOverride = -1.0;
   double coarsePreMinRzGainOverride = -1.0;
+  double coarsePreMaxWorkRatioOverride = -1.0;
 };
 
 struct RunResult {
@@ -98,11 +100,15 @@ struct RunResult {
   int coarsePreconditionerApplications = 0;
   int coarsePreconditionerAcceptedApplications = 0;
   int coarsePreconditionerRejectedApplications = 0;
+  int coarsePreconditionerSkippedApplications = 0;
+  int coarsePreconditionerBudgetLimitedApplications = 0;
   double coarsePreconditionerScale = 0.0;
   double coarsePreconditionerMinRzGain = 0.0;
   double coarsePreconditionerLastRzGain = 0.0;
+  double coarsePreconditionerMaxWorkRatio = 0.0;
   bool converged = false;
   bool breakdown = false;
+  bool coarsePreconditionerBudgetExhausted = false;
 };
 
 int coarseWork(const RunResult& result) {
@@ -149,8 +155,10 @@ void printSummary(const std::vector<RunResult>& results) {
                 "total_work=%d work_delta=%+d final_over_tol=%.9g "
                 "converged=%s breakdown=%s coarse_pre_apps=%d "
                 "coarse_pre_accepted=%d coarse_pre_rejected=%d "
-                "coarse_pre_scale=%.9g coarse_pre_min_rz_gain=%.9g "
-                "coarse_pre_last_rz_gain=%.9g\n",
+                "coarse_pre_skipped=%d coarse_pre_budget_limited=%d "
+                "coarse_pre_budget_exhausted=%s coarse_pre_scale=%.9g "
+                "coarse_pre_min_rz_gain=%.9g coarse_pre_last_rz_gain=%.9g "
+                "coarse_pre_max_work_ratio=%.9g\n",
                 result.name.c_str(),
                 result.ok ? "ok" : "fail",
                 result.iterations,
@@ -166,9 +174,13 @@ void printSummary(const std::vector<RunResult>& results) {
                 result.coarsePreconditionerApplications,
                 result.coarsePreconditionerAcceptedApplications,
                 result.coarsePreconditionerRejectedApplications,
+                result.coarsePreconditionerSkippedApplications,
+                result.coarsePreconditionerBudgetLimitedApplications,
+                result.coarsePreconditionerBudgetExhausted ? "true" : "false",
                 result.coarsePreconditionerScale,
                 result.coarsePreconditionerMinRzGain,
-                result.coarsePreconditionerLastRzGain);
+                result.coarsePreconditionerLastRzGain,
+                result.coarsePreconditionerMaxWorkRatio);
   }
 }
 
@@ -200,7 +212,8 @@ RunResult runVariant(const Variant& variant,
                      double coarsePreRelTol,
                      double coarsePreAbsTol,
                      double coarsePreScale,
-                     double coarsePreMinRzGain) {
+                     double coarsePreMinRzGain,
+                     double coarsePreMaxWorkRatio) {
   const int actualCoarsePreIters =
     variant.coarsePreItersOverride >= 0 ? variant.coarsePreItersOverride : coarsePreIters;
   const double actualCoarsePreScale =
@@ -209,6 +222,10 @@ RunResult runVariant(const Variant& variant,
     variant.coarsePreMinRzGainOverride >= 0.0
       ? variant.coarsePreMinRzGainOverride
       : coarsePreMinRzGain;
+  const double actualCoarsePreMaxWorkRatio =
+    variant.coarsePreMaxWorkRatioOverride >= 0.0
+      ? variant.coarsePreMaxWorkRatioOverride
+      : coarsePreMaxWorkRatio;
 
   MRSim3DTP sim(nx, ny, nz, 1.0);
   if (rhoRatio > 0.0) {
@@ -240,6 +257,7 @@ RunResult runVariant(const Variant& variant,
   sim.cg_coarse_preconditioner_abs_tol = coarsePreAbsTol;
   sim.cg_coarse_preconditioner_scale = actualCoarsePreScale;
   sim.cg_coarse_preconditioner_min_rz_gain = actualCoarsePreMinRzGain;
+  sim.cg_coarse_preconditioner_max_work_ratio = actualCoarsePreMaxWorkRatio;
   sim.dynamic_hysteresis_cells = hysteresis;
   sim.dynamic_max_fine_leaves = maxFineLeaves;
   sim.initBubbleTankInterfaceBand();
@@ -285,11 +303,18 @@ RunResult runVariant(const Variant& variant,
     st.coarse_preconditioner_accepted_applications;
   result.coarsePreconditionerRejectedApplications =
     st.coarse_preconditioner_rejected_applications;
+  result.coarsePreconditionerSkippedApplications =
+    st.coarse_preconditioner_skipped_applications;
+  result.coarsePreconditionerBudgetLimitedApplications =
+    st.coarse_preconditioner_budget_limited_applications;
   result.coarsePreconditionerScale = st.coarse_preconditioner_scale;
   result.coarsePreconditionerMinRzGain = st.coarse_preconditioner_min_rz_gain;
   result.coarsePreconditionerLastRzGain = st.coarse_preconditioner_last_rz_gain;
+  result.coarsePreconditionerMaxWorkRatio = st.coarse_preconditioner_max_work_ratio;
   result.converged = st.converged;
   result.breakdown = st.breakdown;
+  result.coarsePreconditionerBudgetExhausted =
+    st.coarse_preconditioner_budget_exhausted;
 
   std::printf("result variant=%s jacobi=%s flexible_beta=%s coarse_correction=%s "
               "coarse_preconditioner=%s "
@@ -306,8 +331,11 @@ RunResult runVariant(const Variant& variant,
               "coarse_rejected_sweeps=%d coarse_last_scale=%.9g coarse_accepted=%s "
               "coarse_converged=%s coarse_breakdown=%s coarse_initial=%.9g coarse_final=%.9g "
               "coarse_pre_apps=%d coarse_pre_accepted=%d coarse_pre_rejected=%d "
-              "coarse_pre_iters=%d coarse_pre_breakdown=%s coarse_pre_scale=%.9g "
+              "coarse_pre_skipped=%d coarse_pre_budget_limited=%d "
+              "coarse_pre_iters=%d coarse_pre_breakdown=%s "
+              "coarse_pre_budget_exhausted=%s coarse_pre_scale=%.9g "
               "coarse_pre_min_rz_gain=%.9g coarse_pre_last_rz_gain=%.9g "
+              "coarse_pre_max_work_ratio=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
               variant.name.c_str(),
@@ -359,11 +387,15 @@ RunResult runVariant(const Variant& variant,
               st.coarse_preconditioner_applications,
               st.coarse_preconditioner_accepted_applications,
               st.coarse_preconditioner_rejected_applications,
+              st.coarse_preconditioner_skipped_applications,
+              st.coarse_preconditioner_budget_limited_applications,
               st.coarse_preconditioner_iterations,
               st.coarse_preconditioner_breakdown ? "true" : "false",
+              st.coarse_preconditioner_budget_exhausted ? "true" : "false",
               st.coarse_preconditioner_scale,
               st.coarse_preconditioner_min_rz_gain,
               st.coarse_preconditioner_last_rz_gain,
+              st.coarse_preconditioner_max_work_ratio,
               st.residual_history_truncated ? "true" : "false",
               st.converged ? "true" : "false",
               st.breakdown ? "true" : "false",
@@ -412,6 +444,9 @@ int main(int argc, char** argv) {
   double coarsePreMinRzGain =
     argDouble(argc, argv, "--coarse-pre-min-rz-gain",
               defaults.cg_coarse_preconditioner_min_rz_gain);
+  double coarsePreMaxWorkRatio =
+    argDouble(argc, argv, "--coarse-pre-max-work-ratio",
+              defaults.cg_coarse_preconditioner_max_work_ratio);
   bool coarsePreSweep = hasFlag(argc, argv, "--coarse-pre-sweep");
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
@@ -424,7 +459,8 @@ int main(int argc, char** argv) {
       coarseMinScale <= 0.0 || coarseMinScale > 1.0 ||
       coarsePreIters < 0 || coarsePreRelTol < 0.0 ||
       coarsePreAbsTol < 0.0 || coarsePreScale < 0.0 ||
-      coarsePreMinRzGain < 0.0) {
+      coarsePreMinRzGain < 0.0 ||
+      coarsePreMaxWorkRatio < 0.0) {
     usage();
     return 2;
   }
@@ -459,6 +495,7 @@ int main(int argc, char** argv) {
   std::printf("coarse_pre_abs_tol=%.9g\n", coarsePreAbsTol);
   std::printf("coarse_pre_scale=%.9g\n", coarsePreScale);
   std::printf("coarse_pre_min_rz_gain=%.9g\n", coarsePreMinRzGain);
+  std::printf("coarse_pre_max_work_ratio=%.9g\n", coarsePreMaxWorkRatio);
   std::printf("coarse_pre_sweep=%s\n", coarsePreSweep ? "true" : "false");
 
   std::vector<Variant> variants = {
@@ -480,6 +517,7 @@ int main(int argc, char** argv) {
     variants.push_back({"coarse_pre_i4_s05_g05", true, false, false, true, relTol, 4, 0.5, 0.05});
     variants.push_back({"coarse_pre_i8_s1_g01", true, false, false, true, relTol, 8, 1.0, 0.01});
     variants.push_back({"coarse_pre_i8_s1_g05", true, false, false, true, relTol, 8, 1.0, 0.05});
+    variants.push_back({"coarse_pre_i4_s05_w2", true, false, false, true, relTol, 4, 0.5, -1.0, 2.0});
   }
 
   bool ok = true;
@@ -496,7 +534,8 @@ int main(int argc, char** argv) {
                                   coarseRelTol, coarseAbsTol, coarseMinScale,
                                   coarsePreIters, coarsePreRelTol,
                                   coarsePreAbsTol, coarsePreScale,
-                                  coarsePreMinRzGain);
+                                  coarsePreMinRzGain,
+                                  coarsePreMaxWorkRatio);
     ok = result.ok && ok;
     results.push_back(result);
   }
