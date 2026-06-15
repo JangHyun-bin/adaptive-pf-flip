@@ -231,6 +231,26 @@ int main(int argc, char** argv) {
   std::printf("liquid_particles_end=%zu\n", liquidCount1);
   std::printf("gas_particles_start=%zu\n", gasCount0);
   std::printf("gas_particles_end=%zu\n", gasCount1);
+  std::printf("particle_boundary_clamped_liquid_last=%d\n",
+              sim.particle_boundary_clamped_liquid_last);
+  std::printf("particle_boundary_clamped_gas_last=%d\n",
+              sim.particle_boundary_clamped_gas_last);
+  std::printf("particle_boundary_clamped_liquid_total=%d\n",
+              sim.particle_boundary_clamped_liquid_total);
+  std::printf("particle_boundary_clamped_gas_total=%d\n",
+              sim.particle_boundary_clamped_gas_total);
+  std::printf("particle_boundary_clamped_x_lo_last=%d\n",
+              sim.particle_boundary_clamped_x_lo_last);
+  std::printf("particle_boundary_clamped_x_hi_last=%d\n",
+              sim.particle_boundary_clamped_x_hi_last);
+  std::printf("particle_boundary_clamped_y_lo_last=%d\n",
+              sim.particle_boundary_clamped_y_lo_last);
+  std::printf("particle_boundary_clamped_y_hi_last=%d\n",
+              sim.particle_boundary_clamped_y_hi_last);
+  std::printf("particle_boundary_clamped_z_lo_last=%d\n",
+              sim.particle_boundary_clamped_z_lo_last);
+  std::printf("particle_boundary_clamped_z_hi_last=%d\n",
+              sim.particle_boundary_clamped_z_hi_last);
   std::printf("liquid_volume_start=%.9g\n", liquidVolume0);
   std::printf("liquid_volume_end=%.9g\n", liquidVolume1);
   std::printf("liquid_mass_start=%.9g\n", liquidVolume0 * sim.phase.rho_l);

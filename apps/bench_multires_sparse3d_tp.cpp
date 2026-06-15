@@ -90,6 +90,8 @@ struct SparseMetrics {
   double liquidVolumeEnd = 0.0;
   double gasVolumeStart = 0.0;
   double gasVolumeEnd = 0.0;
+  int boundaryClampedLiquidTotal = 0;
+  int boundaryClampedGasTotal = 0;
   int liquidCoarseningRemovedStart = 0;
   int liquidCoarseningRemovedEnd = 0;
   int liquidCoarseningRemovedDuringRun = 0;
@@ -127,6 +129,8 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   metrics.gasCountEnd = countType(sim.particles, 1);
   metrics.liquidVolumeEnd = volumeType(sim.particles, 0, sim.Vp);
   metrics.gasVolumeEnd = volumeType(sim.particles, 1, sim.Vp);
+  metrics.boundaryClampedLiquidTotal = sim.particle_boundary_clamped_liquid_total;
+  metrics.boundaryClampedGasTotal = sim.particle_boundary_clamped_gas_total;
   metrics.liquidCoarseningRemovedEnd = sim.liquid_particle_coarsening_removed_total;
   metrics.liquidCoarseningRemovedDuringRun =
     metrics.liquidCoarseningRemovedEnd - metrics.liquidCoarseningRemovedStart;
@@ -360,6 +364,8 @@ int main(int argc, char** argv) {
   size_t mrGasCount1 = countType(mr.particles, 1);
   double mrLiquidVolume1 = volumeType(mr.particles, 0, mr.Vp);
   double mrGasVolume1 = volumeType(mr.particles, 1, mr.Vp);
+  int mrBoundaryClampedLiquidTotal = mr.particle_boundary_clamped_liquid_total;
+  int mrBoundaryClampedGasTotal = mr.particle_boundary_clamped_gas_total;
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
   long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
@@ -373,6 +379,8 @@ int main(int argc, char** argv) {
   double adaptiveMrLiquidVolume1 = mrLiquidVolume1;
   double adaptiveMrGasVolume0 = mrGasVolume0;
   double adaptiveMrGasVolume1 = mrGasVolume1;
+  int adaptiveMrBoundaryClampedLiquidTotal = mrBoundaryClampedLiquidTotal;
+  int adaptiveMrBoundaryClampedGasTotal = mrBoundaryClampedGasTotal;
   int adaptiveMrLiquidRefillAdded0 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAdded1 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAddedDuringRun = 0;
@@ -406,6 +414,10 @@ int main(int argc, char** argv) {
     adaptiveMrGasCount1 = countType(mrAdaptive.particles, 1);
     adaptiveMrLiquidVolume1 = volumeType(mrAdaptive.particles, 0, mrAdaptive.Vp);
     adaptiveMrGasVolume1 = volumeType(mrAdaptive.particles, 1, mrAdaptive.Vp);
+    adaptiveMrBoundaryClampedLiquidTotal =
+      mrAdaptive.particle_boundary_clamped_liquid_total;
+    adaptiveMrBoundaryClampedGasTotal =
+      mrAdaptive.particle_boundary_clamped_gas_total;
     adaptiveMrLiquidCoarseningRemoved1 = mrAdaptive.liquid_particle_coarsening_removed_total;
     adaptiveMrLiquidCoarseningRemovedDuringRun =
       adaptiveMrLiquidCoarseningRemoved1 - adaptiveMrLiquidCoarseningRemoved0;
@@ -561,6 +573,14 @@ int main(int argc, char** argv) {
   std::printf("adaptive_sparse_liquid_volume_end=%.9g\n", adaptiveMetrics.liquidVolumeEnd);
   std::printf("adaptive_sparse_gas_volume_start=%.9g\n", adaptiveMetrics.gasVolumeStart);
   std::printf("adaptive_sparse_gas_volume_end=%.9g\n", adaptiveMetrics.gasVolumeEnd);
+  std::printf("sparse_boundary_clamped_liquid_total=%d\n",
+              sparseMetrics.boundaryClampedLiquidTotal);
+  std::printf("sparse_boundary_clamped_gas_total=%d\n",
+              sparseMetrics.boundaryClampedGasTotal);
+  std::printf("adaptive_sparse_boundary_clamped_liquid_total=%d\n",
+              adaptiveMetrics.boundaryClampedLiquidTotal);
+  std::printf("adaptive_sparse_boundary_clamped_gas_total=%d\n",
+              adaptiveMetrics.boundaryClampedGasTotal);
   std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
   std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
   std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
@@ -577,6 +597,14 @@ int main(int argc, char** argv) {
   std::printf("adaptive_mr_liquid_volume_end=%.9g\n", adaptiveMrLiquidVolume1);
   std::printf("adaptive_mr_gas_volume_start=%.9g\n", adaptiveMrGasVolume0);
   std::printf("adaptive_mr_gas_volume_end=%.9g\n", adaptiveMrGasVolume1);
+  std::printf("mr_boundary_clamped_liquid_total=%d\n",
+              mrBoundaryClampedLiquidTotal);
+  std::printf("mr_boundary_clamped_gas_total=%d\n",
+              mrBoundaryClampedGasTotal);
+  std::printf("adaptive_mr_boundary_clamped_liquid_total=%d\n",
+              adaptiveMrBoundaryClampedLiquidTotal);
+  std::printf("adaptive_mr_boundary_clamped_gas_total=%d\n",
+              adaptiveMrBoundaryClampedGasTotal);
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");

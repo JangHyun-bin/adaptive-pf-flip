@@ -119,3 +119,32 @@ TEST_CASE("sparse 3D tp p2g matches uniform transfer on touched faces") {
   CHECK(maxMassDiff < 1e-6);
   CHECK(maxVelDiff < 1e-6);
 }
+
+TEST_CASE("sparse 3D tp advect reports phase boundary clamps") {
+  SparseMacGrid3D<4> g(8, 8, 8, 1.0);
+  for (int k = 0; k < g.nz; ++k) {
+    for (int j = 0; j < g.ny; ++j) {
+      for (int i = 0; i <= g.nx; ++i) g.u(i, j, k) = 10.0f;
+    }
+  }
+  for (int k = 0; k < g.nz; ++k) {
+    for (int j = 0; j <= g.ny; ++j) {
+      for (int i = 0; i < g.nx; ++i) g.v(i, j, k) = -10.0f;
+    }
+  }
+
+  Particles3DTP ps;
+  ps.add({7.45, 4.0, 4.0}, {0.0, 0.0, 0.0}, 0);
+  ps.add({4.0, 0.55, 4.0}, {0.0, 0.0, 0.0}, 1);
+
+  ParticleEscapeStats3D stats;
+  spAdvect3D_tp(ps, g, 0.1, &stats);
+
+  CHECK(ps.pos[0].x == doctest::Approx(7.5).epsilon(1e-12));
+  CHECK(ps.pos[1].y == doctest::Approx(0.5).epsilon(1e-12));
+  CHECK(stats.clamped_liquid == 1);
+  CHECK(stats.clamped_gas == 1);
+  CHECK(stats.clamped_x_hi == 1);
+  CHECK(stats.clamped_y_lo == 1);
+  CHECK(stats.clamped_total() == 2);
+}

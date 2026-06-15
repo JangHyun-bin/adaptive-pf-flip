@@ -94,6 +94,32 @@ void applyWallBoundary(SparseMacGrid3D<4>& g) {
   }
 }
 
+void resetParticleBoundaryStats(SparseSim3DTP& sim) {
+  sim.particle_boundary_clamped_liquid_last = 0;
+  sim.particle_boundary_clamped_gas_last = 0;
+  sim.particle_boundary_clamped_liquid_total = 0;
+  sim.particle_boundary_clamped_gas_total = 0;
+  sim.particle_boundary_clamped_x_lo_last = 0;
+  sim.particle_boundary_clamped_x_hi_last = 0;
+  sim.particle_boundary_clamped_y_lo_last = 0;
+  sim.particle_boundary_clamped_y_hi_last = 0;
+  sim.particle_boundary_clamped_z_lo_last = 0;
+  sim.particle_boundary_clamped_z_hi_last = 0;
+}
+
+void storeParticleBoundaryStats(SparseSim3DTP& sim, const ParticleEscapeStats3D& stats) {
+  sim.particle_boundary_clamped_liquid_last = stats.clamped_liquid;
+  sim.particle_boundary_clamped_gas_last = stats.clamped_gas;
+  sim.particle_boundary_clamped_liquid_total += stats.clamped_liquid;
+  sim.particle_boundary_clamped_gas_total += stats.clamped_gas;
+  sim.particle_boundary_clamped_x_lo_last = stats.clamped_x_lo;
+  sim.particle_boundary_clamped_x_hi_last = stats.clamped_x_hi;
+  sim.particle_boundary_clamped_y_lo_last = stats.clamped_y_lo;
+  sim.particle_boundary_clamped_y_hi_last = stats.clamped_y_hi;
+  sim.particle_boundary_clamped_z_lo_last = stats.clamped_z_lo;
+  sim.particle_boundary_clamped_z_hi_last = stats.clamped_z_hi;
+}
+
 } // namespace
 
 void SparseSim3DTP::initTwoPhaseDamBreak() {
@@ -106,6 +132,7 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   liquid_particle_coarsening_removed_total = 0;
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
+  resetParticleBoundaryStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -130,6 +157,7 @@ void SparseSim3DTP::initRayleighTaylor() {
   liquid_particle_coarsening_removed_total = 0;
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
+  resetParticleBoundaryStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -155,6 +183,7 @@ void SparseSim3DTP::initBubbleTank() {
   liquid_particle_coarsening_removed_total = 0;
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
+  resetParticleBoundaryStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -260,5 +289,7 @@ void SparseSim3DTP::step() {
   applyWallBoundary(grid);
   spProjectStepVC3D(grid, phase, dt, cg_iters, cg_tol);
   spG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
-  spAdvect3D_tp(particles, grid, dt);
+  ParticleEscapeStats3D escapeStats;
+  spAdvect3D_tp(particles, grid, dt, &escapeStats);
+  storeParticleBoundaryStats(*this, escapeStats);
 }

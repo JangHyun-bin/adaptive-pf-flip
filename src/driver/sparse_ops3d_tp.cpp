@@ -171,7 +171,8 @@ void spG2P3D_tp(const SparseMacGrid3D<4>& g, Particles3DTP& ps, const SparseMacG
   }
 }
 
-void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt) {
+void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt,
+                   ParticleEscapeStats3D* stats) {
   double lox = g.ox + 0.5 * g.dx, hix = g.ox + (g.nx - 0.5) * g.dx;
   double loy = g.oy + 0.5 * g.dx, hiy = g.oy + (g.ny - 0.5) * g.dx;
   double loz = g.oz + 0.5 * g.dx, hiz = g.oz + (g.nz - 0.5) * g.dx;
@@ -191,9 +192,19 @@ void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt) {
     double u2 = sparse3d::sampleU(g, mpx, mpy, mpz);
     double v2 = sparse3d::sampleV(g, mpx, mpy, mpz);
     double w2 = sparse3d::sampleW(g, mpx, mpy, mpz);
-    ps.pos[p].x = std::max(lox, std::min(hix, ps.pos[p].x + dt * u2));
-    ps.pos[p].y = std::max(loy, std::min(hiy, ps.pos[p].y + dt * v2));
-    ps.pos[p].z = std::max(loz, std::min(hiz, ps.pos[p].z + dt * w2));
+    double nx = ps.pos[p].x + dt * u2;
+    double ny = ps.pos[p].y + dt * v2;
+    double nz = ps.pos[p].z + dt * w2;
+    const bool xLo = nx < lox;
+    const bool xHi = nx > hix;
+    const bool yLo = ny < loy;
+    const bool yHi = ny > hiy;
+    const bool zLo = nz < loz;
+    const bool zHi = nz > hiz;
+    if (stats) stats->recordClamp(ps.type[p], xLo, xHi, yLo, yHi, zLo, zHi);
+    ps.pos[p].x = std::max(lox, std::min(hix, nx));
+    ps.pos[p].y = std::max(loy, std::min(hiy, ny));
+    ps.pos[p].z = std::max(loz, std::min(hiz, nz));
   }
 }
 

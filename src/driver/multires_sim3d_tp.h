@@ -95,6 +95,16 @@ struct MRSim3DTP {
   int liquid_particle_refill_budget_limited_last = 0;
   int liquid_particle_refill_before_last = 0;
   int liquid_particle_refill_after_last = 0;
+  int particle_boundary_clamped_liquid_last = 0;
+  int particle_boundary_clamped_gas_last = 0;
+  int particle_boundary_clamped_liquid_total = 0;
+  int particle_boundary_clamped_gas_total = 0;
+  int particle_boundary_clamped_x_lo_last = 0;
+  int particle_boundary_clamped_x_hi_last = 0;
+  int particle_boundary_clamped_y_lo_last = 0;
+  int particle_boundary_clamped_y_hi_last = 0;
+  int particle_boundary_clamped_z_lo_last = 0;
+  int particle_boundary_clamped_z_hi_last = 0;
   MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);

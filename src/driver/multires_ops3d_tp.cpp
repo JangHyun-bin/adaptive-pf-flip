@@ -293,7 +293,8 @@ void mrG2P3D_tp(const MRMacGrid3D<4>& g, Particles3DTP& ps, const MRMacGrid3D<4>
   }
 }
 
-void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt) {
+void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt,
+                   ParticleEscapeStats3D* stats) {
   double minX = 0.5 * g.layout.dx;
   double maxX = (static_cast<double>(g.layout.nx) - 0.5) * g.layout.dx;
   double minY = 0.5 * g.layout.dx;
@@ -311,8 +312,18 @@ void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt) {
     double u2 = sampleU(g, mx, my, mz);
     double v2 = sampleV(g, mx, my, mz);
     double w2 = sampleW(g, mx, my, mz);
-    ps.pos[p].x = std::max(minX, std::min(maxX, ps.pos[p].x + dt * u2));
-    ps.pos[p].y = std::max(minY, std::min(maxY, ps.pos[p].y + dt * v2));
-    ps.pos[p].z = std::max(minZ, std::min(maxZ, ps.pos[p].z + dt * w2));
+    double nx = ps.pos[p].x + dt * u2;
+    double ny = ps.pos[p].y + dt * v2;
+    double nz = ps.pos[p].z + dt * w2;
+    const bool xLo = nx < minX;
+    const bool xHi = nx > maxX;
+    const bool yLo = ny < minY;
+    const bool yHi = ny > maxY;
+    const bool zLo = nz < minZ;
+    const bool zHi = nz > maxZ;
+    if (stats) stats->recordClamp(ps.type[p], xLo, xHi, yLo, yHi, zLo, zHi);
+    ps.pos[p].x = std::max(minX, std::min(maxX, nx));
+    ps.pos[p].y = std::max(minY, std::min(maxY, ny));
+    ps.pos[p].z = std::max(minZ, std::min(maxZ, nz));
   }
 }

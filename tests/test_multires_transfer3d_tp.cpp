@@ -182,3 +182,27 @@ TEST_CASE("multires 3D tp advect: dx scales physical clamp bounds") {
   CHECK(ps.pos[0].y == doctest::Approx((layout.ny - 0.5) * layout.dx).epsilon(1e-12));
   CHECK(ps.pos[0].z == doctest::Approx((layout.nz - 0.5) * layout.dx).epsilon(1e-12));
 }
+
+TEST_CASE("multires 3D tp advect reports phase boundary clamps") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+
+  for (const MRFaceKey3D& f : g.uFaces()) g.u(f) = -10.0f;
+  for (const MRFaceKey3D& f : g.wFaces()) g.w(f) = 10.0f;
+
+  Particles3DTP ps;
+  ps.add({0.55, 4.0, 4.0}, {0.0, 0.0, 0.0}, 0);
+  ps.add({4.0, 4.0, 7.45}, {0.0, 0.0, 0.0}, 1);
+
+  ParticleEscapeStats3D stats;
+  mrAdvect3D_tp(ps, g, 0.1, &stats);
+
+  CHECK(ps.pos[0].x == doctest::Approx(0.5).epsilon(1e-12));
+  CHECK(ps.pos[1].z == doctest::Approx(7.5).epsilon(1e-12));
+  CHECK(stats.clamped_liquid == 1);
+  CHECK(stats.clamped_gas == 1);
+  CHECK(stats.clamped_x_lo == 1);
+  CHECK(stats.clamped_z_hi == 1);
+  CHECK(stats.clamped_total() == 2);
+}

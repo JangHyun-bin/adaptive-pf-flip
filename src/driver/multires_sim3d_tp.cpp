@@ -240,6 +240,32 @@ void refineBubbleStaticBand(MRLayout3D<4>& layout) {
   layout.enforceTwoToOneBalance();
 }
 
+void resetParticleBoundaryStats(MRSim3DTP& sim) {
+  sim.particle_boundary_clamped_liquid_last = 0;
+  sim.particle_boundary_clamped_gas_last = 0;
+  sim.particle_boundary_clamped_liquid_total = 0;
+  sim.particle_boundary_clamped_gas_total = 0;
+  sim.particle_boundary_clamped_x_lo_last = 0;
+  sim.particle_boundary_clamped_x_hi_last = 0;
+  sim.particle_boundary_clamped_y_lo_last = 0;
+  sim.particle_boundary_clamped_y_hi_last = 0;
+  sim.particle_boundary_clamped_z_lo_last = 0;
+  sim.particle_boundary_clamped_z_hi_last = 0;
+}
+
+void storeParticleBoundaryStats(MRSim3DTP& sim, const ParticleEscapeStats3D& stats) {
+  sim.particle_boundary_clamped_liquid_last = stats.clamped_liquid;
+  sim.particle_boundary_clamped_gas_last = stats.clamped_gas;
+  sim.particle_boundary_clamped_liquid_total += stats.clamped_liquid;
+  sim.particle_boundary_clamped_gas_total += stats.clamped_gas;
+  sim.particle_boundary_clamped_x_lo_last = stats.clamped_x_lo;
+  sim.particle_boundary_clamped_x_hi_last = stats.clamped_x_hi;
+  sim.particle_boundary_clamped_y_lo_last = stats.clamped_y_lo;
+  sim.particle_boundary_clamped_y_hi_last = stats.clamped_y_hi;
+  sim.particle_boundary_clamped_z_lo_last = stats.clamped_z_lo;
+  sim.particle_boundary_clamped_z_hi_last = stats.clamped_z_hi;
+}
+
 } // namespace
 
 MRSim3DTP::MRSim3DTP(int nx, int ny, int nz, double dx)
@@ -259,6 +285,7 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   liquid_particle_coarsening_removed_total = 0;
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
+  resetParticleBoundaryStats(*this);
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -495,7 +522,9 @@ void MRSim3DTP::step() {
     cg_coarse_preconditioner_auto_disable_after;
   projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
-  mrAdvect3D_tp(particles, grid, dt);
+  ParticleEscapeStats3D escapeStats;
+  mrAdvect3D_tp(particles, grid, dt, &escapeStats);
+  storeParticleBoundaryStats(*this, escapeStats);
 }
 
 int MRSim3DTP::activePressureCellCount() const {
