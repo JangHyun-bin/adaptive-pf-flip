@@ -890,6 +890,9 @@ TEST_CASE("multires 3D pressure: coarse preconditioner reports applications") {
 
   config.coarse_preconditioner_scale = -1.0;
   CHECK_THROWS_AS(projectMR3D(g, pp, 1.0, config, &stats), std::invalid_argument);
+  config.coarse_preconditioner_scale = 0.5;
+  config.coarse_preconditioner_iterations = -1;
+  CHECK_THROWS_AS(projectMR3D(g, pp, 1.0, config, &stats), std::invalid_argument);
 }
 
 TEST_CASE("multires 3D pressure: high density ratio stats remain finite") {

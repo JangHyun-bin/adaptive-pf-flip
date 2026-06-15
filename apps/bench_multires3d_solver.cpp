@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -65,16 +67,19 @@ void usage() {
                "[--coarse-iters N] [--coarse-sweeps N] "
                "[--coarse-rel-tol T] [--coarse-abs-tol T] [--coarse-min-scale S] "
                "[--coarse-pre-iters N] [--coarse-pre-rel-tol T] "
-               "[--coarse-pre-abs-tol T] [--coarse-pre-scale S]\n");
+               "[--coarse-pre-abs-tol T] [--coarse-pre-scale S] "
+               "[--coarse-pre-sweep]\n");
 }
 
 struct Variant {
-  const char* name = "";
+  std::string name;
   bool jacobi = true;
   bool flexibleBeta = false;
   bool coarseCorrection = false;
   bool coarsePreconditioner = false;
   double relTol = 0.0;
+  int coarsePreItersOverride = -1;
+  double coarsePreScaleOverride = -1.0;
 };
 
 bool runVariant(const Variant& variant,
@@ -105,6 +110,11 @@ bool runVariant(const Variant& variant,
                 double coarsePreRelTol,
                 double coarsePreAbsTol,
                 double coarsePreScale) {
+  const int actualCoarsePreIters =
+    variant.coarsePreItersOverride >= 0 ? variant.coarsePreItersOverride : coarsePreIters;
+  const double actualCoarsePreScale =
+    variant.coarsePreScaleOverride >= 0.0 ? variant.coarsePreScaleOverride : coarsePreScale;
+
   MRSim3DTP sim(nx, ny, nz, 1.0);
   if (rhoRatio > 0.0) {
     sim.phase.rho_l = rhoRatio;
@@ -130,10 +140,10 @@ bool runVariant(const Variant& variant,
   sim.cg_coarse_correction_abs_tol = coarseAbsTol;
   sim.cg_coarse_correction_min_scale = coarseMinScale;
   sim.cg_coarse_preconditioner = variant.coarsePreconditioner;
-  sim.cg_coarse_preconditioner_iters = coarsePreIters;
+  sim.cg_coarse_preconditioner_iters = actualCoarsePreIters;
   sim.cg_coarse_preconditioner_rel_tol = coarsePreRelTol;
   sim.cg_coarse_preconditioner_abs_tol = coarsePreAbsTol;
-  sim.cg_coarse_preconditioner_scale = coarsePreScale;
+  sim.cg_coarse_preconditioner_scale = actualCoarsePreScale;
   sim.dynamic_hysteresis_cells = hysteresis;
   sim.dynamic_max_fine_leaves = maxFineLeaves;
   sim.initBubbleTankInterfaceBand();
@@ -181,7 +191,7 @@ bool runVariant(const Variant& variant,
               "coarse_pre_iters=%d coarse_pre_breakdown=%s coarse_pre_scale=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
-              variant.name,
+              variant.name.c_str(),
               variant.jacobi ? "true" : "false",
               variant.flexibleBeta ? "true" : "false",
               variant.coarseCorrection ? "true" : "false",
@@ -278,6 +288,7 @@ int main(int argc, char** argv) {
     argDouble(argc, argv, "--coarse-pre-abs-tol", defaults.cg_coarse_preconditioner_abs_tol);
   double coarsePreScale =
     argDouble(argc, argv, "--coarse-pre-scale", defaults.cg_coarse_preconditioner_scale);
+  bool coarsePreSweep = hasFlag(argc, argv, "--coarse-pre-sweep");
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
       cgIters < 0 || absTol < 0.0 || relTol < 0.0 || rhoRatio < 0.0 ||
@@ -322,8 +333,9 @@ int main(int argc, char** argv) {
   std::printf("coarse_pre_rel_tol=%.9g\n", coarsePreRelTol);
   std::printf("coarse_pre_abs_tol=%.9g\n", coarsePreAbsTol);
   std::printf("coarse_pre_scale=%.9g\n", coarsePreScale);
+  std::printf("coarse_pre_sweep=%s\n", coarsePreSweep ? "true" : "false");
 
-  Variant variants[] = {
+  std::vector<Variant> variants = {
     {"jacobi_abs", true, false, false, false, 0.0},
     {"jacobi_rel", true, false, false, false, relTol},
     {"coarse_jacobi_rel", true, false, true, false, relTol},
@@ -331,6 +343,14 @@ int main(int argc, char** argv) {
     {"flex_jacobi_rel", true, true, false, false, relTol},
     {"no_jacobi_rel", false, false, false, false, relTol},
   };
+  if (coarsePreSweep) {
+    variants.push_back({"coarse_pre_i2_s025", true, false, false, true, relTol, 2, 0.25});
+    variants.push_back({"coarse_pre_i2_s05", true, false, false, true, relTol, 2, 0.5});
+    variants.push_back({"coarse_pre_i4_s025", true, false, false, true, relTol, 4, 0.25});
+    variants.push_back({"coarse_pre_i4_s05", true, false, false, true, relTol, 4, 0.5});
+    variants.push_back({"coarse_pre_i8_s05", true, false, false, true, relTol, 8, 0.5});
+    variants.push_back({"coarse_pre_i8_s1", true, false, false, true, relTol, 8, 1.0});
+  }
 
   bool ok = true;
   for (const Variant& variant : variants) {
