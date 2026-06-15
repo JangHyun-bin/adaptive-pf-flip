@@ -82,34 +82,117 @@ struct Variant {
   double coarsePreScaleOverride = -1.0;
 };
 
-bool runVariant(const Variant& variant,
-                int nx,
-                int ny,
-                int nz,
-                int steps,
-                double dt,
-                int cgIters,
-                double absTol,
-                double rhoRatio,
-                int hysteresis,
-                int maxFineLeaves,
-                bool requireConverged,
-                bool adaptiveRestart,
-                double restartGrowth,
-                int relaxSweeps,
-                double relaxOmega,
-                double relaxMinOmega,
-                int historyStride,
-                int historyLimit,
-                int coarseIters,
-                int coarseSweeps,
-                double coarseRelTol,
-                double coarseAbsTol,
-                double coarseMinScale,
-                int coarsePreIters,
-                double coarsePreRelTol,
-                double coarsePreAbsTol,
-                double coarsePreScale) {
+struct RunResult {
+  std::string name;
+  bool ok = false;
+  int iterations = 0;
+  int maxIterations = 0;
+  long long elapsedMs = 0;
+  double initialResidual = 0.0;
+  double finalResidual = 0.0;
+  double effectiveTolerance = 0.0;
+  int coarseCorrectionIterations = 0;
+  int coarsePreconditionerIterations = 0;
+  int coarsePreconditionerApplications = 0;
+  int coarsePreconditionerAcceptedApplications = 0;
+  int coarsePreconditionerRejectedApplications = 0;
+  double coarsePreconditionerScale = 0.0;
+  bool converged = false;
+  bool breakdown = false;
+};
+
+int coarseWork(const RunResult& result) {
+  return result.coarseCorrectionIterations +
+         result.coarsePreconditionerIterations;
+}
+
+int totalWork(const RunResult& result) {
+  return result.iterations + coarseWork(result);
+}
+
+void printSummary(const std::vector<RunResult>& results) {
+  if (results.empty()) return;
+
+  const RunResult* baseline = &results.front();
+  for (const RunResult& result : results) {
+    if (result.name == "jacobi_rel") {
+      baseline = &result;
+      break;
+    }
+  }
+
+  const int baselineIterations = baseline->iterations;
+  const long long baselineElapsedMs = baseline->elapsedMs;
+  const int baselineWork = totalWork(*baseline);
+
+  std::printf("summary_baseline=%s baseline_iters=%d baseline_elapsed_ms=%lld "
+              "baseline_work=%d\n",
+              baseline->name.c_str(),
+              baselineIterations,
+              baselineElapsedMs,
+              baselineWork);
+
+  for (const RunResult& result : results) {
+    const int resultCoarseWork = coarseWork(result);
+    const int resultTotalWork = totalWork(result);
+    const double finalOverTol =
+      (result.effectiveTolerance > 0.0 && std::isfinite(result.finalResidual))
+        ? result.finalResidual / result.effectiveTolerance
+        : 0.0;
+
+    std::printf("summary variant=%s status=%s iters=%d iter_delta=%+d "
+                "elapsed_ms=%lld elapsed_delta_ms=%+lld coarse_work=%d "
+                "total_work=%d work_delta=%+d final_over_tol=%.9g "
+                "converged=%s breakdown=%s coarse_pre_apps=%d "
+                "coarse_pre_accepted=%d coarse_pre_rejected=%d "
+                "coarse_pre_scale=%.9g\n",
+                result.name.c_str(),
+                result.ok ? "ok" : "fail",
+                result.iterations,
+                result.iterations - baselineIterations,
+                result.elapsedMs,
+                result.elapsedMs - baselineElapsedMs,
+                resultCoarseWork,
+                resultTotalWork,
+                resultTotalWork - baselineWork,
+                finalOverTol,
+                result.converged ? "true" : "false",
+                result.breakdown ? "true" : "false",
+                result.coarsePreconditionerApplications,
+                result.coarsePreconditionerAcceptedApplications,
+                result.coarsePreconditionerRejectedApplications,
+                result.coarsePreconditionerScale);
+  }
+}
+
+RunResult runVariant(const Variant& variant,
+                     int nx,
+                     int ny,
+                     int nz,
+                     int steps,
+                     double dt,
+                     int cgIters,
+                     double absTol,
+                     double rhoRatio,
+                     int hysteresis,
+                     int maxFineLeaves,
+                     bool requireConverged,
+                     bool adaptiveRestart,
+                     double restartGrowth,
+                     int relaxSweeps,
+                     double relaxOmega,
+                     double relaxMinOmega,
+                     int historyStride,
+                     int historyLimit,
+                     int coarseIters,
+                     int coarseSweeps,
+                     double coarseRelTol,
+                     double coarseAbsTol,
+                     double coarseMinScale,
+                     int coarsePreIters,
+                     double coarsePreRelTol,
+                     double coarsePreAbsTol,
+                     double coarsePreScale) {
   const int actualCoarsePreIters =
     variant.coarsePreItersOverride >= 0 ? variant.coarsePreItersOverride : coarsePreIters;
   const double actualCoarsePreScale =
@@ -172,6 +255,26 @@ bool runVariant(const Variant& variant,
   const double pressureRatio = (nx * ny * nz) > 0
     ? static_cast<double>(sim.activePressureCellCount()) / static_cast<double>(nx * ny * nz)
     : 0.0;
+
+  RunResult result;
+  result.name = variant.name;
+  result.ok = ok;
+  result.iterations = st.iterations;
+  result.maxIterations = st.max_iterations;
+  result.elapsedMs = elapsedMs;
+  result.initialResidual = st.initial_residual;
+  result.finalResidual = st.final_residual;
+  result.effectiveTolerance = st.effective_tolerance;
+  result.coarseCorrectionIterations = st.coarse_correction_iterations;
+  result.coarsePreconditionerIterations = st.coarse_preconditioner_iterations;
+  result.coarsePreconditionerApplications = st.coarse_preconditioner_applications;
+  result.coarsePreconditionerAcceptedApplications =
+    st.coarse_preconditioner_accepted_applications;
+  result.coarsePreconditionerRejectedApplications =
+    st.coarse_preconditioner_rejected_applications;
+  result.coarsePreconditionerScale = st.coarse_preconditioner_scale;
+  result.converged = st.converged;
+  result.breakdown = st.breakdown;
 
   std::printf("result variant=%s jacobi=%s flexible_beta=%s coarse_correction=%s "
               "coarse_preconditioner=%s "
@@ -249,7 +352,7 @@ bool runVariant(const Variant& variant,
               sim.layout.countLevel(0),
               sim.layout.countLevel(1),
               ok ? "ok" : "fail");
-  return ok;
+  return result;
 }
 
 } // namespace
@@ -353,19 +456,24 @@ int main(int argc, char** argv) {
   }
 
   bool ok = true;
+  std::vector<RunResult> results;
+  results.reserve(variants.size());
   for (const Variant& variant : variants) {
-    ok = runVariant(variant, nx, ny, nz, steps, dt, cgIters, absTol,
-                    rhoRatio, hysteresis, maxFineLeaves,
-                    requireConverged,
-                    adaptiveRestart, restartGrowth,
-                    relaxSweeps, relaxOmega, relaxMinOmega,
-                    historyStride, historyLimit,
-                    coarseIters, coarseSweeps,
-                    coarseRelTol, coarseAbsTol, coarseMinScale,
-                    coarsePreIters, coarsePreRelTol,
-                    coarsePreAbsTol, coarsePreScale) && ok;
+    RunResult result = runVariant(variant, nx, ny, nz, steps, dt, cgIters, absTol,
+                                  rhoRatio, hysteresis, maxFineLeaves,
+                                  requireConverged,
+                                  adaptiveRestart, restartGrowth,
+                                  relaxSweeps, relaxOmega, relaxMinOmega,
+                                  historyStride, historyLimit,
+                                  coarseIters, coarseSweeps,
+                                  coarseRelTol, coarseAbsTol, coarseMinScale,
+                                  coarsePreIters, coarsePreRelTol,
+                                  coarsePreAbsTol, coarsePreScale);
+    ok = result.ok && ok;
+    results.push_back(result);
   }
 
+  printSummary(results);
   std::printf("overall_status=%s\n", ok ? "ok" : "fail");
   return ok ? 0 : 1;
 }

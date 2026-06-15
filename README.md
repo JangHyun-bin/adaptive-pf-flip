@@ -83,6 +83,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F13** | **SPEC-3 damped coarse correction** - multi-sweep damped coarse correction diagnostics for accepted/rejected sweeps and applied scale. | done |
 | **F14** | **SPEC-3 coarse preconditioner probe** - optional additive level-1 coarse solve inside the 3D multires CG preconditioner with runner diagnostics. | done |
 | **F15** | **SPEC-3 coarse preconditioner sweep** - solver bench sweep variants for coarse-preconditioner inner iterations and additive scale. | done |
+| **F16** | **SPEC-3 solver bench summary** - baseline-relative iteration, elapsed, and coarse-work summaries for coarse-preconditioner sweeps. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -142,7 +143,7 @@ cmake --build build --config Release --target run_multires_bubble3d
 cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4
 
-# compare 3D multires pressure solver variants, including flexible-CG beta and coarse correction
+# compare 3D multires pressure solver variants with baseline-relative summary lines
 cmake --build build --config Release --target bench_multires3d_solver
 ./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5 --restart-growth 10 --relax-sweeps 2 --relax-omega 0.1 --history-stride 1 --history-limit 8
 
