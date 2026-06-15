@@ -73,7 +73,9 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] "
                "[--narrow-band-air] [--narrow-band-radius N] "
                "[--gas-coarsening] [--gas-particles-per-cell N] "
-               "[--gas-coarsening-seed N]\n");
+               "[--gas-coarsening-seed N] "
+               "[--liquid-coarsening] [--liquid-particles-per-cell N] "
+               "[--liquid-coarsening-seed N]\n");
 }
 
 } // namespace
@@ -105,8 +107,14 @@ int main(int argc, char** argv) {
     argInt(argc, argv, "--gas-particles-per-cell", sim.gas_particles_per_cell_target);
   sim.gas_particle_coarsening_seed =
     argUInt(argc, argv, "--gas-coarsening-seed", sim.gas_particle_coarsening_seed);
+  sim.liquid_particle_coarsening = hasFlag(argc, argv, "--liquid-coarsening");
+  sim.liquid_particles_per_cell_target =
+    argInt(argc, argv, "--liquid-particles-per-cell", sim.liquid_particles_per_cell_target);
+  sim.liquid_particle_coarsening_seed =
+    argUInt(argc, argv, "--liquid-coarsening-seed", sim.liquid_particle_coarsening_seed);
   if (sim.narrow_band_air_radius < 0 ||
-      sim.gas_particles_per_cell_target <= 0) {
+      sim.gas_particles_per_cell_target <= 0 ||
+      sim.liquid_particles_per_cell_target <= 0) {
     usage();
     return 2;
   }
@@ -148,6 +156,12 @@ int main(int argc, char** argv) {
               sim.gas_particles_per_cell_target);
   std::printf("gas_particle_coarsening_seed=%u\n",
               sim.gas_particle_coarsening_seed);
+  std::printf("liquid_particle_coarsening=%s\n",
+              sim.liquid_particle_coarsening ? "true" : "false");
+  std::printf("liquid_particles_per_cell_target=%d\n",
+              sim.liquid_particles_per_cell_target);
+  std::printf("liquid_particle_coarsening_seed=%u\n",
+              sim.liquid_particle_coarsening_seed);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("narrow_band_removed_last=%d\n", sim.narrow_band_air_removed_last);
@@ -169,6 +183,18 @@ int main(int argc, char** argv) {
               sim.gas_particle_coarsening_before_last);
   std::printf("gas_particle_coarsening_after_last=%d\n",
               sim.gas_particle_coarsening_after_last);
+  std::printf("liquid_particle_coarsening_removed_last=%d\n",
+              sim.liquid_particle_coarsening_removed_last);
+  std::printf("liquid_particle_coarsening_removed_total=%d\n",
+              sim.liquid_particle_coarsening_removed_total);
+  std::printf("liquid_particle_coarsening_cells_last=%d\n",
+              sim.liquid_particle_coarsening_cells_last);
+  std::printf("liquid_particle_coarsening_overfull_cells_last=%d\n",
+              sim.liquid_particle_coarsening_overfull_cells_last);
+  std::printf("liquid_particle_coarsening_before_last=%d\n",
+              sim.liquid_particle_coarsening_before_last);
+  std::printf("liquid_particle_coarsening_after_last=%d\n",
+              sim.liquid_particle_coarsening_after_last);
   std::printf("finite=%s\n", finite ? "true" : "false");
   std::printf("active_pressure_blocks_max=%zu\n", maxActive);
   std::printf("active_pressure_blocks_total=%zu\n", totalBlocks);
@@ -180,7 +206,7 @@ int main(int argc, char** argv) {
 
   bool ok = true;
   if (!finite) ok = false;
-  if (sim.narrow_band_air || sim.gas_particle_coarsening) {
+  if (sim.narrow_band_air || sim.gas_particle_coarsening || sim.liquid_particle_coarsening) {
     if (sim.particles.size() > n0) ok = false;
   } else if (sim.particles.size() != n0) {
     ok = false;
