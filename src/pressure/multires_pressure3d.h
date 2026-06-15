@@ -111,6 +111,9 @@ MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);
 MRPressureAggregation3D buildMRPressureAggregation3D(
   const MRPressureSystem3D& sys,
   const std::vector<int>& fineToCoarse);
+MRPressureAggregation3D buildMRPressureLevel1Aggregation3D(
+  const MRMacGrid3D<4>& g,
+  const MRPressureSystem3D& sys);
 void restrictMRPressureVolumeWeighted3D(
   const MRPressureAggregation3D& aggregation,
   const std::vector<double>& fineValues,

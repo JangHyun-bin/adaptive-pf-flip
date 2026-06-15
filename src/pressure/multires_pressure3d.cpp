@@ -428,6 +428,36 @@ MRPressureAggregation3D buildMRPressureAggregation3D(
   return aggregation;
 }
 
+MRPressureAggregation3D buildMRPressureLevel1Aggregation3D(
+  const MRMacGrid3D<4>& g,
+  const MRPressureSystem3D& sys) {
+  constexpr int B = 4;
+  std::vector<MRCellKey3D> leafCells = g.p.leafCells();
+  if (leafCells.size() != static_cast<size_t>(sys.cellCount())) {
+    throw std::invalid_argument("buildMRPressureLevel1Aggregation3D cell count must match system");
+  }
+
+  std::vector<int> fineToCoarse(leafCells.size(), 0);
+  std::map<std::tuple<int, int, int>, int> coarseIds;
+  for (size_t i = 0; i < leafCells.size(); ++i) {
+    const MRCellKey3D& c = leafCells[i];
+    if (c.block.level < 0 || c.block.level > 1) {
+      throw std::invalid_argument("buildMRPressureLevel1Aggregation3D supports levels 0 and 1");
+    }
+
+    int step = 1 << c.block.level;
+    int x0 = c.block.bx * B * step + c.lx * step;
+    int y0 = c.block.by * B * step + c.ly * step;
+    int z0 = c.block.bz * B * step + c.lz * step;
+    std::tuple<int, int, int> parent = std::make_tuple(x0 / 2, y0 / 2, z0 / 2);
+
+    auto inserted = coarseIds.emplace(parent, static_cast<int>(coarseIds.size()));
+    fineToCoarse[i] = inserted.first->second;
+  }
+
+  return buildMRPressureAggregation3D(sys, fineToCoarse);
+}
+
 void restrictMRPressureVolumeWeighted3D(
   const MRPressureAggregation3D& aggregation,
   const std::vector<double>& fineValues,

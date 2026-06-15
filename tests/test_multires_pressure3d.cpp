@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <set>
 #include <stdexcept>
 #include <vector>
@@ -79,12 +80,16 @@ void seedMarkedDivergenceCase(MRMacGrid3D<4>& g) {
   g.w(MRFaceKey3D{2, 4, 3, 5, 1, 1}) = 2.0f;
 }
 
-MRPressureSystem3D makeMixedLevelSystem() {
+MRMacGrid3D<4> makeMixedLevelGrid() {
   MRLayout3D<4> layout(16, 16, 16, 1.0);
   layout.setCoarseEverywhere(1);
   layout.refineFineCellBox(4, 4, 4, 8, 12, 12);
   layout.enforceTwoToOneBalance();
-  MRMacGrid3D<4> g(layout);
+  return MRMacGrid3D<4>(layout);
+}
+
+MRPressureSystem3D makeMixedLevelSystem() {
+  MRMacGrid3D<4> g = makeMixedLevelGrid();
   return buildMRPressureSystem3D(g, 1.0);
 }
 
@@ -313,6 +318,104 @@ TEST_CASE("multires 3D pressure: restriction and prolongation are volume adjoint
                   std::invalid_argument);
   CHECK_THROWS_AS(prolongMRPressurePiecewiseConstant3D(aggregation, std::vector<double>{0.0}, prolonged),
                   std::invalid_argument);
+}
+
+TEST_CASE("multires 3D pressure: level-1 geometry aggregation groups fine cells") {
+  MRLayout3D<4> layout(4, 4, 4, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  MRPressureSystem3D sys = buildMRPressureSystem3D(g, 1.0);
+  MRPressureAggregation3D aggregation = buildMRPressureLevel1Aggregation3D(g, sys);
+
+  REQUIRE(sys.cellCount() == 64);
+  REQUIRE(aggregation.coarseCount() == 8);
+
+  double fineVolume = std::accumulate(sys.volumes.begin(), sys.volumes.end(), 0.0);
+  double coarseVolume =
+    std::accumulate(aggregation.coarse_volumes.begin(), aggregation.coarse_volumes.end(), 0.0);
+  CHECK(coarseVolume == doctest::Approx(fineVolume).epsilon(1e-12));
+  for (double volume : aggregation.coarse_volumes) {
+    CHECK(volume == doctest::Approx(8.0).epsilon(1e-12));
+  }
+  CHECK_THROWS_AS(buildMRPressureLevel1Aggregation3D(g, MRPressureSystem3D{}),
+                  std::invalid_argument);
+}
+
+TEST_CASE("multires 3D pressure: geometry aggregation preserves Galerkin energy") {
+  MRMacGrid3D<4> g = makeMixedLevelGrid();
+  MRPressureSystem3D fine = buildMRPressureSystem3D(g, 1.0);
+  MRPressureAggregation3D aggregation = buildMRPressureLevel1Aggregation3D(g, fine);
+  MRPressureSystem3D coarse = buildGalerkinCoarseSystem3D(fine, aggregation);
+
+  REQUIRE(coarse.cellCount() == aggregation.coarseCount());
+  REQUIRE(coarse.cellCount() > 2);
+
+  std::vector<double> coarseX(static_cast<size_t>(coarse.cellCount()));
+  for (int i = 0; i < coarse.cellCount(); ++i) {
+    coarseX[static_cast<size_t>(i)] = std::sin(0.13 * i) + 0.25 * std::cos(0.07 * i);
+  }
+
+  std::vector<double> fineX;
+  std::vector<double> fineAx;
+  std::vector<double> coarseAx;
+  prolongMRPressurePiecewiseConstant3D(aggregation, coarseX, fineX);
+  fine.apply(fineX, fineAx);
+  coarse.apply(coarseX, coarseAx);
+
+  double fineEnergy = fine.weightedDot(fineX, fineAx);
+  double coarseEnergy = coarse.weightedDot(coarseX, coarseAx);
+  CHECK(fineEnergy == doctest::Approx(coarseEnergy).epsilon(1e-10));
+}
+
+TEST_CASE("multires 3D pressure: geometry aggregation drives coarse correction") {
+  MRMacGrid3D<4> g = makeMixedLevelGrid();
+  MRPressureSystem3D fine = buildMRPressureSystem3D(g, 1.0);
+  MRPressureAggregation3D aggregation = buildMRPressureLevel1Aggregation3D(g, fine);
+  REQUIRE(aggregation.coarseCount() > 2);
+
+  std::vector<double> coarseResidual(static_cast<size_t>(aggregation.coarseCount()));
+  for (int i = 0; i < aggregation.coarseCount(); ++i) {
+    coarseResidual[static_cast<size_t>(i)] = std::sin(0.19 * i) + 0.35 * std::cos(0.11 * i);
+  }
+
+  std::vector<double> ones(coarseResidual.size(), 1.0);
+  double totalVolume = std::accumulate(aggregation.coarse_volumes.begin(),
+                                       aggregation.coarse_volumes.end(),
+                                       0.0);
+  double mean = weightedDot(aggregation.coarse_volumes, ones, coarseResidual) / totalVolume;
+  for (double& value : coarseResidual) {
+    value -= mean;
+  }
+
+  std::vector<double> fineResidual;
+  prolongMRPressurePiecewiseConstant3D(aggregation, coarseResidual, fineResidual);
+
+  MRPressureCoarseCorrectionConfig3D config;
+  config.max_iterations = 128;
+  config.absolute_tolerance = 1e-11;
+  config.relative_tolerance = 1e-10;
+  MRPressureCoarseCorrectionStats3D stats;
+  std::vector<double> correction;
+  applyGalerkinCoarseCorrection3D(fine, aggregation, fineResidual, config, correction, &stats);
+
+  std::vector<double> fineAcorrection;
+  fine.apply(correction, fineAcorrection);
+  std::vector<double> correctedResidual(fineResidual.size(), 0.0);
+  for (size_t i = 0; i < fineResidual.size(); ++i) {
+    correctedResidual[i] = fineResidual[i] - fineAcorrection[i];
+  }
+
+  std::vector<double> restrictedAfter;
+  restrictMRPressureVolumeWeighted3D(aggregation, correctedResidual, restrictedAfter);
+  double before = std::sqrt(weightedDot(aggregation.coarse_volumes, coarseResidual, coarseResidual));
+  double after = std::sqrt(weightedDot(aggregation.coarse_volumes, restrictedAfter, restrictedAfter));
+
+  CHECK(stats.coarse_cells == aggregation.coarseCount());
+  CHECK(stats.coarse_edges > 0);
+  CHECK(stats.iterations > 0);
+  CHECK(stats.converged);
+  CHECK(!stats.breakdown);
+  CHECK(after < before * 1e-6);
 }
 
 TEST_CASE("multires 3D pressure: Galerkin coarse graph preserves prolongated energy") {

@@ -78,6 +78,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F8** | **SPEC-3 high-density validation gate** - 1000:1 density-ratio runner options with convergence, residual, and diagonal sanity checks. | done |
 | **F9** | **SPEC-3 Galerkin MG prep** - volume-weighted residual norms, restriction/prolongation helpers, and Galerkin coarse pressure graph energy tests. | done |
 | **F10** | **SPEC-3 coarse-correction scaffold** - one-shot Galerkin coarse correction helper with pinned weighted-CG solve and restricted-residual reduction tests. | done |
+| **F11** | **SPEC-3 geometry aggregation** - level-1 pressure-cell aggregation from 3D multires grid geometry for Galerkin coarse correction. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
