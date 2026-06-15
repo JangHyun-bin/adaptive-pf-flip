@@ -398,6 +398,11 @@ void MRSim3DTP::step() {
   pressureConfig.coarse_correction_absolute_tolerance = cg_coarse_correction_abs_tol;
   pressureConfig.coarse_correction_relative_tolerance = cg_coarse_correction_rel_tol;
   pressureConfig.coarse_correction_min_scale = cg_coarse_correction_min_scale;
+  pressureConfig.use_coarse_preconditioner = cg_coarse_preconditioner;
+  pressureConfig.coarse_preconditioner_iterations = cg_coarse_preconditioner_iters;
+  pressureConfig.coarse_preconditioner_absolute_tolerance = cg_coarse_preconditioner_abs_tol;
+  pressureConfig.coarse_preconditioner_relative_tolerance = cg_coarse_preconditioner_rel_tol;
+  pressureConfig.coarse_preconditioner_scale = cg_coarse_preconditioner_scale;
   projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   mrAdvect3D_tp(particles, grid, dt);

@@ -63,7 +63,9 @@ void usage() {
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N] "
                "[--coarse-iters N] [--coarse-sweeps N] "
-               "[--coarse-rel-tol T] [--coarse-abs-tol T] [--coarse-min-scale S]\n");
+               "[--coarse-rel-tol T] [--coarse-abs-tol T] [--coarse-min-scale S] "
+               "[--coarse-pre-iters N] [--coarse-pre-rel-tol T] "
+               "[--coarse-pre-abs-tol T] [--coarse-pre-scale S]\n");
 }
 
 struct Variant {
@@ -71,6 +73,7 @@ struct Variant {
   bool jacobi = true;
   bool flexibleBeta = false;
   bool coarseCorrection = false;
+  bool coarsePreconditioner = false;
   double relTol = 0.0;
 };
 
@@ -97,7 +100,11 @@ bool runVariant(const Variant& variant,
                 int coarseSweeps,
                 double coarseRelTol,
                 double coarseAbsTol,
-                double coarseMinScale) {
+                double coarseMinScale,
+                int coarsePreIters,
+                double coarsePreRelTol,
+                double coarsePreAbsTol,
+                double coarsePreScale) {
   MRSim3DTP sim(nx, ny, nz, 1.0);
   if (rhoRatio > 0.0) {
     sim.phase.rho_l = rhoRatio;
@@ -122,6 +129,11 @@ bool runVariant(const Variant& variant,
   sim.cg_coarse_correction_rel_tol = coarseRelTol;
   sim.cg_coarse_correction_abs_tol = coarseAbsTol;
   sim.cg_coarse_correction_min_scale = coarseMinScale;
+  sim.cg_coarse_preconditioner = variant.coarsePreconditioner;
+  sim.cg_coarse_preconditioner_iters = coarsePreIters;
+  sim.cg_coarse_preconditioner_rel_tol = coarsePreRelTol;
+  sim.cg_coarse_preconditioner_abs_tol = coarsePreAbsTol;
+  sim.cg_coarse_preconditioner_scale = coarsePreScale;
   sim.dynamic_hysteresis_cells = hysteresis;
   sim.dynamic_max_fine_leaves = maxFineLeaves;
   sim.initBubbleTankInterfaceBand();
@@ -152,6 +164,7 @@ bool runVariant(const Variant& variant,
     : 0.0;
 
   std::printf("result variant=%s jacobi=%s flexible_beta=%s coarse_correction=%s "
+              "coarse_preconditioner=%s "
               "rel_tol=%.9g abs_tol=%.9g "
               "adaptive_restart=%s restart_growth=%.9g "
               "steps=%d elapsed_ms=%lld particles=%zu stable_particles=%s finite=%s "
@@ -164,12 +177,15 @@ bool runVariant(const Variant& variant,
               "coarse_cells=%d coarse_iters=%d coarse_sweeps=%d coarse_accepted_sweeps=%d "
               "coarse_rejected_sweeps=%d coarse_last_scale=%.9g coarse_accepted=%s "
               "coarse_converged=%s coarse_breakdown=%s coarse_initial=%.9g coarse_final=%.9g "
+              "coarse_pre_apps=%d coarse_pre_accepted=%d coarse_pre_rejected=%d "
+              "coarse_pre_iters=%d coarse_pre_breakdown=%s coarse_pre_scale=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
               variant.name,
               variant.jacobi ? "true" : "false",
               variant.flexibleBeta ? "true" : "false",
               variant.coarseCorrection ? "true" : "false",
+              variant.coarsePreconditioner ? "true" : "false",
               variant.relTol,
               absTol,
               st.adaptive_restart ? "true" : "false",
@@ -211,6 +227,12 @@ bool runVariant(const Variant& variant,
               st.coarse_correction_breakdown ? "true" : "false",
               st.coarse_correction_initial_residual,
               st.coarse_correction_final_residual,
+              st.coarse_preconditioner_applications,
+              st.coarse_preconditioner_accepted_applications,
+              st.coarse_preconditioner_rejected_applications,
+              st.coarse_preconditioner_iterations,
+              st.coarse_preconditioner_breakdown ? "true" : "false",
+              st.coarse_preconditioner_scale,
               st.residual_history_truncated ? "true" : "false",
               st.converged ? "true" : "false",
               st.breakdown ? "true" : "false",
@@ -248,6 +270,14 @@ int main(int argc, char** argv) {
   double coarseRelTol = argDouble(argc, argv, "--coarse-rel-tol", defaults.cg_coarse_correction_rel_tol);
   double coarseAbsTol = argDouble(argc, argv, "--coarse-abs-tol", defaults.cg_coarse_correction_abs_tol);
   double coarseMinScale = argDouble(argc, argv, "--coarse-min-scale", defaults.cg_coarse_correction_min_scale);
+  int coarsePreIters =
+    argInt(argc, argv, "--coarse-pre-iters", defaults.cg_coarse_preconditioner_iters);
+  double coarsePreRelTol =
+    argDouble(argc, argv, "--coarse-pre-rel-tol", defaults.cg_coarse_preconditioner_rel_tol);
+  double coarsePreAbsTol =
+    argDouble(argc, argv, "--coarse-pre-abs-tol", defaults.cg_coarse_preconditioner_abs_tol);
+  double coarsePreScale =
+    argDouble(argc, argv, "--coarse-pre-scale", defaults.cg_coarse_preconditioner_scale);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
       cgIters < 0 || absTol < 0.0 || relTol < 0.0 || rhoRatio < 0.0 ||
@@ -256,7 +286,9 @@ int main(int argc, char** argv) {
       historyStride < 0 || historyLimit < 0 ||
       coarseIters < 0 || coarseSweeps < 0 ||
       coarseRelTol < 0.0 || coarseAbsTol < 0.0 ||
-      coarseMinScale <= 0.0 || coarseMinScale > 1.0) {
+      coarseMinScale <= 0.0 || coarseMinScale > 1.0 ||
+      coarsePreIters < 0 || coarsePreRelTol < 0.0 ||
+      coarsePreAbsTol < 0.0 || coarsePreScale < 0.0) {
     usage();
     return 2;
   }
@@ -286,13 +318,18 @@ int main(int argc, char** argv) {
   std::printf("coarse_rel_tol=%.9g\n", coarseRelTol);
   std::printf("coarse_abs_tol=%.9g\n", coarseAbsTol);
   std::printf("coarse_min_scale=%.9g\n", coarseMinScale);
+  std::printf("coarse_pre_iters=%d\n", coarsePreIters);
+  std::printf("coarse_pre_rel_tol=%.9g\n", coarsePreRelTol);
+  std::printf("coarse_pre_abs_tol=%.9g\n", coarsePreAbsTol);
+  std::printf("coarse_pre_scale=%.9g\n", coarsePreScale);
 
   Variant variants[] = {
-    {"jacobi_abs", true, false, false, 0.0},
-    {"jacobi_rel", true, false, false, relTol},
-    {"coarse_jacobi_rel", true, false, true, relTol},
-    {"flex_jacobi_rel", true, true, false, relTol},
-    {"no_jacobi_rel", false, false, false, relTol},
+    {"jacobi_abs", true, false, false, false, 0.0},
+    {"jacobi_rel", true, false, false, false, relTol},
+    {"coarse_jacobi_rel", true, false, true, false, relTol},
+    {"coarse_pre_jacobi_rel", true, false, false, true, relTol},
+    {"flex_jacobi_rel", true, true, false, false, relTol},
+    {"no_jacobi_rel", false, false, false, false, relTol},
   };
 
   bool ok = true;
@@ -304,7 +341,9 @@ int main(int argc, char** argv) {
                     relaxSweeps, relaxOmega, relaxMinOmega,
                     historyStride, historyLimit,
                     coarseIters, coarseSweeps,
-                    coarseRelTol, coarseAbsTol, coarseMinScale) && ok;
+                    coarseRelTol, coarseAbsTol, coarseMinScale,
+                    coarsePreIters, coarsePreRelTol,
+                    coarsePreAbsTol, coarsePreScale) && ok;
   }
 
   std::printf("overall_status=%s\n", ok ? "ok" : "fail");

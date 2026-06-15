@@ -291,6 +291,11 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.coarse_correction_tolerance = config.coarse_correction_absolute_tolerance;
   stats.coarse_correction_relative_tolerance = config.coarse_correction_relative_tolerance;
   stats.coarse_correction_min_scale = config.coarse_correction_min_scale;
+  stats.used_coarse_preconditioner = config.use_coarse_preconditioner;
+  stats.coarse_preconditioner_max_iterations = config.coarse_preconditioner_iterations;
+  stats.coarse_preconditioner_tolerance = config.coarse_preconditioner_absolute_tolerance;
+  stats.coarse_preconditioner_relative_tolerance = config.coarse_preconditioner_relative_tolerance;
+  stats.coarse_preconditioner_scale = config.coarse_preconditioner_scale;
   return stats;
 }
 
@@ -309,7 +314,11 @@ void validateSolveConfig(const MRPressureSolveConfig3D& config) {
       config.coarse_correction_absolute_tolerance < 0.0 ||
       config.coarse_correction_relative_tolerance < 0.0 ||
       config.coarse_correction_min_scale <= 0.0 ||
-      config.coarse_correction_min_scale > 1.0) {
+      config.coarse_correction_min_scale > 1.0 ||
+      config.coarse_preconditioner_iterations < 0 ||
+      config.coarse_preconditioner_absolute_tolerance < 0.0 ||
+      config.coarse_preconditioner_relative_tolerance < 0.0 ||
+      config.coarse_preconditioner_scale < 0.0) {
     throw std::invalid_argument("projectMR3D invalid solve config");
   }
 }
@@ -1090,10 +1099,174 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
   }
 
   if (!localStats.converged && res0 >= effectiveTol) {
+    auto dot = [](const std::vector<double>& a, const std::vector<double>& b) {
+      double s = 0.0;
+      for (size_t i = 0; i < a.size(); ++i) s += a[i] * b[i];
+      return s;
+    };
+
+    MRPressureAggregation3D coarsePreconditionerAggregation;
+    int coarsePreconditionerPin = -1;
+    bool coarsePreconditionerReady = false;
+    if (config.use_coarse_preconditioner &&
+        config.coarse_preconditioner_iterations > 0 &&
+        config.coarse_preconditioner_scale > 0.0) {
+      std::vector<MRCellKey3D> activeKeys;
+      std::vector<double> activeVolumes;
+      activeKeys.reserve(cells.size());
+      activeVolumes.reserve(cells.size());
+      for (const ProjectionCell3D& c : cells) {
+        activeKeys.push_back(c.key);
+        activeVolumes.push_back(c.volume);
+      }
+      coarsePreconditionerAggregation = buildLevel1AggregationFromCells(activeKeys, activeVolumes);
+      localStats.coarse_preconditioner_cells = coarsePreconditionerAggregation.coarseCount();
+      coarsePreconditionerReady =
+        coarsePreconditionerAggregation.coarseCount() > 0 &&
+        coarsePreconditionerAggregation.coarseCount() < N;
+      if (coarsePreconditionerReady && pinCell >= 0) {
+        coarsePreconditionerPin =
+          coarsePreconditionerAggregation.fine_to_coarse[static_cast<size_t>(pinCell)];
+      }
+    }
+
+    std::vector<double> coarseRhs;
+    std::vector<double> coarseX;
+    std::vector<double> coarseR;
+    std::vector<double> coarseP;
+    std::vector<double> coarseAp;
+    std::vector<double> fineP;
+    std::vector<double> fineAp;
+    std::vector<double> fineCorrection;
+    std::vector<double> candidateZ;
+
+    auto coarsePreconditionerNorm = [&](const std::vector<double>& v) {
+      double n2 = weightedDotVolumes(coarsePreconditionerAggregation.coarse_volumes, v, v);
+      return n2 > 0.0 ? std::sqrt(n2) : 0.0;
+    };
+
+    auto applyCoarsePreconditionerA = [&](const std::vector<double>& in,
+                                          std::vector<double>& out) {
+      prolongMRPressurePiecewiseConstant3D(coarsePreconditionerAggregation, in, fineP);
+      applyA(fineP, fineAp);
+      restrictMRPressureVolumeWeighted3D(coarsePreconditionerAggregation, fineAp, out);
+      if (coarsePreconditionerPin >= 0) {
+        out[static_cast<size_t>(coarsePreconditionerPin)] =
+          in[static_cast<size_t>(coarsePreconditionerPin)];
+      }
+    };
+
+    auto solveCoarsePreconditioner = [&]() {
+      if (!coarsePreconditionerReady) return false;
+      ++localStats.coarse_preconditioner_applications;
+      restrictMRPressureVolumeWeighted3D(coarsePreconditionerAggregation, r, coarseRhs);
+
+      coarseX.assign(coarseRhs.size(), 0.0);
+      coarseR = coarseRhs;
+      coarseP = coarseR;
+      coarseAp.assign(coarseRhs.size(), 0.0);
+      if (coarsePreconditionerPin >= 0) {
+        coarseR[static_cast<size_t>(coarsePreconditionerPin)] = 0.0;
+        coarseP[static_cast<size_t>(coarsePreconditionerPin)] = 0.0;
+      }
+
+      double coarseRes0 = coarsePreconditionerNorm(coarseR);
+      localStats.coarse_preconditioner_effective_tolerance =
+        std::max(config.coarse_preconditioner_absolute_tolerance,
+                 config.coarse_preconditioner_relative_tolerance * coarseRes0);
+      double rr = weightedDotVolumes(coarsePreconditionerAggregation.coarse_volumes, coarseR, coarseR);
+      if (!std::isfinite(rr)) {
+        localStats.coarse_preconditioner_breakdown = true;
+        return false;
+      }
+
+      int iterations = 0;
+      for (int it = 0;
+           it < config.coarse_preconditioner_iterations &&
+           coarseRes0 > localStats.coarse_preconditioner_effective_tolerance;
+           ++it) {
+        applyCoarsePreconditionerA(coarseP, coarseAp);
+        double pAp = weightedDotVolumes(coarsePreconditionerAggregation.coarse_volumes,
+                                        coarseP,
+                                        coarseAp);
+        if (!std::isfinite(pAp) || std::abs(pAp) < 1e-30) {
+          localStats.coarse_preconditioner_breakdown = true;
+          return false;
+        }
+
+        double alpha = rr / pAp;
+        if (!std::isfinite(alpha)) {
+          localStats.coarse_preconditioner_breakdown = true;
+          return false;
+        }
+
+        for (size_t i = 0; i < coarseX.size(); ++i) {
+          coarseX[i] += alpha * coarseP[i];
+          coarseR[i] -= alpha * coarseAp[i];
+        }
+        if (coarsePreconditionerPin >= 0) {
+          coarseX[static_cast<size_t>(coarsePreconditionerPin)] = 0.0;
+          coarseR[static_cast<size_t>(coarsePreconditionerPin)] = 0.0;
+        }
+
+        iterations = it + 1;
+        double coarseRes = coarsePreconditionerNorm(coarseR);
+        if (!std::isfinite(coarseRes)) {
+          localStats.coarse_preconditioner_breakdown = true;
+          return false;
+        }
+        if (coarseRes <= localStats.coarse_preconditioner_effective_tolerance) {
+          break;
+        }
+
+        double rrNext = weightedDotVolumes(coarsePreconditionerAggregation.coarse_volumes,
+                                           coarseR,
+                                           coarseR);
+        if (!std::isfinite(rrNext) || std::abs(rr) < 1e-30) {
+          localStats.coarse_preconditioner_breakdown = true;
+          return false;
+        }
+        double beta = rrNext / rr;
+        if (!std::isfinite(beta)) {
+          localStats.coarse_preconditioner_breakdown = true;
+          return false;
+        }
+        rr = rrNext;
+        for (size_t i = 0; i < coarseP.size(); ++i) {
+          coarseP[i] = coarseR[i] + beta * coarseP[i];
+        }
+        if (coarsePreconditionerPin >= 0) {
+          coarseP[static_cast<size_t>(coarsePreconditionerPin)] = 0.0;
+        }
+      }
+
+      localStats.coarse_preconditioner_iterations += iterations;
+      prolongMRPressurePiecewiseConstant3D(coarsePreconditionerAggregation,
+                                           coarseX,
+                                           fineCorrection);
+      return true;
+    };
+
     auto applyPreconditioner = [&]() {
       for (const ProjectionCell3D& c : cells) {
         double d = rows[c.index].diag;
         z[c.index] = (config.use_jacobi_preconditioner && d > 0.0) ? r[c.index] / d : r[c.index];
+      }
+
+      if (solveCoarsePreconditioner()) {
+        candidateZ = z;
+        for (int i = 0; i < N; ++i) {
+          candidateZ[static_cast<size_t>(i)] +=
+            config.coarse_preconditioner_scale * fineCorrection[static_cast<size_t>(i)];
+        }
+
+        double rzCandidate = dot(r, candidateZ);
+        if (std::isfinite(rzCandidate) && rzCandidate > 0.0) {
+          z.swap(candidateZ);
+          ++localStats.coarse_preconditioner_accepted_applications;
+        } else {
+          ++localStats.coarse_preconditioner_rejected_applications;
+        }
       }
     };
 
@@ -1101,12 +1274,6 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
     for (const ProjectionCell3D& c : cells) {
       p[c.index] = z[c.index];
     }
-
-    auto dot = [](const std::vector<double>& a, const std::vector<double>& b) {
-      double s = 0.0;
-      for (size_t i = 0; i < a.size(); ++i) s += a[i] * b[i];
-      return s;
-    };
 
     double rz = dot(r, z);
     if (!std::isfinite(rz)) {

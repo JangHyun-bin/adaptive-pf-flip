@@ -70,7 +70,10 @@ void usage() {
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
                "[--history-stride N] [--history-limit N] "
                "[--coarse-correction] [--coarse-iters N] [--coarse-sweeps N] "
-               "[--coarse-rel-tol T] [--coarse-abs-tol T] [--coarse-min-scale S]\n");
+               "[--coarse-rel-tol T] [--coarse-abs-tol T] [--coarse-min-scale S] "
+               "[--coarse-preconditioner] [--coarse-pre-iters N] "
+               "[--coarse-pre-rel-tol T] [--coarse-pre-abs-tol T] "
+               "[--coarse-pre-scale S]\n");
 }
 
 } // namespace
@@ -115,6 +118,15 @@ int main(int argc, char** argv) {
     argDouble(argc, argv, "--coarse-abs-tol", sim.cg_coarse_correction_abs_tol);
   sim.cg_coarse_correction_min_scale =
     argDouble(argc, argv, "--coarse-min-scale", sim.cg_coarse_correction_min_scale);
+  if (hasFlag(argc, argv, "--coarse-preconditioner")) sim.cg_coarse_preconditioner = true;
+  sim.cg_coarse_preconditioner_iters =
+    argInt(argc, argv, "--coarse-pre-iters", sim.cg_coarse_preconditioner_iters);
+  sim.cg_coarse_preconditioner_rel_tol =
+    argDouble(argc, argv, "--coarse-pre-rel-tol", sim.cg_coarse_preconditioner_rel_tol);
+  sim.cg_coarse_preconditioner_abs_tol =
+    argDouble(argc, argv, "--coarse-pre-abs-tol", sim.cg_coarse_preconditioner_abs_tol);
+  sim.cg_coarse_preconditioner_scale =
+    argDouble(argc, argv, "--coarse-pre-scale", sim.cg_coarse_preconditioner_scale);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   if (requestedRhoRatio < 0.0 ||
@@ -131,7 +143,11 @@ int main(int argc, char** argv) {
       sim.cg_coarse_correction_rel_tol < 0.0 ||
       sim.cg_coarse_correction_abs_tol < 0.0 ||
       sim.cg_coarse_correction_min_scale <= 0.0 ||
-      sim.cg_coarse_correction_min_scale > 1.0) {
+      sim.cg_coarse_correction_min_scale > 1.0 ||
+      sim.cg_coarse_preconditioner_iters < 0 ||
+      sim.cg_coarse_preconditioner_rel_tol < 0.0 ||
+      sim.cg_coarse_preconditioner_abs_tol < 0.0 ||
+      sim.cg_coarse_preconditioner_scale < 0.0) {
     usage();
     return 2;
   }
@@ -202,6 +218,11 @@ int main(int argc, char** argv) {
   std::printf("cg_coarse_correction_rel_tol=%.9g\n", sim.cg_coarse_correction_rel_tol);
   std::printf("cg_coarse_correction_abs_tol=%.9g\n", sim.cg_coarse_correction_abs_tol);
   std::printf("cg_coarse_correction_min_scale=%.9g\n", sim.cg_coarse_correction_min_scale);
+  std::printf("cg_coarse_preconditioner=%s\n", sim.cg_coarse_preconditioner ? "true" : "false");
+  std::printf("cg_coarse_preconditioner_iters=%d\n", sim.cg_coarse_preconditioner_iters);
+  std::printf("cg_coarse_preconditioner_rel_tol=%.9g\n", sim.cg_coarse_preconditioner_rel_tol);
+  std::printf("cg_coarse_preconditioner_abs_tol=%.9g\n", sim.cg_coarse_preconditioner_abs_tol);
+  std::printf("cg_coarse_preconditioner_scale=%.9g\n", sim.cg_coarse_preconditioner_scale);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("finite=%s\n", finite ? "true" : "false");
@@ -291,6 +312,26 @@ int main(int argc, char** argv) {
               sim.last_pressure_stats.coarse_correction_min_scale);
   std::printf("pressure_coarse_correction_last_scale=%.9g\n",
               sim.last_pressure_stats.coarse_correction_last_scale);
+  std::printf("pressure_coarse_preconditioner_used=%s\n",
+              sim.last_pressure_stats.used_coarse_preconditioner ? "true" : "false");
+  std::printf("pressure_coarse_preconditioner_breakdown=%s\n",
+              sim.last_pressure_stats.coarse_preconditioner_breakdown ? "true" : "false");
+  std::printf("pressure_coarse_preconditioner_cells=%d\n",
+              sim.last_pressure_stats.coarse_preconditioner_cells);
+  std::printf("pressure_coarse_preconditioner_applications=%d\n",
+              sim.last_pressure_stats.coarse_preconditioner_applications);
+  std::printf("pressure_coarse_preconditioner_accepted_applications=%d\n",
+              sim.last_pressure_stats.coarse_preconditioner_accepted_applications);
+  std::printf("pressure_coarse_preconditioner_rejected_applications=%d\n",
+              sim.last_pressure_stats.coarse_preconditioner_rejected_applications);
+  std::printf("pressure_coarse_preconditioner_iterations=%d\n",
+              sim.last_pressure_stats.coarse_preconditioner_iterations);
+  std::printf("pressure_coarse_preconditioner_max_iterations=%d\n",
+              sim.last_pressure_stats.coarse_preconditioner_max_iterations);
+  std::printf("pressure_coarse_preconditioner_effective_tolerance=%.9g\n",
+              sim.last_pressure_stats.coarse_preconditioner_effective_tolerance);
+  std::printf("pressure_coarse_preconditioner_scale=%.9g\n",
+              sim.last_pressure_stats.coarse_preconditioner_scale);
   std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
   std::printf("pressure_convergence_ok=%s\n", convergenceOk ? "true" : "false");
   std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");

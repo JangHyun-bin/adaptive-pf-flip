@@ -73,6 +73,12 @@ struct MRPressureSolveStats3D {
   int coarse_correction_sweeps = 0;
   int coarse_correction_accepted_sweeps = 0;
   int coarse_correction_rejected_sweeps = 0;
+  int coarse_preconditioner_cells = 0;
+  int coarse_preconditioner_applications = 0;
+  int coarse_preconditioner_accepted_applications = 0;
+  int coarse_preconditioner_rejected_applications = 0;
+  int coarse_preconditioner_iterations = 0;
+  int coarse_preconditioner_max_iterations = 0;
   double tolerance = 0.0;
   double relative_tolerance = 0.0;
   double effective_tolerance = 0.0;
@@ -87,6 +93,10 @@ struct MRPressureSolveStats3D {
   double coarse_correction_final_residual = 0.0;
   double coarse_correction_min_scale = 0.0;
   double coarse_correction_last_scale = 0.0;
+  double coarse_preconditioner_tolerance = 0.0;
+  double coarse_preconditioner_relative_tolerance = 0.0;
+  double coarse_preconditioner_effective_tolerance = 0.0;
+  double coarse_preconditioner_scale = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_residual = 0.0;
@@ -107,6 +117,8 @@ struct MRPressureSolveStats3D {
   bool coarse_correction_accepted = false;
   bool coarse_correction_converged = false;
   bool coarse_correction_breakdown = false;
+  bool used_coarse_preconditioner = false;
+  bool coarse_preconditioner_breakdown = false;
 };
 
 struct MRPressureSolveConfig3D {
@@ -128,6 +140,11 @@ struct MRPressureSolveConfig3D {
   double coarse_correction_absolute_tolerance = 0.0;
   double coarse_correction_relative_tolerance = 1e-3;
   double coarse_correction_min_scale = 1.0 / 64.0;
+  bool use_coarse_preconditioner = false;
+  int coarse_preconditioner_iterations = 8;
+  double coarse_preconditioner_absolute_tolerance = 0.0;
+  double coarse_preconditioner_relative_tolerance = 1e-2;
+  double coarse_preconditioner_scale = 1.0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);
