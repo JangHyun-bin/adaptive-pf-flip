@@ -23,6 +23,13 @@ double argDouble(int argc, char** argv, const char* key, double fallback) {
   return fallback;
 }
 
+bool hasFlag(int argc, char** argv, const char* key) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return true;
+  }
+  return false;
+}
+
 const char* argString(int argc, char** argv, const char* key, const char* fallback) {
   for (int i = 1; i + 1 < argc; ++i) {
     if (std::strcmp(argv[i], key) == 0) return argv[i + 1];
@@ -54,7 +61,8 @@ bool finiteParticles(const Particles3DTP& ps) {
 void usage() {
   std::fprintf(stderr,
                "usage: validate_sparse3d_tp [--scenario rt|bubble] [--nx N] [--ny N] [--nz N] "
-               "[--steps N] [--dt DT] [--cg-iters N]\n");
+               "[--steps N] [--dt DT] [--cg-iters N] "
+               "[--narrow-band-air] [--narrow-band-radius N]\n");
 }
 
 } // namespace
@@ -78,6 +86,13 @@ int main(int argc, char** argv) {
   SparseSim3DTP sim(nx, ny, nz, 1.0);
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
+  sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
+  sim.narrow_band_air_radius =
+    argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
+  if (sim.narrow_band_air_radius < 0) {
+    usage();
+    return 2;
+  }
 
   if (std::strcmp(scenario, "rt") == 0) {
     sim.initRayleighTaylor();
@@ -108,8 +123,17 @@ int main(int argc, char** argv) {
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", sim.dt);
   std::printf("cg_iters=%d\n", sim.cg_iters);
+  std::printf("narrow_band_air=%s\n", sim.narrow_band_air ? "true" : "false");
+  std::printf("narrow_band_radius=%d\n", sim.narrow_band_air_radius);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
+  std::printf("narrow_band_removed_last=%d\n", sim.narrow_band_air_removed_last);
+  std::printf("narrow_band_removed_total=%d\n", sim.narrow_band_air_removed_total);
+  std::printf("narrow_band_liquid_cells_last=%d\n", sim.narrow_band_air_liquid_cells_last);
+  std::printf("narrow_band_gas_particles_before_last=%d\n",
+              sim.narrow_band_air_gas_particles_before_last);
+  std::printf("narrow_band_gas_particles_after_last=%d\n",
+              sim.narrow_band_air_gas_particles_after_last);
   std::printf("finite=%s\n", finite ? "true" : "false");
   std::printf("active_pressure_blocks_max=%zu\n", maxActive);
   std::printf("active_pressure_blocks_total=%zu\n", totalBlocks);
@@ -121,7 +145,11 @@ int main(int argc, char** argv) {
 
   bool ok = true;
   if (!finite) ok = false;
-  if (sim.particles.size() != n0) ok = false;
+  if (sim.narrow_band_air) {
+    if (sim.particles.size() > n0) ok = false;
+  } else if (sim.particles.size() != n0) {
+    ok = false;
+  }
   if (std::strcmp(scenario, "rt") == 0 && !(heavy1 < heavy0)) ok = false;
   if (std::strcmp(scenario, "bubble") == 0) {
     if (!(gas1 > gas0)) ok = false;

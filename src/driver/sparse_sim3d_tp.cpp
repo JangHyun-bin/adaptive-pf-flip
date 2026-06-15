@@ -2,7 +2,9 @@
 #include "driver/sparse_ops3d_tp.h"
 #include "transfer/transfer3d_tp.h"
 
+#include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace {
 
@@ -95,6 +97,9 @@ void applyWallBoundary(SparseMacGrid3D<4>& g) {
 } // namespace
 
 void SparseSim3DTP::initTwoPhaseDamBreak() {
+  particles = Particles3DTP();
+  narrow_band_air_removed_last = 0;
+  narrow_band_air_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -106,9 +111,13 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
       }
     }
   }
+  applyNarrowBandAir();
 }
 
 void SparseSim3DTP::initRayleighTaylor() {
+  particles = Particles3DTP();
+  narrow_band_air_removed_last = 0;
+  narrow_band_air_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -121,9 +130,13 @@ void SparseSim3DTP::initRayleighTaylor() {
       }
     }
   }
+  applyNarrowBandAir();
 }
 
 void SparseSim3DTP::initBubbleTank() {
+  particles = Particles3DTP();
+  narrow_band_air_removed_last = 0;
+  narrow_band_air_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -141,9 +154,80 @@ void SparseSim3DTP::initBubbleTank() {
       }
     }
   }
+  applyNarrowBandAir();
+}
+
+void SparseSim3DTP::applyNarrowBandAir() {
+  narrow_band_air_removed_last = 0;
+  narrow_band_air_liquid_cells_last = 0;
+  narrow_band_air_gas_particles_before_last = 0;
+  narrow_band_air_gas_particles_after_last = 0;
+  if (!narrow_band_air) return;
+
+  std::vector<unsigned char> liquidCells(static_cast<size_t>(grid.nx) *
+                                           static_cast<size_t>(grid.ny) *
+                                           static_cast<size_t>(grid.nz),
+                                         0);
+  auto cellIndex = [&](int i, int j, int k) {
+    return static_cast<size_t>(i) +
+           static_cast<size_t>(grid.nx) *
+             (static_cast<size_t>(j) + static_cast<size_t>(grid.ny) * static_cast<size_t>(k));
+  };
+  auto particleCell = [&](size_t p, int& i, int& j, int& k) {
+    const Vec3& x = particles.pos[p];
+    if (!std::isfinite(x.x) || !std::isfinite(x.y) || !std::isfinite(x.z)) {
+      return false;
+    }
+    i = static_cast<int>((x.x - grid.ox) / grid.dx);
+    j = static_cast<int>((x.y - grid.oy) / grid.dx);
+    k = static_cast<int>((x.z - grid.oz) / grid.dx);
+    return grid.inBounds(i, j, k);
+  };
+
+  for (size_t p = 0; p < particles.size(); ++p) {
+    if (particles.type[p] != 0) continue;
+    int i = 0, j = 0, k = 0;
+    if (!particleCell(p, i, j, k)) continue;
+    unsigned char& occupied = liquidCells[cellIndex(i, j, k)];
+    if (!occupied) {
+      occupied = 1;
+      ++narrow_band_air_liquid_cells_last;
+    }
+  }
+  if (narrow_band_air_liquid_cells_last == 0) return;
+
+  const int radius = std::max(0, narrow_band_air_radius);
+  auto gasInLiquidBand = [&](int i, int j, int k) {
+    for (int dk = -radius; dk <= radius; ++dk) {
+      int kk = k + dk;
+      if (kk < 0 || kk >= grid.nz) continue;
+      for (int dj = -radius; dj <= radius; ++dj) {
+        int jj = j + dj;
+        if (jj < 0 || jj >= grid.ny) continue;
+        for (int di = -radius; di <= radius; ++di) {
+          int ii = i + di;
+          if (ii < 0 || ii >= grid.nx) continue;
+          if (liquidCells[cellIndex(ii, jj, kk)]) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const size_t removed = particles.eraseIf([&](size_t p) {
+    if (particles.type[p] != 1) return false;
+    ++narrow_band_air_gas_particles_before_last;
+    int i = 0, j = 0, k = 0;
+    const bool keep = particleCell(p, i, j, k) && gasInLiquidBand(i, j, k);
+    if (keep) ++narrow_band_air_gas_particles_after_last;
+    return !keep;
+  });
+  narrow_band_air_removed_last = static_cast<int>(removed);
+  narrow_band_air_removed_total += narrow_band_air_removed_last;
 }
 
 void SparseSim3DTP::step() {
+  applyNarrowBandAir();
   markCells(grid, particles);
   spP2G3D_tp(grid, particles, phase, Vp);
   SparseMacGrid3D<4> saved = grid;
