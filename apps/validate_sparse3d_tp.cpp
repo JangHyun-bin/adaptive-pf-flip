@@ -157,6 +157,7 @@ int main(int argc, char** argv) {
   size_t n0 = sim.particles.size();
   size_t liquidCount0 = countType(sim.particles, 0);
   size_t gasCount0 = countType(sim.particles, 1);
+  int liquidCoarseningRemoved0 = sim.liquid_particle_coarsening_removed_total;
   int liquidRefillAdded0 = sim.liquid_particle_refill_added_total;
   double heavy0 = meanY(sim.particles, 0);
   double gas0 = meanY(sim.particles, 1);
@@ -173,6 +174,8 @@ int main(int argc, char** argv) {
   double gas1 = meanY(sim.particles, 1);
   size_t liquidCount1 = countType(sim.particles, 0);
   size_t gasCount1 = countType(sim.particles, 1);
+  int liquidCoarseningRemovedDuringRun =
+    sim.liquid_particle_coarsening_removed_total - liquidCoarseningRemoved0;
   int liquidRefillAddedDuringRun =
     sim.liquid_particle_refill_added_total - liquidRefillAdded0;
   bool finite = finiteParticles(sim.particles);
@@ -239,6 +242,8 @@ int main(int argc, char** argv) {
               sim.liquid_particle_coarsening_removed_last);
   std::printf("liquid_particle_coarsening_removed_total=%d\n",
               sim.liquid_particle_coarsening_removed_total);
+  std::printf("liquid_particle_coarsening_removed_during_run=%d\n",
+              liquidCoarseningRemovedDuringRun);
   std::printf("liquid_particle_coarsening_cells_last=%d\n",
               sim.liquid_particle_coarsening_cells_last);
   std::printf("liquid_particle_coarsening_overfull_cells_last=%d\n",
@@ -298,6 +303,10 @@ int main(int argc, char** argv) {
       const int cap = sim.liquid_particle_refill_max_added_per_step;
       if (sim.liquid_particle_refill_added_last > cap) ok = false;
       if (liquidRefillAddedDuringRun > steps * cap) ok = false;
+    }
+    if (sim.liquid_particle_coarsening &&
+        liquidRefillAddedDuringRun > liquidCoarseningRemovedDuringRun) {
+      ok = false;
     }
     if (!sim.liquid_particle_coarsening &&
         liquidCount1 != maxLiquid) {
