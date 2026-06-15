@@ -90,6 +90,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S1** | **SPEC-2 narrow-band air scaffold** - opt-in sparse 3D TP gas-particle pruning around liquid cells, compact particle erase, validator metrics, and pruning regression coverage. | done |
 | **S2** | **SPEC-2 gas particle coarsening scaffold** - opt-in sparse 3D TP per-cell gas particle cap with adaptivity metrics and regression coverage. | done |
 | **S3** | **SPEC-2 stochastic gas coarsening selection** - seed-based hash selection for reproducible per-cell gas particle coarsening. | done |
+| **S4** | **SPEC-2 sparse adaptivity bench hook** - sparse-vs-MR bubble bench now reports an optional adaptive sparse run with narrow-band/coarsening metrics. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -153,6 +154,7 @@ cmake --build build --config Release --target run_multires_bubble3d
 # compare sparse 3D and multires 3D bubble metrics
 cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4
+./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-narrow-band-air --sparse-narrow-band-radius 2 --sparse-gas-coarsening --sparse-gas-particles-per-cell 2 --sparse-gas-coarsening-seed 12345
 
 # compare 3D multires pressure solver variants with baseline-relative summary lines
 cmake --build build --config Release --target bench_multires3d_solver
