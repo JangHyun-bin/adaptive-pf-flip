@@ -23,6 +23,15 @@ double argDouble(int argc, char** argv, const char* key, double fallback) {
   return fallback;
 }
 
+unsigned int argUInt(int argc, char** argv, const char* key, unsigned int fallback) {
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) {
+      return static_cast<unsigned int>(std::strtoul(argv[i + 1], nullptr, 10));
+    }
+  }
+  return fallback;
+}
+
 bool hasFlag(int argc, char** argv, const char* key) {
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], key) == 0) return true;
@@ -75,7 +84,10 @@ void usage() {
                "[--coarse-pre-rel-tol T] [--coarse-pre-abs-tol T] "
                "[--coarse-pre-scale S] [--coarse-pre-min-rz-gain G] "
                "[--coarse-pre-max-work-ratio W] "
-               "[--coarse-pre-auto-disable] [--coarse-pre-auto-disable-after N]\n");
+               "[--coarse-pre-auto-disable] [--coarse-pre-auto-disable-after N] "
+               "[--narrow-band-air] [--narrow-band-radius N] "
+               "[--gas-coarsening] [--gas-particles-per-cell N] "
+               "[--gas-coarsening-seed N]\n");
 }
 
 } // namespace
@@ -142,6 +154,14 @@ int main(int argc, char** argv) {
     argInt(argc, argv,
            "--coarse-pre-auto-disable-after",
            sim.cg_coarse_preconditioner_auto_disable_after);
+  sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
+  sim.narrow_band_air_radius =
+    argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
+  sim.gas_particle_coarsening = hasFlag(argc, argv, "--gas-coarsening");
+  sim.gas_particles_per_cell_target =
+    argInt(argc, argv, "--gas-particles-per-cell", sim.gas_particles_per_cell_target);
+  sim.gas_particle_coarsening_seed =
+    argUInt(argc, argv, "--gas-coarsening-seed", sim.gas_particle_coarsening_seed);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   if (requestedRhoRatio < 0.0 ||
@@ -165,7 +185,9 @@ int main(int argc, char** argv) {
       sim.cg_coarse_preconditioner_scale < 0.0 ||
       sim.cg_coarse_preconditioner_min_rz_gain < 0.0 ||
       sim.cg_coarse_preconditioner_max_work_ratio < 0.0 ||
-      sim.cg_coarse_preconditioner_auto_disable_after < 0) {
+      sim.cg_coarse_preconditioner_auto_disable_after < 0 ||
+      sim.narrow_band_air_radius < 0 ||
+      sim.gas_particles_per_cell_target <= 0) {
     usage();
     return 2;
   }
@@ -249,8 +271,33 @@ int main(int argc, char** argv) {
               sim.cg_coarse_preconditioner_auto_disable ? "true" : "false");
   std::printf("cg_coarse_preconditioner_auto_disable_after=%d\n",
               sim.cg_coarse_preconditioner_auto_disable_after);
+  std::printf("narrow_band_air=%s\n", sim.narrow_band_air ? "true" : "false");
+  std::printf("narrow_band_radius=%d\n", sim.narrow_band_air_radius);
+  std::printf("gas_particle_coarsening=%s\n",
+              sim.gas_particle_coarsening ? "true" : "false");
+  std::printf("gas_particles_per_cell_target=%d\n", sim.gas_particles_per_cell_target);
+  std::printf("gas_particle_coarsening_seed=%u\n", sim.gas_particle_coarsening_seed);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
+  std::printf("narrow_band_air_removed_last=%d\n", sim.narrow_band_air_removed_last);
+  std::printf("narrow_band_air_removed_total=%d\n", sim.narrow_band_air_removed_total);
+  std::printf("narrow_band_air_liquid_cells_last=%d\n", sim.narrow_band_air_liquid_cells_last);
+  std::printf("narrow_band_air_gas_particles_before_last=%d\n",
+              sim.narrow_band_air_gas_particles_before_last);
+  std::printf("narrow_band_air_gas_particles_after_last=%d\n",
+              sim.narrow_band_air_gas_particles_after_last);
+  std::printf("gas_particle_coarsening_removed_last=%d\n",
+              sim.gas_particle_coarsening_removed_last);
+  std::printf("gas_particle_coarsening_removed_total=%d\n",
+              sim.gas_particle_coarsening_removed_total);
+  std::printf("gas_particle_coarsening_cells_last=%d\n",
+              sim.gas_particle_coarsening_cells_last);
+  std::printf("gas_particle_coarsening_overfull_cells_last=%d\n",
+              sim.gas_particle_coarsening_overfull_cells_last);
+  std::printf("gas_particle_coarsening_before_last=%d\n",
+              sim.gas_particle_coarsening_before_last);
+  std::printf("gas_particle_coarsening_after_last=%d\n",
+              sim.gas_particle_coarsening_after_last);
   std::printf("finite=%s\n", finite ? "true" : "false");
   std::printf("gas_mean_y_start=%.9g\n", gas0);
   std::printf("gas_mean_y_end=%.9g\n", gas1);
@@ -398,7 +445,11 @@ int main(int argc, char** argv) {
 
   bool ok = true;
   if (!finite) ok = false;
-  if (sim.particles.size() != n0) ok = false;
+  if (sim.narrow_band_air || sim.gas_particle_coarsening) {
+    if (sim.particles.size() > n0) ok = false;
+  } else if (sim.particles.size() != n0) {
+    ok = false;
+  }
   if (!(gas1 > gas0)) ok = false;
   if (!(pressureCellsEnd < fineCells)) ok = false;
   if (steps > 0 && sim.last_pressure_stats.breakdown) ok = false;

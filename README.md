@@ -91,6 +91,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S2** | **SPEC-2 gas particle coarsening scaffold** - opt-in sparse 3D TP per-cell gas particle cap with adaptivity metrics and regression coverage. | done |
 | **S3** | **SPEC-2 stochastic gas coarsening selection** - seed-based hash selection for reproducible per-cell gas particle coarsening. | done |
 | **S4** | **SPEC-2 sparse adaptivity bench hook** - sparse-vs-MR bubble bench now reports an optional adaptive sparse run with narrow-band/coarsening metrics. | done |
+| **S5** | **SPEC-2 multires particle adaptivity hook** - 3D multires TP sim and validator expose the same opt-in narrow-band and gas coarsening controls. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -146,6 +147,7 @@ cmake --build build --config Release --target validate_sparse3d_tp
 # validate 3D multires two-phase bubble metrics
 cmake --build build --config Release --target validate_multires3d_tp
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 6
+./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2 --gas-coarsening-seed 12345
 
 # run 3D multires two-phase bubble slices -> mrb3_###.ppm
 cmake --build build --config Release --target run_multires_bubble3d

@@ -33,6 +33,27 @@ bool finiteParticles(const MRSim3DTP& sim) {
   return true;
 }
 
+size_t countType(const Particles3DTP& ps, unsigned char type) {
+  size_t count = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) ++count;
+  }
+  return count;
+}
+
+bool sameParticleState(const Particles3DTP& a, const Particles3DTP& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a.type[i] != b.type[i]) return false;
+    if (a.pos[i].x != b.pos[i].x ||
+        a.pos[i].y != b.pos[i].y ||
+        a.pos[i].z != b.pos[i].z) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::vector<unsigned char> readP6(const std::string& path, int& W, int& H) {
   std::ifstream f(path, std::ios::binary);
   std::string magic;
@@ -116,6 +137,59 @@ TEST_CASE("multires 3D bubble tank initializes refined lower band and coarse hea
   CHECK(sim.uFaceCount() > 0);
   CHECK(sim.vFaceCount() > 0);
   CHECK(sim.wFaceCount() > 0);
+}
+
+TEST_CASE("multires 3D particle adaptivity prunes and coarsens gas particles") {
+  MRSim3DTP full(8, 12, 8, 1.0);
+  full.initBubbleTankInterfaceBand();
+  const size_t fullLiquid = countType(full.particles, 0);
+  const size_t fullGas = countType(full.particles, 1);
+
+  REQUIRE(fullLiquid > 0);
+  REQUIRE(fullGas > 8);
+  REQUIRE(fullGas % 8 == 0);
+
+  MRSim3DTP band(8, 12, 8, 1.0);
+  band.narrow_band_air = true;
+  band.narrow_band_air_radius = 0;
+  band.initBubbleTankInterfaceBand();
+
+  CHECK(countType(band.particles, 0) == fullLiquid);
+  CHECK(countType(band.particles, 1) == 0);
+  CHECK(band.narrow_band_air_removed_total == static_cast<int>(fullGas));
+  CHECK(band.narrow_band_air_gas_particles_before_last == static_cast<int>(fullGas));
+  CHECK(band.narrow_band_air_gas_particles_after_last == 0);
+
+  MRSim3DTP coarse(8, 12, 8, 1.0);
+  coarse.gas_particle_coarsening = true;
+  coarse.gas_particles_per_cell_target = 2;
+  coarse.gas_particle_coarsening_seed = 12345u;
+  coarse.initBubbleTankInterfaceBand();
+
+  const size_t gasCells = fullGas / 8;
+  CHECK(countType(coarse.particles, 0) == fullLiquid);
+  CHECK(countType(coarse.particles, 1) == gasCells * 2);
+  CHECK(coarse.gas_particle_coarsening_removed_total ==
+        static_cast<int>(fullGas - gasCells * 2));
+  CHECK(coarse.gas_particle_coarsening_cells_last == static_cast<int>(gasCells));
+  CHECK(coarse.gas_particle_coarsening_overfull_cells_last == static_cast<int>(gasCells));
+
+  MRSim3DTP repeat(8, 12, 8, 1.0);
+  repeat.gas_particle_coarsening = true;
+  repeat.gas_particles_per_cell_target = 2;
+  repeat.gas_particle_coarsening_seed = 12345u;
+  repeat.initBubbleTankInterfaceBand();
+  CHECK(sameParticleState(coarse.particles, repeat.particles));
+
+  const size_t n0 = coarse.particles.size();
+  coarse.dt = 0.02;
+  coarse.cg_iters = 120;
+  coarse.step();
+
+  CHECK(coarse.particles.size() <= n0);
+  CHECK(countType(coarse.particles, 0) == fullLiquid);
+  CHECK(finiteParticles(coarse));
+  CHECK(coarse.activePressureCellCount() < 8 * 12 * 8);
 }
 
 TEST_CASE("multires 3D dynamic refinement follows particle occupancy") {
