@@ -89,6 +89,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F19** | **SPEC-3 coarse preconditioner auto-disable** - rejected/skip streak auto-disable plus solver-bench auto-selection diagnostics for coarse-pre variants. | done |
 | **S1** | **SPEC-2 narrow-band air scaffold** - opt-in sparse 3D TP gas-particle pruning around liquid cells, compact particle erase, validator metrics, and pruning regression coverage. | done |
 | **S2** | **SPEC-2 gas particle coarsening scaffold** - opt-in sparse 3D TP per-cell gas particle cap with adaptivity metrics and regression coverage. | done |
+| **S3** | **SPEC-2 stochastic gas coarsening selection** - seed-based hash selection for reproducible per-cell gas particle coarsening. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -139,7 +140,7 @@ cmake --build build --config Release --target run_sparse_bubble3d
 # validate sparse 3D two-phase metrics, including opt-in narrow-band air
 cmake --build build --config Release --target validate_sparse3d_tp
 ./build/Release/validate_sparse3d_tp.exe --scenario rt --steps 4 --narrow-band-air --narrow-band-radius 2
-./build/Release/validate_sparse3d_tp.exe --scenario rt --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2
+./build/Release/validate_sparse3d_tp.exe --scenario rt --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2 --gas-coarsening-seed 12345
 
 # validate 3D multires two-phase bubble metrics
 cmake --build build --config Release --target validate_multires3d_tp

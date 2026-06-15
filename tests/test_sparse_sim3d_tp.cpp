@@ -23,6 +23,19 @@ bool finiteParticles(const Particles3DTP& particles) {
   return true;
 }
 
+bool sameParticleState(const Particles3DTP& a, const Particles3DTP& b) {
+  if (a.size() != b.size()) return false;
+  for (size_t i = 0; i < a.size(); ++i) {
+    if (a.type[i] != b.type[i]) return false;
+    if (a.pos[i].x != b.pos[i].x ||
+        a.pos[i].y != b.pos[i].y ||
+        a.pos[i].z != b.pos[i].z) {
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace
 
 TEST_CASE("sparse 3D two-phase RT step stays stable") {
@@ -109,6 +122,7 @@ TEST_CASE("sparse 3D two-phase gas particle coarsening caps gas per cell") {
   SparseSim3DTP coarse(12, 12, 8, 1.0);
   coarse.gas_particle_coarsening = true;
   coarse.gas_particles_per_cell_target = 2;
+  coarse.gas_particle_coarsening_seed = 12345u;
   coarse.initTwoPhaseDamBreak();
   const size_t coarseLiquid = countType(coarse.particles, 0);
   const size_t coarseGas = countType(coarse.particles, 1);
@@ -126,6 +140,13 @@ TEST_CASE("sparse 3D two-phase gas particle coarsening caps gas per cell") {
   CHECK(coarse.gas_particle_coarsening_overfull_cells_last == static_cast<int>(fullGasCells));
   CHECK(coarse.gas_particle_coarsening_before_last == static_cast<int>(fullGas));
   CHECK(coarse.gas_particle_coarsening_after_last == static_cast<int>(expectedGas));
+
+  SparseSim3DTP repeat(12, 12, 8, 1.0);
+  repeat.gas_particle_coarsening = true;
+  repeat.gas_particles_per_cell_target = 2;
+  repeat.gas_particle_coarsening_seed = 12345u;
+  repeat.initTwoPhaseDamBreak();
+  CHECK(sameParticleState(coarse.particles, repeat.particles));
 
   const size_t n0 = coarse.particles.size();
   coarse.dt = 0.02;

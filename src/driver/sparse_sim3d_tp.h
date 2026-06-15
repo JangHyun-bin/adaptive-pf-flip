@@ -19,6 +19,7 @@ struct SparseSim3DTP {
   int narrow_band_air_gas_particles_after_last = 0;
   bool gas_particle_coarsening = false;
   int gas_particles_per_cell_target = 4;
+  unsigned int gas_particle_coarsening_seed = 0x9e3779b9u;
   int gas_particle_coarsening_removed_last = 0;
   int gas_particle_coarsening_removed_total = 0;
   int gas_particle_coarsening_cells_last = 0;

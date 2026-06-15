@@ -16,6 +16,15 @@ int argInt(int argc, char** argv, const char* key, int fallback) {
   return fallback;
 }
 
+unsigned int argUInt(int argc, char** argv, const char* key, unsigned int fallback) {
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) {
+      return static_cast<unsigned int>(std::strtoul(argv[i + 1], nullptr, 10));
+    }
+  }
+  return fallback;
+}
+
 double argDouble(int argc, char** argv, const char* key, double fallback) {
   for (int i = 1; i + 1 < argc; ++i) {
     if (std::strcmp(argv[i], key) == 0) return std::atof(argv[i + 1]);
@@ -63,7 +72,8 @@ void usage() {
                "usage: validate_sparse3d_tp [--scenario rt|bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] "
                "[--narrow-band-air] [--narrow-band-radius N] "
-               "[--gas-coarsening] [--gas-particles-per-cell N]\n");
+               "[--gas-coarsening] [--gas-particles-per-cell N] "
+               "[--gas-coarsening-seed N]\n");
 }
 
 } // namespace
@@ -93,6 +103,8 @@ int main(int argc, char** argv) {
   sim.gas_particle_coarsening = hasFlag(argc, argv, "--gas-coarsening");
   sim.gas_particles_per_cell_target =
     argInt(argc, argv, "--gas-particles-per-cell", sim.gas_particles_per_cell_target);
+  sim.gas_particle_coarsening_seed =
+    argUInt(argc, argv, "--gas-coarsening-seed", sim.gas_particle_coarsening_seed);
   if (sim.narrow_band_air_radius < 0 ||
       sim.gas_particles_per_cell_target <= 0) {
     usage();
@@ -134,6 +146,8 @@ int main(int argc, char** argv) {
               sim.gas_particle_coarsening ? "true" : "false");
   std::printf("gas_particles_per_cell_target=%d\n",
               sim.gas_particles_per_cell_target);
+  std::printf("gas_particle_coarsening_seed=%u\n",
+              sim.gas_particle_coarsening_seed);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("narrow_band_removed_last=%d\n", sim.narrow_band_air_removed_last);
