@@ -64,6 +64,7 @@ struct GasParticleCoarseningResult3D {
 struct LiquidParticleRefillResult3D {
   int added = 0;
   int cells = 0;
+  int interfaceCells = 0;
   int underfullCells = 0;
   int particlesBefore = 0;
   int particlesAfter = 0;
@@ -243,7 +244,9 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
   const ParticleCellDomain3D& domain,
   bool enabled,
   int particlesPerCellTarget,
-  uint32_t seed) {
+  uint32_t seed,
+  bool interfaceOnly = false,
+  int interfaceRadius = 1) {
   LiquidParticleRefillResult3D result;
   if (!enabled) return result;
 
@@ -256,15 +259,38 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
   std::vector<CellInfo> cells(static_cast<size_t>(domain.nx) *
                                 static_cast<size_t>(domain.ny) *
                                 static_cast<size_t>(domain.nz));
+  std::vector<unsigned char> gasCells(cells.size(), 0);
 
   for (size_t p = 0; p < particles.size(); ++p) {
-    if (particles.type[p] != 0) continue;
     int i = 0, j = 0, k = 0;
     if (!domain.particleCell(particles, p, i, j, k)) continue;
-    CellInfo& info = cells[domain.cellIndex(i, j, k)];
-    ++info.count;
-    info.velocitySum += particles.vel[p];
+    const size_t cell = domain.cellIndex(i, j, k);
+    if (particles.type[p] == 0) {
+      CellInfo& info = cells[cell];
+      ++info.count;
+      info.velocitySum += particles.vel[p];
+    } else if (particles.type[p] == 1) {
+      gasCells[cell] = 1;
+    }
   }
+
+  interfaceRadius = std::max(0, interfaceRadius);
+  auto liquidCellNearGas = [&](int i, int j, int k) {
+    for (int dk = -interfaceRadius; dk <= interfaceRadius; ++dk) {
+      const int kk = k + dk;
+      if (kk < 0 || kk >= domain.nz) continue;
+      for (int dj = -interfaceRadius; dj <= interfaceRadius; ++dj) {
+        const int jj = j + dj;
+        if (jj < 0 || jj >= domain.ny) continue;
+        for (int di = -interfaceRadius; di <= interfaceRadius; ++di) {
+          const int ii = i + di;
+          if (ii < 0 || ii >= domain.nx) continue;
+          if (gasCells[domain.cellIndex(ii, jj, kk)]) return true;
+        }
+      }
+    }
+    return false;
+  };
 
   for (size_t cell = 0; cell < cells.size(); ++cell) {
     const int count = cells[cell].count;
@@ -272,15 +298,18 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
     ++result.cells;
     result.particlesBefore += count;
     result.particlesAfter += count;
-    if (count >= target) continue;
-
-    ++result.underfullCells;
     const int i = static_cast<int>(cell % static_cast<size_t>(domain.nx));
     const int j = static_cast<int>((cell / static_cast<size_t>(domain.nx)) %
                                    static_cast<size_t>(domain.ny));
     const int k = static_cast<int>(cell /
                                    (static_cast<size_t>(domain.nx) *
                                     static_cast<size_t>(domain.ny)));
+    const bool nearGas = liquidCellNearGas(i, j, k);
+    if (nearGas) ++result.interfaceCells;
+    if (interfaceOnly && !nearGas) continue;
+    if (count >= target) continue;
+
+    ++result.underfullCells;
     const Vec3 avgVel = cells[cell].velocitySum * (1.0 / static_cast<double>(count));
 
     int slots[8] = {0, 1, 2, 3, 4, 5, 6, 7};

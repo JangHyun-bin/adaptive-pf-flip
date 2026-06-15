@@ -338,9 +338,12 @@ void MRSim3DTP::applyLiquidParticleRefill() {
                                     domain,
                                     liquid_particle_refill,
                                     liquid_refill_particles_per_cell_target,
-                                    liquid_particle_refill_seed);
+                                    liquid_particle_refill_seed,
+                                    liquid_particle_refill_interface_only,
+                                    liquid_particle_refill_interface_radius);
   liquid_particle_refill_added_last = result.added;
   liquid_particle_refill_cells_last = result.cells;
+  liquid_particle_refill_interface_cells_last = result.interfaceCells;
   liquid_particle_refill_underfull_cells_last = result.underfullCells;
   liquid_particle_refill_before_last = result.particlesBefore;
   liquid_particle_refill_after_last = result.particlesAfter;

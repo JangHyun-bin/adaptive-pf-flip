@@ -276,6 +276,30 @@ TEST_CASE("multires 3D particle adaptivity refills underfilled liquid cells") {
   CHECK(refill.activePressureCellCount() < 8 * 12 * 8);
 }
 
+TEST_CASE("multires 3D particle adaptivity refills interface liquid cells only") {
+  MRSim3DTP refill(6, 6, 6, 1.0);
+  refill.liquid_particle_refill = true;
+  refill.liquid_particle_refill_interface_only = true;
+  refill.liquid_particle_refill_interface_radius = 1;
+  refill.liquid_refill_particles_per_cell_target = 4;
+  refill.liquid_particle_refill_seed = 24680u;
+  refill.particles.add({1.25, 1.25, 1.25}, {1.0, 0.0, 0.0}, 0);
+  refill.particles.add({3.25, 3.25, 3.25}, {2.0, 0.0, 0.0}, 0);
+  refill.particles.add({2.25, 1.25, 1.25}, {0.0, 0.0, 0.0}, 1);
+
+  refill.applyLiquidParticleRefill();
+
+  CHECK(countType(refill.particles, 0) == 5);
+  CHECK(countType(refill.particles, 1) == 1);
+  CHECK(refill.liquid_particle_refill_added_last == 3);
+  CHECK(refill.liquid_particle_refill_cells_last == 2);
+  CHECK(refill.liquid_particle_refill_interface_cells_last == 1);
+  CHECK(refill.liquid_particle_refill_underfull_cells_last == 1);
+  CHECK(refill.liquid_particle_refill_before_last == 2);
+  CHECK(refill.liquid_particle_refill_after_last == 5);
+  CHECK(finiteParticles(refill));
+}
+
 TEST_CASE("multires 3D dynamic refinement follows particle occupancy") {
   MRSim3DTP sim(16, 16, 16, 1.0);
   sim.dynamic_particle_padding = 0;

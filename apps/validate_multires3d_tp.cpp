@@ -99,7 +99,8 @@ void usage() {
                "[--liquid-coarsening] [--liquid-particles-per-cell N] "
                "[--liquid-coarsening-seed N] "
                "[--liquid-refill] [--liquid-refill-particles-per-cell N] "
-               "[--liquid-refill-seed N]\n");
+               "[--liquid-refill-seed N] "
+               "[--liquid-refill-interface-only] [--liquid-refill-interface-radius N]\n");
 }
 
 } // namespace
@@ -185,6 +186,11 @@ int main(int argc, char** argv) {
            sim.liquid_refill_particles_per_cell_target);
   sim.liquid_particle_refill_seed =
     argUInt(argc, argv, "--liquid-refill-seed", sim.liquid_particle_refill_seed);
+  sim.liquid_particle_refill_interface_only =
+    hasFlag(argc, argv, "--liquid-refill-interface-only");
+  sim.liquid_particle_refill_interface_radius =
+    argInt(argc, argv, "--liquid-refill-interface-radius",
+           sim.liquid_particle_refill_interface_radius);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   if (requestedRhoRatio < 0.0 ||
@@ -212,7 +218,8 @@ int main(int argc, char** argv) {
       sim.narrow_band_air_radius < 0 ||
       sim.gas_particles_per_cell_target <= 0 ||
       sim.liquid_particles_per_cell_target <= 0 ||
-      sim.liquid_refill_particles_per_cell_target <= 0) {
+      sim.liquid_refill_particles_per_cell_target <= 0 ||
+      sim.liquid_particle_refill_interface_radius < 0) {
     usage();
     return 2;
   }
@@ -321,6 +328,10 @@ int main(int argc, char** argv) {
               sim.liquid_refill_particles_per_cell_target);
   std::printf("liquid_particle_refill_seed=%u\n",
               sim.liquid_particle_refill_seed);
+  std::printf("liquid_particle_refill_interface_only=%s\n",
+              sim.liquid_particle_refill_interface_only ? "true" : "false");
+  std::printf("liquid_particle_refill_interface_radius=%d\n",
+              sim.liquid_particle_refill_interface_radius);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("liquid_particles_start=%zu\n", liquidCount0);
@@ -366,6 +377,8 @@ int main(int argc, char** argv) {
               liquidRefillAddedDuringRun);
   std::printf("liquid_particle_refill_cells_last=%d\n",
               sim.liquid_particle_refill_cells_last);
+  std::printf("liquid_particle_refill_interface_cells_last=%d\n",
+              sim.liquid_particle_refill_interface_cells_last);
   std::printf("liquid_particle_refill_underfull_cells_last=%d\n",
               sim.liquid_particle_refill_underfull_cells_last);
   std::printf("liquid_particle_refill_before_last=%d\n",
@@ -532,6 +545,11 @@ int main(int argc, char** argv) {
     const size_t maxLiquid = liquidCount0 +
       static_cast<size_t>(std::max(0, liquidRefillAddedDuringRun));
     if (liquidCount1 > maxLiquid) ok = false;
+    if (sim.liquid_particle_refill_interface_only &&
+        sim.liquid_particle_refill_underfull_cells_last >
+          sim.liquid_particle_refill_interface_cells_last) {
+      ok = false;
+    }
     if (!sim.liquid_particle_coarsening &&
         liquidCount1 != maxLiquid) {
       ok = false;
