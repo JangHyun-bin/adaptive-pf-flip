@@ -795,6 +795,48 @@ TEST_CASE("multires 3D pressure: adaptive relaxation reports finite stats") {
   CHECK(!stats.breakdown);
 }
 
+TEST_CASE("multires 3D pressure: coarse correction initial guess reduces residual") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  for (int z = 2; z < 4; ++z) {
+    for (int y = 2; y < 4; ++y) {
+      for (int x = 2; x < 4; ++x) {
+        setMarker(g, x, y, z, 1);
+      }
+    }
+  }
+  g.u(MRFaceKey3D{0, 4, 2, 2, 1, 1}) = 5.0f;
+  g.v(MRFaceKey3D{1, 2, 4, 2, 1, 1}) = -3.0f;
+  g.w(MRFaceKey3D{2, 2, 2, 4, 1, 1}) = 2.0f;
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 0;
+  config.absolute_tolerance = 1e-12;
+  config.relative_tolerance = 0.0;
+  config.use_coarse_correction = true;
+  config.coarse_correction_iterations = 64;
+  config.coarse_correction_absolute_tolerance = 1e-12;
+  config.coarse_correction_relative_tolerance = 1e-8;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  CHECK(stats.used_coarse_correction);
+  CHECK(stats.coarse_correction_cells > 0);
+  CHECK(stats.coarse_correction_cells < stats.active_cells);
+  CHECK(stats.coarse_correction_iterations > 0);
+  CHECK(stats.coarse_correction_accepted);
+  CHECK(!stats.coarse_correction_breakdown);
+  CHECK(stats.coarse_correction_final_residual <= stats.coarse_correction_initial_residual);
+  CHECK(stats.final_residual <= stats.initial_residual);
+  CHECK(stats.iterations == 0);
+
+  config.coarse_correction_iterations = -1;
+  CHECK_THROWS_AS(projectMR3D(g, pp, 1.0, config, &stats), std::invalid_argument);
+}
+
 TEST_CASE("multires 3D pressure: high density ratio stats remain finite") {
   MRLayout3D<4> layout(8, 8, 8, 1.0);
   layout.setCoarseEverywhere(0);

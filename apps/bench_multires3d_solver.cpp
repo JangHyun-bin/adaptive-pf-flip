@@ -61,13 +61,15 @@ void usage() {
                "[--require-converged] "
                "[--max-fine-leaves N] [--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
-               "[--history-stride N] [--history-limit N]\n");
+               "[--history-stride N] [--history-limit N] "
+               "[--coarse-iters N] [--coarse-rel-tol T] [--coarse-abs-tol T]\n");
 }
 
 struct Variant {
   const char* name = "";
   bool jacobi = true;
   bool flexibleBeta = false;
+  bool coarseCorrection = false;
   double relTol = 0.0;
 };
 
@@ -89,7 +91,10 @@ bool runVariant(const Variant& variant,
                 double relaxOmega,
                 double relaxMinOmega,
                 int historyStride,
-                int historyLimit) {
+                int historyLimit,
+                int coarseIters,
+                double coarseRelTol,
+                double coarseAbsTol) {
   MRSim3DTP sim(nx, ny, nz, 1.0);
   if (rhoRatio > 0.0) {
     sim.phase.rho_l = rhoRatio;
@@ -108,6 +113,10 @@ bool runVariant(const Variant& variant,
   sim.cg_relaxation_min_omega = relaxMinOmega;
   sim.cg_residual_history_stride = historyStride;
   sim.cg_residual_history_limit = historyLimit;
+  sim.cg_coarse_correction = variant.coarseCorrection;
+  sim.cg_coarse_correction_iters = coarseIters;
+  sim.cg_coarse_correction_rel_tol = coarseRelTol;
+  sim.cg_coarse_correction_abs_tol = coarseAbsTol;
   sim.dynamic_hysteresis_cells = hysteresis;
   sim.dynamic_max_fine_leaves = maxFineLeaves;
   sim.initBubbleTankInterfaceBand();
@@ -137,7 +146,8 @@ bool runVariant(const Variant& variant,
     ? static_cast<double>(sim.activePressureCellCount()) / static_cast<double>(nx * ny * nz)
     : 0.0;
 
-  std::printf("result variant=%s jacobi=%s flexible_beta=%s rel_tol=%.9g abs_tol=%.9g "
+  std::printf("result variant=%s jacobi=%s flexible_beta=%s coarse_correction=%s "
+              "rel_tol=%.9g abs_tol=%.9g "
               "adaptive_restart=%s restart_growth=%.9g "
               "steps=%d elapsed_ms=%lld particles=%zu stable_particles=%s finite=%s "
               "gas_rise=%.9g active_cells=%d pressure_ratio=%.9g "
@@ -146,11 +156,14 @@ bool runVariant(const Variant& variant,
               "min_residual=%.9g max_residual=%.9g effective_tol=%.9g "
               "restarts=%d beta_resets=%d relax_sweeps=%d relax_accepted=%d relax_rejected=%d "
               "relax_final_omega=%.9g history_count=%zu history_first=%.9g history_last=%.9g "
+              "coarse_cells=%d coarse_iters=%d coarse_accepted=%s coarse_converged=%s "
+              "coarse_breakdown=%s coarse_initial=%.9g coarse_final=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
               variant.name,
               variant.jacobi ? "true" : "false",
               variant.flexibleBeta ? "true" : "false",
+              variant.coarseCorrection ? "true" : "false",
               variant.relTol,
               absTol,
               st.adaptive_restart ? "true" : "false",
@@ -181,6 +194,13 @@ bool runVariant(const Variant& variant,
               st.residual_history.size(),
               st.residual_history.empty() ? 0.0 : st.residual_history.front(),
               st.residual_history.empty() ? 0.0 : st.residual_history.back(),
+              st.coarse_correction_cells,
+              st.coarse_correction_iterations,
+              st.coarse_correction_accepted ? "true" : "false",
+              st.coarse_correction_converged ? "true" : "false",
+              st.coarse_correction_breakdown ? "true" : "false",
+              st.coarse_correction_initial_residual,
+              st.coarse_correction_final_residual,
               st.residual_history_truncated ? "true" : "false",
               st.converged ? "true" : "false",
               st.breakdown ? "true" : "false",
@@ -213,12 +233,16 @@ int main(int argc, char** argv) {
   double relaxMinOmega = argDouble(argc, argv, "--relax-min-omega", defaults.cg_relaxation_min_omega);
   int historyStride = argInt(argc, argv, "--history-stride", defaults.cg_residual_history_stride);
   int historyLimit = argInt(argc, argv, "--history-limit", defaults.cg_residual_history_limit);
+  int coarseIters = argInt(argc, argv, "--coarse-iters", defaults.cg_coarse_correction_iters);
+  double coarseRelTol = argDouble(argc, argv, "--coarse-rel-tol", defaults.cg_coarse_correction_rel_tol);
+  double coarseAbsTol = argDouble(argc, argv, "--coarse-abs-tol", defaults.cg_coarse_correction_abs_tol);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
       cgIters < 0 || absTol < 0.0 || relTol < 0.0 || rhoRatio < 0.0 ||
       hysteresis < 0 || maxFineLeaves < 0 || restartGrowth < 0.0 ||
       relaxSweeps < 0 || relaxOmega < 0.0 || relaxMinOmega < 0.0 ||
-      historyStride < 0 || historyLimit < 0) {
+      historyStride < 0 || historyLimit < 0 ||
+      coarseIters < 0 || coarseRelTol < 0.0 || coarseAbsTol < 0.0) {
     usage();
     return 2;
   }
@@ -243,12 +267,16 @@ int main(int argc, char** argv) {
   std::printf("relax_min_omega=%.9g\n", relaxMinOmega);
   std::printf("history_stride=%d\n", historyStride);
   std::printf("history_limit=%d\n", historyLimit);
+  std::printf("coarse_iters=%d\n", coarseIters);
+  std::printf("coarse_rel_tol=%.9g\n", coarseRelTol);
+  std::printf("coarse_abs_tol=%.9g\n", coarseAbsTol);
 
   Variant variants[] = {
-    {"jacobi_abs", true, false, 0.0},
-    {"jacobi_rel", true, false, relTol},
-    {"flex_jacobi_rel", true, true, relTol},
-    {"no_jacobi_rel", false, false, relTol},
+    {"jacobi_abs", true, false, false, 0.0},
+    {"jacobi_rel", true, false, false, relTol},
+    {"coarse_jacobi_rel", true, false, true, relTol},
+    {"flex_jacobi_rel", true, true, false, relTol},
+    {"no_jacobi_rel", false, false, false, relTol},
   };
 
   bool ok = true;
@@ -258,7 +286,8 @@ int main(int argc, char** argv) {
                     requireConverged,
                     adaptiveRestart, restartGrowth,
                     relaxSweeps, relaxOmega, relaxMinOmega,
-                    historyStride, historyLimit) && ok;
+                    historyStride, historyLimit,
+                    coarseIters, coarseRelTol, coarseAbsTol) && ok;
   }
 
   std::printf("overall_status=%s\n", ok ? "ok" : "fail");

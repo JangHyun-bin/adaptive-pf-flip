@@ -36,6 +36,39 @@ std::tuple<int, int, int, int, int, int, int> cellTuple(const MRCellKey3D& c) {
   return std::make_tuple(c.block.level, c.block.bx, c.block.by, c.block.bz, c.lx, c.ly, c.lz);
 }
 
+std::tuple<int, int, int> level1ParentTuple(const MRCellKey3D& c) {
+  constexpr int B = 4;
+  if (c.block.level < 0 || c.block.level > 1) {
+    throw std::invalid_argument("level-1 pressure aggregation supports levels 0 and 1");
+  }
+
+  int step = 1 << c.block.level;
+  int x0 = c.block.bx * B * step + c.lx * step;
+  int y0 = c.block.by * B * step + c.ly * step;
+  int z0 = c.block.bz * B * step + c.lz * step;
+  return std::make_tuple(x0 / 2, y0 / 2, z0 / 2);
+}
+
+MRPressureAggregation3D buildLevel1AggregationFromCells(
+  const std::vector<MRCellKey3D>& cells,
+  const std::vector<double>& volumes) {
+  if (cells.size() != volumes.size()) {
+    throw std::invalid_argument("buildLevel1AggregationFromCells cell and volume sizes must match");
+  }
+
+  std::vector<int> fineToCoarse(cells.size(), 0);
+  std::map<std::tuple<int, int, int>, int> coarseIds;
+  for (size_t i = 0; i < cells.size(); ++i) {
+    auto inserted = coarseIds.emplace(level1ParentTuple(cells[i]),
+                                      static_cast<int>(coarseIds.size()));
+    fineToCoarse[i] = inserted.first->second;
+  }
+
+  MRPressureSystem3D sys;
+  sys.volumes = volumes;
+  return buildMRPressureAggregation3D(sys, fineToCoarse);
+}
+
 bool validCell(const MRCellKey3D& c) {
   return c.block.level >= 0 && c.lx >= 0 && c.ly >= 0 && c.lz >= 0;
 }
@@ -253,7 +286,28 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.relaxation_final_omega = config.relaxation_omega;
   stats.residual_history_stride = config.residual_history_stride;
   stats.residual_history_limit = config.residual_history_limit;
+  stats.used_coarse_correction = config.use_coarse_correction;
+  stats.coarse_correction_max_iterations = config.coarse_correction_iterations;
+  stats.coarse_correction_tolerance = config.coarse_correction_absolute_tolerance;
+  stats.coarse_correction_relative_tolerance = config.coarse_correction_relative_tolerance;
   return stats;
+}
+
+void validateSolveConfig(const MRPressureSolveConfig3D& config) {
+  if (config.max_iterations < 0 ||
+      config.absolute_tolerance < 0.0 ||
+      config.relative_tolerance < 0.0 ||
+      config.restart_growth_threshold < 0.0 ||
+      config.relaxation_sweeps < 0 ||
+      config.relaxation_omega < 0.0 ||
+      config.relaxation_min_omega < 0.0 ||
+      config.residual_history_stride < 0 ||
+      config.residual_history_limit < 0 ||
+      config.coarse_correction_iterations < 0 ||
+      config.coarse_correction_absolute_tolerance < 0.0 ||
+      config.coarse_correction_relative_tolerance < 0.0) {
+    throw std::invalid_argument("projectMR3D invalid solve config");
+  }
 }
 
 void recordResidualHistory(MRPressureSolveStats3D& stats,
@@ -431,31 +485,12 @@ MRPressureAggregation3D buildMRPressureAggregation3D(
 MRPressureAggregation3D buildMRPressureLevel1Aggregation3D(
   const MRMacGrid3D<4>& g,
   const MRPressureSystem3D& sys) {
-  constexpr int B = 4;
   std::vector<MRCellKey3D> leafCells = g.p.leafCells();
   if (leafCells.size() != static_cast<size_t>(sys.cellCount())) {
     throw std::invalid_argument("buildMRPressureLevel1Aggregation3D cell count must match system");
   }
 
-  std::vector<int> fineToCoarse(leafCells.size(), 0);
-  std::map<std::tuple<int, int, int>, int> coarseIds;
-  for (size_t i = 0; i < leafCells.size(); ++i) {
-    const MRCellKey3D& c = leafCells[i];
-    if (c.block.level < 0 || c.block.level > 1) {
-      throw std::invalid_argument("buildMRPressureLevel1Aggregation3D supports levels 0 and 1");
-    }
-
-    int step = 1 << c.block.level;
-    int x0 = c.block.bx * B * step + c.lx * step;
-    int y0 = c.block.by * B * step + c.ly * step;
-    int z0 = c.block.bz * B * step + c.lz * step;
-    std::tuple<int, int, int> parent = std::make_tuple(x0 / 2, y0 / 2, z0 / 2);
-
-    auto inserted = coarseIds.emplace(parent, static_cast<int>(coarseIds.size()));
-    fineToCoarse[i] = inserted.first->second;
-  }
-
-  return buildMRPressureAggregation3D(sys, fineToCoarse);
+  return buildLevel1AggregationFromCells(leafCells, sys.volumes);
 }
 
 void restrictMRPressureVolumeWeighted3D(
@@ -674,6 +709,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt, int maxIte
 
 void projectMR3D(MRMacGrid3D<4>& g, double dt, const MRPressureSolveConfig3D& config,
                  MRPressureSolveStats3D* stats) {
+  validateSolveConfig(config);
   MRPressureSolveStats3D localStats = makeInitialStats(config);
   if (!hasAnyMarker(g)) {
     (void)dt;
@@ -691,6 +727,7 @@ void projectMR3D(MRMacGrid3D<4>& g, double dt, const MRPressureSolveConfig3D& co
 void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
                  const MRPressureSolveConfig3D& config,
                  MRPressureSolveStats3D* stats) {
+  validateSolveConfig(config);
   MRPressureSolveStats3D localStats = makeInitialStats(config);
   std::vector<ProjectionCell3D> cells = fluidProjectionCells(g);
   const int N = static_cast<int>(cells.size());
@@ -823,6 +860,157 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
     };
 
     double currentRes = res0;
+    if (config.use_coarse_correction && currentRes >= effectiveTol) {
+      std::vector<MRCellKey3D> activeKeys;
+      std::vector<double> activeVolumes;
+      activeKeys.reserve(cells.size());
+      activeVolumes.reserve(cells.size());
+      for (const ProjectionCell3D& c : cells) {
+        activeKeys.push_back(c.key);
+        activeVolumes.push_back(c.volume);
+      }
+
+      MRPressureAggregation3D aggregation = buildLevel1AggregationFromCells(activeKeys, activeVolumes);
+      localStats.coarse_correction_cells = aggregation.coarseCount();
+      localStats.coarse_correction_initial_residual = currentRes;
+      localStats.coarse_correction_final_residual = currentRes;
+
+      if (aggregation.coarseCount() > 0 && aggregation.coarseCount() < N) {
+        std::vector<double> coarseRhs;
+        restrictMRPressureVolumeWeighted3D(aggregation, r, coarseRhs);
+
+        int coarsePin = pinCell >= 0
+          ? aggregation.fine_to_coarse[static_cast<size_t>(pinCell)]
+          : -1;
+        std::vector<double> coarseX(coarseRhs.size(), 0.0);
+        std::vector<double> coarseR = coarseRhs;
+        std::vector<double> coarseP = coarseR;
+        std::vector<double> coarseAp(coarseRhs.size(), 0.0);
+        std::vector<double> fineP;
+        std::vector<double> fineAp;
+        std::vector<double> fineCorrection;
+
+        if (coarsePin >= 0) {
+          coarseR[static_cast<size_t>(coarsePin)] = 0.0;
+          coarseP[static_cast<size_t>(coarsePin)] = 0.0;
+        }
+
+        auto coarseNorm = [&](const std::vector<double>& v) {
+          double n2 = weightedDotVolumes(aggregation.coarse_volumes, v, v);
+          return n2 > 0.0 ? std::sqrt(n2) : 0.0;
+        };
+
+        auto applyCoarse = [&](const std::vector<double>& in, std::vector<double>& out) {
+          prolongMRPressurePiecewiseConstant3D(aggregation, in, fineP);
+          applyA(fineP, fineAp);
+          restrictMRPressureVolumeWeighted3D(aggregation, fineAp, out);
+          if (coarsePin >= 0) {
+            out[static_cast<size_t>(coarsePin)] = in[static_cast<size_t>(coarsePin)];
+          }
+        };
+
+        double coarseRes0 = coarseNorm(coarseR);
+        localStats.coarse_correction_effective_tolerance =
+          std::max(config.coarse_correction_absolute_tolerance,
+                   config.coarse_correction_relative_tolerance * coarseRes0);
+        localStats.coarse_correction_converged =
+          coarseRes0 <= localStats.coarse_correction_effective_tolerance;
+
+        double rr = weightedDotVolumes(aggregation.coarse_volumes, coarseR, coarseR);
+        if (!std::isfinite(rr)) {
+          localStats.coarse_correction_breakdown = true;
+        }
+
+        for (int it = 0;
+             !localStats.coarse_correction_converged &&
+             !localStats.coarse_correction_breakdown &&
+             it < config.coarse_correction_iterations;
+             ++it) {
+          applyCoarse(coarseP, coarseAp);
+          double pAp = weightedDotVolumes(aggregation.coarse_volumes, coarseP, coarseAp);
+          if (!std::isfinite(pAp) || std::abs(pAp) < 1e-30) {
+            localStats.coarse_correction_breakdown = true;
+            break;
+          }
+
+          double alpha = rr / pAp;
+          if (!std::isfinite(alpha)) {
+            localStats.coarse_correction_breakdown = true;
+            break;
+          }
+
+          for (size_t i = 0; i < coarseX.size(); ++i) {
+            coarseX[i] += alpha * coarseP[i];
+            coarseR[i] -= alpha * coarseAp[i];
+          }
+          if (coarsePin >= 0) {
+            coarseX[static_cast<size_t>(coarsePin)] = 0.0;
+            coarseR[static_cast<size_t>(coarsePin)] = 0.0;
+          }
+
+          localStats.coarse_correction_iterations = it + 1;
+          double coarseRes = coarseNorm(coarseR);
+          if (!std::isfinite(coarseRes)) {
+            localStats.coarse_correction_breakdown = true;
+            break;
+          }
+          if (coarseRes <= localStats.coarse_correction_effective_tolerance) {
+            localStats.coarse_correction_converged = true;
+            break;
+          }
+
+          double rrNext = weightedDotVolumes(aggregation.coarse_volumes, coarseR, coarseR);
+          if (!std::isfinite(rrNext) || std::abs(rr) < 1e-30) {
+            localStats.coarse_correction_breakdown = true;
+            break;
+          }
+          double beta = rrNext / rr;
+          if (!std::isfinite(beta)) {
+            localStats.coarse_correction_breakdown = true;
+            break;
+          }
+          rr = rrNext;
+          for (size_t i = 0; i < coarseP.size(); ++i) {
+            coarseP[i] = coarseR[i] + beta * coarseP[i];
+          }
+          if (coarsePin >= 0) {
+            coarseP[static_cast<size_t>(coarsePin)] = 0.0;
+          }
+        }
+
+        if (!localStats.coarse_correction_breakdown) {
+          prolongMRPressurePiecewiseConstant3D(aggregation, coarseX, fineCorrection);
+          double bestRes = currentRes;
+          std::vector<double> bestX;
+          std::vector<double> bestR;
+          for (double scale = 1.0; scale >= 1.0 / 64.0; scale *= 0.5) {
+            candidateX = x;
+            for (int i = 0; i < N; ++i) {
+              candidateX[i] += scale * fineCorrection[static_cast<size_t>(i)];
+            }
+
+            double candidateRes = residualFromPressure(candidateX, candidateR);
+            if (std::isfinite(candidateRes) && candidateRes <= bestRes) {
+              bestRes = candidateRes;
+              bestX = candidateX;
+              bestR = candidateR;
+            }
+          }
+
+          localStats.coarse_correction_final_residual = bestRes;
+          if (bestRes < currentRes && !bestX.empty()) {
+            x.swap(bestX);
+            r.swap(bestR);
+            currentRes = bestRes;
+            localStats.final_residual = currentRes;
+            localStats.min_residual = std::min(localStats.min_residual, currentRes);
+            localStats.max_residual = std::max(localStats.max_residual, currentRes);
+            localStats.coarse_correction_accepted = true;
+          }
+        }
+      }
+    }
+
     double relaxationOmega = std::max(0.0, config.relaxation_omega);
     double minRelaxationOmega = std::max(0.0, config.relaxation_min_omega);
     if (minRelaxationOmega > relaxationOmega) {

@@ -67,6 +67,9 @@ struct MRPressureSolveStats3D {
   int relaxation_sweeps = 0;
   int relaxation_accepted = 0;
   int relaxation_rejected = 0;
+  int coarse_correction_cells = 0;
+  int coarse_correction_iterations = 0;
+  int coarse_correction_max_iterations = 0;
   double tolerance = 0.0;
   double relative_tolerance = 0.0;
   double effective_tolerance = 0.0;
@@ -74,6 +77,11 @@ struct MRPressureSolveStats3D {
   double relaxation_omega = 0.0;
   double relaxation_min_omega = 0.0;
   double relaxation_final_omega = 0.0;
+  double coarse_correction_tolerance = 0.0;
+  double coarse_correction_relative_tolerance = 0.0;
+  double coarse_correction_effective_tolerance = 0.0;
+  double coarse_correction_initial_residual = 0.0;
+  double coarse_correction_final_residual = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_residual = 0.0;
@@ -90,6 +98,10 @@ struct MRPressureSolveStats3D {
   bool used_flexible_cg_beta = false;
   bool used_average_projection = false;
   bool used_jacobi_preconditioner = true;
+  bool used_coarse_correction = false;
+  bool coarse_correction_accepted = false;
+  bool coarse_correction_converged = false;
+  bool coarse_correction_breakdown = false;
 };
 
 struct MRPressureSolveConfig3D {
@@ -105,6 +117,10 @@ struct MRPressureSolveConfig3D {
   double relaxation_min_omega = 0.05;
   int residual_history_stride = 0;
   int residual_history_limit = 0;
+  bool use_coarse_correction = false;
+  int coarse_correction_iterations = 32;
+  double coarse_correction_absolute_tolerance = 0.0;
+  double coarse_correction_relative_tolerance = 1e-3;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);

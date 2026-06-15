@@ -27,6 +27,10 @@ struct MRSim3DTP {
   double cg_relaxation_min_omega = 0.05;
   int cg_residual_history_stride = 0;
   int cg_residual_history_limit = 64;
+  bool cg_coarse_correction = false;
+  int cg_coarse_correction_iters = 32;
+  double cg_coarse_correction_abs_tol = 0.0;
+  double cg_coarse_correction_rel_tol = 1e-3;
   bool dynamic_refinement = true;
   int dynamic_particle_padding = 1;
   int dynamic_gas_padding = 2;

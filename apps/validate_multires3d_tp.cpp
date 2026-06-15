@@ -68,7 +68,9 @@ void usage() {
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
-               "[--history-stride N] [--history-limit N]\n");
+               "[--history-stride N] [--history-limit N] "
+               "[--coarse-correction] [--coarse-iters N] [--coarse-rel-tol T] "
+               "[--coarse-abs-tol T]\n");
 }
 
 } // namespace
@@ -103,6 +105,12 @@ int main(int argc, char** argv) {
   sim.cg_relaxation_min_omega = argDouble(argc, argv, "--relax-min-omega", sim.cg_relaxation_min_omega);
   sim.cg_residual_history_stride = argInt(argc, argv, "--history-stride", sim.cg_residual_history_stride);
   sim.cg_residual_history_limit = argInt(argc, argv, "--history-limit", sim.cg_residual_history_limit);
+  if (hasFlag(argc, argv, "--coarse-correction")) sim.cg_coarse_correction = true;
+  sim.cg_coarse_correction_iters = argInt(argc, argv, "--coarse-iters", sim.cg_coarse_correction_iters);
+  sim.cg_coarse_correction_rel_tol =
+    argDouble(argc, argv, "--coarse-rel-tol", sim.cg_coarse_correction_rel_tol);
+  sim.cg_coarse_correction_abs_tol =
+    argDouble(argc, argv, "--coarse-abs-tol", sim.cg_coarse_correction_abs_tol);
   sim.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", sim.dynamic_hysteresis_cells);
   sim.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", sim.dynamic_max_fine_leaves);
   if (requestedRhoRatio < 0.0 ||
@@ -113,7 +121,10 @@ int main(int argc, char** argv) {
       sim.cg_relaxation_omega < 0.0 ||
       sim.cg_relaxation_min_omega < 0.0 ||
       sim.cg_residual_history_stride < 0 ||
-      sim.cg_residual_history_limit < 0) {
+      sim.cg_residual_history_limit < 0 ||
+      sim.cg_coarse_correction_iters < 0 ||
+      sim.cg_coarse_correction_rel_tol < 0.0 ||
+      sim.cg_coarse_correction_abs_tol < 0.0) {
     usage();
     return 2;
   }
@@ -178,6 +189,10 @@ int main(int argc, char** argv) {
   std::printf("cg_relaxation_min_omega=%.9g\n", sim.cg_relaxation_min_omega);
   std::printf("cg_residual_history_stride=%d\n", sim.cg_residual_history_stride);
   std::printf("cg_residual_history_limit=%d\n", sim.cg_residual_history_limit);
+  std::printf("cg_coarse_correction=%s\n", sim.cg_coarse_correction ? "true" : "false");
+  std::printf("cg_coarse_correction_iters=%d\n", sim.cg_coarse_correction_iters);
+  std::printf("cg_coarse_correction_rel_tol=%.9g\n", sim.cg_coarse_correction_rel_tol);
+  std::printf("cg_coarse_correction_abs_tol=%.9g\n", sim.cg_coarse_correction_abs_tol);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("finite=%s\n", finite ? "true" : "false");
@@ -239,6 +254,24 @@ int main(int argc, char** argv) {
               sim.last_pressure_stats.residual_history.empty() ? 0.0 : sim.last_pressure_stats.residual_history.front());
   std::printf("pressure_residual_history_last=%.9g\n",
               sim.last_pressure_stats.residual_history.empty() ? 0.0 : sim.last_pressure_stats.residual_history.back());
+  std::printf("pressure_coarse_correction_used=%s\n",
+              sim.last_pressure_stats.used_coarse_correction ? "true" : "false");
+  std::printf("pressure_coarse_correction_accepted=%s\n",
+              sim.last_pressure_stats.coarse_correction_accepted ? "true" : "false");
+  std::printf("pressure_coarse_correction_converged=%s\n",
+              sim.last_pressure_stats.coarse_correction_converged ? "true" : "false");
+  std::printf("pressure_coarse_correction_breakdown=%s\n",
+              sim.last_pressure_stats.coarse_correction_breakdown ? "true" : "false");
+  std::printf("pressure_coarse_correction_cells=%d\n",
+              sim.last_pressure_stats.coarse_correction_cells);
+  std::printf("pressure_coarse_correction_iterations=%d\n",
+              sim.last_pressure_stats.coarse_correction_iterations);
+  std::printf("pressure_coarse_correction_max_iterations=%d\n",
+              sim.last_pressure_stats.coarse_correction_max_iterations);
+  std::printf("pressure_coarse_correction_initial_residual=%.9g\n",
+              sim.last_pressure_stats.coarse_correction_initial_residual);
+  std::printf("pressure_coarse_correction_final_residual=%.9g\n",
+              sim.last_pressure_stats.coarse_correction_final_residual);
   std::printf("pressure_converged=%s\n", sim.last_pressure_stats.converged ? "true" : "false");
   std::printf("pressure_convergence_ok=%s\n", convergenceOk ? "true" : "false");
   std::printf("pressure_breakdown=%s\n", sim.last_pressure_stats.breakdown ? "true" : "false");

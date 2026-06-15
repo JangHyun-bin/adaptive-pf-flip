@@ -79,6 +79,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **F9** | **SPEC-3 Galerkin MG prep** - volume-weighted residual norms, restriction/prolongation helpers, and Galerkin coarse pressure graph energy tests. | done |
 | **F10** | **SPEC-3 coarse-correction scaffold** - one-shot Galerkin coarse correction helper with pinned weighted-CG solve and restricted-residual reduction tests. | done |
 | **F11** | **SPEC-3 geometry aggregation** - level-1 pressure-cell aggregation from 3D multires grid geometry for Galerkin coarse correction. | done |
+| **F12** | **SPEC-3 coarse-correction solver hook** - optional level-1 Galerkin coarse correction as a 3D multires projection initial guess with runner diagnostics. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -138,7 +139,7 @@ cmake --build build --config Release --target run_multires_bubble3d
 cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4
 
-# compare 3D multires pressure solver variants, including flexible-CG beta
+# compare 3D multires pressure solver variants, including flexible-CG beta and coarse correction
 cmake --build build --config Release --target bench_multires3d_solver
 ./build/Release/bench_multires3d_solver.exe --steps 4 --rel-tol 1e-5 --restart-growth 10 --relax-sweeps 2 --relax-omega 0.1 --history-stride 1 --history-limit 8
 
