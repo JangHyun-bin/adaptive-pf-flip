@@ -78,6 +78,9 @@ struct SparseMetrics {
   size_t liquidEnd = 0;
   size_t gasCountStart = 0;
   size_t gasCountEnd = 0;
+  int liquidRefillAddedStart = 0;
+  int liquidRefillAddedEnd = 0;
+  int liquidRefillAddedDuringRun = 0;
   double gasStart = 0.0;
   double gasEnd = 0.0;
   size_t maxBlocks = 0;
@@ -91,6 +94,7 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   metrics.particlesStart = sim.particles.size();
   metrics.liquidStart = countType(sim.particles, 0);
   metrics.gasCountStart = countType(sim.particles, 1);
+  metrics.liquidRefillAddedStart = sim.liquid_particle_refill_added_total;
   metrics.gasStart = meanY(sim.particles, 1);
 
   auto start = std::chrono::steady_clock::now();
@@ -103,6 +107,9 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   metrics.particlesEnd = sim.particles.size();
   metrics.liquidEnd = countType(sim.particles, 0);
   metrics.gasCountEnd = countType(sim.particles, 1);
+  metrics.liquidRefillAddedEnd = sim.liquid_particle_refill_added_total;
+  metrics.liquidRefillAddedDuringRun =
+    metrics.liquidRefillAddedEnd - metrics.liquidRefillAddedStart;
   metrics.gasEnd = meanY(sim.particles, 1);
   metrics.finite = finiteParticles(sim.particles);
   metrics.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -123,11 +130,15 @@ void usage() {
                "[--sparse-gas-coarsening-seed N] "
                "[--sparse-liquid-coarsening] [--sparse-liquid-particles-per-cell N] "
                "[--sparse-liquid-coarsening-seed N] "
+               "[--sparse-liquid-refill] [--sparse-liquid-refill-particles-per-cell N] "
+               "[--sparse-liquid-refill-seed N] "
                "[--mr-narrow-band-air] [--mr-narrow-band-radius N] "
                "[--mr-gas-coarsening] [--mr-gas-particles-per-cell N] "
                "[--mr-gas-coarsening-seed N] "
                "[--mr-liquid-coarsening] [--mr-liquid-particles-per-cell N] "
-               "[--mr-liquid-coarsening-seed N]\n");
+               "[--mr-liquid-coarsening-seed N] "
+               "[--mr-liquid-refill] [--mr-liquid-refill-particles-per-cell N] "
+               "[--mr-liquid-refill-seed N]\n");
 }
 
 } // namespace
@@ -183,9 +194,19 @@ int main(int argc, char** argv) {
   sparseAdaptive.liquid_particle_coarsening_seed =
     argUInt(argc, argv, "--sparse-liquid-coarsening-seed",
             sparseAdaptive.liquid_particle_coarsening_seed);
+  sparseAdaptive.liquid_particle_refill =
+    hasFlag(argc, argv, "--sparse-liquid-refill");
+  sparseAdaptive.liquid_refill_particles_per_cell_target =
+    argInt(argc, argv, "--sparse-liquid-refill-particles-per-cell",
+           sparseAdaptive.liquid_refill_particles_per_cell_target);
+  sparseAdaptive.liquid_particle_refill_seed =
+    argUInt(argc, argv, "--sparse-liquid-refill-seed",
+            sparseAdaptive.liquid_particle_refill_seed);
   const bool sparseGasAdaptivity =
     sparseAdaptive.narrow_band_air || sparseAdaptive.gas_particle_coarsening;
-  const bool sparseLiquidAdaptivity = sparseAdaptive.liquid_particle_coarsening;
+  const bool sparseLiquidRefill = sparseAdaptive.liquid_particle_refill;
+  const bool sparseLiquidAdaptivity =
+    sparseAdaptive.liquid_particle_coarsening || sparseLiquidRefill;
   const bool sparseAdaptivity =
     sparseGasAdaptivity || sparseLiquidAdaptivity;
   mr.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", mr.cg_rel_tol);
@@ -221,9 +242,19 @@ int main(int argc, char** argv) {
   mrAdaptive.liquid_particle_coarsening_seed =
     argUInt(argc, argv, "--mr-liquid-coarsening-seed",
             mrAdaptive.liquid_particle_coarsening_seed);
+  mrAdaptive.liquid_particle_refill =
+    hasFlag(argc, argv, "--mr-liquid-refill");
+  mrAdaptive.liquid_refill_particles_per_cell_target =
+    argInt(argc, argv, "--mr-liquid-refill-particles-per-cell",
+           mrAdaptive.liquid_refill_particles_per_cell_target);
+  mrAdaptive.liquid_particle_refill_seed =
+    argUInt(argc, argv, "--mr-liquid-refill-seed",
+            mrAdaptive.liquid_particle_refill_seed);
   const bool mrGasAdaptivity =
     mrAdaptive.narrow_band_air || mrAdaptive.gas_particle_coarsening;
-  const bool mrLiquidAdaptivity = mrAdaptive.liquid_particle_coarsening;
+  const bool mrLiquidRefill = mrAdaptive.liquid_particle_refill;
+  const bool mrLiquidAdaptivity =
+    mrAdaptive.liquid_particle_coarsening || mrLiquidRefill;
   const bool mrAdaptivity =
     mrGasAdaptivity || mrLiquidAdaptivity;
   if (requestedRhoRatio < 0.0 ||
@@ -234,9 +265,11 @@ int main(int argc, char** argv) {
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
       sparseAdaptive.liquid_particles_per_cell_target <= 0 ||
+      sparseAdaptive.liquid_refill_particles_per_cell_target <= 0 ||
       mrAdaptive.narrow_band_air_radius < 0 ||
       mrAdaptive.gas_particles_per_cell_target <= 0 ||
       mrAdaptive.liquid_particles_per_cell_target <= 0 ||
+      mrAdaptive.liquid_refill_particles_per_cell_target <= 0 ||
       mr.cg_restart_growth < 0.0 ||
       mr.cg_relaxation_sweeps < 0 ||
       mr.cg_relaxation_omega < 0.0 ||
@@ -283,6 +316,9 @@ int main(int argc, char** argv) {
   size_t adaptiveMrLiquid1 = mrLiquid1;
   size_t adaptiveMrGasCount0 = mrGasCount0;
   size_t adaptiveMrGasCount1 = mrGasCount1;
+  int adaptiveMrLiquidRefillAdded0 = mr.liquid_particle_refill_added_total;
+  int adaptiveMrLiquidRefillAdded1 = mr.liquid_particle_refill_added_total;
+  int adaptiveMrLiquidRefillAddedDuringRun = 0;
   double adaptiveMrGas0 = mrGas0;
   double adaptiveMrGas1 = mrGas1;
   bool adaptiveMrFinite = mrFinite;
@@ -293,6 +329,7 @@ int main(int argc, char** argv) {
     adaptiveMrN0 = mrAdaptive.particles.size();
     adaptiveMrLiquid0 = countType(mrAdaptive.particles, 0);
     adaptiveMrGasCount0 = countType(mrAdaptive.particles, 1);
+    adaptiveMrLiquidRefillAdded0 = mrAdaptive.liquid_particle_refill_added_total;
     adaptiveMrGas0 = meanY(mrAdaptive.particles, 1);
 
     auto adaptiveMrStart = std::chrono::steady_clock::now();
@@ -304,6 +341,9 @@ int main(int argc, char** argv) {
     adaptiveMrN1 = mrAdaptive.particles.size();
     adaptiveMrLiquid1 = countType(mrAdaptive.particles, 0);
     adaptiveMrGasCount1 = countType(mrAdaptive.particles, 1);
+    adaptiveMrLiquidRefillAdded1 = mrAdaptive.liquid_particle_refill_added_total;
+    adaptiveMrLiquidRefillAddedDuringRun =
+      adaptiveMrLiquidRefillAdded1 - adaptiveMrLiquidRefillAdded0;
     adaptiveMrGas1 = meanY(mrAdaptive.particles, 1);
     adaptiveMrFinite = finiteParticles(mrAdaptive.particles);
     adaptiveMrPressureCells = mrAdaptive.activePressureCellCount();
@@ -377,6 +417,12 @@ int main(int argc, char** argv) {
               sparseAdaptive.liquid_particles_per_cell_target);
   std::printf("sparse_liquid_coarsening_seed=%u\n",
               sparseAdaptive.liquid_particle_coarsening_seed);
+  std::printf("sparse_liquid_refill=%s\n",
+              sparseAdaptive.liquid_particle_refill ? "true" : "false");
+  std::printf("sparse_liquid_refill_particles_per_cell=%d\n",
+              sparseAdaptive.liquid_refill_particles_per_cell_target);
+  std::printf("sparse_liquid_refill_seed=%u\n",
+              sparseAdaptive.liquid_particle_refill_seed);
   std::printf("mr_adaptivity=%s\n", mrAdaptivity ? "true" : "false");
   std::printf("mr_narrow_band_air=%s\n",
               mrAdaptive.narrow_band_air ? "true" : "false");
@@ -394,6 +440,12 @@ int main(int argc, char** argv) {
               mrAdaptive.liquid_particles_per_cell_target);
   std::printf("mr_liquid_coarsening_seed=%u\n",
               mrAdaptive.liquid_particle_coarsening_seed);
+  std::printf("mr_liquid_refill=%s\n",
+              mrAdaptive.liquid_particle_refill ? "true" : "false");
+  std::printf("mr_liquid_refill_particles_per_cell=%d\n",
+              mrAdaptive.liquid_refill_particles_per_cell_target);
+  std::printf("mr_liquid_refill_seed=%u\n",
+              mrAdaptive.liquid_particle_refill_seed);
   std::printf("mr_cg_tol=%.9g\n", mr.cg_tol);
   std::printf("mr_cg_rel_tol=%.9g\n", mr.cg_rel_tol);
   std::printf("mr_cg_jacobi_preconditioner=%s\n", mr.cg_jacobi_preconditioner ? "true" : "false");
@@ -462,6 +514,14 @@ int main(int argc, char** argv) {
               sparseAdaptive.liquid_particle_coarsening_cells_last);
   std::printf("adaptive_sparse_liquid_coarsening_overfull_cells_last=%d\n",
               sparseAdaptive.liquid_particle_coarsening_overfull_cells_last);
+  std::printf("adaptive_sparse_liquid_refill_added_total=%d\n",
+              sparseAdaptive.liquid_particle_refill_added_total);
+  std::printf("adaptive_sparse_liquid_refill_added_during_run=%d\n",
+              adaptiveMetrics.liquidRefillAddedDuringRun);
+  std::printf("adaptive_sparse_liquid_refill_cells_last=%d\n",
+              sparseAdaptive.liquid_particle_refill_cells_last);
+  std::printf("adaptive_sparse_liquid_refill_underfull_cells_last=%d\n",
+              sparseAdaptive.liquid_particle_refill_underfull_cells_last);
   std::printf("adaptive_mr_narrow_band_removed_total=%d\n",
               mrAdaptivity ? mrAdaptive.narrow_band_air_removed_total : 0);
   std::printf("adaptive_mr_gas_coarsening_removed_total=%d\n",
@@ -476,6 +536,14 @@ int main(int argc, char** argv) {
               mrAdaptivity ? mrAdaptive.liquid_particle_coarsening_cells_last : 0);
   std::printf("adaptive_mr_liquid_coarsening_overfull_cells_last=%d\n",
               mrAdaptivity ? mrAdaptive.liquid_particle_coarsening_overfull_cells_last : 0);
+  std::printf("adaptive_mr_liquid_refill_added_total=%d\n",
+              mrAdaptivity ? mrAdaptive.liquid_particle_refill_added_total : 0);
+  std::printf("adaptive_mr_liquid_refill_added_during_run=%d\n",
+              mrAdaptivity ? adaptiveMrLiquidRefillAddedDuringRun : 0);
+  std::printf("adaptive_mr_liquid_refill_cells_last=%d\n",
+              mrAdaptivity ? mrAdaptive.liquid_particle_refill_cells_last : 0);
+  std::printf("adaptive_mr_liquid_refill_underfull_cells_last=%d\n",
+              mrAdaptivity ? mrAdaptive.liquid_particle_refill_underfull_cells_last : 0);
   std::printf("mr_dynamic_refinement=%s\n", mr.dynamic_refinement ? "true" : "false");
   std::printf("mr_dynamic_hysteresis_cells=%d\n", mr.dynamic_hysteresis_cells);
   std::printf("mr_dynamic_max_fine_leaves=%d\n", mr.dynamic_max_fine_leaves);
@@ -570,8 +638,18 @@ int main(int argc, char** argv) {
   if (!(sparseRise > 0.0) || !(mrRise > 0.0)) ok = false;
   if (sparseAdaptivity) {
     if (!adaptiveMetrics.finite) ok = false;
-    if (adaptiveMetrics.particlesEnd > adaptiveMetrics.particlesStart) ok = false;
-    if (sparseLiquidAdaptivity) {
+    const size_t maxAdaptiveSparseParticles = adaptiveMetrics.particlesStart +
+      static_cast<size_t>(std::max(0, adaptiveMetrics.liquidRefillAddedDuringRun));
+    if (adaptiveMetrics.particlesEnd > maxAdaptiveSparseParticles) ok = false;
+    if (sparseLiquidRefill) {
+      const size_t maxAdaptiveSparseLiquid = adaptiveMetrics.liquidStart +
+        static_cast<size_t>(std::max(0, adaptiveMetrics.liquidRefillAddedDuringRun));
+      if (adaptiveMetrics.liquidEnd > maxAdaptiveSparseLiquid) ok = false;
+      if (!sparseAdaptive.liquid_particle_coarsening &&
+          adaptiveMetrics.liquidEnd != maxAdaptiveSparseLiquid) {
+        ok = false;
+      }
+    } else if (sparseLiquidAdaptivity) {
       if (adaptiveMetrics.liquidEnd > adaptiveMetrics.liquidStart) ok = false;
     } else if (adaptiveMetrics.liquidEnd != adaptiveMetrics.liquidStart) {
       ok = false;
@@ -586,8 +664,18 @@ int main(int argc, char** argv) {
   }
   if (mrAdaptivity) {
     if (!adaptiveMrFinite) ok = false;
-    if (adaptiveMrN1 > adaptiveMrN0) ok = false;
-    if (mrLiquidAdaptivity) {
+    const size_t maxAdaptiveMrParticles = adaptiveMrN0 +
+      static_cast<size_t>(std::max(0, adaptiveMrLiquidRefillAddedDuringRun));
+    if (adaptiveMrN1 > maxAdaptiveMrParticles) ok = false;
+    if (mrLiquidRefill) {
+      const size_t maxAdaptiveMrLiquid = adaptiveMrLiquid0 +
+        static_cast<size_t>(std::max(0, adaptiveMrLiquidRefillAddedDuringRun));
+      if (adaptiveMrLiquid1 > maxAdaptiveMrLiquid) ok = false;
+      if (!mrAdaptive.liquid_particle_coarsening &&
+          adaptiveMrLiquid1 != maxAdaptiveMrLiquid) {
+        ok = false;
+      }
+    } else if (mrLiquidAdaptivity) {
       if (adaptiveMrLiquid1 > adaptiveMrLiquid0) ok = false;
     } else if (adaptiveMrLiquid1 != adaptiveMrLiquid0) {
       ok = false;

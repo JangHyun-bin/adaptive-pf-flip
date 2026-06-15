@@ -83,7 +83,9 @@ void usage() {
                "[--gas-coarsening] [--gas-particles-per-cell N] "
                "[--gas-coarsening-seed N] "
                "[--liquid-coarsening] [--liquid-particles-per-cell N] "
-               "[--liquid-coarsening-seed N]\n");
+               "[--liquid-coarsening-seed N] "
+               "[--liquid-refill] [--liquid-refill-particles-per-cell N] "
+               "[--liquid-refill-seed N]\n");
 }
 
 } // namespace
@@ -120,9 +122,16 @@ int main(int argc, char** argv) {
     argInt(argc, argv, "--liquid-particles-per-cell", sim.liquid_particles_per_cell_target);
   sim.liquid_particle_coarsening_seed =
     argUInt(argc, argv, "--liquid-coarsening-seed", sim.liquid_particle_coarsening_seed);
+  sim.liquid_particle_refill = hasFlag(argc, argv, "--liquid-refill");
+  sim.liquid_refill_particles_per_cell_target =
+    argInt(argc, argv, "--liquid-refill-particles-per-cell",
+           sim.liquid_refill_particles_per_cell_target);
+  sim.liquid_particle_refill_seed =
+    argUInt(argc, argv, "--liquid-refill-seed", sim.liquid_particle_refill_seed);
   if (sim.narrow_band_air_radius < 0 ||
       sim.gas_particles_per_cell_target <= 0 ||
-      sim.liquid_particles_per_cell_target <= 0) {
+      sim.liquid_particles_per_cell_target <= 0 ||
+      sim.liquid_refill_particles_per_cell_target <= 0) {
     usage();
     return 2;
   }
@@ -136,6 +145,7 @@ int main(int argc, char** argv) {
   size_t n0 = sim.particles.size();
   size_t liquidCount0 = countType(sim.particles, 0);
   size_t gasCount0 = countType(sim.particles, 1);
+  int liquidRefillAdded0 = sim.liquid_particle_refill_added_total;
   double heavy0 = meanY(sim.particles, 0);
   double gas0 = meanY(sim.particles, 1);
   size_t maxActive = 0;
@@ -151,6 +161,8 @@ int main(int argc, char** argv) {
   double gas1 = meanY(sim.particles, 1);
   size_t liquidCount1 = countType(sim.particles, 0);
   size_t gasCount1 = countType(sim.particles, 1);
+  int liquidRefillAddedDuringRun =
+    sim.liquid_particle_refill_added_total - liquidRefillAdded0;
   bool finite = finiteParticles(sim.particles);
   size_t totalBlocks = sim.grid.totalCellBlocks();
   long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -174,6 +186,12 @@ int main(int argc, char** argv) {
               sim.liquid_particles_per_cell_target);
   std::printf("liquid_particle_coarsening_seed=%u\n",
               sim.liquid_particle_coarsening_seed);
+  std::printf("liquid_particle_refill=%s\n",
+              sim.liquid_particle_refill ? "true" : "false");
+  std::printf("liquid_refill_particles_per_cell_target=%d\n",
+              sim.liquid_refill_particles_per_cell_target);
+  std::printf("liquid_particle_refill_seed=%u\n",
+              sim.liquid_particle_refill_seed);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
   std::printf("liquid_particles_start=%zu\n", liquidCount0);
@@ -211,6 +229,20 @@ int main(int argc, char** argv) {
               sim.liquid_particle_coarsening_before_last);
   std::printf("liquid_particle_coarsening_after_last=%d\n",
               sim.liquid_particle_coarsening_after_last);
+  std::printf("liquid_particle_refill_added_last=%d\n",
+              sim.liquid_particle_refill_added_last);
+  std::printf("liquid_particle_refill_added_total=%d\n",
+              sim.liquid_particle_refill_added_total);
+  std::printf("liquid_particle_refill_added_during_run=%d\n",
+              liquidRefillAddedDuringRun);
+  std::printf("liquid_particle_refill_cells_last=%d\n",
+              sim.liquid_particle_refill_cells_last);
+  std::printf("liquid_particle_refill_underfull_cells_last=%d\n",
+              sim.liquid_particle_refill_underfull_cells_last);
+  std::printf("liquid_particle_refill_before_last=%d\n",
+              sim.liquid_particle_refill_before_last);
+  std::printf("liquid_particle_refill_after_last=%d\n",
+              sim.liquid_particle_refill_after_last);
   std::printf("finite=%s\n", finite ? "true" : "false");
   std::printf("active_pressure_blocks_max=%zu\n", maxActive);
   std::printf("active_pressure_blocks_total=%zu\n", totalBlocks);
@@ -222,13 +254,24 @@ int main(int argc, char** argv) {
 
   bool ok = true;
   const bool gasAdaptivity = sim.narrow_band_air || sim.gas_particle_coarsening;
+  const bool liquidAdaptivity = sim.liquid_particle_coarsening || sim.liquid_particle_refill;
   if (!finite) ok = false;
-  if (sim.narrow_band_air || sim.gas_particle_coarsening || sim.liquid_particle_coarsening) {
-    if (sim.particles.size() > n0) ok = false;
+  if (sim.narrow_band_air || sim.gas_particle_coarsening || liquidAdaptivity) {
+    const size_t maxParticles = n0 +
+      static_cast<size_t>(std::max(0, liquidRefillAddedDuringRun));
+    if (sim.particles.size() > maxParticles) ok = false;
   } else if (sim.particles.size() != n0) {
     ok = false;
   }
-  if (sim.liquid_particle_coarsening) {
+  if (sim.liquid_particle_refill) {
+    const size_t maxLiquid = liquidCount0 +
+      static_cast<size_t>(std::max(0, liquidRefillAddedDuringRun));
+    if (liquidCount1 > maxLiquid) ok = false;
+    if (!sim.liquid_particle_coarsening &&
+        liquidCount1 != maxLiquid) {
+      ok = false;
+    }
+  } else if (sim.liquid_particle_coarsening) {
     if (liquidCount1 > liquidCount0) ok = false;
   } else if (liquidCount1 != liquidCount0) {
     ok = false;
