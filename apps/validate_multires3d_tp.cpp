@@ -486,10 +486,21 @@ int main(int argc, char** argv) {
   std::printf("elapsed_ms_per_step=%.9g\n", elapsedPerStep);
 
   bool ok = true;
+  const bool gasAdaptivity = sim.narrow_band_air || sim.gas_particle_coarsening;
   if (!finite) ok = false;
   if (sim.narrow_band_air || sim.gas_particle_coarsening || sim.liquid_particle_coarsening) {
     if (sim.particles.size() > n0) ok = false;
   } else if (sim.particles.size() != n0) {
+    ok = false;
+  }
+  if (sim.liquid_particle_coarsening) {
+    if (liquidCount1 > liquidCount0) ok = false;
+  } else if (liquidCount1 != liquidCount0) {
+    ok = false;
+  }
+  if (gasAdaptivity) {
+    if (gasCount1 > gasCount0) ok = false;
+  } else if (gasCount1 != gasCount0) {
     ok = false;
   }
   if (!(gas1 > gas0)) ok = false;

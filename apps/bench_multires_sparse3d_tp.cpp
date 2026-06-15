@@ -183,10 +183,11 @@ int main(int argc, char** argv) {
   sparseAdaptive.liquid_particle_coarsening_seed =
     argUInt(argc, argv, "--sparse-liquid-coarsening-seed",
             sparseAdaptive.liquid_particle_coarsening_seed);
+  const bool sparseGasAdaptivity =
+    sparseAdaptive.narrow_band_air || sparseAdaptive.gas_particle_coarsening;
+  const bool sparseLiquidAdaptivity = sparseAdaptive.liquid_particle_coarsening;
   const bool sparseAdaptivity =
-    sparseAdaptive.narrow_band_air ||
-    sparseAdaptive.gas_particle_coarsening ||
-    sparseAdaptive.liquid_particle_coarsening;
+    sparseGasAdaptivity || sparseLiquidAdaptivity;
   mr.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", mr.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) mr.cg_jacobi_preconditioner = false;
   if (hasFlag(argc, argv, "--flexible-cg")) mr.cg_flexible_beta = true;
@@ -220,10 +221,11 @@ int main(int argc, char** argv) {
   mrAdaptive.liquid_particle_coarsening_seed =
     argUInt(argc, argv, "--mr-liquid-coarsening-seed",
             mrAdaptive.liquid_particle_coarsening_seed);
+  const bool mrGasAdaptivity =
+    mrAdaptive.narrow_band_air || mrAdaptive.gas_particle_coarsening;
+  const bool mrLiquidAdaptivity = mrAdaptive.liquid_particle_coarsening;
   const bool mrAdaptivity =
-    mrAdaptive.narrow_band_air ||
-    mrAdaptive.gas_particle_coarsening ||
-    mrAdaptive.liquid_particle_coarsening;
+    mrGasAdaptivity || mrLiquidAdaptivity;
   if (requestedRhoRatio < 0.0 ||
       sparse.phase.rho_l <= 0.0 ||
       sparse.phase.rho_g <= 0.0 ||
@@ -559,16 +561,42 @@ int main(int argc, char** argv) {
       mr.particles.size() != mrN0) ok = false;
   if (sparseMetrics.particlesStart != mrN0 ||
       sparseMetrics.particlesEnd != mr.particles.size()) ok = false;
+  if (sparseMetrics.liquidEnd != sparseMetrics.liquidStart ||
+      sparseMetrics.gasCountEnd != sparseMetrics.gasCountStart ||
+      mrLiquid1 != mrLiquid0 ||
+      mrGasCount1 != mrGasCount0) {
+    ok = false;
+  }
   if (!(sparseRise > 0.0) || !(mrRise > 0.0)) ok = false;
   if (sparseAdaptivity) {
     if (!adaptiveMetrics.finite) ok = false;
     if (adaptiveMetrics.particlesEnd > adaptiveMetrics.particlesStart) ok = false;
+    if (sparseLiquidAdaptivity) {
+      if (adaptiveMetrics.liquidEnd > adaptiveMetrics.liquidStart) ok = false;
+    } else if (adaptiveMetrics.liquidEnd != adaptiveMetrics.liquidStart) {
+      ok = false;
+    }
+    if (sparseGasAdaptivity) {
+      if (adaptiveMetrics.gasCountEnd > adaptiveMetrics.gasCountStart) ok = false;
+    } else if (adaptiveMetrics.gasCountEnd != adaptiveMetrics.gasCountStart) {
+      ok = false;
+    }
     if (!(adaptiveRise > 0.0)) ok = false;
     if (!(adaptiveRiseDelta <= allowedAdaptiveRiseDelta)) ok = false;
   }
   if (mrAdaptivity) {
     if (!adaptiveMrFinite) ok = false;
     if (adaptiveMrN1 > adaptiveMrN0) ok = false;
+    if (mrLiquidAdaptivity) {
+      if (adaptiveMrLiquid1 > adaptiveMrLiquid0) ok = false;
+    } else if (adaptiveMrLiquid1 != adaptiveMrLiquid0) {
+      ok = false;
+    }
+    if (mrGasAdaptivity) {
+      if (adaptiveMrGasCount1 > adaptiveMrGasCount0) ok = false;
+    } else if (adaptiveMrGasCount1 != adaptiveMrGasCount0) {
+      ok = false;
+    }
     if (!(adaptiveMrRise > 0.0)) ok = false;
     if (!(adaptiveMrRiseDelta <= allowedAdaptiveMrRiseDelta)) ok = false;
     if (!(adaptiveMrPressureCells < finePressureCells)) ok = false;
