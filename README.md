@@ -101,6 +101,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S12** | **SPEC-2 liquid particle refill scaffold** - sparse and multires 3D TP sims can deterministically refill underfilled liquid cells up to an opt-in target. | done |
 | **S13** | **SPEC-2 liquid refill runner metrics** - sparse/MR validators and paired bench expose opt-in liquid refill CLI controls, metrics, and bounded count gates. | done |
 | **S14** | **SPEC-2 interface-only liquid refill** - optional refill policy now restores only liquid cells near gas, with sparse/MR tests and runner metrics. | done |
+| **S15** | **SPEC-2 liquid refill add budget** - optional per-step refill budget caps particle creation and is enforced by sparse/MR validators and paired bench. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -154,7 +155,7 @@ cmake --build build --config Release --target validate_sparse3d_tp
 ./build/Release/validate_sparse3d_tp.exe --scenario rt --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2 --gas-coarsening-seed 12345
 ./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2 --gas-coarsening-seed 12345 --liquid-coarsening --liquid-particles-per-cell 4 --liquid-coarsening-seed 54321
 ./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680
-./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680 --liquid-refill-interface-only --liquid-refill-interface-radius 1
+./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680 --liquid-refill-max-added-per-step 160 --liquid-refill-interface-only --liquid-refill-interface-radius 1
 
 # validate 3D multires two-phase bubble metrics
 cmake --build build --config Release --target validate_multires3d_tp
@@ -162,7 +163,7 @@ cmake --build build --config Release --target validate_multires3d_tp
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2 --gas-coarsening-seed 12345
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --narrow-band-air --narrow-band-radius 2 --gas-coarsening --gas-particles-per-cell 2 --gas-coarsening-seed 12345 --liquid-coarsening --liquid-particles-per-cell 4 --liquid-coarsening-seed 54321
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680
-./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680 --liquid-refill-interface-only --liquid-refill-interface-radius 1
+./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680 --liquid-refill-max-added-per-step 160 --liquid-refill-interface-only --liquid-refill-interface-radius 1
 
 # run 3D multires two-phase bubble slices -> mrb3_###.ppm
 cmake --build build --config Release --target run_multires_bubble3d
@@ -175,7 +176,7 @@ cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-narrow-band-air --sparse-narrow-band-radius 2 --sparse-gas-coarsening --sparse-gas-particles-per-cell 2 --sparse-gas-coarsening-seed 12345 --mr-narrow-band-air --mr-narrow-band-radius 2 --mr-gas-coarsening --mr-gas-particles-per-cell 2 --mr-gas-coarsening-seed 12345
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-narrow-band-air --sparse-narrow-band-radius 2 --sparse-gas-coarsening --sparse-gas-particles-per-cell 2 --sparse-gas-coarsening-seed 12345 --sparse-liquid-coarsening --sparse-liquid-particles-per-cell 4 --sparse-liquid-coarsening-seed 54321 --mr-narrow-band-air --mr-narrow-band-radius 2 --mr-gas-coarsening --mr-gas-particles-per-cell 2 --mr-gas-coarsening-seed 12345 --mr-liquid-coarsening --mr-liquid-particles-per-cell 4 --mr-liquid-coarsening-seed 54321
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-liquid-coarsening --sparse-liquid-particles-per-cell 2 --sparse-liquid-coarsening-seed 54321 --sparse-liquid-refill --sparse-liquid-refill-particles-per-cell 4 --sparse-liquid-refill-seed 24680 --mr-liquid-coarsening --mr-liquid-particles-per-cell 2 --mr-liquid-coarsening-seed 54321 --mr-liquid-refill --mr-liquid-refill-particles-per-cell 4 --mr-liquid-refill-seed 24680
-./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-liquid-coarsening --sparse-liquid-particles-per-cell 2 --sparse-liquid-coarsening-seed 54321 --sparse-liquid-refill --sparse-liquid-refill-particles-per-cell 4 --sparse-liquid-refill-seed 24680 --sparse-liquid-refill-interface-only --sparse-liquid-refill-interface-radius 1 --mr-liquid-coarsening --mr-liquid-particles-per-cell 2 --mr-liquid-coarsening-seed 54321 --mr-liquid-refill --mr-liquid-refill-particles-per-cell 4 --mr-liquid-refill-seed 24680 --mr-liquid-refill-interface-only --mr-liquid-refill-interface-radius 1
+./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-liquid-coarsening --sparse-liquid-particles-per-cell 2 --sparse-liquid-coarsening-seed 54321 --sparse-liquid-refill --sparse-liquid-refill-particles-per-cell 4 --sparse-liquid-refill-seed 24680 --sparse-liquid-refill-max-added-per-step 160 --sparse-liquid-refill-interface-only --sparse-liquid-refill-interface-radius 1 --mr-liquid-coarsening --mr-liquid-particles-per-cell 2 --mr-liquid-coarsening-seed 54321 --mr-liquid-refill --mr-liquid-refill-particles-per-cell 4 --mr-liquid-refill-seed 24680 --mr-liquid-refill-max-added-per-step 160 --mr-liquid-refill-interface-only --mr-liquid-refill-interface-radius 1
 
 # compare 3D multires pressure solver variants with baseline-relative summary lines
 cmake --build build --config Release --target bench_multires3d_solver

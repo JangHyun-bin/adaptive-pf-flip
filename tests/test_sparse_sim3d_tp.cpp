@@ -266,6 +266,32 @@ TEST_CASE("sparse 3D two-phase liquid refill can target interface cells only") {
   CHECK(finiteParticles(refill.particles));
 }
 
+TEST_CASE("sparse 3D two-phase liquid refill honors per-step add budget") {
+  SparseSim3DTP refill(6, 6, 6, 1.0);
+  refill.liquid_particle_refill = true;
+  refill.liquid_particle_refill_interface_only = true;
+  refill.liquid_particle_refill_interface_radius = 1;
+  refill.liquid_particle_refill_max_added_per_step = 4;
+  refill.liquid_refill_particles_per_cell_target = 4;
+  refill.liquid_particle_refill_seed = 24680u;
+  refill.particles.add({1.25, 1.25, 1.25}, {1.0, 0.0, 0.0}, 0);
+  refill.particles.add({3.25, 1.25, 1.25}, {2.0, 0.0, 0.0}, 0);
+  refill.particles.add({2.25, 1.25, 1.25}, {0.0, 0.0, 0.0}, 1);
+
+  refill.applyLiquidParticleRefill();
+
+  CHECK(countType(refill.particles, 0) == 6);
+  CHECK(countType(refill.particles, 1) == 1);
+  CHECK(refill.liquid_particle_refill_added_last == 4);
+  CHECK(refill.liquid_particle_refill_budget_limited_last == 1);
+  CHECK(refill.liquid_particle_refill_cells_last == 2);
+  CHECK(refill.liquid_particle_refill_interface_cells_last == 2);
+  CHECK(refill.liquid_particle_refill_underfull_cells_last == 2);
+  CHECK(refill.liquid_particle_refill_before_last == 2);
+  CHECK(refill.liquid_particle_refill_after_last == 6);
+  CHECK(finiteParticles(refill.particles));
+}
+
 TEST_CASE("sparse 3D two-phase bubble tank rises and keeps headspace sparse") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.03;

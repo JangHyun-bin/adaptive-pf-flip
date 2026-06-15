@@ -84,6 +84,7 @@ struct MRSim3DTP {
   bool liquid_particle_refill = false;
   bool liquid_particle_refill_interface_only = false;
   int liquid_particle_refill_interface_radius = 1;
+  int liquid_particle_refill_max_added_per_step = 0;
   int liquid_refill_particles_per_cell_target = 4;
   unsigned int liquid_particle_refill_seed = 0x6a09e667u;
   int liquid_particle_refill_added_last = 0;
@@ -91,6 +92,7 @@ struct MRSim3DTP {
   int liquid_particle_refill_cells_last = 0;
   int liquid_particle_refill_interface_cells_last = 0;
   int liquid_particle_refill_underfull_cells_last = 0;
+  int liquid_particle_refill_budget_limited_last = 0;
   int liquid_particle_refill_before_last = 0;
   int liquid_particle_refill_after_last = 0;
   MRPressureSolveStats3D last_pressure_stats;

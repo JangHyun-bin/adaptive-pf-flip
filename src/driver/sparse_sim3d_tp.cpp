@@ -232,11 +232,13 @@ void SparseSim3DTP::applyLiquidParticleRefill() {
                                     liquid_refill_particles_per_cell_target,
                                     liquid_particle_refill_seed,
                                     liquid_particle_refill_interface_only,
-                                    liquid_particle_refill_interface_radius);
+                                    liquid_particle_refill_interface_radius,
+                                    liquid_particle_refill_max_added_per_step);
   liquid_particle_refill_added_last = result.added;
   liquid_particle_refill_cells_last = result.cells;
   liquid_particle_refill_interface_cells_last = result.interfaceCells;
   liquid_particle_refill_underfull_cells_last = result.underfullCells;
+  liquid_particle_refill_budget_limited_last = result.budgetLimited;
   liquid_particle_refill_before_last = result.particlesBefore;
   liquid_particle_refill_after_last = result.particlesAfter;
   liquid_particle_refill_added_total += liquid_particle_refill_added_last;

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace pa3d {
@@ -66,6 +67,7 @@ struct LiquidParticleRefillResult3D {
   int cells = 0;
   int interfaceCells = 0;
   int underfullCells = 0;
+  int budgetLimited = 0;
   int particlesBefore = 0;
   int particlesAfter = 0;
 };
@@ -246,7 +248,8 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
   int particlesPerCellTarget,
   uint32_t seed,
   bool interfaceOnly = false,
-  int interfaceRadius = 1) {
+  int interfaceRadius = 1,
+  int maxAddedPerStep = 0) {
   LiquidParticleRefillResult3D result;
   if (!enabled) return result;
 
@@ -292,6 +295,9 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
     return false;
   };
 
+  int remainingBudget = maxAddedPerStep > 0
+    ? maxAddedPerStep
+    : std::numeric_limits<int>::max();
   for (size_t cell = 0; cell < cells.size(); ++cell) {
     const int count = cells[cell].count;
     if (count <= 0) continue;
@@ -310,6 +316,10 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
     if (count >= target) continue;
 
     ++result.underfullCells;
+    if (remainingBudget <= 0) {
+      result.budgetLimited = 1;
+      continue;
+    }
     const Vec3 avgVel = cells[cell].velocitySum * (1.0 / static_cast<double>(count));
 
     int slots[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -320,7 +330,11 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
       return a < b;
     });
 
-    const int toAdd = target - count;
+    const int wanted = target - count;
+    const int toAdd = std::min(wanted, remainingBudget);
+    if (toAdd < wanted) {
+      result.budgetLimited = 1;
+    }
     for (int a = 0; a < toAdd; ++a) {
       const int slot = slots[a & 7];
       const double sx = 0.25 + 0.5 * static_cast<double>(slot & 1);
@@ -333,6 +347,7 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
       ++result.added;
       ++result.particlesAfter;
     }
+    remainingBudget -= toAdd;
   }
 
   return result;
