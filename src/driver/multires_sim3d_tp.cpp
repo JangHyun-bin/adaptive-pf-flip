@@ -255,6 +255,8 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   narrow_band_air_removed_total = 0;
   gas_particle_coarsening_removed_last = 0;
   gas_particle_coarsening_removed_total = 0;
+  liquid_particle_coarsening_removed_last = 0;
+  liquid_particle_coarsening_removed_total = 0;
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -305,14 +307,32 @@ void MRSim3DTP::applyGasParticleCoarsening() {
   gas_particle_coarsening_removed_last = result.removed;
   gas_particle_coarsening_cells_last = result.cells;
   gas_particle_coarsening_overfull_cells_last = result.overfullCells;
-  gas_particle_coarsening_before_last = result.gasBefore;
-  gas_particle_coarsening_after_last = result.gasAfter;
+  gas_particle_coarsening_before_last = result.particlesBefore;
+  gas_particle_coarsening_after_last = result.particlesAfter;
   gas_particle_coarsening_removed_total += gas_particle_coarsening_removed_last;
+}
+
+void MRSim3DTP::applyLiquidParticleCoarsening() {
+  const pa3d::ParticleCellDomain3D domain{layout.nx, layout.ny, layout.nz, layout.dx};
+  const pa3d::GasParticleCoarseningResult3D result =
+    pa3d::applyTypedParticleCoarsening(particles,
+                                       domain,
+                                       liquid_particle_coarsening,
+                                       0,
+                                       liquid_particles_per_cell_target,
+                                       liquid_particle_coarsening_seed);
+  liquid_particle_coarsening_removed_last = result.removed;
+  liquid_particle_coarsening_cells_last = result.cells;
+  liquid_particle_coarsening_overfull_cells_last = result.overfullCells;
+  liquid_particle_coarsening_before_last = result.particlesBefore;
+  liquid_particle_coarsening_after_last = result.particlesAfter;
+  liquid_particle_coarsening_removed_total += liquid_particle_coarsening_removed_last;
 }
 
 void MRSim3DTP::applyParticleAdaptivity() {
   applyNarrowBandAir();
   applyGasParticleCoarsening();
+  applyLiquidParticleCoarsening();
 }
 
 void MRSim3DTP::updateDynamicRefinement() {

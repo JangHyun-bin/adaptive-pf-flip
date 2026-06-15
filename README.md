@@ -94,6 +94,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S5** | **SPEC-2 multires particle adaptivity hook** - 3D multires TP sim and validator expose the same opt-in narrow-band and gas coarsening controls. | done |
 | **S6** | **SPEC-2 paired adaptivity bench hook** - sparse-vs-MR bubble bench can now run optional adaptive sparse and adaptive MR variants side by side. | done |
 | **S7** | **SPEC-2 shared 3D adaptivity helpers** - sparse and multires 3D TP sims now share the same narrow-band and stochastic gas-coarsening implementation. | done |
+| **S8** | **SPEC-2 liquid particle coarsening scaffold** - sparse and multires 3D TP sims expose opt-in deterministic liquid particle caps through the shared adaptivity helper. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

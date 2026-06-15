@@ -72,12 +72,22 @@ struct MRSim3DTP {
   int gas_particle_coarsening_overfull_cells_last = 0;
   int gas_particle_coarsening_before_last = 0;
   int gas_particle_coarsening_after_last = 0;
+  bool liquid_particle_coarsening = false;
+  int liquid_particles_per_cell_target = 4;
+  unsigned int liquid_particle_coarsening_seed = 0x7f4a7c15u;
+  int liquid_particle_coarsening_removed_last = 0;
+  int liquid_particle_coarsening_removed_total = 0;
+  int liquid_particle_coarsening_cells_last = 0;
+  int liquid_particle_coarsening_overfull_cells_last = 0;
+  int liquid_particle_coarsening_before_last = 0;
+  int liquid_particle_coarsening_after_last = 0;
   MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);
   void initBubbleTankInterfaceBand();
   void applyNarrowBandAir();
   void applyGasParticleCoarsening();
+  void applyLiquidParticleCoarsening();
   void applyParticleAdaptivity();
   void updateDynamicRefinement();
   void step();

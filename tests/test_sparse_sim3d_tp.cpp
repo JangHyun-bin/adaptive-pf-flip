@@ -156,6 +156,46 @@ TEST_CASE("sparse 3D two-phase gas particle coarsening caps gas per cell") {
   CHECK(finiteParticles(coarse.particles));
 }
 
+TEST_CASE("sparse 3D two-phase liquid particle coarsening caps liquid per cell") {
+  SparseSim3DTP full(12, 12, 8, 1.0);
+  full.initTwoPhaseDamBreak();
+  const size_t fullLiquid = countType(full.particles, 0);
+  const size_t fullGas = countType(full.particles, 1);
+  CHECK(fullLiquid > 8);
+  CHECK(fullLiquid % 8 == 0);
+
+  SparseSim3DTP coarse(12, 12, 8, 1.0);
+  coarse.liquid_particle_coarsening = true;
+  coarse.liquid_particles_per_cell_target = 2;
+  coarse.liquid_particle_coarsening_seed = 54321u;
+  coarse.initTwoPhaseDamBreak();
+  const size_t coarseLiquid = countType(coarse.particles, 0);
+  const size_t coarseGas = countType(coarse.particles, 1);
+  const size_t fullLiquidCells = fullLiquid / 8;
+  const size_t expectedLiquid = fullLiquidCells * 2;
+
+  CHECK(coarseLiquid == expectedLiquid);
+  CHECK(coarseGas == fullGas);
+  CHECK(coarse.particles.size() == coarseLiquid + coarseGas);
+  CHECK(coarse.liquid_particle_coarsening_removed_total ==
+        static_cast<int>(fullLiquid - expectedLiquid));
+  CHECK(coarse.liquid_particle_coarsening_removed_last ==
+        coarse.liquid_particle_coarsening_removed_total);
+  CHECK(coarse.liquid_particle_coarsening_cells_last == static_cast<int>(fullLiquidCells));
+  CHECK(coarse.liquid_particle_coarsening_overfull_cells_last ==
+        static_cast<int>(fullLiquidCells));
+  CHECK(coarse.liquid_particle_coarsening_before_last == static_cast<int>(fullLiquid));
+  CHECK(coarse.liquid_particle_coarsening_after_last == static_cast<int>(expectedLiquid));
+
+  SparseSim3DTP repeat(12, 12, 8, 1.0);
+  repeat.liquid_particle_coarsening = true;
+  repeat.liquid_particles_per_cell_target = 2;
+  repeat.liquid_particle_coarsening_seed = 54321u;
+  repeat.initTwoPhaseDamBreak();
+  CHECK(sameParticleState(coarse.particles, repeat.particles));
+  CHECK(finiteParticles(coarse.particles));
+}
+
 TEST_CASE("sparse 3D two-phase bubble tank rises and keeps headspace sparse") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.03;

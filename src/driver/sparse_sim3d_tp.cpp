@@ -102,6 +102,8 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   narrow_band_air_removed_total = 0;
   gas_particle_coarsening_removed_last = 0;
   gas_particle_coarsening_removed_total = 0;
+  liquid_particle_coarsening_removed_last = 0;
+  liquid_particle_coarsening_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -122,6 +124,8 @@ void SparseSim3DTP::initRayleighTaylor() {
   narrow_band_air_removed_total = 0;
   gas_particle_coarsening_removed_last = 0;
   gas_particle_coarsening_removed_total = 0;
+  liquid_particle_coarsening_removed_last = 0;
+  liquid_particle_coarsening_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -143,6 +147,8 @@ void SparseSim3DTP::initBubbleTank() {
   narrow_band_air_removed_total = 0;
   gas_particle_coarsening_removed_last = 0;
   gas_particle_coarsening_removed_total = 0;
+  liquid_particle_coarsening_removed_last = 0;
+  liquid_particle_coarsening_removed_total = 0;
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -187,14 +193,33 @@ void SparseSim3DTP::applyGasParticleCoarsening() {
   gas_particle_coarsening_removed_last = result.removed;
   gas_particle_coarsening_cells_last = result.cells;
   gas_particle_coarsening_overfull_cells_last = result.overfullCells;
-  gas_particle_coarsening_before_last = result.gasBefore;
-  gas_particle_coarsening_after_last = result.gasAfter;
+  gas_particle_coarsening_before_last = result.particlesBefore;
+  gas_particle_coarsening_after_last = result.particlesAfter;
   gas_particle_coarsening_removed_total += gas_particle_coarsening_removed_last;
+}
+
+void SparseSim3DTP::applyLiquidParticleCoarsening() {
+  const pa3d::ParticleCellDomain3D domain{grid.nx, grid.ny, grid.nz, grid.dx,
+                                          grid.ox, grid.oy, grid.oz};
+  const pa3d::GasParticleCoarseningResult3D result =
+    pa3d::applyTypedParticleCoarsening(particles,
+                                       domain,
+                                       liquid_particle_coarsening,
+                                       0,
+                                       liquid_particles_per_cell_target,
+                                       liquid_particle_coarsening_seed);
+  liquid_particle_coarsening_removed_last = result.removed;
+  liquid_particle_coarsening_cells_last = result.cells;
+  liquid_particle_coarsening_overfull_cells_last = result.overfullCells;
+  liquid_particle_coarsening_before_last = result.particlesBefore;
+  liquid_particle_coarsening_after_last = result.particlesAfter;
+  liquid_particle_coarsening_removed_total += liquid_particle_coarsening_removed_last;
 }
 
 void SparseSim3DTP::applyParticleAdaptivity() {
   applyNarrowBandAir();
   applyGasParticleCoarsening();
+  applyLiquidParticleCoarsening();
 }
 
 void SparseSim3DTP::step() {

@@ -57,8 +57,8 @@ struct GasParticleCoarseningResult3D {
   int removed = 0;
   int cells = 0;
   int overfullCells = 0;
-  int gasBefore = 0;
-  int gasAfter = 0;
+  int particlesBefore = 0;
+  int particlesAfter = 0;
 };
 
 inline uint32_t mix32(uint32_t x) {
@@ -145,10 +145,11 @@ inline NarrowBandAirResult3D applyNarrowBandAir(Particles3DTP& particles,
   return result;
 }
 
-inline GasParticleCoarseningResult3D applyGasParticleCoarsening(
+inline GasParticleCoarseningResult3D applyTypedParticleCoarsening(
   Particles3DTP& particles,
   const ParticleCellDomain3D& domain,
   bool enabled,
+  unsigned char particleType,
   int particlesPerCellTarget,
   uint32_t seed) {
   GasParticleCoarseningResult3D result;
@@ -165,8 +166,8 @@ inline GasParticleCoarseningResult3D applyGasParticleCoarsening(
   entries.reserve(particles.size());
   std::vector<unsigned char> keep(particles.size(), 0);
   for (size_t p = 0; p < particles.size(); ++p) {
-    if (particles.type[p] != 1) continue;
-    ++result.gasBefore;
+    if (particles.type[p] != particleType) continue;
+    ++result.particlesBefore;
     int i = 0, j = 0, k = 0;
     if (!domain.particleCell(particles, p, i, j, k)) {
       continue;
@@ -195,17 +196,31 @@ inline GasParticleCoarseningResult3D applyGasParticleCoarsening(
     const size_t keepCount = std::min(groupCount, static_cast<size_t>(target));
     for (size_t t = 0; t < keepCount; ++t) {
       keep[entries[groupStart + t].index] = 1;
-      ++result.gasAfter;
+      ++result.particlesAfter;
     }
     groupStart = groupEnd;
   }
 
   const size_t removed = particles.eraseIf([&](size_t p) {
-    if (particles.type[p] != 1) return false;
+    if (particles.type[p] != particleType) return false;
     return keep[p] == 0;
   });
   result.removed = static_cast<int>(removed);
   return result;
+}
+
+inline GasParticleCoarseningResult3D applyGasParticleCoarsening(
+  Particles3DTP& particles,
+  const ParticleCellDomain3D& domain,
+  bool enabled,
+  int particlesPerCellTarget,
+  uint32_t seed) {
+  return applyTypedParticleCoarsening(particles,
+                                      domain,
+                                      enabled,
+                                      1,
+                                      particlesPerCellTarget,
+                                      seed);
 }
 
 } // namespace pa3d
