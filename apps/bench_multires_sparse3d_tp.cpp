@@ -52,6 +52,14 @@ double meanY(const Particles3DTP& ps, unsigned char type) {
   return count ? sum / count : 0.0;
 }
 
+size_t countType(const Particles3DTP& ps, unsigned char type) {
+  size_t count = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) ++count;
+  }
+  return count;
+}
+
 bool finiteParticles(const Particles3DTP& ps) {
   for (size_t i = 0; i < ps.size(); ++i) {
     if (!std::isfinite(ps.pos[i].x) ||
@@ -66,6 +74,10 @@ bool finiteParticles(const Particles3DTP& ps) {
 struct SparseMetrics {
   size_t particlesStart = 0;
   size_t particlesEnd = 0;
+  size_t liquidStart = 0;
+  size_t liquidEnd = 0;
+  size_t gasCountStart = 0;
+  size_t gasCountEnd = 0;
   double gasStart = 0.0;
   double gasEnd = 0.0;
   size_t maxBlocks = 0;
@@ -77,6 +89,8 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   sim.initBubbleTank();
   SparseMetrics metrics;
   metrics.particlesStart = sim.particles.size();
+  metrics.liquidStart = countType(sim.particles, 0);
+  metrics.gasCountStart = countType(sim.particles, 1);
   metrics.gasStart = meanY(sim.particles, 1);
 
   auto start = std::chrono::steady_clock::now();
@@ -87,6 +101,8 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   auto end = std::chrono::steady_clock::now();
 
   metrics.particlesEnd = sim.particles.size();
+  metrics.liquidEnd = countType(sim.particles, 0);
+  metrics.gasCountEnd = countType(sim.particles, 1);
   metrics.gasEnd = meanY(sim.particles, 1);
   metrics.finite = finiteParticles(sim.particles);
   metrics.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -243,6 +259,8 @@ int main(int argc, char** argv) {
   mr.initBubbleTankInterfaceBand();
 
   size_t mrN0 = mr.particles.size();
+  size_t mrLiquid0 = countType(mr.particles, 0);
+  size_t mrGasCount0 = countType(mr.particles, 1);
   double mrGas0 = meanY(mr.particles, 1);
 
   auto mrStart = std::chrono::steady_clock::now();
@@ -252,11 +270,17 @@ int main(int argc, char** argv) {
   auto mrEnd = std::chrono::steady_clock::now();
 
   double mrGas1 = meanY(mr.particles, 1);
+  size_t mrLiquid1 = countType(mr.particles, 0);
+  size_t mrGasCount1 = countType(mr.particles, 1);
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
   long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
   size_t adaptiveMrN0 = mrN0;
   size_t adaptiveMrN1 = mr.particles.size();
+  size_t adaptiveMrLiquid0 = mrLiquid0;
+  size_t adaptiveMrLiquid1 = mrLiquid1;
+  size_t adaptiveMrGasCount0 = mrGasCount0;
+  size_t adaptiveMrGasCount1 = mrGasCount1;
   double adaptiveMrGas0 = mrGas0;
   double adaptiveMrGas1 = mrGas1;
   bool adaptiveMrFinite = mrFinite;
@@ -265,6 +289,8 @@ int main(int argc, char** argv) {
   if (mrAdaptivity) {
     mrAdaptive.initBubbleTankInterfaceBand();
     adaptiveMrN0 = mrAdaptive.particles.size();
+    adaptiveMrLiquid0 = countType(mrAdaptive.particles, 0);
+    adaptiveMrGasCount0 = countType(mrAdaptive.particles, 1);
     adaptiveMrGas0 = meanY(mrAdaptive.particles, 1);
 
     auto adaptiveMrStart = std::chrono::steady_clock::now();
@@ -274,6 +300,8 @@ int main(int argc, char** argv) {
     auto adaptiveMrEnd = std::chrono::steady_clock::now();
 
     adaptiveMrN1 = mrAdaptive.particles.size();
+    adaptiveMrLiquid1 = countType(mrAdaptive.particles, 0);
+    adaptiveMrGasCount1 = countType(mrAdaptive.particles, 1);
     adaptiveMrGas1 = meanY(mrAdaptive.particles, 1);
     adaptiveMrFinite = finiteParticles(mrAdaptive.particles);
     adaptiveMrPressureCells = mrAdaptive.activePressureCellCount();
@@ -383,6 +411,22 @@ int main(int argc, char** argv) {
   std::printf("mr_particles_end=%zu\n", mr.particles.size());
   std::printf("adaptive_mr_particles_start=%zu\n", adaptiveMrN0);
   std::printf("adaptive_mr_particles_end=%zu\n", adaptiveMrN1);
+  std::printf("sparse_liquid_particles_start=%zu\n", sparseMetrics.liquidStart);
+  std::printf("sparse_liquid_particles_end=%zu\n", sparseMetrics.liquidEnd);
+  std::printf("sparse_gas_particles_start=%zu\n", sparseMetrics.gasCountStart);
+  std::printf("sparse_gas_particles_end=%zu\n", sparseMetrics.gasCountEnd);
+  std::printf("adaptive_sparse_liquid_particles_start=%zu\n", adaptiveMetrics.liquidStart);
+  std::printf("adaptive_sparse_liquid_particles_end=%zu\n", adaptiveMetrics.liquidEnd);
+  std::printf("adaptive_sparse_gas_particles_start=%zu\n", adaptiveMetrics.gasCountStart);
+  std::printf("adaptive_sparse_gas_particles_end=%zu\n", adaptiveMetrics.gasCountEnd);
+  std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
+  std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
+  std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
+  std::printf("mr_gas_particles_end=%zu\n", mrGasCount1);
+  std::printf("adaptive_mr_liquid_particles_start=%zu\n", adaptiveMrLiquid0);
+  std::printf("adaptive_mr_liquid_particles_end=%zu\n", adaptiveMrLiquid1);
+  std::printf("adaptive_mr_gas_particles_start=%zu\n", adaptiveMrGasCount0);
+  std::printf("adaptive_mr_gas_particles_end=%zu\n", adaptiveMrGasCount1);
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");

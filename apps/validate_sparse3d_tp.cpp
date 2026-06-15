@@ -58,6 +58,14 @@ double meanY(const Particles3DTP& ps, unsigned char type) {
   return count ? sum / count : 0.0;
 }
 
+size_t countType(const Particles3DTP& ps, unsigned char type) {
+  size_t count = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) ++count;
+  }
+  return count;
+}
+
 bool finiteParticles(const Particles3DTP& ps) {
   for (size_t i = 0; i < ps.size(); ++i) {
     if (!std::isfinite(ps.pos[i].x) || !std::isfinite(ps.pos[i].y) || !std::isfinite(ps.pos[i].z)) {
@@ -126,6 +134,8 @@ int main(int argc, char** argv) {
   }
 
   size_t n0 = sim.particles.size();
+  size_t liquidCount0 = countType(sim.particles, 0);
+  size_t gasCount0 = countType(sim.particles, 1);
   double heavy0 = meanY(sim.particles, 0);
   double gas0 = meanY(sim.particles, 1);
   size_t maxActive = 0;
@@ -139,6 +149,8 @@ int main(int argc, char** argv) {
 
   double heavy1 = meanY(sim.particles, 0);
   double gas1 = meanY(sim.particles, 1);
+  size_t liquidCount1 = countType(sim.particles, 0);
+  size_t gasCount1 = countType(sim.particles, 1);
   bool finite = finiteParticles(sim.particles);
   size_t totalBlocks = sim.grid.totalCellBlocks();
   long long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -164,6 +176,10 @@ int main(int argc, char** argv) {
               sim.liquid_particle_coarsening_seed);
   std::printf("particles_start=%zu\n", n0);
   std::printf("particles_end=%zu\n", sim.particles.size());
+  std::printf("liquid_particles_start=%zu\n", liquidCount0);
+  std::printf("liquid_particles_end=%zu\n", liquidCount1);
+  std::printf("gas_particles_start=%zu\n", gasCount0);
+  std::printf("gas_particles_end=%zu\n", gasCount1);
   std::printf("narrow_band_removed_last=%d\n", sim.narrow_band_air_removed_last);
   std::printf("narrow_band_removed_total=%d\n", sim.narrow_band_air_removed_total);
   std::printf("narrow_band_liquid_cells_last=%d\n", sim.narrow_band_air_liquid_cells_last);
