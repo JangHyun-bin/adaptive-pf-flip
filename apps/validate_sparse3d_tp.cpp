@@ -66,6 +66,14 @@ size_t countType(const Particles3DTP& ps, unsigned char type) {
   return count;
 }
 
+double volumeType(const Particles3DTP& ps, unsigned char type, double Vp) {
+  double volume = 0.0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) volume += ps.volume[i] * Vp;
+  }
+  return volume;
+}
+
 bool finiteParticles(const Particles3DTP& ps) {
   for (size_t i = 0; i < ps.size(); ++i) {
     if (!std::isfinite(ps.pos[i].x) || !std::isfinite(ps.pos[i].y) || !std::isfinite(ps.pos[i].z)) {
@@ -157,6 +165,8 @@ int main(int argc, char** argv) {
   size_t n0 = sim.particles.size();
   size_t liquidCount0 = countType(sim.particles, 0);
   size_t gasCount0 = countType(sim.particles, 1);
+  double liquidVolume0 = volumeType(sim.particles, 0, sim.Vp);
+  double gasVolume0 = volumeType(sim.particles, 1, sim.Vp);
   int liquidCoarseningRemoved0 = sim.liquid_particle_coarsening_removed_total;
   int liquidRefillAdded0 = sim.liquid_particle_refill_added_total;
   double heavy0 = meanY(sim.particles, 0);
@@ -174,6 +184,8 @@ int main(int argc, char** argv) {
   double gas1 = meanY(sim.particles, 1);
   size_t liquidCount1 = countType(sim.particles, 0);
   size_t gasCount1 = countType(sim.particles, 1);
+  double liquidVolume1 = volumeType(sim.particles, 0, sim.Vp);
+  double gasVolume1 = volumeType(sim.particles, 1, sim.Vp);
   int liquidCoarseningRemovedDuringRun =
     sim.liquid_particle_coarsening_removed_total - liquidCoarseningRemoved0;
   int liquidRefillAddedDuringRun =
@@ -219,6 +231,14 @@ int main(int argc, char** argv) {
   std::printf("liquid_particles_end=%zu\n", liquidCount1);
   std::printf("gas_particles_start=%zu\n", gasCount0);
   std::printf("gas_particles_end=%zu\n", gasCount1);
+  std::printf("liquid_volume_start=%.9g\n", liquidVolume0);
+  std::printf("liquid_volume_end=%.9g\n", liquidVolume1);
+  std::printf("liquid_mass_start=%.9g\n", liquidVolume0 * sim.phase.rho_l);
+  std::printf("liquid_mass_end=%.9g\n", liquidVolume1 * sim.phase.rho_l);
+  std::printf("gas_volume_start=%.9g\n", gasVolume0);
+  std::printf("gas_volume_end=%.9g\n", gasVolume1);
+  std::printf("gas_mass_start=%.9g\n", gasVolume0 * sim.phase.rho_g);
+  std::printf("gas_mass_end=%.9g\n", gasVolume1 * sim.phase.rho_g);
   std::printf("narrow_band_removed_last=%d\n", sim.narrow_band_air_removed_last);
   std::printf("narrow_band_removed_total=%d\n", sim.narrow_band_air_removed_total);
   std::printf("narrow_band_liquid_cells_last=%d\n", sim.narrow_band_air_liquid_cells_last);
@@ -282,7 +302,15 @@ int main(int argc, char** argv) {
   bool ok = true;
   const bool gasAdaptivity = sim.narrow_band_air || sim.gas_particle_coarsening;
   const bool liquidAdaptivity = sim.liquid_particle_coarsening || sim.liquid_particle_refill;
+  const double liquidVolumeTol = std::max(1e-9, std::abs(liquidVolume0) * 1e-9);
+  const double gasVolumeTol = std::max(1e-9, std::abs(gasVolume0) * 1e-9);
   if (!finite) ok = false;
+  if (std::abs(liquidVolume1 - liquidVolume0) > liquidVolumeTol) ok = false;
+  if (sim.narrow_band_air) {
+    if (gasVolume1 > gasVolume0 + gasVolumeTol) ok = false;
+  } else if (std::abs(gasVolume1 - gasVolume0) > gasVolumeTol) {
+    ok = false;
+  }
   if (sim.narrow_band_air || sim.gas_particle_coarsening || liquidAdaptivity) {
     const size_t maxParticles = n0 +
       static_cast<size_t>(std::max(0, liquidRefillAddedDuringRun));

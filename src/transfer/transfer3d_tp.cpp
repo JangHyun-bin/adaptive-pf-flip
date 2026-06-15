@@ -38,7 +38,7 @@ void p2g_tp(UniformGrid3D& g, const Particles3DTP& ps, const PhaseParams& pp, do
   std::fill(g.ufield.begin(),g.ufield.end(),0.0);std::fill(g.vfield.begin(),g.vfield.end(),0.0);std::fill(g.wfield.begin(),g.wfield.end(),0.0);
   std::fill(g.mu.begin(),g.mu.end(),0.0);std::fill(g.mv.begin(),g.mv.end(),0.0);std::fill(g.mw.begin(),g.mw.end(),0.0);
   for(size_t p=0;p<ps.size();++p){
-    double rho=(ps.type[p]==0)?pp.rho_l:pp.rho_g; double mp=rho*Vp;
+    double rho=(ps.type[p]==0)?pp.rho_l:pp.rho_g; double mp=rho*Vp*ps.volume[p];
     double px=(ps.pos[p].x-g.ox)/g.dx,py=(ps.pos[p].y-g.oy)/g.dx,pz=(ps.pos[p].z-g.oz)/g.dx;
     splatN(g.ufield,g.mu, g.nx+1,g.nx+1,g.ny,g.nz, px, py-0.5, pz-0.5, mp*ps.vel[p].x, mp, KR);
     splatN(g.vfield,g.mv, g.nx,  g.nx,g.ny+1,g.nz, px-0.5, py, pz-0.5, mp*ps.vel[p].y, mp, KR);

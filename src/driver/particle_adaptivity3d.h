@@ -177,6 +177,7 @@ inline GasParticleCoarseningResult3D applyTypedParticleCoarsening(
     size_t index = 0;
     size_t cell = 0;
     uint32_t score = 0;
+    double volume = 1.0;
   };
 
   const int target = std::max(1, particlesPerCellTarget);
@@ -192,7 +193,8 @@ inline GasParticleCoarseningResult3D applyTypedParticleCoarsening(
     }
     entries.push_back(GasEntry{p,
                                domain.cellIndex(i, j, k),
-                               particleScore(domain, particles, p, i, j, k, seed)});
+                               particleScore(domain, particles, p, i, j, k, seed),
+                               particles.volume[p]});
   }
   std::sort(entries.begin(), entries.end(), [](const GasEntry& a, const GasEntry& b) {
     if (a.cell != b.cell) return a.cell < b.cell;
@@ -212,8 +214,17 @@ inline GasParticleCoarseningResult3D applyTypedParticleCoarsening(
       ++result.overfullCells;
     }
     const size_t keepCount = std::min(groupCount, static_cast<size_t>(target));
+    double volumeSum = 0.0;
+    for (size_t t = groupStart; t < groupEnd; ++t) {
+      volumeSum += entries[t].volume;
+    }
+    const double keptVolume = keepCount > 0
+      ? volumeSum / static_cast<double>(keepCount)
+      : 0.0;
     for (size_t t = 0; t < keepCount; ++t) {
-      keep[entries[groupStart + t].index] = 1;
+      const size_t p = entries[groupStart + t].index;
+      keep[p] = 1;
+      particles.volume[p] = keptVolume;
       ++result.particlesAfter;
     }
     groupStart = groupEnd;
@@ -255,7 +266,9 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
 
   struct CellInfo {
     int count = 0;
+    double volumeSum = 0.0;
     Vec3 velocitySum;
+    std::vector<size_t> indices;
   };
 
   const int target = std::max(1, particlesPerCellTarget);
@@ -271,7 +284,9 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
     if (particles.type[p] == 0) {
       CellInfo& info = cells[cell];
       ++info.count;
+      info.volumeSum += particles.volume[p];
       info.velocitySum += particles.vel[p];
+      info.indices.push_back(p);
     } else if (particles.type[p] == 1) {
       gasCells[cell] = 1;
     }
@@ -335,6 +350,11 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
     if (toAdd < wanted) {
       result.budgetLimited = 1;
     }
+    const double splitVolume =
+      cells[cell].volumeSum / static_cast<double>(count + toAdd);
+    for (size_t p : cells[cell].indices) {
+      particles.volume[p] = splitVolume;
+    }
     for (int a = 0; a < toAdd; ++a) {
       const int slot = slots[a & 7];
       const double sx = 0.25 + 0.5 * static_cast<double>(slot & 1);
@@ -343,7 +363,7 @@ inline LiquidParticleRefillResult3D applyLiquidParticleRefill(
       const Vec3 pos{domain.ox + (static_cast<double>(i) + sx) * domain.dx,
                      domain.oy + (static_cast<double>(j) + sy) * domain.dx,
                      domain.oz + (static_cast<double>(k) + sz) * domain.dx};
-      particles.add(pos, avgVel, 0);
+      particles.add(pos, avgVel, 0, splitVolume);
       ++result.added;
       ++result.particlesAfter;
     }

@@ -103,6 +103,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S14** | **SPEC-2 interface-only liquid refill** - optional refill policy now restores only liquid cells near gas, with sparse/MR tests and runner metrics. | done |
 | **S15** | **SPEC-2 liquid refill add budget** - optional per-step refill budget caps particle creation and is enforced by sparse/MR validators and paired bench. | done |
 | **S16** | **SPEC-2 liquid refill mass accounting** - runner gates now require run-time liquid refill additions to stay within liquid coarsening removals when both are enabled. | done |
+| **S17** | **SPEC-2 volume-weighted particle adaptivity** - 3D TP particles carry volume multipliers, coarsen/refill redistributes volume, and runners gate phase volume/mass drift. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

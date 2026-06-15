@@ -13,6 +13,14 @@ size_t countType(const Particles3DTP& particles, unsigned char type) {
   return count;
 }
 
+double volumeType(const Particles3DTP& particles, unsigned char type) {
+  double volume = 0.0;
+  for (size_t i = 0; i < particles.size(); ++i) {
+    if (particles.type[i] == type) volume += particles.volume[i];
+  }
+  return volume;
+}
+
 bool finiteParticles(const Particles3DTP& particles) {
   for (size_t i = 0; i < particles.size(); ++i) {
     const auto& p = particles.pos[i];
@@ -161,6 +169,8 @@ TEST_CASE("sparse 3D two-phase liquid particle coarsening caps liquid per cell")
   full.initTwoPhaseDamBreak();
   const size_t fullLiquid = countType(full.particles, 0);
   const size_t fullGas = countType(full.particles, 1);
+  const double fullLiquidVolume = volumeType(full.particles, 0);
+  const double fullGasVolume = volumeType(full.particles, 1);
   CHECK(fullLiquid > 8);
   CHECK(fullLiquid % 8 == 0);
 
@@ -176,6 +186,8 @@ TEST_CASE("sparse 3D two-phase liquid particle coarsening caps liquid per cell")
 
   CHECK(coarseLiquid == expectedLiquid);
   CHECK(coarseGas == fullGas);
+  CHECK(volumeType(coarse.particles, 0) == doctest::Approx(fullLiquidVolume));
+  CHECK(volumeType(coarse.particles, 1) == doctest::Approx(fullGasVolume));
   CHECK(coarse.particles.size() == coarseLiquid + coarseGas);
   CHECK(coarse.liquid_particle_coarsening_removed_total ==
         static_cast<int>(fullLiquid - expectedLiquid));
@@ -201,6 +213,8 @@ TEST_CASE("sparse 3D two-phase liquid refill restores underfilled liquid cells")
   full.initTwoPhaseDamBreak();
   const size_t fullLiquid = countType(full.particles, 0);
   const size_t fullGas = countType(full.particles, 1);
+  const double fullLiquidVolume = volumeType(full.particles, 0);
+  const double fullGasVolume = volumeType(full.particles, 1);
   REQUIRE(fullLiquid > 8);
   REQUIRE(fullLiquid % 8 == 0);
 
@@ -219,6 +233,8 @@ TEST_CASE("sparse 3D two-phase liquid refill restores underfilled liquid cells")
 
   CHECK(countType(refill.particles, 0) == expectedLiquid);
   CHECK(countType(refill.particles, 1) == fullGas);
+  CHECK(volumeType(refill.particles, 0) == doctest::Approx(fullLiquidVolume));
+  CHECK(volumeType(refill.particles, 1) == doctest::Approx(fullGasVolume));
   CHECK(refill.liquid_particle_coarsening_removed_total ==
         static_cast<int>(fullLiquid - coarsenedLiquid));
   CHECK(refill.liquid_particle_refill_added_total ==

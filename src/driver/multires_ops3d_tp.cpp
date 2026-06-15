@@ -221,7 +221,7 @@ void mrP2G3D_tp(MRMacGrid3D<4>& g, const Particles3DTP& ps, const PhaseParams& p
 
   for (size_t p = 0; p < ps.size(); ++p) {
     double rho = ps.type[p] == 0 ? pp.rho_l : pp.rho_g;
-    double mp = rho * Vp;
+    double mp = rho * Vp * ps.volume[p];
     double px = ps.pos[p].x / g.layout.dx;
     double py = ps.pos[p].y / g.layout.dx;
     double pz = ps.pos[p].z / g.layout.dx;

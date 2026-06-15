@@ -110,7 +110,7 @@ void spP2G3D_tp(SparseMacGrid3D<4>& g, const Particles3DTP& ps, const PhaseParam
   sparse3d::runColor8(ps.size(), [&](int color) {
     for (size_t p = 0; p < ps.size(); ++p) {
       double rho = (ps.type[p] == 0) ? pp.rho_l : pp.rho_g;
-      double mp = rho * Vp;
+      double mp = rho * Vp * ps.volume[p];
       double px = (ps.pos[p].x - g.ox) / g.dx;
       double py = (ps.pos[p].y - g.oy) / g.dx;
       double pz = (ps.pos[p].z - g.oz) / g.dx;
