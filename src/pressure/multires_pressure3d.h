@@ -97,6 +97,8 @@ struct MRPressureSolveStats3D {
   double coarse_preconditioner_relative_tolerance = 0.0;
   double coarse_preconditioner_effective_tolerance = 0.0;
   double coarse_preconditioner_scale = 0.0;
+  double coarse_preconditioner_min_rz_gain = 0.0;
+  double coarse_preconditioner_last_rz_gain = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_residual = 0.0;
@@ -145,6 +147,7 @@ struct MRPressureSolveConfig3D {
   double coarse_preconditioner_absolute_tolerance = 0.0;
   double coarse_preconditioner_relative_tolerance = 1e-2;
   double coarse_preconditioner_scale = 1.0;
+  double coarse_preconditioner_min_rz_gain = 0.0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);

@@ -403,6 +403,7 @@ void MRSim3DTP::step() {
   pressureConfig.coarse_preconditioner_absolute_tolerance = cg_coarse_preconditioner_abs_tol;
   pressureConfig.coarse_preconditioner_relative_tolerance = cg_coarse_preconditioner_rel_tol;
   pressureConfig.coarse_preconditioner_scale = cg_coarse_preconditioner_scale;
+  pressureConfig.coarse_preconditioner_min_rz_gain = cg_coarse_preconditioner_min_rz_gain;
   projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   mrAdvect3D_tp(particles, grid, dt);

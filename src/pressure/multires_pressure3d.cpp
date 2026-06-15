@@ -296,6 +296,7 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.coarse_preconditioner_tolerance = config.coarse_preconditioner_absolute_tolerance;
   stats.coarse_preconditioner_relative_tolerance = config.coarse_preconditioner_relative_tolerance;
   stats.coarse_preconditioner_scale = config.coarse_preconditioner_scale;
+  stats.coarse_preconditioner_min_rz_gain = config.coarse_preconditioner_min_rz_gain;
   return stats;
 }
 
@@ -318,7 +319,8 @@ void validateSolveConfig(const MRPressureSolveConfig3D& config) {
       config.coarse_preconditioner_iterations < 0 ||
       config.coarse_preconditioner_absolute_tolerance < 0.0 ||
       config.coarse_preconditioner_relative_tolerance < 0.0 ||
-      config.coarse_preconditioner_scale < 0.0) {
+      config.coarse_preconditioner_scale < 0.0 ||
+      config.coarse_preconditioner_min_rz_gain < 0.0) {
     throw std::invalid_argument("projectMR3D invalid solve config");
   }
 }
@@ -1252,6 +1254,8 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
         double d = rows[c.index].diag;
         z[c.index] = (config.use_jacobi_preconditioner && d > 0.0) ? r[c.index] / d : r[c.index];
       }
+      const double rzBase = dot(r, z);
+      const bool baseOk = std::isfinite(rzBase) && rzBase > 0.0;
 
       if (solveCoarsePreconditioner()) {
         candidateZ = z;
@@ -1261,7 +1265,14 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
         }
 
         double rzCandidate = dot(r, candidateZ);
-        if (std::isfinite(rzCandidate) && rzCandidate > 0.0) {
+        if (std::isfinite(rzCandidate) && baseOk) {
+          localStats.coarse_preconditioner_last_rz_gain = rzCandidate / rzBase - 1.0;
+        }
+        const double minAcceptedRz =
+          baseOk ? rzBase * (1.0 + config.coarse_preconditioner_min_rz_gain) : 0.0;
+        if (std::isfinite(rzCandidate) &&
+            rzCandidate > 0.0 &&
+            (!baseOk || rzCandidate >= minAcceptedRz)) {
           z.swap(candidateZ);
           ++localStats.coarse_preconditioner_accepted_applications;
         } else {
