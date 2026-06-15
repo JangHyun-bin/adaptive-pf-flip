@@ -406,6 +406,10 @@ void MRSim3DTP::step() {
   pressureConfig.coarse_preconditioner_min_rz_gain = cg_coarse_preconditioner_min_rz_gain;
   pressureConfig.coarse_preconditioner_max_work_ratio =
     cg_coarse_preconditioner_max_work_ratio;
+  pressureConfig.coarse_preconditioner_auto_disable =
+    cg_coarse_preconditioner_auto_disable;
+  pressureConfig.coarse_preconditioner_auto_disable_after =
+    cg_coarse_preconditioner_auto_disable_after;
   projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   mrAdvect3D_tp(particles, grid, dt);

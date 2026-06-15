@@ -70,6 +70,7 @@ void usage() {
                "[--coarse-pre-abs-tol T] [--coarse-pre-scale S] "
                "[--coarse-pre-min-rz-gain G] "
                "[--coarse-pre-max-work-ratio W] "
+               "[--coarse-pre-auto-disable] [--coarse-pre-auto-disable-after N] "
                "[--coarse-pre-sweep]\n");
 }
 
@@ -84,11 +85,14 @@ struct Variant {
   double coarsePreScaleOverride = -1.0;
   double coarsePreMinRzGainOverride = -1.0;
   double coarsePreMaxWorkRatioOverride = -1.0;
+  bool coarsePreAutoDisable = false;
+  int coarsePreAutoDisableAfterOverride = -1;
 };
 
 struct RunResult {
   std::string name;
   bool ok = false;
+  bool coarsePreconditioner = false;
   int iterations = 0;
   int maxIterations = 0;
   long long elapsedMs = 0;
@@ -106,6 +110,11 @@ struct RunResult {
   double coarsePreconditionerMinRzGain = 0.0;
   double coarsePreconditionerLastRzGain = 0.0;
   double coarsePreconditionerMaxWorkRatio = 0.0;
+  bool coarsePreconditionerAutoDisable = false;
+  bool coarsePreconditionerAutoDisabled = false;
+  int coarsePreconditionerAutoDisableAfter = 0;
+  int coarsePreconditionerAutoDisableIteration = -1;
+  int coarsePreconditionerAutoDisableWastedStreak = 0;
   bool converged = false;
   bool breakdown = false;
   bool coarsePreconditionerBudgetExhausted = false;
@@ -158,6 +167,10 @@ void printSummary(const std::vector<RunResult>& results) {
                 "coarse_pre_skipped=%d coarse_pre_budget_limited=%d "
                 "coarse_pre_budget_exhausted=%s coarse_pre_scale=%.9g "
                 "coarse_pre_min_rz_gain=%.9g coarse_pre_last_rz_gain=%.9g "
+                "coarse_pre_auto_disable=%s coarse_pre_auto_disabled=%s "
+                "coarse_pre_auto_disable_after=%d "
+                "coarse_pre_auto_disable_iteration=%d "
+                "coarse_pre_auto_disable_wasted_streak=%d "
                 "coarse_pre_max_work_ratio=%.9g\n",
                 result.name.c_str(),
                 result.ok ? "ok" : "fail",
@@ -180,7 +193,50 @@ void printSummary(const std::vector<RunResult>& results) {
                 result.coarsePreconditionerScale,
                 result.coarsePreconditionerMinRzGain,
                 result.coarsePreconditionerLastRzGain,
+                result.coarsePreconditionerAutoDisable ? "true" : "false",
+                result.coarsePreconditionerAutoDisabled ? "true" : "false",
+                result.coarsePreconditionerAutoDisableAfter,
+                result.coarsePreconditionerAutoDisableIteration,
+                result.coarsePreconditionerAutoDisableWastedStreak,
                 result.coarsePreconditionerMaxWorkRatio);
+  }
+
+  const RunResult* bestOk = nullptr;
+  const RunResult* bestCoarsePreOk = nullptr;
+  for (const RunResult& result : results) {
+    if (!result.ok) continue;
+    if (!bestOk ||
+        totalWork(result) < totalWork(*bestOk) ||
+        (totalWork(result) == totalWork(*bestOk) && result.elapsedMs < bestOk->elapsedMs)) {
+      bestOk = &result;
+    }
+    if (result.coarsePreconditioner &&
+        (!bestCoarsePreOk ||
+         totalWork(result) < totalWork(*bestCoarsePreOk) ||
+         (totalWork(result) == totalWork(*bestCoarsePreOk) &&
+          result.elapsedMs < bestCoarsePreOk->elapsedMs))) {
+      bestCoarsePreOk = &result;
+    }
+  }
+  if (bestOk) {
+    std::printf("summary_selected variant=%s total_work=%d iters=%d elapsed_ms=%lld "
+                "coarse_work=%d coarse_pre_auto_disabled=%s\n",
+                bestOk->name.c_str(),
+                totalWork(*bestOk),
+                bestOk->iterations,
+                bestOk->elapsedMs,
+                coarseWork(*bestOk),
+                bestOk->coarsePreconditionerAutoDisabled ? "true" : "false");
+  }
+  if (bestCoarsePreOk) {
+    std::printf("summary_selected_coarse_pre variant=%s total_work=%d iters=%d "
+                "elapsed_ms=%lld coarse_work=%d coarse_pre_auto_disabled=%s\n",
+                bestCoarsePreOk->name.c_str(),
+                totalWork(*bestCoarsePreOk),
+                bestCoarsePreOk->iterations,
+                bestCoarsePreOk->elapsedMs,
+                coarseWork(*bestCoarsePreOk),
+                bestCoarsePreOk->coarsePreconditionerAutoDisabled ? "true" : "false");
   }
 }
 
@@ -213,7 +269,9 @@ RunResult runVariant(const Variant& variant,
                      double coarsePreAbsTol,
                      double coarsePreScale,
                      double coarsePreMinRzGain,
-                     double coarsePreMaxWorkRatio) {
+                     double coarsePreMaxWorkRatio,
+                     bool coarsePreAutoDisable,
+                     int coarsePreAutoDisableAfter) {
   const int actualCoarsePreIters =
     variant.coarsePreItersOverride >= 0 ? variant.coarsePreItersOverride : coarsePreIters;
   const double actualCoarsePreScale =
@@ -226,6 +284,12 @@ RunResult runVariant(const Variant& variant,
     variant.coarsePreMaxWorkRatioOverride >= 0.0
       ? variant.coarsePreMaxWorkRatioOverride
       : coarsePreMaxWorkRatio;
+  const bool actualCoarsePreAutoDisable =
+    variant.coarsePreAutoDisable || coarsePreAutoDisable;
+  const int actualCoarsePreAutoDisableAfter =
+    variant.coarsePreAutoDisableAfterOverride >= 0
+      ? variant.coarsePreAutoDisableAfterOverride
+      : coarsePreAutoDisableAfter;
 
   MRSim3DTP sim(nx, ny, nz, 1.0);
   if (rhoRatio > 0.0) {
@@ -258,6 +322,8 @@ RunResult runVariant(const Variant& variant,
   sim.cg_coarse_preconditioner_scale = actualCoarsePreScale;
   sim.cg_coarse_preconditioner_min_rz_gain = actualCoarsePreMinRzGain;
   sim.cg_coarse_preconditioner_max_work_ratio = actualCoarsePreMaxWorkRatio;
+  sim.cg_coarse_preconditioner_auto_disable = actualCoarsePreAutoDisable;
+  sim.cg_coarse_preconditioner_auto_disable_after = actualCoarsePreAutoDisableAfter;
   sim.dynamic_hysteresis_cells = hysteresis;
   sim.dynamic_max_fine_leaves = maxFineLeaves;
   sim.initBubbleTankInterfaceBand();
@@ -290,6 +356,7 @@ RunResult runVariant(const Variant& variant,
   RunResult result;
   result.name = variant.name;
   result.ok = ok;
+  result.coarsePreconditioner = variant.coarsePreconditioner;
   result.iterations = st.iterations;
   result.maxIterations = st.max_iterations;
   result.elapsedMs = elapsedMs;
@@ -311,6 +378,14 @@ RunResult runVariant(const Variant& variant,
   result.coarsePreconditionerMinRzGain = st.coarse_preconditioner_min_rz_gain;
   result.coarsePreconditionerLastRzGain = st.coarse_preconditioner_last_rz_gain;
   result.coarsePreconditionerMaxWorkRatio = st.coarse_preconditioner_max_work_ratio;
+  result.coarsePreconditionerAutoDisable = st.coarse_preconditioner_auto_disable;
+  result.coarsePreconditionerAutoDisabled = st.coarse_preconditioner_auto_disabled;
+  result.coarsePreconditionerAutoDisableAfter =
+    st.coarse_preconditioner_auto_disable_after;
+  result.coarsePreconditionerAutoDisableIteration =
+    st.coarse_preconditioner_auto_disable_iteration;
+  result.coarsePreconditionerAutoDisableWastedStreak =
+    st.coarse_preconditioner_auto_disable_wasted_streak;
   result.converged = st.converged;
   result.breakdown = st.breakdown;
   result.coarsePreconditionerBudgetExhausted =
@@ -335,6 +410,10 @@ RunResult runVariant(const Variant& variant,
               "coarse_pre_iters=%d coarse_pre_breakdown=%s "
               "coarse_pre_budget_exhausted=%s coarse_pre_scale=%.9g "
               "coarse_pre_min_rz_gain=%.9g coarse_pre_last_rz_gain=%.9g "
+              "coarse_pre_auto_disable=%s coarse_pre_auto_disabled=%s "
+              "coarse_pre_auto_disable_after=%d "
+              "coarse_pre_auto_disable_iteration=%d "
+              "coarse_pre_auto_disable_wasted_streak=%d "
               "coarse_pre_max_work_ratio=%.9g "
               "history_truncated=%s converged=%s breakdown=%s "
               "fine_leaves=%zu coarse_leaves=%zu status=%s\n",
@@ -395,6 +474,11 @@ RunResult runVariant(const Variant& variant,
               st.coarse_preconditioner_scale,
               st.coarse_preconditioner_min_rz_gain,
               st.coarse_preconditioner_last_rz_gain,
+              st.coarse_preconditioner_auto_disable ? "true" : "false",
+              st.coarse_preconditioner_auto_disabled ? "true" : "false",
+              st.coarse_preconditioner_auto_disable_after,
+              st.coarse_preconditioner_auto_disable_iteration,
+              st.coarse_preconditioner_auto_disable_wasted_streak,
               st.coarse_preconditioner_max_work_ratio,
               st.residual_history_truncated ? "true" : "false",
               st.converged ? "true" : "false",
@@ -447,6 +531,11 @@ int main(int argc, char** argv) {
   double coarsePreMaxWorkRatio =
     argDouble(argc, argv, "--coarse-pre-max-work-ratio",
               defaults.cg_coarse_preconditioner_max_work_ratio);
+  bool coarsePreAutoDisable = hasFlag(argc, argv, "--coarse-pre-auto-disable");
+  int coarsePreAutoDisableAfter =
+    argInt(argc, argv,
+           "--coarse-pre-auto-disable-after",
+           defaults.cg_coarse_preconditioner_auto_disable_after);
   bool coarsePreSweep = hasFlag(argc, argv, "--coarse-pre-sweep");
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 ||
@@ -460,7 +549,8 @@ int main(int argc, char** argv) {
       coarsePreIters < 0 || coarsePreRelTol < 0.0 ||
       coarsePreAbsTol < 0.0 || coarsePreScale < 0.0 ||
       coarsePreMinRzGain < 0.0 ||
-      coarsePreMaxWorkRatio < 0.0) {
+      coarsePreMaxWorkRatio < 0.0 ||
+      coarsePreAutoDisableAfter < 0) {
     usage();
     return 2;
   }
@@ -496,6 +586,8 @@ int main(int argc, char** argv) {
   std::printf("coarse_pre_scale=%.9g\n", coarsePreScale);
   std::printf("coarse_pre_min_rz_gain=%.9g\n", coarsePreMinRzGain);
   std::printf("coarse_pre_max_work_ratio=%.9g\n", coarsePreMaxWorkRatio);
+  std::printf("coarse_pre_auto_disable=%s\n", coarsePreAutoDisable ? "true" : "false");
+  std::printf("coarse_pre_auto_disable_after=%d\n", coarsePreAutoDisableAfter);
   std::printf("coarse_pre_sweep=%s\n", coarsePreSweep ? "true" : "false");
 
   std::vector<Variant> variants = {
@@ -518,6 +610,7 @@ int main(int argc, char** argv) {
     variants.push_back({"coarse_pre_i8_s1_g01", true, false, false, true, relTol, 8, 1.0, 0.01});
     variants.push_back({"coarse_pre_i8_s1_g05", true, false, false, true, relTol, 8, 1.0, 0.05});
     variants.push_back({"coarse_pre_i4_s05_w2", true, false, false, true, relTol, 4, 0.5, -1.0, 2.0});
+    variants.push_back({"coarse_pre_i4_s05_w2_auto1", true, false, false, true, relTol, 4, 0.5, -1.0, 2.0, true, 1});
   }
 
   bool ok = true;
@@ -535,7 +628,9 @@ int main(int argc, char** argv) {
                                   coarsePreIters, coarsePreRelTol,
                                   coarsePreAbsTol, coarsePreScale,
                                   coarsePreMinRzGain,
-                                  coarsePreMaxWorkRatio);
+                                  coarsePreMaxWorkRatio,
+                                  coarsePreAutoDisable,
+                                  coarsePreAutoDisableAfter);
     ok = result.ok && ok;
     results.push_back(result);
   }

@@ -298,6 +298,9 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.coarse_preconditioner_scale = config.coarse_preconditioner_scale;
   stats.coarse_preconditioner_min_rz_gain = config.coarse_preconditioner_min_rz_gain;
   stats.coarse_preconditioner_max_work_ratio = config.coarse_preconditioner_max_work_ratio;
+  stats.coarse_preconditioner_auto_disable = config.coarse_preconditioner_auto_disable;
+  stats.coarse_preconditioner_auto_disable_after =
+    config.coarse_preconditioner_auto_disable_after;
   return stats;
 }
 
@@ -322,7 +325,8 @@ void validateSolveConfig(const MRPressureSolveConfig3D& config) {
       config.coarse_preconditioner_relative_tolerance < 0.0 ||
       config.coarse_preconditioner_scale < 0.0 ||
       config.coarse_preconditioner_min_rz_gain < 0.0 ||
-      config.coarse_preconditioner_max_work_ratio < 0.0) {
+      config.coarse_preconditioner_max_work_ratio < 0.0 ||
+      config.coarse_preconditioner_auto_disable_after < 0) {
     throw std::invalid_argument("projectMR3D invalid solve config");
   }
 }
@@ -1143,6 +1147,31 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
     std::vector<double> fineAp;
     std::vector<double> fineCorrection;
     std::vector<double> candidateZ;
+    bool coarsePreconditionerAutoDisabled = false;
+    int coarsePreconditionerWastedStreak = 0;
+
+    auto recordCoarsePreconditionerOutcome = [&](bool accepted, bool wasted) {
+      if (accepted) {
+        coarsePreconditionerWastedStreak = 0;
+        localStats.coarse_preconditioner_auto_disable_wasted_streak = 0;
+        return;
+      }
+      if (!wasted) return;
+
+      ++coarsePreconditionerWastedStreak;
+      localStats.coarse_preconditioner_auto_disable_wasted_streak =
+        coarsePreconditionerWastedStreak;
+      if (config.coarse_preconditioner_auto_disable &&
+          config.coarse_preconditioner_auto_disable_after > 0 &&
+          coarsePreconditionerWastedStreak >=
+            config.coarse_preconditioner_auto_disable_after) {
+        coarsePreconditionerAutoDisabled = true;
+        localStats.coarse_preconditioner_auto_disabled = true;
+        if (localStats.coarse_preconditioner_auto_disable_iteration < 0) {
+          localStats.coarse_preconditioner_auto_disable_iteration = localStats.iterations;
+        }
+      }
+    };
 
     auto coarsePreconditionerNorm = [&](const std::vector<double>& v) {
       double n2 = weightedDotVolumes(coarsePreconditionerAggregation.coarse_volumes, v, v);
@@ -1273,7 +1302,11 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
       }
       const double rzBase = dot(r, z);
       const bool baseOk = std::isfinite(rzBase) && rzBase > 0.0;
+      if (coarsePreconditionerAutoDisabled) return;
 
+      const int skippedBefore = localStats.coarse_preconditioner_skipped_applications;
+      bool acceptedCoarsePreconditioner = false;
+      bool wastedCoarsePreconditioner = false;
       if (solveCoarsePreconditioner()) {
         candidateZ = z;
         for (int i = 0; i < N; ++i) {
@@ -1292,10 +1325,16 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
             (!baseOk || rzCandidate >= minAcceptedRz)) {
           z.swap(candidateZ);
           ++localStats.coarse_preconditioner_accepted_applications;
+          acceptedCoarsePreconditioner = true;
         } else {
           ++localStats.coarse_preconditioner_rejected_applications;
+          wastedCoarsePreconditioner = true;
         }
+      } else if (localStats.coarse_preconditioner_skipped_applications > skippedBefore) {
+        wastedCoarsePreconditioner = true;
       }
+      recordCoarsePreconditionerOutcome(acceptedCoarsePreconditioner,
+                                        wastedCoarsePreconditioner);
     };
 
     applyPreconditioner();

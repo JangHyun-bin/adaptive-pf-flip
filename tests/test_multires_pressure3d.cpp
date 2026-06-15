@@ -887,6 +887,10 @@ TEST_CASE("multires 3D pressure: coarse preconditioner reports applications") {
   CHECK(stats.coarse_preconditioner_min_rz_gain == doctest::Approx(0.0));
   CHECK(stats.coarse_preconditioner_max_work_ratio == doctest::Approx(0.0));
   CHECK(stats.coarse_preconditioner_skipped_applications == 0);
+  CHECK(!stats.coarse_preconditioner_auto_disable);
+  CHECK(!stats.coarse_preconditioner_auto_disabled);
+  CHECK(stats.coarse_preconditioner_auto_disable_after == 4);
+  CHECK(stats.coarse_preconditioner_auto_disable_iteration == -1);
   CHECK(!stats.coarse_preconditioner_breakdown);
   CHECK(!stats.breakdown);
   CHECK(stats.final_residual <= stats.initial_residual);
@@ -901,6 +905,9 @@ TEST_CASE("multires 3D pressure: coarse preconditioner reports applications") {
   CHECK_THROWS_AS(projectMR3D(g, pp, 1.0, config, &stats), std::invalid_argument);
   config.coarse_preconditioner_min_rz_gain = 0.0;
   config.coarse_preconditioner_max_work_ratio = -1.0;
+  CHECK_THROWS_AS(projectMR3D(g, pp, 1.0, config, &stats), std::invalid_argument);
+  config.coarse_preconditioner_max_work_ratio = 0.0;
+  config.coarse_preconditioner_auto_disable_after = -1;
   CHECK_THROWS_AS(projectMR3D(g, pp, 1.0, config, &stats), std::invalid_argument);
 }
 
@@ -939,6 +946,51 @@ TEST_CASE("multires 3D pressure: coarse preconditioner rejects weak rz gain") {
         stats.coarse_preconditioner_applications);
   CHECK(stats.coarse_preconditioner_min_rz_gain == doctest::Approx(1e12));
   CHECK(stats.coarse_preconditioner_last_rz_gain < stats.coarse_preconditioner_min_rz_gain);
+  CHECK(!stats.coarse_preconditioner_breakdown);
+  CHECK(!stats.breakdown);
+  CHECK(stats.final_residual <= stats.initial_residual);
+}
+
+TEST_CASE("multires 3D pressure: coarse preconditioner auto-disables wasted applications") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+  for (int z = 2; z < 4; ++z) {
+    for (int y = 2; y < 4; ++y) {
+      for (int x = 2; x < 4; ++x) {
+        setMarker(g, x, y, z, 1);
+      }
+    }
+  }
+  g.u(MRFaceKey3D{0, 4, 2, 2, 1, 1}) = 5.0f;
+  g.v(MRFaceKey3D{1, 2, 4, 2, 1, 1}) = -3.0f;
+  g.w(MRFaceKey3D{2, 2, 2, 4, 1, 1}) = 2.0f;
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 20;
+  config.absolute_tolerance = 1e-8;
+  config.use_coarse_preconditioner = true;
+  config.coarse_preconditioner_iterations = 8;
+  config.coarse_preconditioner_relative_tolerance = 1e-6;
+  config.coarse_preconditioner_scale = 0.5;
+  config.coarse_preconditioner_min_rz_gain = 1e12;
+  config.coarse_preconditioner_auto_disable = true;
+  config.coarse_preconditioner_auto_disable_after = 2;
+
+  MRPressureSolveStats3D stats;
+  projectMR3D(g, pp, 1.0, config, &stats);
+
+  CHECK(stats.used_coarse_preconditioner);
+  CHECK(stats.coarse_preconditioner_auto_disable);
+  CHECK(stats.coarse_preconditioner_auto_disabled);
+  CHECK(stats.coarse_preconditioner_auto_disable_after == 2);
+  CHECK(stats.coarse_preconditioner_auto_disable_iteration >= 0);
+  CHECK(stats.coarse_preconditioner_auto_disable_wasted_streak == 2);
+  CHECK(stats.coarse_preconditioner_accepted_applications == 0);
+  CHECK(stats.coarse_preconditioner_rejected_applications ==
+        stats.coarse_preconditioner_applications);
+  CHECK(stats.coarse_preconditioner_applications <= 2);
   CHECK(!stats.coarse_preconditioner_breakdown);
   CHECK(!stats.breakdown);
   CHECK(stats.final_residual <= stats.initial_residual);
