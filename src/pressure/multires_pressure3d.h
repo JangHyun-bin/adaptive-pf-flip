@@ -70,6 +70,9 @@ struct MRPressureSolveStats3D {
   int coarse_correction_cells = 0;
   int coarse_correction_iterations = 0;
   int coarse_correction_max_iterations = 0;
+  int coarse_correction_sweeps = 0;
+  int coarse_correction_accepted_sweeps = 0;
+  int coarse_correction_rejected_sweeps = 0;
   double tolerance = 0.0;
   double relative_tolerance = 0.0;
   double effective_tolerance = 0.0;
@@ -82,6 +85,8 @@ struct MRPressureSolveStats3D {
   double coarse_correction_effective_tolerance = 0.0;
   double coarse_correction_initial_residual = 0.0;
   double coarse_correction_final_residual = 0.0;
+  double coarse_correction_min_scale = 0.0;
+  double coarse_correction_last_scale = 0.0;
   double initial_residual = 0.0;
   double final_residual = 0.0;
   double min_residual = 0.0;
@@ -119,8 +124,10 @@ struct MRPressureSolveConfig3D {
   int residual_history_limit = 0;
   bool use_coarse_correction = false;
   int coarse_correction_iterations = 32;
+  int coarse_correction_sweeps = 1;
   double coarse_correction_absolute_tolerance = 0.0;
   double coarse_correction_relative_tolerance = 1e-3;
+  double coarse_correction_min_scale = 1.0 / 64.0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);

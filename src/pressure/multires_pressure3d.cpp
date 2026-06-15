@@ -290,6 +290,7 @@ MRPressureSolveStats3D makeInitialStats(const MRPressureSolveConfig3D& config) {
   stats.coarse_correction_max_iterations = config.coarse_correction_iterations;
   stats.coarse_correction_tolerance = config.coarse_correction_absolute_tolerance;
   stats.coarse_correction_relative_tolerance = config.coarse_correction_relative_tolerance;
+  stats.coarse_correction_min_scale = config.coarse_correction_min_scale;
   return stats;
 }
 
@@ -304,8 +305,11 @@ void validateSolveConfig(const MRPressureSolveConfig3D& config) {
       config.residual_history_stride < 0 ||
       config.residual_history_limit < 0 ||
       config.coarse_correction_iterations < 0 ||
+      config.coarse_correction_sweeps < 0 ||
       config.coarse_correction_absolute_tolerance < 0.0 ||
-      config.coarse_correction_relative_tolerance < 0.0) {
+      config.coarse_correction_relative_tolerance < 0.0 ||
+      config.coarse_correction_min_scale <= 0.0 ||
+      config.coarse_correction_min_scale > 1.0) {
     throw std::invalid_argument("projectMR3D invalid solve config");
   }
 }
@@ -876,24 +880,17 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
       localStats.coarse_correction_final_residual = currentRes;
 
       if (aggregation.coarseCount() > 0 && aggregation.coarseCount() < N) {
-        std::vector<double> coarseRhs;
-        restrictMRPressureVolumeWeighted3D(aggregation, r, coarseRhs);
-
         int coarsePin = pinCell >= 0
           ? aggregation.fine_to_coarse[static_cast<size_t>(pinCell)]
           : -1;
-        std::vector<double> coarseX(coarseRhs.size(), 0.0);
-        std::vector<double> coarseR = coarseRhs;
-        std::vector<double> coarseP = coarseR;
-        std::vector<double> coarseAp(coarseRhs.size(), 0.0);
+        std::vector<double> coarseRhs;
+        std::vector<double> coarseX;
+        std::vector<double> coarseR;
+        std::vector<double> coarseP;
+        std::vector<double> coarseAp;
         std::vector<double> fineP;
         std::vector<double> fineAp;
         std::vector<double> fineCorrection;
-
-        if (coarsePin >= 0) {
-          coarseR[static_cast<size_t>(coarsePin)] = 0.0;
-          coarseP[static_cast<size_t>(coarsePin)] = 0.0;
-        }
 
         auto coarseNorm = [&](const std::vector<double>& v) {
           double n2 = weightedDotVolumes(aggregation.coarse_volumes, v, v);
@@ -909,81 +906,106 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
           }
         };
 
-        double coarseRes0 = coarseNorm(coarseR);
-        localStats.coarse_correction_effective_tolerance =
-          std::max(config.coarse_correction_absolute_tolerance,
-                   config.coarse_correction_relative_tolerance * coarseRes0);
-        localStats.coarse_correction_converged =
-          coarseRes0 <= localStats.coarse_correction_effective_tolerance;
+        for (int sweep = 0;
+             sweep < config.coarse_correction_sweeps &&
+             currentRes >= effectiveTol &&
+             !localStats.coarse_correction_breakdown;
+             ++sweep) {
+          ++localStats.coarse_correction_sweeps;
+          restrictMRPressureVolumeWeighted3D(aggregation, r, coarseRhs);
 
-        double rr = weightedDotVolumes(aggregation.coarse_volumes, coarseR, coarseR);
-        if (!std::isfinite(rr)) {
-          localStats.coarse_correction_breakdown = true;
-        }
+          coarseX.assign(coarseRhs.size(), 0.0);
+          coarseR = coarseRhs;
+          coarseP = coarseR;
+          coarseAp.assign(coarseRhs.size(), 0.0);
 
-        for (int it = 0;
-             !localStats.coarse_correction_converged &&
-             !localStats.coarse_correction_breakdown &&
-             it < config.coarse_correction_iterations;
-             ++it) {
-          applyCoarse(coarseP, coarseAp);
-          double pAp = weightedDotVolumes(aggregation.coarse_volumes, coarseP, coarseAp);
-          if (!std::isfinite(pAp) || std::abs(pAp) < 1e-30) {
-            localStats.coarse_correction_breakdown = true;
-            break;
-          }
-
-          double alpha = rr / pAp;
-          if (!std::isfinite(alpha)) {
-            localStats.coarse_correction_breakdown = true;
-            break;
-          }
-
-          for (size_t i = 0; i < coarseX.size(); ++i) {
-            coarseX[i] += alpha * coarseP[i];
-            coarseR[i] -= alpha * coarseAp[i];
-          }
           if (coarsePin >= 0) {
-            coarseX[static_cast<size_t>(coarsePin)] = 0.0;
             coarseR[static_cast<size_t>(coarsePin)] = 0.0;
-          }
-
-          localStats.coarse_correction_iterations = it + 1;
-          double coarseRes = coarseNorm(coarseR);
-          if (!std::isfinite(coarseRes)) {
-            localStats.coarse_correction_breakdown = true;
-            break;
-          }
-          if (coarseRes <= localStats.coarse_correction_effective_tolerance) {
-            localStats.coarse_correction_converged = true;
-            break;
-          }
-
-          double rrNext = weightedDotVolumes(aggregation.coarse_volumes, coarseR, coarseR);
-          if (!std::isfinite(rrNext) || std::abs(rr) < 1e-30) {
-            localStats.coarse_correction_breakdown = true;
-            break;
-          }
-          double beta = rrNext / rr;
-          if (!std::isfinite(beta)) {
-            localStats.coarse_correction_breakdown = true;
-            break;
-          }
-          rr = rrNext;
-          for (size_t i = 0; i < coarseP.size(); ++i) {
-            coarseP[i] = coarseR[i] + beta * coarseP[i];
-          }
-          if (coarsePin >= 0) {
             coarseP[static_cast<size_t>(coarsePin)] = 0.0;
           }
-        }
 
-        if (!localStats.coarse_correction_breakdown) {
+          double coarseRes0 = coarseNorm(coarseR);
+          localStats.coarse_correction_effective_tolerance =
+            std::max(config.coarse_correction_absolute_tolerance,
+                     config.coarse_correction_relative_tolerance * coarseRes0);
+          localStats.coarse_correction_converged =
+            coarseRes0 <= localStats.coarse_correction_effective_tolerance;
+
+          double rr = weightedDotVolumes(aggregation.coarse_volumes, coarseR, coarseR);
+          if (!std::isfinite(rr)) {
+            localStats.coarse_correction_breakdown = true;
+            break;
+          }
+
+          int sweepIterations = 0;
+          for (int it = 0;
+               !localStats.coarse_correction_converged &&
+               !localStats.coarse_correction_breakdown &&
+               it < config.coarse_correction_iterations;
+               ++it) {
+            applyCoarse(coarseP, coarseAp);
+            double pAp = weightedDotVolumes(aggregation.coarse_volumes, coarseP, coarseAp);
+            if (!std::isfinite(pAp) || std::abs(pAp) < 1e-30) {
+              localStats.coarse_correction_breakdown = true;
+              break;
+            }
+
+            double alpha = rr / pAp;
+            if (!std::isfinite(alpha)) {
+              localStats.coarse_correction_breakdown = true;
+              break;
+            }
+
+            for (size_t i = 0; i < coarseX.size(); ++i) {
+              coarseX[i] += alpha * coarseP[i];
+              coarseR[i] -= alpha * coarseAp[i];
+            }
+            if (coarsePin >= 0) {
+              coarseX[static_cast<size_t>(coarsePin)] = 0.0;
+              coarseR[static_cast<size_t>(coarsePin)] = 0.0;
+            }
+
+            sweepIterations = it + 1;
+            double coarseRes = coarseNorm(coarseR);
+            if (!std::isfinite(coarseRes)) {
+              localStats.coarse_correction_breakdown = true;
+              break;
+            }
+            if (coarseRes <= localStats.coarse_correction_effective_tolerance) {
+              localStats.coarse_correction_converged = true;
+              break;
+            }
+
+            double rrNext = weightedDotVolumes(aggregation.coarse_volumes, coarseR, coarseR);
+            if (!std::isfinite(rrNext) || std::abs(rr) < 1e-30) {
+              localStats.coarse_correction_breakdown = true;
+              break;
+            }
+            double beta = rrNext / rr;
+            if (!std::isfinite(beta)) {
+              localStats.coarse_correction_breakdown = true;
+              break;
+            }
+            rr = rrNext;
+            for (size_t i = 0; i < coarseP.size(); ++i) {
+              coarseP[i] = coarseR[i] + beta * coarseP[i];
+            }
+            if (coarsePin >= 0) {
+              coarseP[static_cast<size_t>(coarsePin)] = 0.0;
+            }
+          }
+          localStats.coarse_correction_iterations += sweepIterations;
+
+          if (localStats.coarse_correction_breakdown) {
+            break;
+          }
+
           prolongMRPressurePiecewiseConstant3D(aggregation, coarseX, fineCorrection);
           double bestRes = currentRes;
+          double bestScale = 0.0;
           std::vector<double> bestX;
           std::vector<double> bestR;
-          for (double scale = 1.0; scale >= 1.0 / 64.0; scale *= 0.5) {
+          for (double scale = 1.0; scale >= config.coarse_correction_min_scale; scale *= 0.5) {
             candidateX = x;
             for (int i = 0; i < N; ++i) {
               candidateX[i] += scale * fineCorrection[static_cast<size_t>(i)];
@@ -992,6 +1014,7 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
             double candidateRes = residualFromPressure(candidateX, candidateR);
             if (std::isfinite(candidateRes) && candidateRes <= bestRes) {
               bestRes = candidateRes;
+              bestScale = scale;
               bestX = candidateX;
               bestR = candidateR;
             }
@@ -1006,6 +1029,11 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
             localStats.min_residual = std::min(localStats.min_residual, currentRes);
             localStats.max_residual = std::max(localStats.max_residual, currentRes);
             localStats.coarse_correction_accepted = true;
+            localStats.coarse_correction_last_scale = bestScale;
+            ++localStats.coarse_correction_accepted_sweeps;
+          } else {
+            ++localStats.coarse_correction_rejected_sweeps;
+            break;
           }
         }
       }

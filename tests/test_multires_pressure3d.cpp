@@ -817,8 +817,10 @@ TEST_CASE("multires 3D pressure: coarse correction initial guess reduces residua
   config.relative_tolerance = 0.0;
   config.use_coarse_correction = true;
   config.coarse_correction_iterations = 64;
+  config.coarse_correction_sweeps = 3;
   config.coarse_correction_absolute_tolerance = 1e-12;
   config.coarse_correction_relative_tolerance = 1e-8;
+  config.coarse_correction_min_scale = 1.0 / 128.0;
 
   MRPressureSolveStats3D stats;
   projectMR3D(g, pp, 1.0, config, &stats);
@@ -827,7 +829,15 @@ TEST_CASE("multires 3D pressure: coarse correction initial guess reduces residua
   CHECK(stats.coarse_correction_cells > 0);
   CHECK(stats.coarse_correction_cells < stats.active_cells);
   CHECK(stats.coarse_correction_iterations > 0);
+  CHECK(stats.coarse_correction_sweeps > 0);
+  CHECK(stats.coarse_correction_sweeps <= config.coarse_correction_sweeps);
+  CHECK(stats.coarse_correction_accepted_sweeps > 0);
+  CHECK(stats.coarse_correction_accepted_sweeps + stats.coarse_correction_rejected_sweeps ==
+        stats.coarse_correction_sweeps);
   CHECK(stats.coarse_correction_accepted);
+  CHECK(stats.coarse_correction_min_scale == doctest::Approx(config.coarse_correction_min_scale));
+  CHECK(stats.coarse_correction_last_scale >= config.coarse_correction_min_scale);
+  CHECK(stats.coarse_correction_last_scale <= 1.0);
   CHECK(!stats.coarse_correction_breakdown);
   CHECK(stats.coarse_correction_final_residual <= stats.coarse_correction_initial_residual);
   CHECK(stats.final_residual <= stats.initial_residual);
