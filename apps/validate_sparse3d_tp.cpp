@@ -88,6 +88,7 @@ void usage() {
                "usage: validate_sparse3d_tp [--scenario rt|bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
+               "[--advection-order 2|3] "
                "[--narrow-band-air] [--narrow-band-radius N] "
                "[--gas-coarsening] [--gas-particles-per-cell N] "
                "[--gas-coarsening-seed N] "
@@ -123,6 +124,7 @@ int main(int argc, char** argv) {
   sim.adaptive_timestep = hasFlag(argc, argv, "--adaptive-timestep");
   sim.adaptive_cfl = argDouble(argc, argv, "--adaptive-cfl", sim.adaptive_cfl);
   sim.adaptive_min_dt = argDouble(argc, argv, "--adaptive-min-dt", sim.adaptive_min_dt);
+  sim.advection_order = argInt(argc, argv, "--advection-order", sim.advection_order);
   sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
   sim.narrow_band_air_radius =
     argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
@@ -157,7 +159,8 @@ int main(int argc, char** argv) {
       sim.liquid_particle_refill_max_added_per_step < 0 ||
       sim.liquid_particle_refill_interface_radius < 0 ||
       sim.adaptive_cfl <= 0.0 ||
-      sim.adaptive_min_dt < 0.0) {
+      sim.adaptive_min_dt < 0.0 ||
+      (sim.advection_order != 2 && sim.advection_order != 3)) {
     usage();
     return 2;
   }
@@ -208,6 +211,7 @@ int main(int argc, char** argv) {
   std::printf("adaptive_timestep=%s\n", sim.adaptive_timestep ? "true" : "false");
   std::printf("adaptive_cfl=%.9g\n", sim.adaptive_cfl);
   std::printf("adaptive_min_dt=%.9g\n", sim.adaptive_min_dt);
+  std::printf("advection_order=%d\n", sim.advection_order);
   std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
   std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
   std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);

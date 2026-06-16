@@ -9,4 +9,5 @@ void mrP2G3D_tp(MRMacGrid3D<4>& g, const Particles3DTP& ps, const PhaseParams& p
 void mrG2P3D_tp(const MRMacGrid3D<4>& g, Particles3DTP& ps, const MRMacGrid3D<4>& saved,
                 double aL, double aG);
 void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt,
-                   ParticleEscapeStats3D* stats = nullptr);
+                   ParticleEscapeStats3D* stats = nullptr,
+                   int advectionOrder = 2);

@@ -157,6 +157,7 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
+               "[--advection-order 2|3] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -216,9 +217,13 @@ int main(int argc, char** argv) {
   const bool adaptiveTimestep = hasFlag(argc, argv, "--adaptive-timestep");
   const double adaptiveCfl = argDouble(argc, argv, "--adaptive-cfl", mr.adaptive_cfl);
   const double adaptiveMinDt = argDouble(argc, argv, "--adaptive-min-dt", mr.adaptive_min_dt);
+  const int advectionOrder = argInt(argc, argv, "--advection-order", mr.advection_order);
   sparse.adaptive_timestep = adaptiveTimestep;
   sparseAdaptive.adaptive_timestep = adaptiveTimestep;
   mr.adaptive_timestep = adaptiveTimestep;
+  sparse.advection_order = advectionOrder;
+  sparseAdaptive.advection_order = advectionOrder;
+  mr.advection_order = advectionOrder;
   sparse.adaptive_cfl = adaptiveCfl;
   sparseAdaptive.adaptive_cfl = adaptiveCfl;
   mr.adaptive_cfl = adaptiveCfl;
@@ -287,6 +292,7 @@ int main(int argc, char** argv) {
   mrAdaptive.adaptive_timestep = adaptiveTimestep;
   mrAdaptive.adaptive_cfl = adaptiveCfl;
   mrAdaptive.adaptive_min_dt = adaptiveMinDt;
+  mrAdaptive.advection_order = advectionOrder;
   mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
     argInt(argc, argv, "--mr-narrow-band-radius",
@@ -337,6 +343,7 @@ int main(int argc, char** argv) {
       mr.phase.rho_g <= 0.0 ||
       adaptiveCfl <= 0.0 ||
       adaptiveMinDt < 0.0 ||
+      (advectionOrder != 2 && advectionOrder != 3) ||
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
       sparseAdaptive.liquid_particles_per_cell_target <= 0 ||
@@ -516,6 +523,7 @@ int main(int argc, char** argv) {
   std::printf("adaptive_timestep=%s\n", adaptiveTimestep ? "true" : "false");
   std::printf("adaptive_cfl=%.9g\n", adaptiveCfl);
   std::printf("adaptive_min_dt=%.9g\n", adaptiveMinDt);
+  std::printf("advection_order=%d\n", advectionOrder);
   std::printf("rho_l=%.9g\n", mr.phase.rho_l);
   std::printf("rho_g=%.9g\n", mr.phase.rho_g);
   std::printf("rho_ratio=%.9g\n", activeRhoRatio);

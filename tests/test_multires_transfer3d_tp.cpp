@@ -206,3 +206,23 @@ TEST_CASE("multires 3D tp advect reports phase boundary clamps") {
   CHECK(stats.clamped_z_hi == 1);
   CHECK(stats.clamped_total() == 2);
 }
+
+TEST_CASE("multires 3D tp advect RK3 follows a linear velocity field") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+
+  for (const MRFaceKey3D& f : g.uFaces()) {
+    g.u(f) = static_cast<float>(f.fineX);
+  }
+
+  Particles3DTP ps;
+  ps.add({2.0, 4.0, 4.0}, {0.0, 0.0, 0.0}, 0);
+
+  mrAdvect3D_tp(ps, g, 0.1, nullptr, 3);
+
+  const double expected = 2.0 + 0.1 / 6.0 * (2.0 + 4.0 * 2.1 + 2.22);
+  CHECK(ps.pos[0].x == doctest::Approx(expected).epsilon(1e-12));
+  CHECK(ps.pos[0].y == doctest::Approx(4.0).epsilon(1e-12));
+  CHECK(ps.pos[0].z == doctest::Approx(4.0).epsilon(1e-12));
+}

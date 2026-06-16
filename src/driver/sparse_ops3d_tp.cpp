@@ -171,30 +171,45 @@ void spG2P3D_tp(const SparseMacGrid3D<4>& g, Particles3DTP& ps, const SparseMacG
   }
 }
 
+namespace {
+
+Vec3 sampleVelocity(const SparseMacGrid3D<4>& g, const Vec3& pos) {
+  double px = (pos.x - g.ox) / g.dx;
+  double py = (pos.y - g.oy) / g.dx;
+  double pz = (pos.z - g.oz) / g.dx;
+  return {sparse3d::sampleU(g, px, py, pz),
+          sparse3d::sampleV(g, px, py, pz),
+          sparse3d::sampleW(g, px, py, pz)};
+}
+
+Vec3 advectMidpoint(const SparseMacGrid3D<4>& g, const Vec3& pos, double dt) {
+  Vec3 k1 = sampleVelocity(g, pos);
+  Vec3 mid = pos + k1 * (0.5 * dt);
+  Vec3 k2 = sampleVelocity(g, mid);
+  return pos + k2 * dt;
+}
+
+Vec3 advectRK3(const SparseMacGrid3D<4>& g, const Vec3& pos, double dt) {
+  Vec3 k1 = sampleVelocity(g, pos);
+  Vec3 k2 = sampleVelocity(g, pos + k1 * (0.5 * dt));
+  Vec3 k3 = sampleVelocity(g, pos - k1 * dt + k2 * (2.0 * dt));
+  return pos + (k1 + k2 * 4.0 + k3) * (dt / 6.0);
+}
+
+} // namespace
+
 void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt,
-                   ParticleEscapeStats3D* stats) {
+                   ParticleEscapeStats3D* stats, int advectionOrder) {
   double lox = g.ox + 0.5 * g.dx, hix = g.ox + (g.nx - 0.5) * g.dx;
   double loy = g.oy + 0.5 * g.dx, hiy = g.oy + (g.ny - 0.5) * g.dx;
   double loz = g.oz + 0.5 * g.dx, hiz = g.oz + (g.nz - 0.5) * g.dx;
   for (size_t p = 0; p < ps.size(); ++p) {
-    double px = (ps.pos[p].x - g.ox) / g.dx;
-    double py = (ps.pos[p].y - g.oy) / g.dx;
-    double pz = (ps.pos[p].z - g.oz) / g.dx;
-    double u1 = sparse3d::sampleU(g, px, py, pz);
-    double v1 = sparse3d::sampleV(g, px, py, pz);
-    double w1 = sparse3d::sampleW(g, px, py, pz);
-    double mx = ps.pos[p].x + 0.5 * dt * u1;
-    double my = ps.pos[p].y + 0.5 * dt * v1;
-    double mz = ps.pos[p].z + 0.5 * dt * w1;
-    double mpx = (mx - g.ox) / g.dx;
-    double mpy = (my - g.oy) / g.dx;
-    double mpz = (mz - g.oz) / g.dx;
-    double u2 = sparse3d::sampleU(g, mpx, mpy, mpz);
-    double v2 = sparse3d::sampleV(g, mpx, mpy, mpz);
-    double w2 = sparse3d::sampleW(g, mpx, mpy, mpz);
-    double nx = ps.pos[p].x + dt * u2;
-    double ny = ps.pos[p].y + dt * v2;
-    double nz = ps.pos[p].z + dt * w2;
+    Vec3 next = advectionOrder == 3
+      ? advectRK3(g, ps.pos[p], dt)
+      : advectMidpoint(g, ps.pos[p], dt);
+    double nx = next.x;
+    double ny = next.y;
+    double nz = next.z;
     const bool xLo = nx < lox;
     const bool xHi = nx > hix;
     const bool yLo = ny < loy;

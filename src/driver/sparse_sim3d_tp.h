@@ -15,6 +15,7 @@ struct SparseSim3DTP {
   double max_particle_speed_last = 0.0;
   double cfl_limit_dt_last = 0.02;
   int adaptive_timestep_limited_last = 0;
+  int advection_order = 2;
   int cg_iters = 600;
   double cg_tol = 1e-7;
   bool narrow_band_air = false;

@@ -544,7 +544,7 @@ void MRSim3DTP::step() {
   projectMR3D(grid, phase, stepDt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
-  mrAdvect3D_tp(particles, grid, stepDt, &escapeStats);
+  mrAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order);
   storeParticleBoundaryStats(*this, escapeStats);
 }
 

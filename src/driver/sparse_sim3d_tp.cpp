@@ -313,6 +313,6 @@ void SparseSim3DTP::step() {
   spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol);
   spG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
-  spAdvect3D_tp(particles, grid, stepDt, &escapeStats);
+  spAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order);
   storeParticleBoundaryStats(*this, escapeStats);
 }

@@ -293,8 +293,32 @@ void mrG2P3D_tp(const MRMacGrid3D<4>& g, Particles3DTP& ps, const MRMacGrid3D<4>
   }
 }
 
+namespace {
+
+Vec3 sampleVelocity(const MRMacGrid3D<4>& g, const Vec3& pos) {
+  return {sampleU(g, pos.x, pos.y, pos.z),
+          sampleV(g, pos.x, pos.y, pos.z),
+          sampleW(g, pos.x, pos.y, pos.z)};
+}
+
+Vec3 advectMidpoint(const MRMacGrid3D<4>& g, const Vec3& pos, double dt) {
+  Vec3 k1 = sampleVelocity(g, pos);
+  Vec3 mid = pos + k1 * (0.5 * dt);
+  Vec3 k2 = sampleVelocity(g, mid);
+  return pos + k2 * dt;
+}
+
+Vec3 advectRK3(const MRMacGrid3D<4>& g, const Vec3& pos, double dt) {
+  Vec3 k1 = sampleVelocity(g, pos);
+  Vec3 k2 = sampleVelocity(g, pos + k1 * (0.5 * dt));
+  Vec3 k3 = sampleVelocity(g, pos - k1 * dt + k2 * (2.0 * dt));
+  return pos + (k1 + k2 * 4.0 + k3) * (dt / 6.0);
+}
+
+} // namespace
+
 void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt,
-                   ParticleEscapeStats3D* stats) {
+                   ParticleEscapeStats3D* stats, int advectionOrder) {
   double minX = 0.5 * g.layout.dx;
   double maxX = (static_cast<double>(g.layout.nx) - 0.5) * g.layout.dx;
   double minY = 0.5 * g.layout.dx;
@@ -303,18 +327,12 @@ void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt,
   double maxZ = (static_cast<double>(g.layout.nz) - 0.5) * g.layout.dx;
 
   for (size_t p = 0; p < ps.size(); ++p) {
-    double u1 = sampleU(g, ps.pos[p].x, ps.pos[p].y, ps.pos[p].z);
-    double v1 = sampleV(g, ps.pos[p].x, ps.pos[p].y, ps.pos[p].z);
-    double w1 = sampleW(g, ps.pos[p].x, ps.pos[p].y, ps.pos[p].z);
-    double mx = ps.pos[p].x + 0.5 * dt * u1;
-    double my = ps.pos[p].y + 0.5 * dt * v1;
-    double mz = ps.pos[p].z + 0.5 * dt * w1;
-    double u2 = sampleU(g, mx, my, mz);
-    double v2 = sampleV(g, mx, my, mz);
-    double w2 = sampleW(g, mx, my, mz);
-    double nx = ps.pos[p].x + dt * u2;
-    double ny = ps.pos[p].y + dt * v2;
-    double nz = ps.pos[p].z + dt * w2;
+    Vec3 next = advectionOrder == 3
+      ? advectRK3(g, ps.pos[p], dt)
+      : advectMidpoint(g, ps.pos[p], dt);
+    double nx = next.x;
+    double ny = next.y;
+    double nz = next.z;
     const bool xLo = nx < minX;
     const bool xHi = nx > maxX;
     const bool yLo = ny < minY;

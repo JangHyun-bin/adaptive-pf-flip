@@ -148,3 +148,22 @@ TEST_CASE("sparse 3D tp advect reports phase boundary clamps") {
   CHECK(stats.clamped_y_lo == 1);
   CHECK(stats.clamped_total() == 2);
 }
+
+TEST_CASE("sparse 3D tp advect RK3 follows a linear velocity field") {
+  SparseMacGrid3D<4> g(8, 8, 8, 1.0);
+  for (int k = 0; k < g.nz; ++k) {
+    for (int j = 0; j < g.ny; ++j) {
+      for (int i = 0; i <= g.nx; ++i) g.u(i, j, k) = static_cast<float>(i);
+    }
+  }
+
+  Particles3DTP ps;
+  ps.add({2.0, 4.0, 4.0}, {0.0, 0.0, 0.0}, 0);
+
+  spAdvect3D_tp(ps, g, 0.1, nullptr, 3);
+
+  const double expected = 2.0 + 0.1 / 6.0 * (2.0 + 4.0 * 2.1 + 2.22);
+  CHECK(ps.pos[0].x == doctest::Approx(expected).epsilon(1e-6));
+  CHECK(ps.pos[0].y == doctest::Approx(4.0).epsilon(1e-12));
+  CHECK(ps.pos[0].z == doctest::Approx(4.0).epsilon(1e-12));
+}
