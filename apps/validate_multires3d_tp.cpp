@@ -90,6 +90,7 @@ void usage() {
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
+               "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -133,6 +134,9 @@ int main(int argc, char** argv) {
     sim.phase.rho_g = 1.0;
   }
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
+  sim.adaptive_timestep = hasFlag(argc, argv, "--adaptive-timestep");
+  sim.adaptive_cfl = argDouble(argc, argv, "--adaptive-cfl", sim.adaptive_cfl);
+  sim.adaptive_min_dt = argDouble(argc, argv, "--adaptive-min-dt", sim.adaptive_min_dt);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
   sim.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", sim.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
@@ -227,6 +231,8 @@ int main(int argc, char** argv) {
       sim.cg_coarse_preconditioner_min_rz_gain < 0.0 ||
       sim.cg_coarse_preconditioner_max_work_ratio < 0.0 ||
       sim.cg_coarse_preconditioner_auto_disable_after < 0 ||
+      sim.adaptive_cfl <= 0.0 ||
+      sim.adaptive_min_dt < 0.0 ||
       sim.narrow_band_air_radius < 0 ||
       sim.gas_particles_per_cell_target <= 0 ||
       sim.liquid_particles_per_cell_target <= 0 ||
@@ -294,6 +300,13 @@ int main(int argc, char** argv) {
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", sim.dt);
+  std::printf("adaptive_timestep=%s\n", sim.adaptive_timestep ? "true" : "false");
+  std::printf("adaptive_cfl=%.9g\n", sim.adaptive_cfl);
+  std::printf("adaptive_min_dt=%.9g\n", sim.adaptive_min_dt);
+  std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
+  std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
+  std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);
+  std::printf("adaptive_timestep_limited_last=%d\n", sim.adaptive_timestep_limited_last);
   std::printf("rho_l=%.9g\n", sim.phase.rho_l);
   std::printf("rho_g=%.9g\n", sim.phase.rho_g);
   std::printf("rho_ratio=%.9g\n", activeRhoRatio);

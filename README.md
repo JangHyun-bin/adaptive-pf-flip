@@ -105,6 +105,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S16** | **SPEC-2 liquid refill mass accounting** - runner gates now require run-time liquid refill additions to stay within liquid coarsening removals when both are enabled. | done |
 | **S17** | **SPEC-2 volume-weighted particle adaptivity** - 3D TP particles carry volume multipliers, coarsen/refill redistributes volume, and runners gate phase volume/mass drift. | done |
 | **S18** | **Physical residual particle boundary accounting** - sparse/MR 3D TP advect reports phase and axis boundary clamps as the scaffold for escaped-particle droplet/bubble handling. | done |
+| **S19** | **Physical residual adaptive timestep** - sparse/MR 3D TP sims can opt into CFL-limited effective dt with validator and paired-bench diagnostics. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

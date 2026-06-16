@@ -87,6 +87,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: validate_sparse3d_tp [--scenario rt|bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] "
+               "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--narrow-band-air] [--narrow-band-radius N] "
                "[--gas-coarsening] [--gas-particles-per-cell N] "
                "[--gas-coarsening-seed N] "
@@ -119,6 +120,9 @@ int main(int argc, char** argv) {
   SparseSim3DTP sim(nx, ny, nz, 1.0);
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
+  sim.adaptive_timestep = hasFlag(argc, argv, "--adaptive-timestep");
+  sim.adaptive_cfl = argDouble(argc, argv, "--adaptive-cfl", sim.adaptive_cfl);
+  sim.adaptive_min_dt = argDouble(argc, argv, "--adaptive-min-dt", sim.adaptive_min_dt);
   sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
   sim.narrow_band_air_radius =
     argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
@@ -151,7 +155,9 @@ int main(int argc, char** argv) {
       sim.liquid_particles_per_cell_target <= 0 ||
       sim.liquid_refill_particles_per_cell_target <= 0 ||
       sim.liquid_particle_refill_max_added_per_step < 0 ||
-      sim.liquid_particle_refill_interface_radius < 0) {
+      sim.liquid_particle_refill_interface_radius < 0 ||
+      sim.adaptive_cfl <= 0.0 ||
+      sim.adaptive_min_dt < 0.0) {
     usage();
     return 2;
   }
@@ -199,6 +205,13 @@ int main(int argc, char** argv) {
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", sim.dt);
   std::printf("cg_iters=%d\n", sim.cg_iters);
+  std::printf("adaptive_timestep=%s\n", sim.adaptive_timestep ? "true" : "false");
+  std::printf("adaptive_cfl=%.9g\n", sim.adaptive_cfl);
+  std::printf("adaptive_min_dt=%.9g\n", sim.adaptive_min_dt);
+  std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
+  std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
+  std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);
+  std::printf("adaptive_timestep_limited_last=%d\n", sim.adaptive_timestep_limited_last);
   std::printf("narrow_band_air=%s\n", sim.narrow_band_air ? "true" : "false");
   std::printf("narrow_band_radius=%d\n", sim.narrow_band_air_radius);
   std::printf("gas_particle_coarsening=%s\n",

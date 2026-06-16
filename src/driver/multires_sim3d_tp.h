@@ -15,6 +15,13 @@ struct MRSim3DTP {
   double Vp = 1.0;
   double alpha_liquid = 0.95;
   double alpha_gas = 0.95;
+  bool adaptive_timestep = false;
+  double adaptive_cfl = 0.5;
+  double adaptive_min_dt = 1e-5;
+  double effective_dt_last = 0.02;
+  double max_particle_speed_last = 0.0;
+  double cfl_limit_dt_last = 0.02;
+  int adaptive_timestep_limited_last = 0;
   int cg_iters = 160;
   double cg_tol = 1e-7;
   double cg_rel_tol = 1e-6;

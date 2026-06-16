@@ -1,6 +1,7 @@
 #include "driver/sparse_sim3d_tp.h"
 #include "driver/particle_adaptivity3d.h"
 #include "driver/sparse_ops3d_tp.h"
+#include "driver/timestep3d.h"
 #include "transfer/transfer3d_tp.h"
 
 #include <algorithm>
@@ -120,6 +121,20 @@ void storeParticleBoundaryStats(SparseSim3DTP& sim, const ParticleEscapeStats3D&
   sim.particle_boundary_clamped_z_hi_last = stats.clamped_z_hi;
 }
 
+void resetTimestepStats(SparseSim3DTP& sim) {
+  sim.effective_dt_last = sim.dt;
+  sim.max_particle_speed_last = 0.0;
+  sim.cfl_limit_dt_last = sim.dt;
+  sim.adaptive_timestep_limited_last = 0;
+}
+
+void storeTimestepStats(SparseSim3DTP& sim, const TimestepStats3D& stats) {
+  sim.effective_dt_last = stats.effective_dt;
+  sim.max_particle_speed_last = stats.max_particle_speed;
+  sim.cfl_limit_dt_last = stats.cfl_limit_dt;
+  sim.adaptive_timestep_limited_last = stats.limited;
+}
+
 } // namespace
 
 void SparseSim3DTP::initTwoPhaseDamBreak() {
@@ -133,6 +148,7 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetTimestepStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -158,6 +174,7 @@ void SparseSim3DTP::initRayleighTaylor() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetTimestepStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -184,6 +201,7 @@ void SparseSim3DTP::initBubbleTank() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetTimestepStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -282,14 +300,19 @@ void SparseSim3DTP::applyParticleAdaptivity() {
 
 void SparseSim3DTP::step() {
   applyParticleAdaptivity();
+  const TimestepStats3D timestep =
+    computeAdaptiveParticleTimestep3D(particles, grid.dx, dt,
+                                      adaptive_timestep, adaptive_cfl, adaptive_min_dt);
+  storeTimestepStats(*this, timestep);
+  const double stepDt = timestep.effective_dt;
   markCells(grid, particles);
   spP2G3D_tp(grid, particles, phase, Vp);
   SparseMacGrid3D<4> saved = grid;
-  applyGravity(grid, dt, gravity);
+  applyGravity(grid, stepDt, gravity);
   applyWallBoundary(grid);
-  spProjectStepVC3D(grid, phase, dt, cg_iters, cg_tol);
+  spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol);
   spG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
-  spAdvect3D_tp(particles, grid, dt, &escapeStats);
+  spAdvect3D_tp(particles, grid, stepDt, &escapeStats);
   storeParticleBoundaryStats(*this, escapeStats);
 }

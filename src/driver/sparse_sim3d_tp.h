@@ -8,6 +8,13 @@ struct SparseSim3DTP {
   Particles3DTP particles;
   PhaseParams phase;
   double dt = 0.02, gravity = -9.81, Vp = 1.0, alpha_liquid = 0.95, alpha_gas = 0.95;
+  bool adaptive_timestep = false;
+  double adaptive_cfl = 0.5;
+  double adaptive_min_dt = 1e-5;
+  double effective_dt_last = 0.02;
+  double max_particle_speed_last = 0.0;
+  double cfl_limit_dt_last = 0.02;
+  int adaptive_timestep_limited_last = 0;
   int cg_iters = 600;
   double cg_tol = 1e-7;
   bool narrow_band_air = false;

@@ -1,5 +1,6 @@
 #include "doctest.h"
 #include "driver/sparse_sim3d_tp.h"
+#include "driver/timestep3d.h"
 #include <algorithm>
 #include <cmath>
 
@@ -46,6 +47,31 @@ bool sameParticleState(const Particles3DTP& a, const Particles3DTP& b) {
 
 } // namespace
 
+TEST_CASE("adaptive 3D timestep clamps by particle speed") {
+  Particles3DTP particles;
+  particles.add({1.0, 1.0, 1.0}, {10.0, 0.0, 0.0}, 0);
+  particles.add({2.0, 1.0, 1.0}, {0.0, 3.0, 4.0}, 1);
+
+  const TimestepStats3D stats =
+    computeAdaptiveParticleTimestep3D(particles, 1.0, 0.2, true, 0.5, 1e-5);
+
+  CHECK(stats.max_particle_speed == doctest::Approx(10.0));
+  CHECK(stats.effective_dt == doctest::Approx(0.05));
+  CHECK(stats.limited == 1);
+}
+
+TEST_CASE("disabled adaptive 3D timestep preserves requested dt") {
+  Particles3DTP particles;
+  particles.add({1.0, 1.0, 1.0}, {10.0, 0.0, 0.0}, 0);
+
+  const TimestepStats3D stats =
+    computeAdaptiveParticleTimestep3D(particles, 1.0, 0.2, false, 0.5, 1e-5);
+
+  CHECK(stats.max_particle_speed == doctest::Approx(10.0));
+  CHECK(stats.effective_dt == doctest::Approx(0.2));
+  CHECK(stats.limited == 0);
+}
+
 TEST_CASE("sparse 3D two-phase RT step stays stable") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.03;
@@ -84,6 +110,24 @@ TEST_CASE("sparse 3D two-phase RT step stays stable") {
   CHECK(meanY(0) < heavy0);
   CHECK(std::isfinite(meanY(1)));
   CHECK(maxActive > 0);
+}
+
+TEST_CASE("sparse 3D two-phase adaptive timestep reports effective dt") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.2;
+  sim.adaptive_timestep = true;
+  sim.adaptive_cfl = 0.5;
+  sim.adaptive_min_dt = 1e-5;
+  sim.initBubbleTank();
+  REQUIRE(!sim.particles.vel.empty());
+  sim.particles.vel[0] = {100.0, 0.0, 0.0};
+
+  sim.step();
+
+  CHECK(sim.dt == doctest::Approx(0.2));
+  CHECK(sim.max_particle_speed_last == doctest::Approx(100.0));
+  CHECK(sim.effective_dt_last == doctest::Approx(0.005));
+  CHECK(sim.adaptive_timestep_limited_last == 1);
 }
 
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {

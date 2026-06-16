@@ -2,6 +2,7 @@
 
 #include "driver/multires_ops3d_tp.h"
 #include "driver/particle_adaptivity3d.h"
+#include "driver/timestep3d.h"
 #include "pressure/multires_pressure3d.h"
 #include "transfer/transfer3d_tp.h"
 
@@ -266,6 +267,20 @@ void storeParticleBoundaryStats(MRSim3DTP& sim, const ParticleEscapeStats3D& sta
   sim.particle_boundary_clamped_z_hi_last = stats.clamped_z_hi;
 }
 
+void resetTimestepStats(MRSim3DTP& sim) {
+  sim.effective_dt_last = sim.dt;
+  sim.max_particle_speed_last = 0.0;
+  sim.cfl_limit_dt_last = sim.dt;
+  sim.adaptive_timestep_limited_last = 0;
+}
+
+void storeTimestepStats(MRSim3DTP& sim, const TimestepStats3D& stats) {
+  sim.effective_dt_last = stats.effective_dt;
+  sim.max_particle_speed_last = stats.max_particle_speed;
+  sim.cfl_limit_dt_last = stats.cfl_limit_dt;
+  sim.adaptive_timestep_limited_last = stats.limited;
+}
+
 } // namespace
 
 MRSim3DTP::MRSim3DTP(int nx, int ny, int nz, double dx)
@@ -286,6 +301,7 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetTimestepStats(*this);
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -483,11 +499,16 @@ void MRSim3DTP::updateDynamicRefinement() {
 void MRSim3DTP::step() {
   applyParticleAdaptivity();
   updateDynamicRefinement();
+  const TimestepStats3D timestep =
+    computeAdaptiveParticleTimestep3D(particles, layout.dx, dt,
+                                      adaptive_timestep, adaptive_cfl, adaptive_min_dt);
+  storeTimestepStats(*this, timestep);
+  const double stepDt = timestep.effective_dt;
   markCells(grid, particles);
   mrP2G3D_tp(grid, particles, phase, Vp);
   MRMacGrid3D<4> saved = grid;
 
-  applyGravity(grid, dt, gravity);
+  applyGravity(grid, stepDt, gravity);
   applyWallBoundary(grid);
   MRPressureSolveConfig3D pressureConfig;
   pressureConfig.max_iterations = cg_iters;
@@ -520,10 +541,10 @@ void MRSim3DTP::step() {
     cg_coarse_preconditioner_auto_disable;
   pressureConfig.coarse_preconditioner_auto_disable_after =
     cg_coarse_preconditioner_auto_disable_after;
-  projectMR3D(grid, phase, dt, pressureConfig, &last_pressure_stats);
+  projectMR3D(grid, phase, stepDt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
-  mrAdvect3D_tp(particles, grid, dt, &escapeStats);
+  mrAdvect3D_tp(particles, grid, stepDt, &escapeStats);
   storeParticleBoundaryStats(*this, escapeStats);
 }
 

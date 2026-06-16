@@ -419,6 +419,25 @@ TEST_CASE("multires 3D bubble tank step conserves particles and stays finite") {
   CHECK(sim.activePressureCellCount() < 8 * 12 * 8);
 }
 
+TEST_CASE("multires 3D adaptive timestep reports effective dt") {
+  MRSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.2;
+  sim.cg_iters = 20;
+  sim.adaptive_timestep = true;
+  sim.adaptive_cfl = 0.5;
+  sim.adaptive_min_dt = 1e-5;
+  sim.initBubbleTankInterfaceBand();
+  REQUIRE(!sim.particles.vel.empty());
+  sim.particles.vel[0] = {100.0, 0.0, 0.0};
+
+  sim.step();
+
+  CHECK(sim.dt == doctest::Approx(0.2));
+  CHECK(sim.max_particle_speed_last == doctest::Approx(100.0));
+  CHECK(sim.effective_dt_last == doctest::Approx(0.005));
+  CHECK(sim.adaptive_timestep_limited_last == 1);
+}
+
 TEST_CASE("multires 3D bubble high density ratio pressure converges") {
   MRSim3DTP sim(8, 12, 8, 1.0);
   sim.phase.rho_l = 1000.0;

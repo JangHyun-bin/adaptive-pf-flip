@@ -92,6 +92,10 @@ struct SparseMetrics {
   double gasVolumeEnd = 0.0;
   int boundaryClampedLiquidTotal = 0;
   int boundaryClampedGasTotal = 0;
+  double effectiveDtLast = 0.0;
+  double cflLimitDtLast = 0.0;
+  double maxParticleSpeedLast = 0.0;
+  int adaptiveTimestepLimitedLast = 0;
   int liquidCoarseningRemovedStart = 0;
   int liquidCoarseningRemovedEnd = 0;
   int liquidCoarseningRemovedDuringRun = 0;
@@ -131,6 +135,10 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   metrics.gasVolumeEnd = volumeType(sim.particles, 1, sim.Vp);
   metrics.boundaryClampedLiquidTotal = sim.particle_boundary_clamped_liquid_total;
   metrics.boundaryClampedGasTotal = sim.particle_boundary_clamped_gas_total;
+  metrics.effectiveDtLast = sim.effective_dt_last;
+  metrics.cflLimitDtLast = sim.cfl_limit_dt_last;
+  metrics.maxParticleSpeedLast = sim.max_particle_speed_last;
+  metrics.adaptiveTimestepLimitedLast = sim.adaptive_timestep_limited_last;
   metrics.liquidCoarseningRemovedEnd = sim.liquid_particle_coarsening_removed_total;
   metrics.liquidCoarseningRemovedDuringRun =
     metrics.liquidCoarseningRemovedEnd - metrics.liquidCoarseningRemovedStart;
@@ -148,6 +156,7 @@ void usage() {
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
+               "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -204,6 +213,18 @@ int main(int argc, char** argv) {
   sparse.dt = dt;
   sparseAdaptive.dt = dt;
   mr.dt = dt;
+  const bool adaptiveTimestep = hasFlag(argc, argv, "--adaptive-timestep");
+  const double adaptiveCfl = argDouble(argc, argv, "--adaptive-cfl", mr.adaptive_cfl);
+  const double adaptiveMinDt = argDouble(argc, argv, "--adaptive-min-dt", mr.adaptive_min_dt);
+  sparse.adaptive_timestep = adaptiveTimestep;
+  sparseAdaptive.adaptive_timestep = adaptiveTimestep;
+  mr.adaptive_timestep = adaptiveTimestep;
+  sparse.adaptive_cfl = adaptiveCfl;
+  sparseAdaptive.adaptive_cfl = adaptiveCfl;
+  mr.adaptive_cfl = adaptiveCfl;
+  sparse.adaptive_min_dt = adaptiveMinDt;
+  sparseAdaptive.adaptive_min_dt = adaptiveMinDt;
+  mr.adaptive_min_dt = adaptiveMinDt;
   sparse.cg_iters = cgIters;
   sparseAdaptive.cg_iters = cgIters;
   mr.cg_iters = cgIters;
@@ -263,6 +284,9 @@ int main(int argc, char** argv) {
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
   MRSim3DTP mrAdaptive = mr;
+  mrAdaptive.adaptive_timestep = adaptiveTimestep;
+  mrAdaptive.adaptive_cfl = adaptiveCfl;
+  mrAdaptive.adaptive_min_dt = adaptiveMinDt;
   mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
     argInt(argc, argv, "--mr-narrow-band-radius",
@@ -311,6 +335,8 @@ int main(int argc, char** argv) {
       sparse.phase.rho_g <= 0.0 ||
       mr.phase.rho_l <= 0.0 ||
       mr.phase.rho_g <= 0.0 ||
+      adaptiveCfl <= 0.0 ||
+      adaptiveMinDt < 0.0 ||
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
       sparseAdaptive.liquid_particles_per_cell_target <= 0 ||
@@ -366,6 +392,10 @@ int main(int argc, char** argv) {
   double mrGasVolume1 = volumeType(mr.particles, 1, mr.Vp);
   int mrBoundaryClampedLiquidTotal = mr.particle_boundary_clamped_liquid_total;
   int mrBoundaryClampedGasTotal = mr.particle_boundary_clamped_gas_total;
+  double mrEffectiveDtLast = mr.effective_dt_last;
+  double mrCflLimitDtLast = mr.cfl_limit_dt_last;
+  double mrMaxParticleSpeedLast = mr.max_particle_speed_last;
+  int mrAdaptiveTimestepLimitedLast = mr.adaptive_timestep_limited_last;
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
   long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
@@ -381,6 +411,10 @@ int main(int argc, char** argv) {
   double adaptiveMrGasVolume1 = mrGasVolume1;
   int adaptiveMrBoundaryClampedLiquidTotal = mrBoundaryClampedLiquidTotal;
   int adaptiveMrBoundaryClampedGasTotal = mrBoundaryClampedGasTotal;
+  double adaptiveMrEffectiveDtLast = mrEffectiveDtLast;
+  double adaptiveMrCflLimitDtLast = mrCflLimitDtLast;
+  double adaptiveMrMaxParticleSpeedLast = mrMaxParticleSpeedLast;
+  int adaptiveMrAdaptiveTimestepLimitedLast = mrAdaptiveTimestepLimitedLast;
   int adaptiveMrLiquidRefillAdded0 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAdded1 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAddedDuringRun = 0;
@@ -418,6 +452,11 @@ int main(int argc, char** argv) {
       mrAdaptive.particle_boundary_clamped_liquid_total;
     adaptiveMrBoundaryClampedGasTotal =
       mrAdaptive.particle_boundary_clamped_gas_total;
+    adaptiveMrEffectiveDtLast = mrAdaptive.effective_dt_last;
+    adaptiveMrCflLimitDtLast = mrAdaptive.cfl_limit_dt_last;
+    adaptiveMrMaxParticleSpeedLast = mrAdaptive.max_particle_speed_last;
+    adaptiveMrAdaptiveTimestepLimitedLast =
+      mrAdaptive.adaptive_timestep_limited_last;
     adaptiveMrLiquidCoarseningRemoved1 = mrAdaptive.liquid_particle_coarsening_removed_total;
     adaptiveMrLiquidCoarseningRemovedDuringRun =
       adaptiveMrLiquidCoarseningRemoved1 - adaptiveMrLiquidCoarseningRemoved0;
@@ -474,6 +513,9 @@ int main(int argc, char** argv) {
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", dt);
+  std::printf("adaptive_timestep=%s\n", adaptiveTimestep ? "true" : "false");
+  std::printf("adaptive_cfl=%.9g\n", adaptiveCfl);
+  std::printf("adaptive_min_dt=%.9g\n", adaptiveMinDt);
   std::printf("rho_l=%.9g\n", mr.phase.rho_l);
   std::printf("rho_g=%.9g\n", mr.phase.rho_g);
   std::printf("rho_ratio=%.9g\n", activeRhoRatio);
@@ -581,6 +623,20 @@ int main(int argc, char** argv) {
               adaptiveMetrics.boundaryClampedLiquidTotal);
   std::printf("adaptive_sparse_boundary_clamped_gas_total=%d\n",
               adaptiveMetrics.boundaryClampedGasTotal);
+  std::printf("sparse_effective_dt_last=%.9g\n", sparseMetrics.effectiveDtLast);
+  std::printf("sparse_cfl_limit_dt_last=%.9g\n", sparseMetrics.cflLimitDtLast);
+  std::printf("sparse_max_particle_speed_last=%.9g\n",
+              sparseMetrics.maxParticleSpeedLast);
+  std::printf("sparse_adaptive_timestep_limited_last=%d\n",
+              sparseMetrics.adaptiveTimestepLimitedLast);
+  std::printf("adaptive_sparse_effective_dt_last=%.9g\n",
+              adaptiveMetrics.effectiveDtLast);
+  std::printf("adaptive_sparse_cfl_limit_dt_last=%.9g\n",
+              adaptiveMetrics.cflLimitDtLast);
+  std::printf("adaptive_sparse_max_particle_speed_last=%.9g\n",
+              adaptiveMetrics.maxParticleSpeedLast);
+  std::printf("adaptive_sparse_adaptive_timestep_limited_last=%d\n",
+              adaptiveMetrics.adaptiveTimestepLimitedLast);
   std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
   std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
   std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
@@ -605,6 +661,17 @@ int main(int argc, char** argv) {
               adaptiveMrBoundaryClampedLiquidTotal);
   std::printf("adaptive_mr_boundary_clamped_gas_total=%d\n",
               adaptiveMrBoundaryClampedGasTotal);
+  std::printf("mr_effective_dt_last=%.9g\n", mrEffectiveDtLast);
+  std::printf("mr_cfl_limit_dt_last=%.9g\n", mrCflLimitDtLast);
+  std::printf("mr_max_particle_speed_last=%.9g\n", mrMaxParticleSpeedLast);
+  std::printf("mr_adaptive_timestep_limited_last=%d\n",
+              mrAdaptiveTimestepLimitedLast);
+  std::printf("adaptive_mr_effective_dt_last=%.9g\n", adaptiveMrEffectiveDtLast);
+  std::printf("adaptive_mr_cfl_limit_dt_last=%.9g\n", adaptiveMrCflLimitDtLast);
+  std::printf("adaptive_mr_max_particle_speed_last=%.9g\n",
+              adaptiveMrMaxParticleSpeedLast);
+  std::printf("adaptive_mr_adaptive_timestep_limited_last=%d\n",
+              adaptiveMrAdaptiveTimestepLimitedLast);
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");
