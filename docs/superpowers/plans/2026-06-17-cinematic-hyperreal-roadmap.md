@@ -84,7 +84,7 @@ The missing work is not one feature. It is a pipeline:
 | S36 | Large-scale benchmark v2 | CSV evidence for sim/cache/preview timing and memory proxy | Done in `test: extend large scale render benchmarks` |
 | S37 | Cinematic cache schema v2 | Stable cache fields for camera, water, secondary, and render metadata | Done in `feat: extend cinematic render cache schema` |
 | S38 | Cache-to-render conversion | Renderer-neutral conversion tool and validation loop | Done in `feat: add render cache conversion tool` |
-| S39 | First cinematic preview renderer | Local PNG/GIF shot preview from cache manifest | `feat: add cinematic cache preview renderer` |
+| S39 | First cinematic preview renderer | Local PNG/GIF shot preview from cache manifest | Done in `feat: add cinematic cache preview renderer` |
 | S40 | Secondary spray/foam visual channels | Separate droplet/bubble/foam-like channels in cache and preview | `feat: add secondary render channels` |
 | S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | `feat: add water reconstruction export` |
 | S42 | External renderer bridge | Blender/USD/OpenVDB bridge selected by measured feasibility | `feat: add external render bridge` |
@@ -428,11 +428,11 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S39.
+Continue with S40.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-17-first-cinematic-preview.md`
+`docs/superpowers/plans/2026-06-17-secondary-render-channels.md`
 
 The next command target should start from:
 
@@ -440,4 +440,4 @@ The next command target should start from:
 python tools\cinematic_render_stub.py build\s37_sparse_manifest.json build\cinematic_preview --frames 12 --width 1280 --height 720
 ```
 
-The next success condition is a local PNG/GIF cinematic preview path that can read a manifest or converted `sequence.json`, produce nonblank frames, and leave inspectable artifacts under `build/`.
+The next success condition is explicit secondary spray, foam, droplet, and bubble render-channel metadata that the cache validator and cinematic preview can isolate and count.
