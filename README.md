@@ -115,6 +115,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S26** | **Integrated physical validation preset** - sparse/MR 3D TP validators and paired bench expose short/long presets that combine adaptive timestep, RK3, c_div, escaped-particle branching, surface tension, and particle adaptivity gates. | done |
 | **S27** | **Secondary particle lifecycle scaffold** - escaped droplet/bubble containers now support opt-in advection, lifetime expiry, reabsorption removal, age tracking, and count/volume accounting in sparse/MR validators and paired bench. | done |
 | **S28** | **Surface tension validation hardening** - sparse/MR 3D TP surface tension now reports smoothed curvature, capillary stability limits, and strength-sweep gates for bounded bubble-shape validation. | done |
+| **S29** | **SPEC-4 pre-render cache format** - sparse/MR 3D TP sims can export JSONL render caches containing camera metadata, water volume summaries, phase-field cells, primary particles, and secondary droplet/bubble particles. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -187,6 +188,11 @@ cmake --build build --config Release --target validate_multires3d_tp
 # validate 3D surface-tension strength sweep metrics
 cmake --build build --config Release --target validate_surface_tension3d
 ./build/Release/validate_surface_tension3d.exe --mode both --steps 4 --smoothing-radius 1
+
+# export SPEC-4 pre-render JSONL cache frames
+cmake --build build --config Release --target export_render_cache3d
+./build/Release/export_render_cache3d.exe --kind sparse --steps 4 --every 4 --out-prefix render_cache_sparse
+./build/Release/export_render_cache3d.exe --kind mr --steps 4 --every 4 --out-prefix render_cache_mr
 
 # run 3D multires two-phase bubble slices -> mrb3_###.ppm
 cmake --build build --config Release --target run_multires_bubble3d

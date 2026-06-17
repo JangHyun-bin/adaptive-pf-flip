@@ -40,6 +40,7 @@ add_executable(unit_tests
   tests/test_sanity.cpp
   tests/test_vec2.cpp
   tests/test_secondary_particles3d.cpp
+  tests/test_render_cache3d.cpp
   tests/test_grid.cpp
   tests/test_particles.cpp
   tests/test_p2g.cpp
@@ -119,6 +120,8 @@ add_executable(validate_multires3d_tp apps/validate_multires3d_tp.cpp)
 target_link_libraries(validate_multires3d_tp pfflip2d)
 add_executable(validate_surface_tension3d apps/validate_surface_tension3d.cpp)
 target_link_libraries(validate_surface_tension3d pfflip2d)
+add_executable(export_render_cache3d apps/export_render_cache3d.cpp)
+target_link_libraries(export_render_cache3d pfflip2d)
 add_executable(bench_multires_sparse3d_tp apps/bench_multires_sparse3d_tp.cpp)
 target_link_libraries(bench_multires_sparse3d_tp pfflip2d)
 add_executable(bench_multires3d_solver apps/bench_multires3d_solver.cpp)
