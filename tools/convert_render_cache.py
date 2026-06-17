@@ -119,6 +119,44 @@ def output_relpath(path, out_dir):
     return os.path.relpath(path, out_dir).replace(os.sep, "/")
 
 
+def load_water_reconstruction(path):
+    if not path:
+        return None
+    if not os.path.isfile(path):
+        fail(f"{path}: water reconstruction not found")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        fail(f"{path}: invalid water reconstruction JSON: {exc}")
+    if data.get("reconstructor") != "lsfs_water_reconstruction":
+        fail(f"{path}: not an LSFS water reconstruction index")
+    frames = data.get("frames")
+    if not isinstance(frames, list) or not frames:
+        fail(f"{path}: water reconstruction has no frames")
+    base_dir = os.path.dirname(os.path.abspath(path))
+    for frame in frames:
+        mesh = frame.get("mesh")
+        if not isinstance(mesh, str) or not mesh:
+            fail(f"{path}: water reconstruction frame missing mesh")
+        mesh_path = mesh if os.path.isabs(mesh) else os.path.join(base_dir, mesh)
+        if not os.path.isfile(mesh_path):
+            fail(f"{path}: missing water mesh {mesh}")
+        frame["_abs_mesh"] = os.path.abspath(mesh_path)
+    data["_abs_path"] = os.path.abspath(path)
+    return data
+
+
+def select_water_frame(water_reconstruction, frame_index, frame_count):
+    if not water_reconstruction:
+        return None
+    frames = water_reconstruction["frames"]
+    if frame_count <= 1 or len(frames) == 1:
+        return frames[0]
+    idx = round(frame_index * (len(frames) - 1) / max(1, frame_count - 1))
+    return frames[idx]
+
+
 def load_manifest(path, require_cinematic=False):
     if not os.path.isfile(path):
         fail(f"{path}: manifest not found")
@@ -313,7 +351,12 @@ def write_csv(path, columns, rows):
             writer.writerow(row)
 
 
-def convert_frame(manifest, manifest_frame, out_dir, frames_dir, require_cinematic):
+def convert_frame(manifest,
+                  manifest_frame,
+                  out_dir,
+                  frames_dir,
+                  require_cinematic,
+                  water_frame=None):
     source_path = manifest_frame["path"]
     records = read_jsonl(source_path)
     header = single_section(records, "header", source_path)
@@ -359,7 +402,7 @@ def convert_frame(manifest, manifest_frame, out_dir, frames_dir, require_cinemat
     write_csv(particles_path, PARTICLE_COLUMNS, particles)
     write_csv(phase_cells_path, PHASE_CELL_COLUMNS, phase_cells)
 
-    return {
+    result = {
         "frame": manifest_frame["frame"],
         "step": manifest_frame["step"],
         "time": manifest_frame["time"],
@@ -370,17 +413,29 @@ def convert_frame(manifest, manifest_frame, out_dir, frames_dir, require_cinemat
         "particle_count": len(particles),
         "phase_cell_count": len(phase_cells),
     }
+    if water_frame:
+        result["water_mesh"] = output_relpath(water_frame["_abs_mesh"], out_dir)
+        result["water_mesh_vertex_count"] = water_frame.get("vertex_count", 0)
+        result["water_mesh_face_count"] = water_frame.get("face_count", 0)
+    return result
 
 
-def convert(manifest_path, out_dir, require_cinematic=False):
+def convert(manifest_path, out_dir, require_cinematic=False, water_reconstruction_path=None):
     manifest = load_manifest(manifest_path, require_cinematic=require_cinematic)
+    water_reconstruction = load_water_reconstruction(water_reconstruction_path)
     out_dir = os.path.abspath(out_dir)
     frames_dir = os.path.join(out_dir, "frames")
     os.makedirs(frames_dir, exist_ok=True)
 
     converted_frames = []
-    for frame in manifest["frames"]:
-        converted_frames.append(convert_frame(manifest, frame, out_dir, frames_dir, require_cinematic))
+    for idx, frame in enumerate(manifest["frames"]):
+        converted_frames.append(convert_frame(
+            manifest,
+            frame,
+            out_dir,
+            frames_dir,
+            require_cinematic,
+            select_water_frame(water_reconstruction, idx, len(manifest["frames"]))))
 
     sequence = {
         "converter": "lsfs_render_cache_converter",
@@ -393,6 +448,12 @@ def convert(manifest_path, out_dir, require_cinematic=False):
         "frame_count": len(converted_frames),
         "frames": converted_frames,
     }
+    if water_reconstruction:
+        sequence["water_reconstruction"] = {
+            "path": output_relpath(water_reconstruction["_abs_path"], out_dir),
+            "representation": water_reconstruction.get("representation", "obj_mesh"),
+            "frame_count": water_reconstruction.get("frame_count", len(water_reconstruction["frames"])),
+        }
     write_json(os.path.join(out_dir, "sequence.json"), sequence)
     return sequence
 
@@ -403,13 +464,18 @@ def parse_args(argv):
     parser.add_argument("out_dir", help="output directory")
     parser.add_argument("--require-cinematic", action="store_true",
                         help="require S37 cache_schema_version 2 cinematic metadata")
+    parser.add_argument("--water-reconstruction",
+                        help="optional S41 water_reconstruction.json to attach to sequence entries")
     return parser.parse_args(argv)
 
 
 def main(argv):
     args = parse_args(argv)
     try:
-        sequence = convert(args.manifest, args.out_dir, require_cinematic=args.require_cinematic)
+        sequence = convert(args.manifest,
+                           args.out_dir,
+                           require_cinematic=args.require_cinematic,
+                           water_reconstruction_path=args.water_reconstruction)
     except ConvertError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
         return 1

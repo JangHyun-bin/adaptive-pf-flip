@@ -36,6 +36,7 @@ BUBBLE = (255, 212, 126, 205)
 SPRAY = (230, 250, 255, 225)
 FOAM = (238, 238, 220, 215)
 MOTION = (255, 255, 255, 95)
+MESH_EDGE = (215, 245, 255, 62)
 
 
 class RenderError(Exception):
@@ -73,6 +74,28 @@ def read_jsonl(path):
     return records
 
 
+def read_obj_mesh(path):
+    vertices = []
+    faces = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("v "):
+                parts = line.split()
+                if len(parts) >= 4:
+                    vertices.append((as_float(parts[1]), as_float(parts[2]), as_float(parts[3])))
+            elif line.startswith("f "):
+                face = []
+                for token in line.split()[1:]:
+                    head = token.split("/")[0]
+                    idx = as_int(head, 0)
+                    if idx > 0:
+                        face.append(idx - 1)
+                if len(face) >= 3:
+                    faces.append(face)
+    return {"vertices": vertices, "faces": faces}
+
+
 def resolve_path(base_dir, path):
     if os.path.isabs(path):
         return path
@@ -80,6 +103,31 @@ def resolve_path(base_dir, path):
     if os.path.isfile(candidate):
         return candidate
     return path
+
+
+def load_water_reconstruction(path):
+    if not path:
+        return None
+    data = read_json(path)
+    if data.get("reconstructor") != "lsfs_water_reconstruction":
+        fail(f"{path}: not an LSFS water reconstruction index")
+    base_dir = os.path.dirname(os.path.abspath(path))
+    frames = []
+    for frame in data.get("frames", []):
+        mesh = frame.get("mesh")
+        if not isinstance(mesh, str) or not mesh:
+            fail(f"{path}: reconstruction frame missing mesh")
+        mesh_path = resolve_path(base_dir, mesh)
+        if not os.path.isfile(mesh_path):
+            fail(f"{path}: missing mesh {mesh!r}")
+        frames.append({
+            "mesh": mesh_path,
+            "vertex_count": as_int(frame.get("vertex_count")),
+            "face_count": as_int(frame.get("face_count")),
+        })
+    if not frames:
+        fail(f"{path}: water reconstruction has no frames")
+    return frames
 
 
 def section(records, name):
@@ -361,7 +409,40 @@ def secondary_color_for_channel(channel):
     return DROPLET
 
 
-def render_frame(frame, out_path, width, height, secondary_channel):
+def select_mesh_frame(mesh_frames, out_index, out_count):
+    if not mesh_frames:
+        return None
+    if out_count <= 1 or len(mesh_frames) == 1:
+        return mesh_frames[0]
+    idx = round(out_index * (len(mesh_frames) - 1) / max(1, out_count - 1))
+    return mesh_frames[idx]
+
+
+def draw_mesh_overlay(img, frame, mesh_frame, width, height, basis, scale):
+    if not mesh_frame:
+        return 0, 0
+    mesh = read_obj_mesh(mesh_frame["mesh"])
+    if not mesh["vertices"] or not mesh["faces"]:
+        return 0, 0
+    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer, "RGBA")
+    projected = [project(v, frame, width, height, basis, scale) for v in mesh["vertices"]]
+    max_faces = min(len(mesh["faces"]), 6000)
+    stride = max(1, len(mesh["faces"]) // max_faces)
+    for face in mesh["faces"][::stride]:
+        points = []
+        for idx in face:
+            if 0 <= idx < len(projected):
+                px, py, _ = projected[idx]
+                points.append((px, py))
+        if len(points) >= 3:
+            for a, b in zip(points, points[1:] + points[:1]):
+                draw.line([a, b], fill=MESH_EDGE, width=1)
+    img.alpha_composite(layer)
+    return len(mesh["vertices"]), len(mesh["faces"])
+
+
+def render_frame(frame, out_path, width, height, secondary_channel, mesh_frame=None):
     img = make_background(width, height)
     water_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     particle_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -374,6 +455,8 @@ def render_frame(frame, out_path, width, height, secondary_channel):
     basis = camera_basis(frame)
     scale = view_scale(frame, width, height)
     dx = frame["dx"]
+    mesh_vertex_count = 0
+    mesh_face_count = 0
 
     depth_sorted_cells = []
     for cell in frame["phase_cells"]:
@@ -432,6 +515,8 @@ def render_frame(frame, out_path, width, height, secondary_channel):
     particle_layer = particle_layer.filter(ImageFilter.GaussianBlur(radius=0.35))
     img = Image.alpha_composite(img, water_layer)
     img = Image.alpha_composite(img, particle_layer)
+    mesh_vertex_count, mesh_face_count = draw_mesh_overlay(
+        img, frame, mesh_frame, width, height, basis, scale)
     img.convert("RGB").save(out_path)
 
     total_pixels = width * height
@@ -447,6 +532,8 @@ def render_frame(frame, out_path, width, height, secondary_channel):
         "secondary_pixels": secondary_pixels,
         "secondary_channel_counts": channel_counts,
         "secondary_channel_filter": secondary_channel,
+        "mesh_vertex_count": mesh_vertex_count,
+        "mesh_face_count": mesh_face_count,
         "occupancy": occupancy,
     }
 
@@ -467,6 +554,8 @@ def parse_args(argv):
                         help="minimum water-or-secondary pixel occupancy required per frame")
     parser.add_argument("--secondary-channel", choices=("all", "droplet", "spray", "foam", "bubble"),
                         default="all", help="secondary render channel to draw")
+    parser.add_argument("--water-reconstruction",
+                        help="optional S41 water_reconstruction.json mesh overlay")
     args = parser.parse_args(argv)
     if args.frames <= 0:
         parser.error("frames must be positive")
@@ -484,6 +573,7 @@ def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     try:
         source_frames = load_source(args.src)
+        mesh_frames = load_water_reconstruction(args.water_reconstruction)
         os.makedirs(args.out_dir, exist_ok=True)
         summaries = []
         for i in range(args.frames):
@@ -493,7 +583,12 @@ def main(argv=None):
                 src_index = round(i * (len(source_frames) - 1) / max(1, args.frames - 1))
             frame = source_frames[src_index % len(source_frames)]
             out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
-            summaries.append(render_frame(frame, out_path, args.width, args.height, args.secondary_channel))
+            summaries.append(render_frame(frame,
+                                          out_path,
+                                          args.width,
+                                          args.height,
+                                          args.secondary_channel,
+                                          select_mesh_frame(mesh_frames, i, args.frames)))
         min_occupancy = min(item["occupancy"] for item in summaries) if summaries else 0.0
         summary = {
             "renderer": "lsfs_cinematic_render_stub",
@@ -502,6 +597,7 @@ def main(argv=None):
             "width": args.width,
             "height": args.height,
             "secondary_channel": args.secondary_channel,
+            "water_reconstruction": args.water_reconstruction,
             "frame_count": len(summaries),
             "min_occupancy": min_occupancy,
             "frames": summaries,

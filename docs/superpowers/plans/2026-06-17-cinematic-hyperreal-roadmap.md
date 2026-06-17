@@ -86,7 +86,7 @@ The missing work is not one feature. It is a pipeline:
 | S38 | Cache-to-render conversion | Renderer-neutral conversion tool and validation loop | Done in `feat: add render cache conversion tool` |
 | S39 | First cinematic preview renderer | Local PNG/GIF shot preview from cache manifest | Done in `feat: add cinematic cache preview renderer` |
 | S40 | Secondary spray/foam visual channels | Separate droplet/bubble/foam-like channels in cache and preview | Done in `feat: add secondary render channels` |
-| S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | `feat: add water reconstruction export` |
+| S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | Done in `feat: add water reconstruction export` |
 | S42 | External renderer bridge | Blender/USD/OpenVDB bridge selected by measured feasibility | `feat: add external render bridge` |
 | S43 | Shot orchestration runner | Single command emits cache, validation, render frames, and movie | `feat: add cinematic shot pipeline` |
 | S44 | Hyperreal material and lighting pass | Camera, lights, tone mapping, water/spray material presets | `feat: add cinematic render presets` |
@@ -428,11 +428,11 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S41.
+Continue with S42.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-17-water-reconstruction-export.md`
+`docs/superpowers/plans/2026-06-17-external-render-bridge.md`
 
 The next command target should start from:
 
@@ -440,4 +440,4 @@ The next command target should start from:
 python tools\cinematic_render_stub.py build\s37_sparse_manifest.json build\cinematic_preview --frames 12 --width 1280 --height 720
 ```
 
-The next success condition is a first water-body reconstruction export, either OBJ mesh or volume slices, generated from validated phase-cell cache data and consumed by the cinematic preview path.
+The next success condition is the first external renderer bridge, preferably Blender first, that consumes the S38 converted bundle plus S41 OBJ water meshes and writes nonblank rendered PNG frames.
