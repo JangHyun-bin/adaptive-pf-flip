@@ -160,6 +160,7 @@ struct MRPressureSolveConfig3D {
   double coarse_preconditioner_max_work_ratio = 0.0;
   bool coarse_preconditioner_auto_disable = false;
   int coarse_preconditioner_auto_disable_after = 4;
+  double divergence_correction = 0.0;
 };
 
 MRPressureSystem3D buildMRPressureSystem3D(const MRMacGrid3D<4>& g, double dt);

@@ -23,6 +23,12 @@ struct MRSim3DTP {
   double cfl_limit_dt_last = 0.02;
   int adaptive_timestep_limited_last = 0;
   int advection_order = 2;
+  bool c_div_volume_correction = false;
+  double c_div_strength = 1.0;
+  double liquid_volume_target = 0.0;
+  double liquid_volume_current_last = 0.0;
+  double liquid_volume_error_last = 0.0;
+  double c_div_last = 0.0;
   int cg_iters = 160;
   double cg_tol = 1e-7;
   double cg_rel_tol = 1e-6;

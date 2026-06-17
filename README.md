@@ -107,6 +107,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S18** | **Physical residual particle boundary accounting** - sparse/MR 3D TP advect reports phase and axis boundary clamps as the scaffold for escaped-particle droplet/bubble handling. | done |
 | **S19** | **Physical residual adaptive timestep** - sparse/MR 3D TP sims can opt into CFL-limited effective dt with validator and paired-bench diagnostics. | done |
 | **S20** | **Physical residual RK3 advection option** - sparse/MR 3D TP advect can switch from midpoint RK2 to RK3, with validator and paired-bench controls. | done |
+| **S21** | **Physical residual c_div volume correction** - sparse/MR 3D TP projections accept an opt-in divergence correction derived from liquid volume target error. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

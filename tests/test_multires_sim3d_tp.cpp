@@ -438,6 +438,23 @@ TEST_CASE("multires 3D adaptive timestep reports effective dt") {
   CHECK(sim.adaptive_timestep_limited_last == 1);
 }
 
+TEST_CASE("multires 3D c_div uses liquid volume error") {
+  MRSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 120;
+  sim.c_div_volume_correction = true;
+  sim.c_div_strength = 1.0;
+  sim.initBubbleTankInterfaceBand();
+  const double liquidVolume = volumeType(sim.particles, 0);
+  sim.liquid_volume_target = liquidVolume + 1.0;
+
+  sim.step();
+
+  CHECK(sim.liquid_volume_current_last == doctest::Approx(liquidVolume));
+  CHECK(sim.liquid_volume_error_last == doctest::Approx(1.0));
+  CHECK(sim.c_div_last == doctest::Approx(1.0 / (sim.dt * sim.liquid_volume_target)));
+}
+
 TEST_CASE("multires 3D bubble high density ratio pressure converges") {
   MRSim3DTP sim(8, 12, 8, 1.0);
   sim.phase.rho_l = 1000.0;

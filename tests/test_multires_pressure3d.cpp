@@ -61,6 +61,36 @@ double markerAwareMaxDivergence(const MRMacGrid3D<4>& g) {
   return mx;
 }
 
+double markerAwareMeanDivergence(const MRMacGrid3D<4>& g) {
+  double sum = 0.0;
+  int count = 0;
+  for (int k = 0; k < g.layout.nz; ++k) {
+    for (int j = 0; j < g.layout.ny; ++j) {
+      for (int i = 0; i < g.layout.nx; ++i) {
+        if (markerAt(g, i, j, k) != 1) continue;
+
+        bool solidLeft = markerAt(g, i - 1, j, k) == 2;
+        bool solidRight = markerAt(g, i + 1, j, k) == 2;
+        bool solidBottom = markerAt(g, i, j - 1, k) == 2;
+        bool solidTop = markerAt(g, i, j + 1, k) == 2;
+        bool solidBack = markerAt(g, i, j, k - 1) == 2;
+        bool solidFront = markerAt(g, i, j, k + 1) == 2;
+
+        double uR = solidRight ? 0.0 : static_cast<double>(g.gu(MRFaceKey3D{0, i + 1, j, k, 1, 1}));
+        double uL = solidLeft ? 0.0 : static_cast<double>(g.gu(MRFaceKey3D{0, i, j, k, 1, 1}));
+        double vT = solidTop ? 0.0 : static_cast<double>(g.gv(MRFaceKey3D{1, i, j + 1, k, 1, 1}));
+        double vB = solidBottom ? 0.0 : static_cast<double>(g.gv(MRFaceKey3D{1, i, j, k, 1, 1}));
+        double wF = solidFront ? 0.0 : static_cast<double>(g.gw(MRFaceKey3D{2, i, j, k + 1, 1, 1}));
+        double wK = solidBack ? 0.0 : static_cast<double>(g.gw(MRFaceKey3D{2, i, j, k, 1, 1}));
+
+        sum += ((uR - uL) + (vT - vB) + (wF - wK)) / g.layout.dx;
+        ++count;
+      }
+    }
+  }
+  return count > 0 ? sum / static_cast<double>(count) : 0.0;
+}
+
 void seedMarkedDivergenceCase(MRMacGrid3D<4>& g) {
   setMarker(g, 2, 3, 3, 2);
   setMarker(g, 3, 3, 3, 1);
@@ -536,6 +566,33 @@ TEST_CASE("multires 3D pressure: phase-aware projection reduces marked divergenc
   CHECK(before > 1.0);
   CHECK(after < before * 0.55);
   CHECK(g.gu(MRFaceKey3D{0, 3, 3, 3, 1, 1}) == doctest::Approx(0.0).epsilon(1e-12));
+}
+
+TEST_CASE("multires 3D pressure: projection can preserve a target c_div") {
+  MRLayout3D<4> layout(8, 8, 8, 1.0);
+  layout.setCoarseEverywhere(0);
+  MRMacGrid3D<4> g(layout);
+  PhaseParams pp;
+
+  setMarker(g, 2, 3, 3, 2);
+  setMarker(g, 3, 3, 3, 1);
+  setMarker(g, 4, 3, 3, 1);
+  setMarker(g, 3, 4, 3, 1);
+  setMarker(g, 4, 4, 3, 1);
+  setMarker(g, 3, 3, 4, 1);
+  setMarker(g, 4, 3, 4, 1);
+
+  for (const MRFaceKey3D& f : g.uFaces()) g.mU(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.vFaces()) g.mV(f) = 1.0f;
+  for (const MRFaceKey3D& f : g.wFaces()) g.mW(f) = 1.0f;
+
+  MRPressureSolveConfig3D config;
+  config.max_iterations = 100;
+  config.absolute_tolerance = 1e-10;
+  config.divergence_correction = 0.125;
+  projectMR3D(g, pp, 1.0, config);
+
+  CHECK(markerAwareMeanDivergence(g) == doctest::Approx(0.125).epsilon(1e-4));
 }
 
 TEST_CASE("multires 3D pressure: solve stats track residual and iterations") {

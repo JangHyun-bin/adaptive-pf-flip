@@ -135,6 +135,34 @@ void storeTimestepStats(SparseSim3DTP& sim, const TimestepStats3D& stats) {
   sim.adaptive_timestep_limited_last = stats.limited;
 }
 
+double liquidVolume(const Particles3DTP& particles, double Vp) {
+  double volume = 0.0;
+  for (size_t p = 0; p < particles.size(); ++p) {
+    if (particles.type[p] == 0) volume += particles.volume[p] * Vp;
+  }
+  return volume;
+}
+
+void resetVolumeCorrectionStats(SparseSim3DTP& sim) {
+  sim.liquid_volume_current_last = liquidVolume(sim.particles, sim.Vp);
+  sim.liquid_volume_target = sim.liquid_volume_current_last;
+  sim.liquid_volume_error_last = 0.0;
+  sim.c_div_last = 0.0;
+}
+
+void updateVolumeCorrectionStats(SparseSim3DTP& sim, double stepDt) {
+  sim.liquid_volume_current_last = liquidVolume(sim.particles, sim.Vp);
+  sim.liquid_volume_error_last = sim.liquid_volume_target - sim.liquid_volume_current_last;
+  sim.c_div_last = 0.0;
+  if (sim.c_div_volume_correction &&
+      sim.c_div_strength > 0.0 &&
+      sim.liquid_volume_target > 0.0 &&
+      stepDt > 0.0) {
+    sim.c_div_last =
+      sim.c_div_strength * sim.liquid_volume_error_last / (stepDt * sim.liquid_volume_target);
+  }
+}
+
 } // namespace
 
 void SparseSim3DTP::initTwoPhaseDamBreak() {
@@ -161,6 +189,7 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
     }
   }
   applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
 }
 
 void SparseSim3DTP::initRayleighTaylor() {
@@ -188,6 +217,7 @@ void SparseSim3DTP::initRayleighTaylor() {
     }
   }
   applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
 }
 
 void SparseSim3DTP::initBubbleTank() {
@@ -220,6 +250,7 @@ void SparseSim3DTP::initBubbleTank() {
     }
   }
   applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
 }
 
 void SparseSim3DTP::applyNarrowBandAir() {
@@ -305,12 +336,13 @@ void SparseSim3DTP::step() {
                                       adaptive_timestep, adaptive_cfl, adaptive_min_dt);
   storeTimestepStats(*this, timestep);
   const double stepDt = timestep.effective_dt;
+  updateVolumeCorrectionStats(*this, stepDt);
   markCells(grid, particles);
   spP2G3D_tp(grid, particles, phase, Vp);
   SparseMacGrid3D<4> saved = grid;
   applyGravity(grid, stepDt, gravity);
   applyWallBoundary(grid);
-  spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol);
+  spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol, c_div_last);
   spG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
   spAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order);

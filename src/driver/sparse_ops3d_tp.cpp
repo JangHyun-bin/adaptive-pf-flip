@@ -223,7 +223,12 @@ void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt,
   }
 }
 
-void spProjectStepVC3D(SparseMacGrid3D<4>& g, const PhaseParams& pp, double dt, int cg_iters, double cg_tol) {
+void spProjectStepVC3D(SparseMacGrid3D<4>& g,
+                       const PhaseParams& pp,
+                       double dt,
+                       int cg_iters,
+                       double cg_tol,
+                       double divergenceCorrection) {
   g.pf.clear();
   auto cells = sparse3d::collectCellsWithMarker(g, 1);
   int N = (int)cells.size();
@@ -266,7 +271,7 @@ void spProjectStepVC3D(SparseMacGrid3D<4>& g, const PhaseParams& pp, double dt, 
     double vB = isSolid(g, i, j - 1, k) ? 0.0 : (double)g.gv(i, j, k);
     double wU = isSolid(g, i, j, k + 1) ? 0.0 : (double)g.gw(i, j, k + 1);
     double wD = isSolid(g, i, j, k - 1) ? 0.0 : (double)g.gw(i, j, k);
-    r[t] = -((uR - uL) + (vT - vB) + (wU - wD)) / g.dx;
+    r[t] = -((uR - uL) + (vT - vB) + (wU - wD)) / g.dx + divergenceCorrection;
   }
 
   std::vector<double> diag(N, 0.0);

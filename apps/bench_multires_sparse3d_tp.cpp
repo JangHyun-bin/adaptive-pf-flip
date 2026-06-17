@@ -96,6 +96,10 @@ struct SparseMetrics {
   double cflLimitDtLast = 0.0;
   double maxParticleSpeedLast = 0.0;
   int adaptiveTimestepLimitedLast = 0;
+  double liquidVolumeTarget = 0.0;
+  double liquidVolumeCurrentLast = 0.0;
+  double liquidVolumeErrorLast = 0.0;
+  double cDivLast = 0.0;
   int liquidCoarseningRemovedStart = 0;
   int liquidCoarseningRemovedEnd = 0;
   int liquidCoarseningRemovedDuringRun = 0;
@@ -109,8 +113,11 @@ struct SparseMetrics {
   bool finite = false;
 };
 
-SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
+SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps, double liquidVolumeTargetOverride) {
   sim.initBubbleTank();
+  if (liquidVolumeTargetOverride >= 0.0) {
+    sim.liquid_volume_target = liquidVolumeTargetOverride;
+  }
   SparseMetrics metrics;
   metrics.particlesStart = sim.particles.size();
   metrics.liquidStart = countType(sim.particles, 0);
@@ -139,6 +146,10 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps) {
   metrics.cflLimitDtLast = sim.cfl_limit_dt_last;
   metrics.maxParticleSpeedLast = sim.max_particle_speed_last;
   metrics.adaptiveTimestepLimitedLast = sim.adaptive_timestep_limited_last;
+  metrics.liquidVolumeTarget = sim.liquid_volume_target;
+  metrics.liquidVolumeCurrentLast = sim.liquid_volume_current_last;
+  metrics.liquidVolumeErrorLast = sim.liquid_volume_error_last;
+  metrics.cDivLast = sim.c_div_last;
   metrics.liquidCoarseningRemovedEnd = sim.liquid_particle_coarsening_removed_total;
   metrics.liquidCoarseningRemovedDuringRun =
     metrics.liquidCoarseningRemovedEnd - metrics.liquidCoarseningRemovedStart;
@@ -158,6 +169,7 @@ void usage() {
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
+               "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -218,9 +230,19 @@ int main(int argc, char** argv) {
   const double adaptiveCfl = argDouble(argc, argv, "--adaptive-cfl", mr.adaptive_cfl);
   const double adaptiveMinDt = argDouble(argc, argv, "--adaptive-min-dt", mr.adaptive_min_dt);
   const int advectionOrder = argInt(argc, argv, "--advection-order", mr.advection_order);
+  const bool cDivVolumeCorrection = hasFlag(argc, argv, "--c-div-volume-correction");
+  const double cDivStrength = argDouble(argc, argv, "--c-div-strength", mr.c_div_strength);
+  const double liquidVolumeTargetOverride =
+    argDouble(argc, argv, "--liquid-volume-target", -1.0);
   sparse.adaptive_timestep = adaptiveTimestep;
   sparseAdaptive.adaptive_timestep = adaptiveTimestep;
   mr.adaptive_timestep = adaptiveTimestep;
+  sparse.c_div_volume_correction = cDivVolumeCorrection;
+  sparseAdaptive.c_div_volume_correction = cDivVolumeCorrection;
+  mr.c_div_volume_correction = cDivVolumeCorrection;
+  sparse.c_div_strength = cDivStrength;
+  sparseAdaptive.c_div_strength = cDivStrength;
+  mr.c_div_strength = cDivStrength;
   sparse.advection_order = advectionOrder;
   sparseAdaptive.advection_order = advectionOrder;
   mr.advection_order = advectionOrder;
@@ -293,6 +315,8 @@ int main(int argc, char** argv) {
   mrAdaptive.adaptive_cfl = adaptiveCfl;
   mrAdaptive.adaptive_min_dt = adaptiveMinDt;
   mrAdaptive.advection_order = advectionOrder;
+  mrAdaptive.c_div_volume_correction = cDivVolumeCorrection;
+  mrAdaptive.c_div_strength = cDivStrength;
   mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
     argInt(argc, argv, "--mr-narrow-band-radius",
@@ -344,6 +368,8 @@ int main(int argc, char** argv) {
       adaptiveCfl <= 0.0 ||
       adaptiveMinDt < 0.0 ||
       (advectionOrder != 2 && advectionOrder != 3) ||
+      cDivStrength < 0.0 ||
+      liquidVolumeTargetOverride < -0.5 ||
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
       sparseAdaptive.liquid_particles_per_cell_target <= 0 ||
@@ -369,15 +395,18 @@ int main(int argc, char** argv) {
   const bool highDensityRatio = activeRhoRatio >= 1000.0;
   const bool requireConverged = hasFlag(argc, argv, "--require-converged") || highDensityRatio;
 
-  SparseMetrics sparseMetrics = runSparseBubble(sparse, steps);
+  SparseMetrics sparseMetrics = runSparseBubble(sparse, steps, liquidVolumeTargetOverride);
   SparseMetrics adaptiveMetrics;
   if (sparseAdaptivity) {
-    adaptiveMetrics = runSparseBubble(sparseAdaptive, steps);
+    adaptiveMetrics = runSparseBubble(sparseAdaptive, steps, liquidVolumeTargetOverride);
   } else {
     adaptiveMetrics = sparseMetrics;
   }
 
   mr.initBubbleTankInterfaceBand();
+  if (liquidVolumeTargetOverride >= 0.0) {
+    mr.liquid_volume_target = liquidVolumeTargetOverride;
+  }
 
   size_t mrN0 = mr.particles.size();
   size_t mrLiquid0 = countType(mr.particles, 0);
@@ -403,6 +432,10 @@ int main(int argc, char** argv) {
   double mrCflLimitDtLast = mr.cfl_limit_dt_last;
   double mrMaxParticleSpeedLast = mr.max_particle_speed_last;
   int mrAdaptiveTimestepLimitedLast = mr.adaptive_timestep_limited_last;
+  double mrLiquidVolumeTarget = mr.liquid_volume_target;
+  double mrLiquidVolumeCurrentLast = mr.liquid_volume_current_last;
+  double mrLiquidVolumeErrorLast = mr.liquid_volume_error_last;
+  double mrCDivLast = mr.c_div_last;
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
   long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
@@ -422,6 +455,10 @@ int main(int argc, char** argv) {
   double adaptiveMrCflLimitDtLast = mrCflLimitDtLast;
   double adaptiveMrMaxParticleSpeedLast = mrMaxParticleSpeedLast;
   int adaptiveMrAdaptiveTimestepLimitedLast = mrAdaptiveTimestepLimitedLast;
+  double adaptiveMrLiquidVolumeTarget = mrLiquidVolumeTarget;
+  double adaptiveMrLiquidVolumeCurrentLast = mrLiquidVolumeCurrentLast;
+  double adaptiveMrLiquidVolumeErrorLast = mrLiquidVolumeErrorLast;
+  double adaptiveMrCDivLast = mrCDivLast;
   int adaptiveMrLiquidRefillAdded0 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAdded1 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAddedDuringRun = 0;
@@ -435,6 +472,9 @@ int main(int argc, char** argv) {
   long long adaptiveMrMs = mrMs;
   if (mrAdaptivity) {
     mrAdaptive.initBubbleTankInterfaceBand();
+    if (liquidVolumeTargetOverride >= 0.0) {
+      mrAdaptive.liquid_volume_target = liquidVolumeTargetOverride;
+    }
     adaptiveMrN0 = mrAdaptive.particles.size();
     adaptiveMrLiquid0 = countType(mrAdaptive.particles, 0);
     adaptiveMrGasCount0 = countType(mrAdaptive.particles, 1);
@@ -464,6 +504,10 @@ int main(int argc, char** argv) {
     adaptiveMrMaxParticleSpeedLast = mrAdaptive.max_particle_speed_last;
     adaptiveMrAdaptiveTimestepLimitedLast =
       mrAdaptive.adaptive_timestep_limited_last;
+    adaptiveMrLiquidVolumeTarget = mrAdaptive.liquid_volume_target;
+    adaptiveMrLiquidVolumeCurrentLast = mrAdaptive.liquid_volume_current_last;
+    adaptiveMrLiquidVolumeErrorLast = mrAdaptive.liquid_volume_error_last;
+    adaptiveMrCDivLast = mrAdaptive.c_div_last;
     adaptiveMrLiquidCoarseningRemoved1 = mrAdaptive.liquid_particle_coarsening_removed_total;
     adaptiveMrLiquidCoarseningRemovedDuringRun =
       adaptiveMrLiquidCoarseningRemoved1 - adaptiveMrLiquidCoarseningRemoved0;
@@ -524,6 +568,10 @@ int main(int argc, char** argv) {
   std::printf("adaptive_cfl=%.9g\n", adaptiveCfl);
   std::printf("adaptive_min_dt=%.9g\n", adaptiveMinDt);
   std::printf("advection_order=%d\n", advectionOrder);
+  std::printf("c_div_volume_correction=%s\n",
+              cDivVolumeCorrection ? "true" : "false");
+  std::printf("c_div_strength=%.9g\n", cDivStrength);
+  std::printf("liquid_volume_target_override=%.9g\n", liquidVolumeTargetOverride);
   std::printf("rho_l=%.9g\n", mr.phase.rho_l);
   std::printf("rho_g=%.9g\n", mr.phase.rho_g);
   std::printf("rho_ratio=%.9g\n", activeRhoRatio);
@@ -645,6 +693,19 @@ int main(int argc, char** argv) {
               adaptiveMetrics.maxParticleSpeedLast);
   std::printf("adaptive_sparse_adaptive_timestep_limited_last=%d\n",
               adaptiveMetrics.adaptiveTimestepLimitedLast);
+  std::printf("sparse_liquid_volume_target=%.9g\n", sparseMetrics.liquidVolumeTarget);
+  std::printf("sparse_liquid_volume_current_last=%.9g\n",
+              sparseMetrics.liquidVolumeCurrentLast);
+  std::printf("sparse_liquid_volume_error_last=%.9g\n",
+              sparseMetrics.liquidVolumeErrorLast);
+  std::printf("sparse_c_div_last=%.9g\n", sparseMetrics.cDivLast);
+  std::printf("adaptive_sparse_liquid_volume_target=%.9g\n",
+              adaptiveMetrics.liquidVolumeTarget);
+  std::printf("adaptive_sparse_liquid_volume_current_last=%.9g\n",
+              adaptiveMetrics.liquidVolumeCurrentLast);
+  std::printf("adaptive_sparse_liquid_volume_error_last=%.9g\n",
+              adaptiveMetrics.liquidVolumeErrorLast);
+  std::printf("adaptive_sparse_c_div_last=%.9g\n", adaptiveMetrics.cDivLast);
   std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
   std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
   std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
@@ -680,6 +741,17 @@ int main(int argc, char** argv) {
               adaptiveMrMaxParticleSpeedLast);
   std::printf("adaptive_mr_adaptive_timestep_limited_last=%d\n",
               adaptiveMrAdaptiveTimestepLimitedLast);
+  std::printf("mr_liquid_volume_target=%.9g\n", mrLiquidVolumeTarget);
+  std::printf("mr_liquid_volume_current_last=%.9g\n", mrLiquidVolumeCurrentLast);
+  std::printf("mr_liquid_volume_error_last=%.9g\n", mrLiquidVolumeErrorLast);
+  std::printf("mr_c_div_last=%.9g\n", mrCDivLast);
+  std::printf("adaptive_mr_liquid_volume_target=%.9g\n",
+              adaptiveMrLiquidVolumeTarget);
+  std::printf("adaptive_mr_liquid_volume_current_last=%.9g\n",
+              adaptiveMrLiquidVolumeCurrentLast);
+  std::printf("adaptive_mr_liquid_volume_error_last=%.9g\n",
+              adaptiveMrLiquidVolumeErrorLast);
+  std::printf("adaptive_mr_c_div_last=%.9g\n", adaptiveMrCDivLast);
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");

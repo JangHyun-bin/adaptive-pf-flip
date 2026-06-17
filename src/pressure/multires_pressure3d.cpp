@@ -326,7 +326,8 @@ void validateSolveConfig(const MRPressureSolveConfig3D& config) {
       config.coarse_preconditioner_scale < 0.0 ||
       config.coarse_preconditioner_min_rz_gain < 0.0 ||
       config.coarse_preconditioner_max_work_ratio < 0.0 ||
-      config.coarse_preconditioner_auto_disable_after < 0) {
+      config.coarse_preconditioner_auto_disable_after < 0 ||
+      !std::isfinite(config.divergence_correction)) {
     throw std::invalid_argument("projectMR3D invalid solve config");
   }
 }
@@ -844,7 +845,9 @@ void projectMR3D(MRMacGrid3D<4>& g, const PhaseParams& pp, double dt,
 
   double res0 = 0.0;
   for (const ProjectionCell3D& c : cells) {
-    rhs[c.index] = c.index == pinCell ? 0.0 : -rows[c.index].divergence;
+    rhs[c.index] = c.index == pinCell
+      ? 0.0
+      : -rows[c.index].divergence + config.divergence_correction;
     r[c.index] = rhs[c.index];
     res0 = std::max(res0, std::abs(r[c.index]));
   }

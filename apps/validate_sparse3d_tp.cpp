@@ -89,6 +89,7 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
+               "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
                "[--narrow-band-air] [--narrow-band-radius N] "
                "[--gas-coarsening] [--gas-particles-per-cell N] "
                "[--gas-coarsening-seed N] "
@@ -125,6 +126,10 @@ int main(int argc, char** argv) {
   sim.adaptive_cfl = argDouble(argc, argv, "--adaptive-cfl", sim.adaptive_cfl);
   sim.adaptive_min_dt = argDouble(argc, argv, "--adaptive-min-dt", sim.adaptive_min_dt);
   sim.advection_order = argInt(argc, argv, "--advection-order", sim.advection_order);
+  sim.c_div_volume_correction = hasFlag(argc, argv, "--c-div-volume-correction");
+  sim.c_div_strength = argDouble(argc, argv, "--c-div-strength", sim.c_div_strength);
+  const double liquidVolumeTargetOverride =
+    argDouble(argc, argv, "--liquid-volume-target", -1.0);
   sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
   sim.narrow_band_air_radius =
     argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
@@ -160,7 +165,9 @@ int main(int argc, char** argv) {
       sim.liquid_particle_refill_interface_radius < 0 ||
       sim.adaptive_cfl <= 0.0 ||
       sim.adaptive_min_dt < 0.0 ||
-      (sim.advection_order != 2 && sim.advection_order != 3)) {
+      (sim.advection_order != 2 && sim.advection_order != 3) ||
+      sim.c_div_strength < 0.0 ||
+      liquidVolumeTargetOverride < -0.5) {
     usage();
     return 2;
   }
@@ -169,6 +176,9 @@ int main(int argc, char** argv) {
     sim.initRayleighTaylor();
   } else {
     sim.initBubbleTank();
+  }
+  if (liquidVolumeTargetOverride >= 0.0) {
+    sim.liquid_volume_target = liquidVolumeTargetOverride;
   }
 
   size_t n0 = sim.particles.size();
@@ -212,6 +222,13 @@ int main(int argc, char** argv) {
   std::printf("adaptive_cfl=%.9g\n", sim.adaptive_cfl);
   std::printf("adaptive_min_dt=%.9g\n", sim.adaptive_min_dt);
   std::printf("advection_order=%d\n", sim.advection_order);
+  std::printf("c_div_volume_correction=%s\n",
+              sim.c_div_volume_correction ? "true" : "false");
+  std::printf("c_div_strength=%.9g\n", sim.c_div_strength);
+  std::printf("liquid_volume_target=%.9g\n", sim.liquid_volume_target);
+  std::printf("liquid_volume_current_last=%.9g\n", sim.liquid_volume_current_last);
+  std::printf("liquid_volume_error_last=%.9g\n", sim.liquid_volume_error_last);
+  std::printf("c_div_last=%.9g\n", sim.c_div_last);
   std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
   std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
   std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);

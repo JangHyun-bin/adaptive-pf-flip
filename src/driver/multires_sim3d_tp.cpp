@@ -281,6 +281,34 @@ void storeTimestepStats(MRSim3DTP& sim, const TimestepStats3D& stats) {
   sim.adaptive_timestep_limited_last = stats.limited;
 }
 
+double liquidVolume(const Particles3DTP& particles, double Vp) {
+  double volume = 0.0;
+  for (size_t p = 0; p < particles.size(); ++p) {
+    if (particles.type[p] == 0) volume += particles.volume[p] * Vp;
+  }
+  return volume;
+}
+
+void resetVolumeCorrectionStats(MRSim3DTP& sim) {
+  sim.liquid_volume_current_last = liquidVolume(sim.particles, sim.Vp);
+  sim.liquid_volume_target = sim.liquid_volume_current_last;
+  sim.liquid_volume_error_last = 0.0;
+  sim.c_div_last = 0.0;
+}
+
+void updateVolumeCorrectionStats(MRSim3DTP& sim, double stepDt) {
+  sim.liquid_volume_current_last = liquidVolume(sim.particles, sim.Vp);
+  sim.liquid_volume_error_last = sim.liquid_volume_target - sim.liquid_volume_current_last;
+  sim.c_div_last = 0.0;
+  if (sim.c_div_volume_correction &&
+      sim.c_div_strength > 0.0 &&
+      sim.liquid_volume_target > 0.0 &&
+      stepDt > 0.0) {
+    sim.c_div_last =
+      sim.c_div_strength * sim.liquid_volume_error_last / (stepDt * sim.liquid_volume_target);
+  }
+}
+
 } // namespace
 
 MRSim3DTP::MRSim3DTP(int nx, int ny, int nz, double dx)
@@ -325,6 +353,7 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   }
 
   applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
   if (dynamic_refinement) {
     updateDynamicRefinement();
   }
@@ -504,6 +533,7 @@ void MRSim3DTP::step() {
                                       adaptive_timestep, adaptive_cfl, adaptive_min_dt);
   storeTimestepStats(*this, timestep);
   const double stepDt = timestep.effective_dt;
+  updateVolumeCorrectionStats(*this, stepDt);
   markCells(grid, particles);
   mrP2G3D_tp(grid, particles, phase, Vp);
   MRMacGrid3D<4> saved = grid;
@@ -541,6 +571,7 @@ void MRSim3DTP::step() {
     cg_coarse_preconditioner_auto_disable;
   pressureConfig.coarse_preconditioner_auto_disable_after =
     cg_coarse_preconditioner_auto_disable_after;
+  pressureConfig.divergence_correction = c_div_last;
   projectMR3D(grid, phase, stepDt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;

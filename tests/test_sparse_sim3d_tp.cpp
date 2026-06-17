@@ -130,6 +130,22 @@ TEST_CASE("sparse 3D two-phase adaptive timestep reports effective dt") {
   CHECK(sim.adaptive_timestep_limited_last == 1);
 }
 
+TEST_CASE("sparse 3D two-phase c_div uses liquid volume error") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.c_div_volume_correction = true;
+  sim.c_div_strength = 1.0;
+  sim.initBubbleTank();
+  const double liquidVolume = volumeType(sim.particles, 0);
+  sim.liquid_volume_target = liquidVolume + 1.0;
+
+  sim.step();
+
+  CHECK(sim.liquid_volume_current_last == doctest::Approx(liquidVolume));
+  CHECK(sim.liquid_volume_error_last == doctest::Approx(1.0));
+  CHECK(sim.c_div_last == doctest::Approx(1.0 / (sim.dt * sim.liquid_volume_target)));
+}
+
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   SparseSim3DTP full(12, 12, 8, 1.0);
   full.initTwoPhaseDamBreak();

@@ -92,6 +92,7 @@ void usage() {
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
+               "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -139,6 +140,10 @@ int main(int argc, char** argv) {
   sim.adaptive_cfl = argDouble(argc, argv, "--adaptive-cfl", sim.adaptive_cfl);
   sim.adaptive_min_dt = argDouble(argc, argv, "--adaptive-min-dt", sim.adaptive_min_dt);
   sim.advection_order = argInt(argc, argv, "--advection-order", sim.advection_order);
+  sim.c_div_volume_correction = hasFlag(argc, argv, "--c-div-volume-correction");
+  sim.c_div_strength = argDouble(argc, argv, "--c-div-strength", sim.c_div_strength);
+  const double liquidVolumeTargetOverride =
+    argDouble(argc, argv, "--liquid-volume-target", -1.0);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
   sim.cg_rel_tol = argDouble(argc, argv, "--cg-rel-tol", sim.cg_rel_tol);
   if (hasFlag(argc, argv, "--no-jacobi")) sim.cg_jacobi_preconditioner = false;
@@ -236,6 +241,8 @@ int main(int argc, char** argv) {
       sim.adaptive_cfl <= 0.0 ||
       sim.adaptive_min_dt < 0.0 ||
       (sim.advection_order != 2 && sim.advection_order != 3) ||
+      sim.c_div_strength < 0.0 ||
+      liquidVolumeTargetOverride < -0.5 ||
       sim.narrow_band_air_radius < 0 ||
       sim.gas_particles_per_cell_target <= 0 ||
       sim.liquid_particles_per_cell_target <= 0 ||
@@ -249,6 +256,9 @@ int main(int argc, char** argv) {
   const bool highDensityRatio = activeRhoRatio >= 1000.0;
   const bool requireConverged = hasFlag(argc, argv, "--require-converged") || highDensityRatio;
   sim.initBubbleTankInterfaceBand();
+  if (liquidVolumeTargetOverride >= 0.0) {
+    sim.liquid_volume_target = liquidVolumeTargetOverride;
+  }
 
   size_t n0 = sim.particles.size();
   size_t liquidCount0 = countType(sim.particles, 0);
@@ -307,6 +317,13 @@ int main(int argc, char** argv) {
   std::printf("adaptive_cfl=%.9g\n", sim.adaptive_cfl);
   std::printf("adaptive_min_dt=%.9g\n", sim.adaptive_min_dt);
   std::printf("advection_order=%d\n", sim.advection_order);
+  std::printf("c_div_volume_correction=%s\n",
+              sim.c_div_volume_correction ? "true" : "false");
+  std::printf("c_div_strength=%.9g\n", sim.c_div_strength);
+  std::printf("liquid_volume_target=%.9g\n", sim.liquid_volume_target);
+  std::printf("liquid_volume_current_last=%.9g\n", sim.liquid_volume_current_last);
+  std::printf("liquid_volume_error_last=%.9g\n", sim.liquid_volume_error_last);
+  std::printf("c_div_last=%.9g\n", sim.c_div_last);
   std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
   std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
   std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);
