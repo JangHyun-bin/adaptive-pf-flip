@@ -161,6 +161,7 @@ struct MRSim3DTP {
   bool surface_tension = false;
   double surface_tension_strength = 0.02;
   double surface_tension_max_delta_speed = 0.25;
+  int surface_tension_curvature_smoothing_radius = 0;
   SurfaceTensionStats3D surface_tension_stats_last;
   MRPressureSolveStats3D last_pressure_stats;
 

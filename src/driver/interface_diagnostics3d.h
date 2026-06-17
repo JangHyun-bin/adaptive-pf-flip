@@ -22,10 +22,17 @@ struct SurfaceTensionStats3D {
   int enabled = 0;
   int applied_cells = 0;
   int finite = 1;
+  int curvature_smoothing_radius = 0;
+  int capillary_stable = 1;
   double strength = 0.0;
   double max_delta_speed_limit = 0.0;
   double mean_delta_speed = 0.0;
   double max_delta_speed = 0.0;
+  double raw_curvature_abs_mean = 0.0;
+  double raw_curvature_abs_max = 0.0;
+  double smoothed_curvature_abs_mean = 0.0;
+  double smoothed_curvature_abs_max = 0.0;
+  double capillary_dt_limit = 0.0;
 };
 
 InterfaceDiagnostics3D diagnoseSparseInterface3D(const SparseMacGrid3D<4>& g,
@@ -38,10 +45,12 @@ SurfaceTensionStats3D applySparseSurfaceTension3D(SparseMacGrid3D<4>& g,
                                                   const PhaseParams& phase,
                                                   double dt,
                                                   double strength,
-                                                  double maxDeltaSpeed);
+                                                  double maxDeltaSpeed,
+                                                  int curvatureSmoothingRadius);
 
 SurfaceTensionStats3D applyMRSurfaceTension3D(MRMacGrid3D<4>& g,
                                               const PhaseParams& phase,
                                               double dt,
                                               double strength,
-                                              double maxDeltaSpeed);
+                                              double maxDeltaSpeed,
+                                              int curvatureSmoothingRadius);

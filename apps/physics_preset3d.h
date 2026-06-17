@@ -11,6 +11,7 @@ void applyCorePhysicsPreset3D(Sim& sim) {
   sim.advection_order = 3;
   sim.c_div_volume_correction = true;
   sim.surface_tension = true;
+  sim.surface_tension_curvature_smoothing_radius = 1;
   sim.escaped_particle_branching = true;
   sim.secondary_particle_lifecycle = true;
 }
@@ -42,6 +43,7 @@ bool corePhysicsPresetActive3D(const Sim& sim) {
          sim.advection_order == 3 &&
          sim.c_div_volume_correction &&
          sim.surface_tension &&
+         sim.surface_tension_curvature_smoothing_radius > 0 &&
          sim.escaped_particle_branching &&
          sim.secondary_particle_lifecycle;
 }

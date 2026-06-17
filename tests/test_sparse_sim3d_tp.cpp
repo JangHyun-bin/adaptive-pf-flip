@@ -181,6 +181,28 @@ TEST_CASE("sparse 3D two-phase surface tension applies bounded grid force") {
         sim.surface_tension_max_delta_speed + 1e-12);
 }
 
+TEST_CASE("sparse 3D surface tension smoothing reports capillary gate") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.surface_tension = true;
+  sim.surface_tension_strength = 0.02;
+  sim.surface_tension_max_delta_speed = 0.05;
+  sim.surface_tension_curvature_smoothing_radius = 1;
+  sim.initBubbleTank();
+
+  sim.step();
+
+  CHECK(sim.surface_tension_stats_last.enabled == 1);
+  CHECK(sim.surface_tension_stats_last.finite == 1);
+  CHECK(sim.surface_tension_stats_last.curvature_smoothing_radius == 1);
+  CHECK(sim.surface_tension_stats_last.capillary_dt_limit > sim.effective_dt_last);
+  CHECK(sim.surface_tension_stats_last.capillary_stable == 1);
+  CHECK(sim.surface_tension_stats_last.raw_curvature_abs_max >= 0.0);
+  CHECK(sim.surface_tension_stats_last.smoothed_curvature_abs_max >= 0.0);
+  CHECK(sim.surface_tension_stats_last.smoothed_curvature_abs_max <=
+        sim.surface_tension_stats_last.raw_curvature_abs_max + 1e-12);
+}
+
 TEST_CASE("sparse 3D secondary lifecycle reabsorbs tracked droplets") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.1;

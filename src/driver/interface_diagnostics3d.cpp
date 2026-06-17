@@ -13,6 +13,7 @@ constexpr double kInterfacePhiLo = 0.05;
 constexpr double kInterfacePhiHi = 0.95;
 constexpr double kGradientThreshold = 1e-5;
 constexpr double kNormalEps = 1e-12;
+constexpr double kPi = 3.14159265358979323846;
 
 int clampInt(int v, int lo, int hi) {
   return std::max(lo, std::min(hi, v));
@@ -76,20 +77,60 @@ Vec3 limitedDelta(Vec3 delta, double maxDeltaSpeed) {
   return delta;
 }
 
-void accumulateSurfaceStats(SurfaceTensionStats3D& stats, const Vec3& delta) {
+double capillaryDtLimit(const PhaseParams& phase, double dx, double strength) {
+  if (dx <= 0.0 || strength <= 0.0) return 0.0;
+  const double rhoMin = std::min(phase.rho_l, phase.rho_g);
+  if (rhoMin <= 0.0 || !finiteValue(rhoMin)) return 0.0;
+  return std::sqrt((rhoMin * dx * dx * dx) / (2.0 * kPi * strength));
+}
+
+void initSurfaceStats(SurfaceTensionStats3D& stats,
+                      const PhaseParams& phase,
+                      double dx,
+                      double dt,
+                      double strength,
+                      double maxDeltaSpeed,
+                      int curvatureSmoothingRadius) {
+  stats.enabled = strength > 0.0 && dt > 0.0;
+  stats.strength = strength;
+  stats.max_delta_speed_limit = maxDeltaSpeed;
+  stats.curvature_smoothing_radius = clampInt(curvatureSmoothingRadius, 0, 3);
+  stats.capillary_dt_limit = capillaryDtLimit(phase, dx, strength);
+  stats.capillary_stable =
+    !stats.enabled ||
+    stats.capillary_dt_limit <= 0.0 ||
+    dt <= stats.capillary_dt_limit + 1e-12;
+}
+
+void accumulateSurfaceStats(SurfaceTensionStats3D& stats,
+                            const Vec3& delta,
+                            double rawCurvature,
+                            double smoothedCurvature) {
   const double mag = delta.length();
-  if (!finiteValue(mag)) {
+  if (!finiteValue(mag) ||
+      !finiteValue(rawCurvature) ||
+      !finiteValue(smoothedCurvature)) {
     stats.finite = 0;
     return;
   }
   ++stats.applied_cells;
   stats.mean_delta_speed += mag;
   stats.max_delta_speed = std::max(stats.max_delta_speed, mag);
+
+  const double rawAbs = std::abs(rawCurvature);
+  const double smoothedAbs = std::abs(smoothedCurvature);
+  stats.raw_curvature_abs_mean += rawAbs;
+  stats.raw_curvature_abs_max = std::max(stats.raw_curvature_abs_max, rawAbs);
+  stats.smoothed_curvature_abs_mean += smoothedAbs;
+  stats.smoothed_curvature_abs_max = std::max(stats.smoothed_curvature_abs_max, smoothedAbs);
 }
 
 void finishSurfaceStats(SurfaceTensionStats3D& stats) {
   if (stats.applied_cells > 0) {
-    stats.mean_delta_speed /= static_cast<double>(stats.applied_cells);
+    const double denom = static_cast<double>(stats.applied_cells);
+    stats.mean_delta_speed /= denom;
+    stats.raw_curvature_abs_mean /= denom;
+    stats.smoothed_curvature_abs_mean /= denom;
   }
 }
 
@@ -164,6 +205,34 @@ double sparseCurvature(const SparseMacGrid3D<4>& g, const PhaseParams& phase,
   return (nxp.x - nxm.x) / (std::max(1, ip - im) * dx) +
          (nyp.y - nym.y) / (std::max(1, jp - jm) * dx) +
          (nzp.z - nzm.z) / (std::max(1, kp - km) * dx);
+}
+
+double sparseSmoothedCurvature(const SparseMacGrid3D<4>& g,
+                               const PhaseParams& phase,
+                               int i,
+                               int j,
+                               int k,
+                               double rawCurvature,
+                               int radius) {
+  if (radius <= 0 || !finiteValue(rawCurvature)) return rawCurvature;
+
+  double sum = 0.0;
+  int count = 0;
+  for (int dz = -radius; dz <= radius; ++dz) {
+    for (int dy = -radius; dy <= radius; ++dy) {
+      for (int dx = -radius; dx <= radius; ++dx) {
+        const int ni = clampInt(i + dx, 0, g.nx - 1);
+        const int nj = clampInt(j + dy, 0, g.ny - 1);
+        const int nk = clampInt(k + dz, 0, g.nz - 1);
+        if (!interfacePhi(sparseCellPhi(g, phase, ni, nj, nk))) continue;
+        const double curvature = sparseCurvature(g, phase, ni, nj, nk);
+        if (!finiteValue(curvature)) continue;
+        sum += curvature;
+        ++count;
+      }
+    }
+  }
+  return count > 0 ? sum / static_cast<double>(count) : rawCurvature;
 }
 
 double mrFacePhi(const MRMacGrid3D<4>& g, const PhaseParams& phase,
@@ -251,6 +320,34 @@ double mrCurvature(const MRMacGrid3D<4>& g, const PhaseParams& phase,
          (nzp.z - nzm.z) / (std::max(1, kp - km) * dx);
 }
 
+double mrSmoothedCurvature(const MRMacGrid3D<4>& g,
+                           const PhaseParams& phase,
+                           int i,
+                           int j,
+                           int k,
+                           double rawCurvature,
+                           int radius) {
+  if (radius <= 0 || !finiteValue(rawCurvature)) return rawCurvature;
+
+  double sum = 0.0;
+  int count = 0;
+  for (int dz = -radius; dz <= radius; ++dz) {
+    for (int dy = -radius; dy <= radius; ++dy) {
+      for (int dx = -radius; dx <= radius; ++dx) {
+        const int ni = clampInt(i + dx, 0, g.layout.nx - 1);
+        const int nj = clampInt(j + dy, 0, g.layout.ny - 1);
+        const int nk = clampInt(k + dz, 0, g.layout.nz - 1);
+        if (!interfacePhi(mrCellPhiFine(g, phase, ni, nj, nk))) continue;
+        const double curvature = mrCurvature(g, phase, ni, nj, nk);
+        if (!finiteValue(curvature)) continue;
+        sum += curvature;
+        ++count;
+      }
+    }
+  }
+  return count > 0 ? sum / static_cast<double>(count) : rawCurvature;
+}
+
 void mrCellFineCenter(const MRCellKey3D& c, int& i, int& j, int& k) {
   const int step = 1 << c.block.level;
   const int x0 = c.block.bx * 4 * step + c.lx * step;
@@ -309,13 +406,14 @@ SurfaceTensionStats3D applySparseSurfaceTension3D(SparseMacGrid3D<4>& g,
                                                   const PhaseParams& phase,
                                                   double dt,
                                                   double strength,
-                                                  double maxDeltaSpeed) {
+                                                  double maxDeltaSpeed,
+                                                  int curvatureSmoothingRadius) {
   SurfaceTensionStats3D stats;
-  stats.enabled = strength > 0.0 && dt > 0.0;
-  stats.strength = strength;
-  stats.max_delta_speed_limit = maxDeltaSpeed;
+  initSurfaceStats(stats, phase, g.dx, dt, strength, maxDeltaSpeed,
+                   curvatureSmoothingRadius);
   if (!stats.enabled) return stats;
 
+  const int smoothingRadius = stats.curvature_smoothing_radius;
   const std::vector<int> cells = sparse3d::collectCellsWithMarker(g, 1);
   for (int c : cells) {
     const int i = c % g.nx;
@@ -329,9 +427,11 @@ SurfaceTensionStats3D applySparseSurfaceTension3D(SparseMacGrid3D<4>& g,
     const double gradMag = grad.length();
     if (gradMag <= kGradientThreshold) continue;
 
-    const double curvature = sparseCurvature(g, phase, i, j, k);
-    Vec3 delta = limitedDelta(grad * (-strength * curvature * dt), maxDeltaSpeed);
-    accumulateSurfaceStats(stats, delta);
+    const double rawCurvature = sparseCurvature(g, phase, i, j, k);
+    const double smoothedCurvature =
+      sparseSmoothedCurvature(g, phase, i, j, k, rawCurvature, smoothingRadius);
+    Vec3 delta = limitedDelta(grad * (-strength * smoothedCurvature * dt), maxDeltaSpeed);
+    accumulateSurfaceStats(stats, delta, rawCurvature, smoothedCurvature);
     if (!stats.finite) continue;
 
     if (g.gmu(i, j, k) > 0.0f) g.u(i, j, k) += static_cast<float>(0.5 * delta.x);
@@ -349,13 +449,14 @@ SurfaceTensionStats3D applyMRSurfaceTension3D(MRMacGrid3D<4>& g,
                                               const PhaseParams& phase,
                                               double dt,
                                               double strength,
-                                              double maxDeltaSpeed) {
+                                              double maxDeltaSpeed,
+                                              int curvatureSmoothingRadius) {
   SurfaceTensionStats3D stats;
-  stats.enabled = strength > 0.0 && dt > 0.0;
-  stats.strength = strength;
-  stats.max_delta_speed_limit = maxDeltaSpeed;
+  initSurfaceStats(stats, phase, g.layout.dx, dt, strength, maxDeltaSpeed,
+                   curvatureSmoothingRadius);
   if (!stats.enabled) return stats;
 
+  const int smoothingRadius = stats.curvature_smoothing_radius;
   for (const MRCellKey3D& c : g.marker.leafCells()) {
     const int marker = static_cast<int>(g.marker.get(c) + 0.5f);
     if (marker != 1) continue;
@@ -375,9 +476,11 @@ SurfaceTensionStats3D applyMRSurfaceTension3D(MRMacGrid3D<4>& g,
     const double gradMag = grad.length();
     if (gradMag <= kGradientThreshold) continue;
 
-    const double curvature = mrCurvature(g, phase, i, j, k);
-    Vec3 delta = limitedDelta(grad * (-strength * curvature * dt), maxDeltaSpeed);
-    accumulateSurfaceStats(stats, delta);
+    const double rawCurvature = mrCurvature(g, phase, i, j, k);
+    const double smoothedCurvature =
+      mrSmoothedCurvature(g, phase, i, j, k, rawCurvature, smoothingRadius);
+    Vec3 delta = limitedDelta(grad * (-strength * smoothedCurvature * dt), maxDeltaSpeed);
+    accumulateSurfaceStats(stats, delta, rawCurvature, smoothedCurvature);
     if (!stats.finite) continue;
 
     const MRFaceKey3D u0{0, i, j, k, 1, 1};

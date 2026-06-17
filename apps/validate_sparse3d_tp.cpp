@@ -94,6 +94,7 @@ void usage() {
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
                "[--surface-tension] [--surface-tension-strength S] "
                "[--surface-tension-max-delta-speed V] "
+               "[--surface-tension-curvature-smoothing-radius N] "
                "[--escaped-particle-branching] "
                "[--secondary-lifecycle] [--secondary-droplet-lifetime N] "
                "[--secondary-bubble-lifetime N] [--secondary-velocity-damping D] "
@@ -155,6 +156,9 @@ int main(int argc, char** argv) {
   sim.surface_tension_max_delta_speed =
     argDouble(argc, argv, "--surface-tension-max-delta-speed",
               sim.surface_tension_max_delta_speed);
+  sim.surface_tension_curvature_smoothing_radius =
+    argInt(argc, argv, "--surface-tension-curvature-smoothing-radius",
+           sim.surface_tension_curvature_smoothing_radius);
   sim.escaped_particle_branching = sim.escaped_particle_branching ||
                                    hasFlag(argc, argv, "--escaped-particle-branching");
   sim.secondary_particle_lifecycle = sim.secondary_particle_lifecycle ||
@@ -223,6 +227,8 @@ int main(int argc, char** argv) {
       sim.c_div_strength < 0.0 ||
       sim.surface_tension_strength < 0.0 ||
       sim.surface_tension_max_delta_speed < 0.0 ||
+      sim.surface_tension_curvature_smoothing_radius < 0 ||
+      sim.surface_tension_curvature_smoothing_radius > 3 ||
       sim.secondary_droplet_lifetime_steps < 0 ||
       sim.secondary_bubble_lifetime_steps < 0 ||
       sim.secondary_velocity_damping < 0.0 ||
@@ -293,6 +299,8 @@ int main(int argc, char** argv) {
   std::printf("surface_tension_strength=%.9g\n", sim.surface_tension_strength);
   std::printf("surface_tension_max_delta_speed=%.9g\n",
               sim.surface_tension_max_delta_speed);
+  std::printf("surface_tension_curvature_smoothing_radius=%d\n",
+              sim.surface_tension_curvature_smoothing_radius);
   std::printf("escaped_particle_branching=%s\n",
               sim.escaped_particle_branching ? "true" : "false");
   std::printf("secondary_particle_lifecycle=%s\n",
@@ -343,6 +351,20 @@ int main(int argc, char** argv) {
               sim.surface_tension_stats_last.mean_delta_speed);
   std::printf("surface_tension_max_delta_speed_last=%.9g\n",
               sim.surface_tension_stats_last.max_delta_speed);
+  std::printf("surface_tension_curvature_smoothing_radius_last=%d\n",
+              sim.surface_tension_stats_last.curvature_smoothing_radius);
+  std::printf("surface_tension_raw_curvature_abs_mean=%.9g\n",
+              sim.surface_tension_stats_last.raw_curvature_abs_mean);
+  std::printf("surface_tension_raw_curvature_abs_max=%.9g\n",
+              sim.surface_tension_stats_last.raw_curvature_abs_max);
+  std::printf("surface_tension_smoothed_curvature_abs_mean=%.9g\n",
+              sim.surface_tension_stats_last.smoothed_curvature_abs_mean);
+  std::printf("surface_tension_smoothed_curvature_abs_max=%.9g\n",
+              sim.surface_tension_stats_last.smoothed_curvature_abs_max);
+  std::printf("surface_tension_capillary_dt_limit=%.9g\n",
+              sim.surface_tension_stats_last.capillary_dt_limit);
+  std::printf("surface_tension_capillary_stable=%s\n",
+              sim.surface_tension_stats_last.capillary_stable ? "true" : "false");
   std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
   std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
   std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);
@@ -600,6 +622,12 @@ int main(int argc, char** argv) {
     if (sim.surface_tension_max_delta_speed > 0.0 &&
         sim.surface_tension_stats_last.max_delta_speed >
           sim.surface_tension_max_delta_speed + 1e-12) {
+      ok = false;
+    }
+    if (!sim.surface_tension_stats_last.capillary_stable) ok = false;
+    if (sim.surface_tension_stats_last.capillary_dt_limit <= 0.0) ok = false;
+    if (sim.surface_tension_stats_last.curvature_smoothing_radius !=
+        sim.surface_tension_curvature_smoothing_radius) {
       ok = false;
     }
   } else if (sim.surface_tension_stats_last.enabled ||

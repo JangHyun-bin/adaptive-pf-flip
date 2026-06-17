@@ -230,6 +230,7 @@ void usage() {
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
                "[--surface-tension] [--surface-tension-strength S] "
                "[--surface-tension-max-delta-speed V] "
+               "[--surface-tension-curvature-smoothing-radius N] "
                "[--escaped-particle-branching] "
                "[--secondary-lifecycle] [--secondary-droplet-lifetime N] "
                "[--secondary-bubble-lifetime N] [--secondary-velocity-damping D] "
@@ -318,6 +319,9 @@ int main(int argc, char** argv) {
   const double surfaceTensionMaxDeltaSpeed =
     argDouble(argc, argv, "--surface-tension-max-delta-speed",
               mr.surface_tension_max_delta_speed);
+  const int surfaceTensionCurvatureSmoothingRadius =
+    argInt(argc, argv, "--surface-tension-curvature-smoothing-radius",
+           mr.surface_tension_curvature_smoothing_radius);
   const bool secondaryLifecycle =
     sparse.secondary_particle_lifecycle || hasFlag(argc, argv, "--secondary-lifecycle");
   const int secondaryDropletLifetime =
@@ -357,6 +361,12 @@ int main(int argc, char** argv) {
   sparse.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
   sparseAdaptive.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
   mr.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
+  sparse.surface_tension_curvature_smoothing_radius =
+    surfaceTensionCurvatureSmoothingRadius;
+  sparseAdaptive.surface_tension_curvature_smoothing_radius =
+    surfaceTensionCurvatureSmoothingRadius;
+  mr.surface_tension_curvature_smoothing_radius =
+    surfaceTensionCurvatureSmoothingRadius;
   sparse.escaped_particle_branching = escapedParticleBranching;
   sparseAdaptive.escaped_particle_branching = escapedParticleBranching;
   mr.escaped_particle_branching = escapedParticleBranching;
@@ -463,6 +473,8 @@ int main(int argc, char** argv) {
   mrAdaptive.surface_tension = surfaceTension;
   mrAdaptive.surface_tension_strength = surfaceTensionStrength;
   mrAdaptive.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
+  mrAdaptive.surface_tension_curvature_smoothing_radius =
+    surfaceTensionCurvatureSmoothingRadius;
   mrAdaptive.escaped_particle_branching = escapedParticleBranching;
   mrAdaptive.secondary_particle_lifecycle = secondaryLifecycle;
   mrAdaptive.secondary_droplet_lifetime_steps = secondaryDropletLifetime;
@@ -529,6 +541,8 @@ int main(int argc, char** argv) {
       cDivStrength < 0.0 ||
       surfaceTensionStrength < 0.0 ||
       surfaceTensionMaxDeltaSpeed < 0.0 ||
+      surfaceTensionCurvatureSmoothingRadius < 0 ||
+      surfaceTensionCurvatureSmoothingRadius > 3 ||
       secondaryDropletLifetime < 0 ||
       secondaryBubbleLifetime < 0 ||
       secondaryVelocityDamping < 0.0 ||
@@ -857,6 +871,8 @@ int main(int argc, char** argv) {
   std::printf("surface_tension_strength=%.9g\n", surfaceTensionStrength);
   std::printf("surface_tension_max_delta_speed=%.9g\n",
               surfaceTensionMaxDeltaSpeed);
+  std::printf("surface_tension_curvature_smoothing_radius=%d\n",
+              surfaceTensionCurvatureSmoothingRadius);
   std::printf("escaped_particle_branching=%s\n",
               escapedParticleBranching ? "true" : "false");
   std::printf("secondary_particle_lifecycle=%s\n",
@@ -1133,6 +1149,16 @@ int main(int argc, char** argv) {
               sparseMetrics.surfaceTensionStats.finite ? "true" : "false");
   std::printf("sparse_surface_tension_max_delta_speed_last=%.9g\n",
               sparseMetrics.surfaceTensionStats.max_delta_speed);
+  std::printf("sparse_surface_tension_curvature_smoothing_radius_last=%d\n",
+              sparseMetrics.surfaceTensionStats.curvature_smoothing_radius);
+  std::printf("sparse_surface_tension_raw_curvature_abs_max=%.9g\n",
+              sparseMetrics.surfaceTensionStats.raw_curvature_abs_max);
+  std::printf("sparse_surface_tension_smoothed_curvature_abs_max=%.9g\n",
+              sparseMetrics.surfaceTensionStats.smoothed_curvature_abs_max);
+  std::printf("sparse_surface_tension_capillary_dt_limit=%.9g\n",
+              sparseMetrics.surfaceTensionStats.capillary_dt_limit);
+  std::printf("sparse_surface_tension_capillary_stable=%s\n",
+              sparseMetrics.surfaceTensionStats.capillary_stable ? "true" : "false");
   std::printf("adaptive_sparse_surface_tension_enabled=%s\n",
               adaptiveMetrics.surfaceTensionStats.enabled ? "true" : "false");
   std::printf("adaptive_sparse_surface_tension_applied_cells=%d\n",
@@ -1141,6 +1167,16 @@ int main(int argc, char** argv) {
               adaptiveMetrics.surfaceTensionStats.finite ? "true" : "false");
   std::printf("adaptive_sparse_surface_tension_max_delta_speed_last=%.9g\n",
               adaptiveMetrics.surfaceTensionStats.max_delta_speed);
+  std::printf("adaptive_sparse_surface_tension_curvature_smoothing_radius_last=%d\n",
+              adaptiveMetrics.surfaceTensionStats.curvature_smoothing_radius);
+  std::printf("adaptive_sparse_surface_tension_raw_curvature_abs_max=%.9g\n",
+              adaptiveMetrics.surfaceTensionStats.raw_curvature_abs_max);
+  std::printf("adaptive_sparse_surface_tension_smoothed_curvature_abs_max=%.9g\n",
+              adaptiveMetrics.surfaceTensionStats.smoothed_curvature_abs_max);
+  std::printf("adaptive_sparse_surface_tension_capillary_dt_limit=%.9g\n",
+              adaptiveMetrics.surfaceTensionStats.capillary_dt_limit);
+  std::printf("adaptive_sparse_surface_tension_capillary_stable=%s\n",
+              adaptiveMetrics.surfaceTensionStats.capillary_stable ? "true" : "false");
   std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
   std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
   std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
@@ -1313,6 +1349,16 @@ int main(int argc, char** argv) {
               mrSurfaceTensionStats.finite ? "true" : "false");
   std::printf("mr_surface_tension_max_delta_speed_last=%.9g\n",
               mrSurfaceTensionStats.max_delta_speed);
+  std::printf("mr_surface_tension_curvature_smoothing_radius_last=%d\n",
+              mrSurfaceTensionStats.curvature_smoothing_radius);
+  std::printf("mr_surface_tension_raw_curvature_abs_max=%.9g\n",
+              mrSurfaceTensionStats.raw_curvature_abs_max);
+  std::printf("mr_surface_tension_smoothed_curvature_abs_max=%.9g\n",
+              mrSurfaceTensionStats.smoothed_curvature_abs_max);
+  std::printf("mr_surface_tension_capillary_dt_limit=%.9g\n",
+              mrSurfaceTensionStats.capillary_dt_limit);
+  std::printf("mr_surface_tension_capillary_stable=%s\n",
+              mrSurfaceTensionStats.capillary_stable ? "true" : "false");
   std::printf("adaptive_mr_surface_tension_enabled=%s\n",
               adaptiveMrSurfaceTensionStats.enabled ? "true" : "false");
   std::printf("adaptive_mr_surface_tension_applied_cells=%d\n",
@@ -1321,6 +1367,16 @@ int main(int argc, char** argv) {
               adaptiveMrSurfaceTensionStats.finite ? "true" : "false");
   std::printf("adaptive_mr_surface_tension_max_delta_speed_last=%.9g\n",
               adaptiveMrSurfaceTensionStats.max_delta_speed);
+  std::printf("adaptive_mr_surface_tension_curvature_smoothing_radius_last=%d\n",
+              adaptiveMrSurfaceTensionStats.curvature_smoothing_radius);
+  std::printf("adaptive_mr_surface_tension_raw_curvature_abs_max=%.9g\n",
+              adaptiveMrSurfaceTensionStats.raw_curvature_abs_max);
+  std::printf("adaptive_mr_surface_tension_smoothed_curvature_abs_max=%.9g\n",
+              adaptiveMrSurfaceTensionStats.smoothed_curvature_abs_max);
+  std::printf("adaptive_mr_surface_tension_capillary_dt_limit=%.9g\n",
+              adaptiveMrSurfaceTensionStats.capillary_dt_limit);
+  std::printf("adaptive_mr_surface_tension_capillary_stable=%s\n",
+              adaptiveMrSurfaceTensionStats.capillary_stable ? "true" : "false");
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");
@@ -1516,6 +1572,13 @@ int main(int argc, char** argv) {
       }
       if (surfaceTensionMaxDeltaSpeed > 0.0 &&
           stats.max_delta_speed > surfaceTensionMaxDeltaSpeed + 1e-12) {
+        return false;
+      }
+      if (!stats.capillary_stable || stats.capillary_dt_limit <= 0.0) {
+        return false;
+      }
+      if (stats.curvature_smoothing_radius !=
+          surfaceTensionCurvatureSmoothingRadius) {
         return false;
       }
       return true;

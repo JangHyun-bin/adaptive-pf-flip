@@ -464,7 +464,8 @@ void SparseSim3DTP::step() {
   surface_tension_stats_last = surface_tension
     ? applySparseSurfaceTension3D(grid, phase, stepDt,
                                   surface_tension_strength,
-                                  surface_tension_max_delta_speed)
+                                  surface_tension_max_delta_speed,
+                                  surface_tension_curvature_smoothing_radius)
     : SurfaceTensionStats3D();
   applyWallBoundary(grid);
   spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol, c_div_last);

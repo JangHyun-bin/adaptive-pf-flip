@@ -114,6 +114,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S25** | **Physical residual surface tension scaffold** - sparse/MR 3D TP sims expose opt-in bounded CSF-style interface force with validator and paired-bench diagnostics. | done |
 | **S26** | **Integrated physical validation preset** - sparse/MR 3D TP validators and paired bench expose short/long presets that combine adaptive timestep, RK3, c_div, escaped-particle branching, surface tension, and particle adaptivity gates. | done |
 | **S27** | **Secondary particle lifecycle scaffold** - escaped droplet/bubble containers now support opt-in advection, lifetime expiry, reabsorption removal, age tracking, and count/volume accounting in sparse/MR validators and paired bench. | done |
+| **S28** | **Surface tension validation hardening** - sparse/MR 3D TP surface tension now reports smoothed curvature, capillary stability limits, and strength-sweep gates for bounded bubble-shape validation. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -182,6 +183,10 @@ cmake --build build --config Release --target validate_multires3d_tp
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --secondary-lifecycle
 ./build/Release/validate_multires3d_tp.exe --physics-preset --steps 8
 ./build/Release/validate_multires3d_tp.exe --long-physics-preset
+
+# validate 3D surface-tension strength sweep metrics
+cmake --build build --config Release --target validate_surface_tension3d
+./build/Release/validate_surface_tension3d.exe --mode both --steps 4 --smoothing-radius 1
 
 # run 3D multires two-phase bubble slices -> mrb3_###.ppm
 cmake --build build --config Release --target run_multires_bubble3d
