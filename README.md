@@ -116,6 +116,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S27** | **Secondary particle lifecycle scaffold** - escaped droplet/bubble containers now support opt-in advection, lifetime expiry, reabsorption removal, age tracking, and count/volume accounting in sparse/MR validators and paired bench. | done |
 | **S28** | **Surface tension validation hardening** - sparse/MR 3D TP surface tension now reports smoothed curvature, capillary stability limits, and strength-sweep gates for bounded bubble-shape validation. | done |
 | **S29** | **SPEC-4 pre-render cache format** - sparse/MR 3D TP sims can export JSONL render caches containing camera metadata, water volume summaries, phase-field cells, primary particles, and secondary droplet/bubble particles. | done |
+| **S30** | **Large-scale benchmark gate** - CSV runner records sparse vs MR, adaptivity on/off, solver option, memory-proxy, time, and pressure convergence metrics for larger 3D bubble workloads. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -209,6 +210,11 @@ cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --secondary-lifecycle
 ./build/Release/bench_multires_sparse3d_tp.exe --physics-preset --steps 6
 ./build/Release/bench_multires_sparse3d_tp.exe --long-physics-preset
+
+# write sparse/MR/adaptivity large-scale metrics to CSV
+cmake --build build --config Release --target bench_large_scale3d_tp
+./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver baseline --csv build/large_scale3d_tp.csv
+./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver all --csv build/large_scale3d_tp_solvers.csv
 
 # compare 3D multires pressure solver variants with baseline-relative summary lines
 cmake --build build --config Release --target bench_multires3d_solver

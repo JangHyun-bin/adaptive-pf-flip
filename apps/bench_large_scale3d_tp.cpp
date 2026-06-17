@@ -1,0 +1,390 @@
+#include "driver/multires_sim3d_tp.h"
+#include "driver/sparse_sim3d_tp.h"
+#include "physics_preset3d.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <string>
+#include <vector>
+
+namespace {
+
+int argInt(int argc, char** argv, const char* key, int fallback) {
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return std::atoi(argv[i + 1]);
+  }
+  return fallback;
+}
+
+double argDouble(int argc, char** argv, const char* key, double fallback) {
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return std::atof(argv[i + 1]);
+  }
+  return fallback;
+}
+
+bool hasFlag(int argc, char** argv, const char* key) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return true;
+  }
+  return false;
+}
+
+const char* argString(int argc, char** argv, const char* key, const char* fallback) {
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], key) == 0) return argv[i + 1];
+  }
+  return fallback;
+}
+
+double meanY(const Particles3DTP& ps, unsigned char type) {
+  double sum = 0.0;
+  int count = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) {
+      sum += ps.pos[i].y;
+      ++count;
+    }
+  }
+  return count ? sum / count : 0.0;
+}
+
+double volumeType(const Particles3DTP& ps, unsigned char type, double Vp) {
+  double volume = 0.0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) volume += ps.volume[i] * Vp;
+  }
+  return volume;
+}
+
+bool finiteParticles(const Particles3DTP& ps) {
+  for (size_t i = 0; i < ps.size(); ++i) {
+    const Vec3& p = ps.pos[i];
+    if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+struct Config {
+  int nx = 16;
+  int ny = 24;
+  int nz = 16;
+  int steps = 8;
+  int cg_iters = 160;
+  double dt = 0.02;
+  std::string csv = "build/large_scale3d_tp.csv";
+  std::string solver = "baseline";
+  bool physics_preset = false;
+};
+
+struct Row {
+  std::string variant;
+  std::string solver;
+  int nx = 0;
+  int ny = 0;
+  int nz = 0;
+  int steps = 0;
+  bool adaptivity = false;
+  size_t particles_start = 0;
+  size_t particles_end = 0;
+  double liquid_volume_start = 0.0;
+  double liquid_volume_end = 0.0;
+  double gas_volume_start = 0.0;
+  double gas_volume_end = 0.0;
+  double gas_mean_y_start = 0.0;
+  double gas_mean_y_end = 0.0;
+  size_t active_pressure_cells = 0;
+  size_t total_pressure_cells = 0;
+  size_t active_pressure_blocks_max = 0;
+  size_t total_pressure_blocks = 0;
+  size_t leaf_level0 = 0;
+  size_t leaf_level1 = 0;
+  int u_faces = 0;
+  int v_faces = 0;
+  int w_faces = 0;
+  size_t memory_proxy_cells = 0;
+  size_t memory_proxy_faces = 0;
+  size_t memory_proxy_bytes = 0;
+  long long elapsed_ms = 0;
+  double elapsed_ms_per_step = 0.0;
+  int pressure_iterations = -1;
+  int pressure_max_iterations = -1;
+  double pressure_initial_residual = 0.0;
+  double pressure_final_residual = 0.0;
+  double pressure_final_over_initial = 0.0;
+  std::string pressure_converged = "na";
+  std::string pressure_breakdown = "na";
+  bool ok = false;
+};
+
+void usage() {
+  std::fprintf(stderr,
+               "usage: bench_large_scale3d_tp [--nx N] [--ny N] [--nz N] "
+               "[--steps N] [--dt DT] [--cg-iters N] [--csv PATH] "
+               "[--solver baseline|relax|coarse_pre|all] [--physics-preset]\n");
+}
+
+void writeHeader(std::ostream& out) {
+  out << "variant,solver,nx,ny,nz,steps,adaptivity,particles_start,particles_end,"
+      << "liquid_volume_start,liquid_volume_end,gas_volume_start,gas_volume_end,"
+      << "gas_mean_y_start,gas_mean_y_end,active_pressure_cells,total_pressure_cells,"
+      << "active_pressure_blocks_max,total_pressure_blocks,leaf_level0,leaf_level1,"
+      << "u_faces,v_faces,w_faces,memory_proxy_cells,memory_proxy_faces,"
+      << "memory_proxy_bytes,elapsed_ms,elapsed_ms_per_step,pressure_iterations,"
+      << "pressure_max_iterations,pressure_initial_residual,pressure_final_residual,"
+      << "pressure_final_over_initial,pressure_converged,pressure_breakdown,status\n";
+}
+
+void writeRow(std::ostream& out, const Row& r) {
+  out << r.variant << ","
+      << r.solver << ","
+      << r.nx << ","
+      << r.ny << ","
+      << r.nz << ","
+      << r.steps << ","
+      << (r.adaptivity ? "true" : "false") << ","
+      << r.particles_start << ","
+      << r.particles_end << ","
+      << r.liquid_volume_start << ","
+      << r.liquid_volume_end << ","
+      << r.gas_volume_start << ","
+      << r.gas_volume_end << ","
+      << r.gas_mean_y_start << ","
+      << r.gas_mean_y_end << ","
+      << r.active_pressure_cells << ","
+      << r.total_pressure_cells << ","
+      << r.active_pressure_blocks_max << ","
+      << r.total_pressure_blocks << ","
+      << r.leaf_level0 << ","
+      << r.leaf_level1 << ","
+      << r.u_faces << ","
+      << r.v_faces << ","
+      << r.w_faces << ","
+      << r.memory_proxy_cells << ","
+      << r.memory_proxy_faces << ","
+      << r.memory_proxy_bytes << ","
+      << r.elapsed_ms << ","
+      << r.elapsed_ms_per_step << ","
+      << r.pressure_iterations << ","
+      << r.pressure_max_iterations << ","
+      << r.pressure_initial_residual << ","
+      << r.pressure_final_residual << ","
+      << r.pressure_final_over_initial << ","
+      << r.pressure_converged << ","
+      << r.pressure_breakdown << ","
+      << (r.ok ? "ok" : "fail") << "\n";
+}
+
+bool volumeStable(double start, double end) {
+  const double tol = std::max(1e-9, std::abs(start) * 1e-9);
+  return std::abs(start - end) <= tol;
+}
+
+void applySolverMode(MRSim3DTP& sim, const std::string& solver) {
+  if (solver == "relax") {
+    sim.cg_relaxation_sweeps = 2;
+    sim.cg_relaxation_omega = 0.1;
+    sim.cg_residual_history_stride = 1;
+    sim.cg_residual_history_limit = 16;
+  } else if (solver == "coarse_pre") {
+    sim.cg_coarse_preconditioner = true;
+    sim.cg_coarse_preconditioner_iters = 4;
+    sim.cg_coarse_preconditioner_scale = 0.5;
+    sim.cg_coarse_preconditioner_max_work_ratio = 2.0;
+    sim.cg_coarse_preconditioner_auto_disable = true;
+    sim.cg_coarse_preconditioner_auto_disable_after = 1;
+  }
+}
+
+std::vector<std::string> solverModes(const std::string& requested) {
+  if (requested == "all") return {"baseline", "relax", "coarse_pre"};
+  return {requested};
+}
+
+Row runSparse(const Config& cfg, bool adaptivity) {
+  SparseSim3DTP sim(cfg.nx, cfg.ny, cfg.nz, 1.0);
+  if (cfg.physics_preset) applyCorePhysicsPreset3D(sim);
+  if (adaptivity) applyParticleAdaptivityPreset3D(sim);
+  sim.dt = cfg.dt;
+  sim.cg_iters = cfg.cg_iters;
+  sim.initBubbleTank();
+
+  Row r;
+  r.variant = adaptivity ? "sparse_adaptive" : "sparse_base";
+  r.solver = "na";
+  r.nx = cfg.nx;
+  r.ny = cfg.ny;
+  r.nz = cfg.nz;
+  r.steps = cfg.steps;
+  r.adaptivity = adaptivity;
+  r.particles_start = sim.particles.size();
+  r.liquid_volume_start = volumeType(sim.particles, 0, sim.Vp);
+  r.gas_volume_start = volumeType(sim.particles, 1, sim.Vp);
+  r.gas_mean_y_start = meanY(sim.particles, 1);
+
+  auto start = std::chrono::steady_clock::now();
+  for (int s = 0; s < cfg.steps; ++s) {
+    sim.step();
+    r.active_pressure_blocks_max =
+      std::max(r.active_pressure_blocks_max, sim.grid.activeCellBlocks());
+  }
+  auto end = std::chrono::steady_clock::now();
+
+  r.elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  r.elapsed_ms_per_step = cfg.steps > 0 ? static_cast<double>(r.elapsed_ms) / cfg.steps : 0.0;
+  r.particles_end = sim.particles.size();
+  r.liquid_volume_end = volumeType(sim.particles, 0, sim.Vp);
+  r.gas_volume_end = volumeType(sim.particles, 1, sim.Vp);
+  r.gas_mean_y_end = meanY(sim.particles, 1);
+  r.total_pressure_blocks = sim.grid.totalCellBlocks();
+  r.active_pressure_cells = r.active_pressure_blocks_max * 64;
+  r.total_pressure_cells = static_cast<size_t>(cfg.nx) * cfg.ny * cfg.nz;
+  r.memory_proxy_cells = r.active_pressure_cells;
+  r.memory_proxy_faces = 0;
+  r.memory_proxy_bytes = r.particles_end * 64 + r.memory_proxy_cells * 8 * sizeof(float);
+
+  const bool finite = finiteParticles(sim.particles);
+  const bool gasVolumeOk = adaptivity
+    ? r.gas_volume_end <= r.gas_volume_start + std::max(1e-9, r.gas_volume_start * 1e-9)
+    : volumeStable(r.gas_volume_start, r.gas_volume_end);
+  r.ok = finite &&
+         volumeStable(r.liquid_volume_start, r.liquid_volume_end) &&
+         gasVolumeOk &&
+         r.gas_mean_y_end > r.gas_mean_y_start &&
+         r.active_pressure_blocks_max < r.total_pressure_blocks;
+  return r;
+}
+
+Row runMR(const Config& cfg, bool adaptivity, const std::string& solver) {
+  MRSim3DTP sim(cfg.nx, cfg.ny, cfg.nz, 1.0);
+  if (cfg.physics_preset) applyCorePhysicsPreset3D(sim);
+  if (adaptivity) applyParticleAdaptivityPreset3D(sim);
+  sim.dt = cfg.dt;
+  sim.cg_iters = cfg.cg_iters;
+  applySolverMode(sim, solver);
+  sim.initBubbleTankInterfaceBand();
+
+  Row r;
+  r.variant = adaptivity ? "mr_adaptive" : "mr_base";
+  r.solver = solver;
+  r.nx = cfg.nx;
+  r.ny = cfg.ny;
+  r.nz = cfg.nz;
+  r.steps = cfg.steps;
+  r.adaptivity = adaptivity;
+  r.particles_start = sim.particles.size();
+  r.liquid_volume_start = volumeType(sim.particles, 0, sim.Vp);
+  r.gas_volume_start = volumeType(sim.particles, 1, sim.Vp);
+  r.gas_mean_y_start = meanY(sim.particles, 1);
+
+  auto start = std::chrono::steady_clock::now();
+  for (int s = 0; s < cfg.steps; ++s) sim.step();
+  auto end = std::chrono::steady_clock::now();
+
+  r.elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  r.elapsed_ms_per_step = cfg.steps > 0 ? static_cast<double>(r.elapsed_ms) / cfg.steps : 0.0;
+  r.particles_end = sim.particles.size();
+  r.liquid_volume_end = volumeType(sim.particles, 0, sim.Vp);
+  r.gas_volume_end = volumeType(sim.particles, 1, sim.Vp);
+  r.gas_mean_y_end = meanY(sim.particles, 1);
+  r.active_pressure_cells = static_cast<size_t>(sim.activePressureCellCount());
+  r.total_pressure_cells = static_cast<size_t>(cfg.nx) * cfg.ny * cfg.nz;
+  r.leaf_level0 = sim.layout.countLevel(0);
+  r.leaf_level1 = sim.layout.countLevel(1);
+  r.u_faces = sim.uFaceCount();
+  r.v_faces = sim.vFaceCount();
+  r.w_faces = sim.wFaceCount();
+  r.memory_proxy_cells = r.active_pressure_cells;
+  r.memory_proxy_faces = static_cast<size_t>(r.u_faces + r.v_faces + r.w_faces);
+  r.memory_proxy_bytes =
+    r.particles_end * 64 + (r.memory_proxy_cells + r.memory_proxy_faces) * 8 * sizeof(float);
+
+  const MRPressureSolveStats3D& st = sim.last_pressure_stats;
+  r.pressure_iterations = st.iterations;
+  r.pressure_max_iterations = st.max_iterations;
+  r.pressure_initial_residual = st.initial_residual;
+  r.pressure_final_residual = st.final_residual;
+  r.pressure_final_over_initial =
+    st.initial_residual > 0.0 ? st.final_residual / st.initial_residual : 0.0;
+  r.pressure_converged = st.converged ? "true" : "false";
+  r.pressure_breakdown = st.breakdown ? "true" : "false";
+
+  const bool finite = finiteParticles(sim.particles);
+  const bool pressureFinite = std::isfinite(st.initial_residual) &&
+                              std::isfinite(st.final_residual);
+  const bool gasVolumeOk = adaptivity
+    ? r.gas_volume_end <= r.gas_volume_start + std::max(1e-9, r.gas_volume_start * 1e-9)
+    : volumeStable(r.gas_volume_start, r.gas_volume_end);
+  r.ok = finite &&
+         volumeStable(r.liquid_volume_start, r.liquid_volume_end) &&
+         gasVolumeOk &&
+         r.gas_mean_y_end > r.gas_mean_y_start &&
+         r.active_pressure_cells < r.total_pressure_cells &&
+         pressureFinite &&
+         !st.breakdown &&
+         st.final_residual <= st.initial_residual;
+  return r;
+}
+
+} // namespace
+
+int main(int argc, char** argv) {
+  Config cfg;
+  cfg.nx = argInt(argc, argv, "--nx", cfg.nx);
+  cfg.ny = argInt(argc, argv, "--ny", cfg.ny);
+  cfg.nz = argInt(argc, argv, "--nz", cfg.nz);
+  cfg.steps = argInt(argc, argv, "--steps", cfg.steps);
+  cfg.dt = argDouble(argc, argv, "--dt", cfg.dt);
+  cfg.cg_iters = argInt(argc, argv, "--cg-iters", cfg.cg_iters);
+  cfg.csv = argString(argc, argv, "--csv", cfg.csv.c_str());
+  cfg.solver = argString(argc, argv, "--solver", cfg.solver.c_str());
+  cfg.physics_preset = hasFlag(argc, argv, "--physics-preset");
+
+  if (cfg.nx < 4 || cfg.ny < 4 || cfg.nz < 4 ||
+      cfg.steps <= 0 || cfg.dt <= 0.0 || cfg.cg_iters < 0 ||
+      cfg.csv.empty() ||
+      (cfg.solver != "baseline" && cfg.solver != "relax" &&
+       cfg.solver != "coarse_pre" && cfg.solver != "all")) {
+    usage();
+    return 2;
+  }
+
+  std::vector<Row> rows;
+  rows.push_back(runSparse(cfg, false));
+  rows.push_back(runSparse(cfg, true));
+  for (const std::string& solver : solverModes(cfg.solver)) {
+    rows.push_back(runMR(cfg, false, solver));
+    rows.push_back(runMR(cfg, true, solver));
+  }
+
+  std::ofstream csv(cfg.csv);
+  if (!csv) {
+    std::fprintf(stderr, "failed to open csv: %s\n", cfg.csv.c_str());
+    return 2;
+  }
+  writeHeader(csv);
+  for (const Row& row : rows) writeRow(csv, row);
+  if (!csv) {
+    std::fprintf(stderr, "failed to write csv: %s\n", cfg.csv.c_str());
+    return 2;
+  }
+
+  bool ok = true;
+  for (const Row& row : rows) {
+    std::printf("row variant=%s solver=%s status=%s elapsed_ms=%lld memory_proxy_bytes=%zu\n",
+                row.variant.c_str(), row.solver.c_str(), row.ok ? "ok" : "fail",
+                row.elapsed_ms, row.memory_proxy_bytes);
+    if (!row.ok) ok = false;
+  }
+  std::printf("csv=%s\n", cfg.csv.c_str());
+  std::printf("rows=%zu\n", rows.size());
+  std::printf("status=%s\n", ok ? "ok" : "fail");
+  return ok ? 0 : 1;
+}
