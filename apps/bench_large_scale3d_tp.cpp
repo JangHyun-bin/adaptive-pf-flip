@@ -182,6 +182,76 @@ void writeRow(std::ostream& out, const Row& r) {
       << (r.ok ? "ok" : "fail") << "\n";
 }
 
+const Row* findRow(const std::vector<Row>& rows,
+                   const std::string& variant,
+                   const std::string& solver) {
+  for (const Row& row : rows) {
+    if (row.variant == variant && row.solver == solver) return &row;
+  }
+  return nullptr;
+}
+
+double ratio(double numerator, double denominator) {
+  return denominator > 0.0 ? numerator / denominator : 0.0;
+}
+
+void printPairSummary(const char* label, const Row* base, const Row* adaptive) {
+  if (!base || !adaptive) return;
+  const double speedup = ratio(static_cast<double>(base->elapsed_ms),
+                               static_cast<double>(adaptive->elapsed_ms));
+  const double memoryRatio = ratio(static_cast<double>(adaptive->memory_proxy_bytes),
+                                   static_cast<double>(base->memory_proxy_bytes));
+  std::printf("summary pair=%s base_elapsed_ms=%lld adaptive_elapsed_ms=%lld "
+              "adaptive_speedup=%.6g base_memory_proxy_bytes=%zu "
+              "adaptive_memory_proxy_bytes=%zu adaptive_memory_ratio=%.6g\n",
+              label,
+              base->elapsed_ms,
+              adaptive->elapsed_ms,
+              speedup,
+              base->memory_proxy_bytes,
+              adaptive->memory_proxy_bytes,
+              memoryRatio);
+}
+
+void printBenchmarkSummary(const std::vector<Row>& rows) {
+  const Row* bestElapsed = nullptr;
+  const Row* bestMemory = nullptr;
+  for (const Row& row : rows) {
+    if (!row.ok) continue;
+    if (!bestElapsed || row.elapsed_ms < bestElapsed->elapsed_ms) {
+      bestElapsed = &row;
+    }
+    if (!bestMemory || row.memory_proxy_bytes < bestMemory->memory_proxy_bytes) {
+      bestMemory = &row;
+    }
+  }
+
+  printPairSummary("sparse", findRow(rows, "sparse_base", "na"),
+                   findRow(rows, "sparse_adaptive", "na"));
+  for (const std::string& solver : {"baseline", "relax", "coarse_pre"}) {
+    printPairSummary(("mr_" + solver).c_str(),
+                     findRow(rows, "mr_base", solver),
+                     findRow(rows, "mr_adaptive", solver));
+  }
+
+  if (bestElapsed) {
+    std::printf("summary_best_elapsed variant=%s solver=%s elapsed_ms=%lld "
+                "memory_proxy_bytes=%zu\n",
+                bestElapsed->variant.c_str(),
+                bestElapsed->solver.c_str(),
+                bestElapsed->elapsed_ms,
+                bestElapsed->memory_proxy_bytes);
+  }
+  if (bestMemory) {
+    std::printf("summary_best_memory variant=%s solver=%s elapsed_ms=%lld "
+                "memory_proxy_bytes=%zu\n",
+                bestMemory->variant.c_str(),
+                bestMemory->solver.c_str(),
+                bestMemory->elapsed_ms,
+                bestMemory->memory_proxy_bytes);
+  }
+}
+
 bool volumeStable(double start, double end) {
   const double tol = std::max(1e-9, std::abs(start) * 1e-9);
   return std::abs(start - end) <= tol;
@@ -383,6 +453,7 @@ int main(int argc, char** argv) {
                 row.elapsed_ms, row.memory_proxy_bytes);
     if (!row.ok) ok = false;
   }
+  printBenchmarkSummary(rows);
   std::printf("csv=%s\n", cfg.csv.c_str());
   std::printf("rows=%zu\n", rows.size());
   std::printf("status=%s\n", ok ? "ok" : "fail");
