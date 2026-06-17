@@ -83,7 +83,7 @@ The missing work is not one feature. It is a pipeline:
 | --- | --- | --- | --- |
 | S36 | Large-scale benchmark v2 | CSV evidence for sim/cache/preview timing and memory proxy | Done in `test: extend large scale render benchmarks` |
 | S37 | Cinematic cache schema v2 | Stable cache fields for camera, water, secondary, and render metadata | Done in `feat: extend cinematic render cache schema` |
-| S38 | Cache-to-render conversion | Renderer-neutral conversion tool and validation loop | `feat: add render cache conversion tool` |
+| S38 | Cache-to-render conversion | Renderer-neutral conversion tool and validation loop | Done in `feat: add render cache conversion tool` |
 | S39 | First cinematic preview renderer | Local PNG/GIF shot preview from cache manifest | `feat: add cinematic cache preview renderer` |
 | S40 | Secondary spray/foam visual channels | Separate droplet/bubble/foam-like channels in cache and preview | `feat: add secondary render channels` |
 | S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | `feat: add water reconstruction export` |
@@ -428,16 +428,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S38.
+Continue with S39.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-17-render-cache-conversion.md`
+`docs/superpowers/plans/2026-06-17-first-cinematic-preview.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\convert_render_cache.py build\large_scale3d_tp_v2_manifest.json build\cinematic_convert_smoke
+python tools\cinematic_render_stub.py build\s37_sparse_manifest.json build\cinematic_preview --frames 12 --width 1280 --height 720
 ```
 
-The next success condition is a renderer-neutral conversion bundle with one camera JSON, particle CSV, and phase-cell CSV per manifest frame, plus a movable `sequence.json` that only uses relative output paths.
+The next success condition is a local PNG/GIF cinematic preview path that can read a manifest or converted `sequence.json`, produce nonblank frames, and leave inspectable artifacts under `build/`.
