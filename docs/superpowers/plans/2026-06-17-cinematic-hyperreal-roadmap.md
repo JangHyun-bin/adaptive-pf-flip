@@ -81,7 +81,7 @@ The missing work is not one feature. It is a pipeline:
 
 | Milestone | Name | Primary Outcome | Commit Boundary |
 | --- | --- | --- | --- |
-| S36 | Large-scale benchmark v2 | CSV evidence for sim/cache/preview timing and memory proxy | `test: extend large scale render benchmarks` |
+| S36 | Large-scale benchmark v2 | CSV evidence for sim/cache/preview timing and memory proxy | Done in `test: extend large scale render benchmarks` |
 | S37 | Cinematic cache schema v2 | Stable cache fields for camera, water, secondary, and render metadata | `feat: extend cinematic render cache schema` |
 | S38 | Cache-to-render conversion | Renderer-neutral conversion tool and validation loop | `feat: add render cache conversion tool` |
 | S39 | First cinematic preview renderer | Local PNG/GIF shot preview from cache manifest | `feat: add cinematic cache preview renderer` |
@@ -428,16 +428,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Start with S36.
+Continue with S37.
 
-The first implementation plan should be:
+The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-17-large-scale-benchmark-v2.md`
+`docs/superpowers/plans/2026-06-17-cinematic-cache-schema-v2.md`
 
-The first command target should remain:
+The next command target should start from:
 
 ```powershell
-cmake --build build --config Release --target bench_large_scale3d_tp export_render_cache3d
+cmake --build build --config Release --target export_render_cache3d bench_large_scale3d_tp
 ```
 
-The first success condition is a CSV/report that tells whether the next bottleneck is simulation, solver convergence, cache size, validation, preview rendering, or memory proxy.
+The next success condition is a backwards-compatible cache schema that carries cinematic camera timing, world units, frame bounds, and secondary channel summaries while preserving existing v1 cache validation and preview behavior.

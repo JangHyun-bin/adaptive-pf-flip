@@ -1,4 +1,5 @@
 #include "driver/multires_sim3d_tp.h"
+#include "driver/render_cache3d.h"
 #include "driver/sparse_sim3d_tp.h"
 #include "physics_preset3d.h"
 
@@ -8,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -62,6 +64,14 @@ double volumeType(const Particles3DTP& ps, unsigned char type, double Vp) {
   return volume;
 }
 
+size_t countType(const Particles3DTP& ps, unsigned char type) {
+  size_t count = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) ++count;
+  }
+  return count;
+}
+
 bool finiteParticles(const Particles3DTP& ps) {
   for (size_t i = 0; i < ps.size(); ++i) {
     const Vec3& p = ps.pos[i];
@@ -86,6 +96,11 @@ struct Config {
   int mr_gas_padding = -1;
   int mr_hysteresis = -1;
   int mr_max_fine_leaves = -1;
+  std::string render_cache_prefix;
+  int render_cache_every = 0;
+  int render_cache_preview_scale = 4;
+  std::string python = "python";
+  bool skip_render_cache_tools = false;
 };
 
 struct Row {
@@ -102,6 +117,10 @@ struct Row {
   int mr_max_fine_leaves = -1;
   size_t particles_start = 0;
   size_t particles_end = 0;
+  size_t liquid_particles_start = 0;
+  size_t liquid_particles_end = 0;
+  size_t gas_particles_start = 0;
+  size_t gas_particles_end = 0;
   double liquid_volume_start = 0.0;
   double liquid_volume_end = 0.0;
   double gas_volume_start = 0.0;
@@ -120,6 +139,15 @@ struct Row {
   size_t memory_proxy_cells = 0;
   size_t memory_proxy_faces = 0;
   size_t memory_proxy_bytes = 0;
+  bool render_cache_enabled = false;
+  std::string render_cache_manifest;
+  int render_cache_frames = 0;
+  size_t render_cache_bytes = 0;
+  long long render_cache_export_ms = -1;
+  long long render_cache_validate_ms = -1;
+  long long render_cache_preview_ms = -1;
+  std::string render_cache_tools_status = "disabled";
+  size_t total_memory_proxy_bytes = 0;
   long long elapsed_ms = 0;
   double elapsed_ms_per_step = 0.0;
   int pressure_iterations = -1;
@@ -138,17 +166,24 @@ void usage() {
                "[--steps N] [--dt DT] [--cg-iters N] [--csv PATH] "
                "[--solver baseline|relax|coarse_pre|all] [--physics-preset] "
                "[--mr-particle-padding N] [--mr-gas-padding N] "
-               "[--mr-hysteresis N] [--mr-max-fine-leaves N]\n");
+               "[--mr-hysteresis N] [--mr-max-fine-leaves N] "
+               "[--render-cache-prefix PATH] [--render-cache-every N] "
+               "[--render-cache-preview-scale N] [--python EXE] "
+               "[--skip-render-cache-tools]\n");
 }
 
 void writeHeader(std::ostream& out) {
   out << "variant,solver,nx,ny,nz,steps,adaptivity,mr_particle_padding,"
       << "mr_gas_padding,mr_hysteresis,mr_max_fine_leaves,particles_start,particles_end,"
+      << "liquid_particles_start,liquid_particles_end,gas_particles_start,gas_particles_end,"
       << "liquid_volume_start,liquid_volume_end,gas_volume_start,gas_volume_end,"
       << "gas_mean_y_start,gas_mean_y_end,active_pressure_cells,total_pressure_cells,"
       << "active_pressure_blocks_max,total_pressure_blocks,leaf_level0,leaf_level1,"
       << "u_faces,v_faces,w_faces,memory_proxy_cells,memory_proxy_faces,"
-      << "memory_proxy_bytes,elapsed_ms,elapsed_ms_per_step,pressure_iterations,"
+      << "memory_proxy_bytes,render_cache_enabled,render_cache_manifest,"
+      << "render_cache_frames,render_cache_bytes,render_cache_export_ms,"
+      << "render_cache_validate_ms,render_cache_preview_ms,render_cache_tools_status,"
+      << "total_memory_proxy_bytes,elapsed_ms,elapsed_ms_per_step,pressure_iterations,"
       << "pressure_max_iterations,pressure_initial_residual,pressure_final_residual,"
       << "pressure_final_over_initial,pressure_converged,pressure_breakdown,status\n";
 }
@@ -167,6 +202,10 @@ void writeRow(std::ostream& out, const Row& r) {
       << r.mr_max_fine_leaves << ","
       << r.particles_start << ","
       << r.particles_end << ","
+      << r.liquid_particles_start << ","
+      << r.liquid_particles_end << ","
+      << r.gas_particles_start << ","
+      << r.gas_particles_end << ","
       << r.liquid_volume_start << ","
       << r.liquid_volume_end << ","
       << r.gas_volume_start << ","
@@ -185,6 +224,15 @@ void writeRow(std::ostream& out, const Row& r) {
       << r.memory_proxy_cells << ","
       << r.memory_proxy_faces << ","
       << r.memory_proxy_bytes << ","
+      << (r.render_cache_enabled ? "true" : "false") << ","
+      << r.render_cache_manifest << ","
+      << r.render_cache_frames << ","
+      << r.render_cache_bytes << ","
+      << r.render_cache_export_ms << ","
+      << r.render_cache_validate_ms << ","
+      << r.render_cache_preview_ms << ","
+      << r.render_cache_tools_status << ","
+      << r.total_memory_proxy_bytes << ","
       << r.elapsed_ms << ","
       << r.elapsed_ms_per_step << ","
       << r.pressure_iterations << ","
@@ -293,6 +341,193 @@ std::vector<std::string> solverModes(const std::string& requested) {
   return {requested};
 }
 
+bool renderCacheEnabled(const Config& cfg) {
+  return !cfg.render_cache_prefix.empty();
+}
+
+std::string zeroPaddedFrame(int frame) {
+  char suffix[32];
+  std::snprintf(suffix, sizeof(suffix), "%03d", frame);
+  return suffix;
+}
+
+std::string rowCacheBase(const Config& cfg, const Row& row) {
+  return cfg.render_cache_prefix + "_" + row.variant + "_" + row.solver;
+}
+
+bool isPathSep(char c) {
+  return c == '/' || c == '\\';
+}
+
+std::string dirName(const std::string& path) {
+  const size_t pos = path.find_last_of("/\\");
+  return pos == std::string::npos ? std::string() : path.substr(0, pos);
+}
+
+void ensureParentDir(const std::string& path) {
+  const std::filesystem::path parent = std::filesystem::path(path).parent_path();
+  if (!parent.empty()) std::filesystem::create_directories(parent);
+}
+
+std::string manifestFramePath(const std::string& framePath,
+                              const std::string& manifestPath) {
+  std::string dir = dirName(manifestPath);
+  if (dir.empty()) return framePath;
+  if (framePath.size() > dir.size() &&
+      framePath.compare(0, dir.size(), dir) == 0 &&
+      isPathSep(framePath[dir.size()])) {
+    return framePath.substr(dir.size() + 1);
+  }
+  return framePath;
+}
+
+long long fileSizeBytes(const std::string& path) {
+  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  if (!in) return 0;
+  return static_cast<long long>(in.tellg());
+}
+
+std::string quoteCommandArg(const std::string& arg) {
+  std::string quoted = "\"";
+  for (char c : arg) {
+    if (c == '"') quoted += "\\\"";
+    else quoted += c;
+  }
+  quoted += "\"";
+  return quoted;
+}
+
+std::string quoteExecutableArg(const std::string& arg) {
+  if (arg.find_first_of(" \t\"") == std::string::npos) return arg;
+  return quoteCommandArg(arg);
+}
+
+int timedSystem(const std::string& command, long long& elapsedMs) {
+  auto start = std::chrono::steady_clock::now();
+  const int rc = std::system(command.c_str());
+  auto end = std::chrono::steady_clock::now();
+  elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+  return rc;
+}
+
+struct RenderCacheBenchState {
+  bool enabled = false;
+  std::string base;
+  std::string manifest;
+  std::string preview_dir;
+  std::vector<RenderCacheManifestFrame3D> frames;
+  long long export_ms = 0;
+  size_t bytes = 0;
+  bool ok = true;
+};
+
+RenderCacheBenchState beginRenderCacheBench(const Config& cfg, const Row& row) {
+  RenderCacheBenchState state;
+  state.enabled = renderCacheEnabled(cfg);
+  if (!state.enabled) return state;
+  state.base = rowCacheBase(cfg, row);
+  state.manifest = state.base + "_manifest.json";
+  state.preview_dir = state.base + "_preview";
+  ensureParentDir(state.base + "_000.jsonl");
+  ensureParentDir(state.manifest);
+  std::filesystem::create_directories(state.preview_dir);
+  return state;
+}
+
+bool shouldWriteRenderCacheFrame(const Config& cfg, int step) {
+  if (!renderCacheEnabled(cfg)) return false;
+  return step == cfg.steps || (cfg.render_cache_every > 0 && step % cfg.render_cache_every == 0);
+}
+
+template <typename WriteFrame>
+void writeRenderCacheFrame(RenderCacheBenchState& state,
+                           int step,
+                           double time,
+                           WriteFrame writeFrame) {
+  if (!state.enabled || !state.ok) return;
+  const int frame = static_cast<int>(state.frames.size());
+  const std::string path = state.base + "_" + zeroPaddedFrame(frame) + ".jsonl";
+  try {
+    auto start = std::chrono::steady_clock::now();
+    writeFrame(path, frame, time);
+    auto end = std::chrono::steady_clock::now();
+    state.export_ms += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    const long long bytes = fileSizeBytes(path);
+    state.bytes += static_cast<size_t>(std::max<long long>(0, bytes));
+    state.frames.push_back(RenderCacheManifestFrame3D{
+      frame, step, time, manifestFramePath(path, state.manifest), bytes
+    });
+  } catch (...) {
+    state.ok = false;
+  }
+}
+
+void finishRenderCacheBench(RenderCacheBenchState& state,
+                            const Config& cfg,
+                            const char* simKind,
+                            int nx,
+                            int ny,
+                            int nz,
+                            double dx,
+                            Row& row) {
+  row.render_cache_enabled = state.enabled;
+  if (!state.enabled) {
+    row.render_cache_tools_status = "disabled";
+    row.total_memory_proxy_bytes = row.memory_proxy_bytes;
+    return;
+  }
+
+  row.render_cache_manifest = state.manifest;
+  row.render_cache_frames = static_cast<int>(state.frames.size());
+  row.render_cache_export_ms = state.export_ms;
+  row.render_cache_tools_status = cfg.skip_render_cache_tools ? "skipped" : "ok";
+
+  if (!state.ok || state.frames.empty()) {
+    row.render_cache_tools_status = "fail";
+    row.render_cache_bytes = state.bytes;
+    row.total_memory_proxy_bytes = row.memory_proxy_bytes + row.render_cache_bytes;
+    row.ok = false;
+    return;
+  }
+
+  try {
+    auto start = std::chrono::steady_clock::now();
+    writeRenderCacheManifest3D(state.manifest, simKind, nx, ny, nz, dx, state.frames);
+    auto end = std::chrono::steady_clock::now();
+    row.render_cache_export_ms +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    const long long manifestBytes = fileSizeBytes(state.manifest);
+    state.bytes += static_cast<size_t>(std::max<long long>(0, manifestBytes));
+  } catch (...) {
+    row.render_cache_tools_status = "fail";
+    row.render_cache_bytes = state.bytes;
+    row.total_memory_proxy_bytes = row.memory_proxy_bytes + row.render_cache_bytes;
+    row.ok = false;
+    return;
+  }
+
+  row.render_cache_bytes = state.bytes;
+  row.total_memory_proxy_bytes = row.memory_proxy_bytes + row.render_cache_bytes;
+  if (cfg.skip_render_cache_tools) return;
+
+  const std::string validateCommand =
+    quoteExecutableArg(cfg.python) + " tools\\validate_render_cache.py " +
+    quoteCommandArg(state.manifest) + " --allow-empty-secondary";
+  const int validateRc = timedSystem(validateCommand, row.render_cache_validate_ms);
+
+  const std::string previewCommand =
+    quoteExecutableArg(cfg.python) + " tools\\render_cache_preview.py " +
+    quoteCommandArg(state.manifest) + " " +
+    quoteCommandArg(state.preview_dir) + " " +
+    std::to_string(cfg.render_cache_preview_scale);
+  const int previewRc = timedSystem(previewCommand, row.render_cache_preview_ms);
+
+  if (validateRc != 0 || previewRc != 0) {
+    row.render_cache_tools_status = "fail";
+    row.ok = false;
+  }
+}
+
 Row runSparse(const Config& cfg, bool adaptivity) {
   SparseSim3DTP sim(cfg.nx, cfg.ny, cfg.nz, 1.0);
   if (cfg.physics_preset) applyCorePhysicsPreset3D(sim);
@@ -310,21 +545,38 @@ Row runSparse(const Config& cfg, bool adaptivity) {
   r.steps = cfg.steps;
   r.adaptivity = adaptivity;
   r.particles_start = sim.particles.size();
+  r.liquid_particles_start = countType(sim.particles, 0);
+  r.gas_particles_start = countType(sim.particles, 1);
   r.liquid_volume_start = volumeType(sim.particles, 0, sim.Vp);
   r.gas_volume_start = volumeType(sim.particles, 1, sim.Vp);
   r.gas_mean_y_start = meanY(sim.particles, 1);
 
-  auto start = std::chrono::steady_clock::now();
+  RenderCacheBenchState cacheState = beginRenderCacheBench(cfg, r);
+  const RenderCacheCamera3D camera =
+    defaultRenderCacheCamera3D(sim.grid.nx, sim.grid.ny, sim.grid.nz, sim.grid.dx);
+  double simTime = 0.0;
   for (int s = 0; s < cfg.steps; ++s) {
+    auto stepStart = std::chrono::steady_clock::now();
     sim.step();
+    auto stepEnd = std::chrono::steady_clock::now();
+    r.elapsed_ms +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(stepEnd - stepStart).count();
+    simTime += sim.effective_dt_last;
     r.active_pressure_blocks_max =
       std::max(r.active_pressure_blocks_max, sim.grid.activeCellBlocks());
+    const int step = s + 1;
+    if (shouldWriteRenderCacheFrame(cfg, step)) {
+      writeRenderCacheFrame(cacheState, step, simTime,
+                            [&](const std::string& path, int frame, double time) {
+                              writeSparseRenderCache3D(sim, path, frame, time, camera);
+                            });
+    }
   }
-  auto end = std::chrono::steady_clock::now();
 
-  r.elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
   r.elapsed_ms_per_step = cfg.steps > 0 ? static_cast<double>(r.elapsed_ms) / cfg.steps : 0.0;
   r.particles_end = sim.particles.size();
+  r.liquid_particles_end = countType(sim.particles, 0);
+  r.gas_particles_end = countType(sim.particles, 1);
   r.liquid_volume_end = volumeType(sim.particles, 0, sim.Vp);
   r.gas_volume_end = volumeType(sim.particles, 1, sim.Vp);
   r.gas_mean_y_end = meanY(sim.particles, 1);
@@ -334,6 +586,7 @@ Row runSparse(const Config& cfg, bool adaptivity) {
   r.memory_proxy_cells = r.active_pressure_cells;
   r.memory_proxy_faces = 0;
   r.memory_proxy_bytes = r.particles_end * 64 + r.memory_proxy_cells * 8 * sizeof(float);
+  r.total_memory_proxy_bytes = r.memory_proxy_bytes;
 
   const bool finite = finiteParticles(sim.particles);
   const bool gasVolumeOk = adaptivity
@@ -344,6 +597,8 @@ Row runSparse(const Config& cfg, bool adaptivity) {
          gasVolumeOk &&
          r.gas_mean_y_end > r.gas_mean_y_start &&
          r.active_pressure_blocks_max < r.total_pressure_blocks;
+  finishRenderCacheBench(cacheState, cfg, "sparse3d_tp",
+                         sim.grid.nx, sim.grid.ny, sim.grid.nz, sim.grid.dx, r);
   return r;
 }
 
@@ -373,17 +628,36 @@ Row runMR(const Config& cfg, bool adaptivity, const std::string& solver) {
   r.mr_hysteresis = sim.dynamic_hysteresis_cells;
   r.mr_max_fine_leaves = sim.dynamic_max_fine_leaves;
   r.particles_start = sim.particles.size();
+  r.liquid_particles_start = countType(sim.particles, 0);
+  r.gas_particles_start = countType(sim.particles, 1);
   r.liquid_volume_start = volumeType(sim.particles, 0, sim.Vp);
   r.gas_volume_start = volumeType(sim.particles, 1, sim.Vp);
   r.gas_mean_y_start = meanY(sim.particles, 1);
 
-  auto start = std::chrono::steady_clock::now();
-  for (int s = 0; s < cfg.steps; ++s) sim.step();
-  auto end = std::chrono::steady_clock::now();
+  RenderCacheBenchState cacheState = beginRenderCacheBench(cfg, r);
+  const RenderCacheCamera3D camera =
+    defaultRenderCacheCamera3D(sim.layout.nx, sim.layout.ny, sim.layout.nz, sim.layout.dx);
+  double simTime = 0.0;
+  for (int s = 0; s < cfg.steps; ++s) {
+    auto stepStart = std::chrono::steady_clock::now();
+    sim.step();
+    auto stepEnd = std::chrono::steady_clock::now();
+    r.elapsed_ms +=
+      std::chrono::duration_cast<std::chrono::milliseconds>(stepEnd - stepStart).count();
+    simTime += sim.effective_dt_last;
+    const int step = s + 1;
+    if (shouldWriteRenderCacheFrame(cfg, step)) {
+      writeRenderCacheFrame(cacheState, step, simTime,
+                            [&](const std::string& path, int frame, double time) {
+                              writeMRRenderCache3D(sim, path, frame, time, camera);
+                            });
+    }
+  }
 
-  r.elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
   r.elapsed_ms_per_step = cfg.steps > 0 ? static_cast<double>(r.elapsed_ms) / cfg.steps : 0.0;
   r.particles_end = sim.particles.size();
+  r.liquid_particles_end = countType(sim.particles, 0);
+  r.gas_particles_end = countType(sim.particles, 1);
   r.liquid_volume_end = volumeType(sim.particles, 0, sim.Vp);
   r.gas_volume_end = volumeType(sim.particles, 1, sim.Vp);
   r.gas_mean_y_end = meanY(sim.particles, 1);
@@ -398,6 +672,7 @@ Row runMR(const Config& cfg, bool adaptivity, const std::string& solver) {
   r.memory_proxy_faces = static_cast<size_t>(r.u_faces + r.v_faces + r.w_faces);
   r.memory_proxy_bytes =
     r.particles_end * 64 + (r.memory_proxy_cells + r.memory_proxy_faces) * 8 * sizeof(float);
+  r.total_memory_proxy_bytes = r.memory_proxy_bytes;
 
   const MRPressureSolveStats3D& st = sim.last_pressure_stats;
   r.pressure_iterations = st.iterations;
@@ -423,6 +698,8 @@ Row runMR(const Config& cfg, bool adaptivity, const std::string& solver) {
          pressureFinite &&
          !st.breakdown &&
          st.final_residual <= st.initial_residual;
+  finishRenderCacheBench(cacheState, cfg, "multires3d_tp",
+                         sim.layout.nx, sim.layout.ny, sim.layout.nz, sim.layout.dx, r);
   return r;
 }
 
@@ -446,6 +723,17 @@ int main(int argc, char** argv) {
   cfg.mr_hysteresis = argInt(argc, argv, "--mr-hysteresis", cfg.mr_hysteresis);
   cfg.mr_max_fine_leaves = argInt(argc, argv, "--mr-max-fine-leaves",
                                   cfg.mr_max_fine_leaves);
+  cfg.render_cache_prefix =
+    argString(argc, argv, "--render-cache-prefix", cfg.render_cache_prefix.c_str());
+  cfg.render_cache_every =
+    argInt(argc, argv, "--render-cache-every", cfg.render_cache_every);
+  cfg.render_cache_preview_scale =
+    argInt(argc, argv, "--render-cache-preview-scale", cfg.render_cache_preview_scale);
+  cfg.python = argString(argc, argv, "--python", cfg.python.c_str());
+  cfg.skip_render_cache_tools = hasFlag(argc, argv, "--skip-render-cache-tools");
+  if (renderCacheEnabled(cfg) && cfg.render_cache_every == 0) {
+    cfg.render_cache_every = cfg.steps;
+  }
 
   if (cfg.nx < 4 || cfg.ny < 4 || cfg.nz < 4 ||
       cfg.steps <= 0 || cfg.dt <= 0.0 || cfg.cg_iters < 0 ||
@@ -453,6 +741,10 @@ int main(int argc, char** argv) {
       cfg.mr_gas_padding < -1 ||
       cfg.mr_hysteresis < -1 ||
       cfg.mr_max_fine_leaves < -1 ||
+      cfg.render_cache_every < 0 ||
+      (renderCacheEnabled(cfg) && cfg.render_cache_every <= 0) ||
+      cfg.render_cache_preview_scale <= 0 ||
+      cfg.python.empty() ||
       cfg.csv.empty() ||
       (cfg.solver != "baseline" && cfg.solver != "relax" &&
        cfg.solver != "coarse_pre" && cfg.solver != "all")) {
@@ -482,9 +774,12 @@ int main(int argc, char** argv) {
 
   bool ok = true;
   for (const Row& row : rows) {
-    std::printf("row variant=%s solver=%s status=%s elapsed_ms=%lld memory_proxy_bytes=%zu\n",
+    std::printf("row variant=%s solver=%s status=%s elapsed_ms=%lld "
+                "memory_proxy_bytes=%zu render_cache_bytes=%zu "
+                "render_cache_tools_status=%s\n",
                 row.variant.c_str(), row.solver.c_str(), row.ok ? "ok" : "fail",
-                row.elapsed_ms, row.memory_proxy_bytes);
+                row.elapsed_ms, row.memory_proxy_bytes, row.render_cache_bytes,
+                row.render_cache_tools_status.c_str());
     if (!row.ok) ok = false;
   }
   printBenchmarkSummary(rows);

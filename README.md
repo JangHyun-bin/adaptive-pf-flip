@@ -122,6 +122,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S33** | **SPEC-4 render cache QA validator** - manifests and JSONL frames can be checked for schema, finite values, frame ordering, count consistency, and water-volume drift before rendering. | done |
 | **S34** | **SPEC-4 secondary preview controls** - render-cache previews can color secondary droplet/bubble particles by type, age, or speed and isolate them from primary water. | done |
 | **S35** | **Secondary particle physics upgrade** - sparse/MR 3D TP secondary droplets and bubbles expose dt-based drag, droplet gravity scale, buoyancy, and opt-in reabsorb-to-primary accounting. | done |
+| **S36** | **Large-scale benchmark v2** - large-scale CSV runner now records per-phase counts, render-cache export bytes/time, cache validation time, preview time, and total memory proxy. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -228,6 +229,7 @@ cmake --build build --config Release --target bench_large_scale3d_tp
 ./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver baseline --csv build/large_scale3d_tp.csv
 ./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver all --csv build/large_scale3d_tp_solvers.csv
 ./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver all --mr-particle-padding 0 --mr-gas-padding 1 --mr-hysteresis 0 --csv build/large_scale3d_tp_compact_mr.csv
+./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 4 --solver baseline --csv build/large_scale3d_tp_v2.csv --render-cache-prefix build/large_scale3d_tp_v2 --render-cache-every 4 --render-cache-preview-scale 4
 
 # compare 3D multires pressure solver variants with baseline-relative summary lines
 cmake --build build --config Release --target bench_multires3d_solver
