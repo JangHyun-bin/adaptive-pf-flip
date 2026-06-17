@@ -121,6 +121,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S32** | **SPEC-4 render cache manifest** - export runs now write a JSON sequence manifest and the preview tool can consume the manifest directly. | done |
 | **S33** | **SPEC-4 render cache QA validator** - manifests and JSONL frames can be checked for schema, finite values, frame ordering, count consistency, and water-volume drift before rendering. | done |
 | **S34** | **SPEC-4 secondary preview controls** - render-cache previews can color secondary droplet/bubble particles by type, age, or speed and isolate them from primary water. | done |
+| **S35** | **Secondary particle physics upgrade** - sparse/MR 3D TP secondary droplets and bubbles expose dt-based drag, droplet gravity scale, buoyancy, and opt-in reabsorb-to-primary accounting. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -176,6 +177,7 @@ cmake --build build --config Release --target validate_sparse3d_tp
 ./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680
 ./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680 --liquid-refill-max-added-per-step 160 --liquid-refill-interface-only --liquid-refill-interface-radius 1
 ./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --secondary-lifecycle
+./build/Release/validate_sparse3d_tp.exe --scenario bubble --steps 4 --secondary-lifecycle --secondary-droplet-drag 1 --secondary-bubble-drag 0.5 --secondary-droplet-gravity-scale 0.5 --secondary-reabsorb-to-primary
 ./build/Release/validate_sparse3d_tp.exe --physics-preset --steps 8
 ./build/Release/validate_sparse3d_tp.exe --long-physics-preset
 
@@ -187,6 +189,7 @@ cmake --build build --config Release --target validate_multires3d_tp
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --liquid-coarsening --liquid-particles-per-cell 2 --liquid-coarsening-seed 54321 --liquid-refill --liquid-refill-particles-per-cell 4 --liquid-refill-seed 24680 --liquid-refill-max-added-per-step 160 --liquid-refill-interface-only --liquid-refill-interface-radius 1
 ./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --secondary-lifecycle
+./build/Release/validate_multires3d_tp.exe --scenario bubble --steps 4 --secondary-lifecycle --secondary-droplet-drag 1 --secondary-bubble-drag 0.5 --secondary-droplet-gravity-scale 0.5 --secondary-reabsorb-to-primary
 ./build/Release/validate_multires3d_tp.exe --physics-preset --steps 8
 ./build/Release/validate_multires3d_tp.exe --long-physics-preset
 
@@ -216,6 +219,7 @@ cmake --build build --config Release --target bench_multires_sparse3d_tp
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-liquid-coarsening --sparse-liquid-particles-per-cell 2 --sparse-liquid-coarsening-seed 54321 --sparse-liquid-refill --sparse-liquid-refill-particles-per-cell 4 --sparse-liquid-refill-seed 24680 --mr-liquid-coarsening --mr-liquid-particles-per-cell 2 --mr-liquid-coarsening-seed 54321 --mr-liquid-refill --mr-liquid-refill-particles-per-cell 4 --mr-liquid-refill-seed 24680
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --sparse-liquid-coarsening --sparse-liquid-particles-per-cell 2 --sparse-liquid-coarsening-seed 54321 --sparse-liquid-refill --sparse-liquid-refill-particles-per-cell 4 --sparse-liquid-refill-seed 24680 --sparse-liquid-refill-max-added-per-step 160 --sparse-liquid-refill-interface-only --sparse-liquid-refill-interface-radius 1 --mr-liquid-coarsening --mr-liquid-particles-per-cell 2 --mr-liquid-coarsening-seed 54321 --mr-liquid-refill --mr-liquid-refill-particles-per-cell 4 --mr-liquid-refill-seed 24680 --mr-liquid-refill-max-added-per-step 160 --mr-liquid-refill-interface-only --mr-liquid-refill-interface-radius 1
 ./build/Release/bench_multires_sparse3d_tp.exe --steps 4 --secondary-lifecycle
+./build/Release/bench_multires_sparse3d_tp.exe --steps 3 --secondary-lifecycle --secondary-droplet-drag 1 --secondary-bubble-drag 0.5 --secondary-droplet-gravity-scale 0.5 --secondary-reabsorb-to-primary
 ./build/Release/bench_multires_sparse3d_tp.exe --physics-preset --steps 6
 ./build/Release/bench_multires_sparse3d_tp.exe --long-physics-preset
 

@@ -23,7 +23,10 @@ struct SecondaryParticleLifecycleConfig3D {
   double velocity_damping = 0.98;
   double reabsorb_margin_cells = 1.0;
   double gravity = -9.81;
+  double droplet_gravity_scale = 1.0;
   double bubble_buoyancy_scale = 0.25;
+  double droplet_drag = 0.0;
+  double bubble_drag = 0.0;
   double particle_volume_scale = 1.0;
 };
 
@@ -36,12 +39,18 @@ struct SecondaryParticleLifecycleStats3D {
   int reabsorbed_bubbles = 0;
   int expired_droplets = 0;
   int expired_bubbles = 0;
+  int dragged_droplets = 0;
+  int dragged_bubbles = 0;
+  int reabsorbed_droplets_to_primary = 0;
+  int reabsorbed_bubbles_to_primary = 0;
   double current_droplet_volume = 0.0;
   double current_bubble_volume = 0.0;
   double reabsorbed_droplet_volume = 0.0;
   double reabsorbed_bubble_volume = 0.0;
   double expired_droplet_volume = 0.0;
   double expired_bubble_volume = 0.0;
+  double reabsorbed_droplet_volume_to_primary = 0.0;
+  double reabsorbed_bubble_volume_to_primary = 0.0;
 };
 
 inline bool finiteSecondaryParticle3D(const Particles3DTP& ps, size_t p) {
@@ -127,6 +136,8 @@ inline void advanceSecondarySet3D(Particles3DTP& ps,
                                   unsigned char type,
                                   int lifetimeSteps,
                                   double accelY,
+                                  double dragPerSecond,
+                                  Particles3DTP* reabsorbedToPrimary,
                                   SecondaryParticleLifecycleStats3D& stats) {
   syncSecondaryAges3D(ages, ps.size());
   if (ps.size() == 0) return;
@@ -159,7 +170,13 @@ inline void advanceSecondarySet3D(Particles3DTP& ps,
     else ++stats.advected_bubbles;
 
     ps.vel[p].y += accelY * dt;
-    ps.vel[p] = ps.vel[p] * config.velocity_damping;
+    double damping = std::max(0.0, config.velocity_damping);
+    if (dragPerSecond > 0.0) {
+      damping *= std::exp(-dragPerSecond * dt);
+      if (type == 0) ++stats.dragged_droplets;
+      else ++stats.dragged_bubbles;
+    }
+    ps.vel[p] = ps.vel[p] * damping;
     ps.pos[p] += ps.vel[p] * dt;
     ps.pos[p].x = clampSecondaryCoord3D(ps.pos[p].x, xLo, xHi);
     ps.pos[p].y = clampSecondaryCoord3D(ps.pos[p].y, yLo, yHi);
@@ -169,12 +186,23 @@ inline void advanceSecondarySet3D(Particles3DTP& ps,
     if (secondaryInsideReabsorbBand3D(ps.pos[p], domain,
                                       config.reabsorb_margin_cells)) {
       remove[p] = 1;
+      if (reabsorbedToPrimary) {
+        reabsorbedToPrimary->add(ps.pos[p], ps.vel[p], type, ps.volume[p]);
+      }
       if (type == 0) {
         ++stats.reabsorbed_droplets;
         stats.reabsorbed_droplet_volume += volume;
+        if (reabsorbedToPrimary) {
+          ++stats.reabsorbed_droplets_to_primary;
+          stats.reabsorbed_droplet_volume_to_primary += volume;
+        }
       } else {
         ++stats.reabsorbed_bubbles;
         stats.reabsorbed_bubble_volume += volume;
+        if (reabsorbedToPrimary) {
+          ++stats.reabsorbed_bubbles_to_primary;
+          stats.reabsorbed_bubble_volume_to_primary += volume;
+        }
       }
     } else if (lifetimeSteps >= 0 && nextAge >= lifetimeSteps) {
       remove[p] = 1;
@@ -198,7 +226,9 @@ inline SecondaryParticleLifecycleStats3D advanceSecondaryParticles3D(
     std::vector<int>& bubbleAges,
     const SecondaryParticleDomain3D& domain,
     const SecondaryParticleLifecycleConfig3D& config,
-    double dt) {
+    double dt,
+    Particles3DTP* reabsorbedDropletsToPrimary = nullptr,
+    Particles3DTP* reabsorbedBubblesToPrimary = nullptr) {
   SecondaryParticleLifecycleStats3D stats;
   stats.enabled = config.enabled ? 1 : 0;
   syncSecondaryAges3D(dropletAges, droplets.size());
@@ -206,10 +236,17 @@ inline SecondaryParticleLifecycleStats3D advanceSecondaryParticles3D(
 
   if (config.enabled && dt > 0.0) {
     advanceSecondarySet3D(droplets, dropletAges, domain, config, dt, 0,
-                          config.droplet_lifetime_steps, config.gravity, stats);
+                          config.droplet_lifetime_steps,
+                          config.gravity * config.droplet_gravity_scale,
+                          config.droplet_drag,
+                          reabsorbedDropletsToPrimary,
+                          stats);
     advanceSecondarySet3D(bubbles, bubbleAges, domain, config, dt, 1,
                           config.bubble_lifetime_steps,
-                          -config.gravity * config.bubble_buoyancy_scale, stats);
+                          -config.gravity * config.bubble_buoyancy_scale,
+                          config.bubble_drag,
+                          reabsorbedBubblesToPrimary,
+                          stats);
   }
 
   stats.current_droplet_volume =

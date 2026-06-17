@@ -33,7 +33,7 @@
 1. S32 render cache manifest + sequence tooling. Done in `feat: add render cache manifest`.
 2. S33 render cache QA validator for missing sections, non-finite values, volume drift, and frame ordering. Done in the follow-up validator milestone.
 3. S34 secondary render layer preview controls for droplet/bubble age, velocity, and type inspection. Done in the secondary preview controls milestone.
-4. S35 secondary particle physics upgrade for drag, buoyancy, reabsorption, and mass/volume coupling.
+4. S35 secondary particle physics upgrade for drag, buoyancy, reabsorption, and mass/volume coupling. Done in `feat: upgrade secondary particle physics`.
 5. S36 large-scale benchmark v2 with cache/export/preview timing and peak memory diagnostics.
 
 ## Task 1: Manifest Writer

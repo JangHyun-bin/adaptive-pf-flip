@@ -149,12 +149,18 @@ void resetEscapedParticleBranching(SparseSim3DTP& sim) {
   sim.secondary_bubbles_reabsorbed_total = 0;
   sim.secondary_droplets_expired_total = 0;
   sim.secondary_bubbles_expired_total = 0;
+  sim.secondary_droplets_dragged_total = 0;
+  sim.secondary_bubbles_dragged_total = 0;
+  sim.secondary_droplets_reabsorbed_to_primary_total = 0;
+  sim.secondary_bubbles_reabsorbed_to_primary_total = 0;
   sim.secondary_droplet_volume_current_last = 0.0;
   sim.secondary_bubble_volume_current_last = 0.0;
   sim.secondary_droplet_volume_reabsorbed_total = 0.0;
   sim.secondary_bubble_volume_reabsorbed_total = 0.0;
   sim.secondary_droplet_volume_expired_total = 0.0;
   sim.secondary_bubble_volume_expired_total = 0.0;
+  sim.secondary_droplet_volume_reabsorbed_to_primary_total = 0.0;
+  sim.secondary_bubble_volume_reabsorbed_to_primary_total = 0.0;
 }
 
 void updateSecondaryCurrentVolumes(SparseSim3DTP& sim) {
@@ -194,6 +200,12 @@ void storeEscapedParticles(SparseSim3DTP& sim, const ParticleEscapeBuffer3D& buf
   updateSecondaryCurrentVolumes(sim);
 }
 
+void appendSecondaryToPrimary(Particles3DTP& primary, const Particles3DTP& secondary) {
+  for (size_t i = 0; i < secondary.size(); ++i) {
+    primary.add(secondary.pos[i], secondary.vel[i], secondary.type[i], secondary.volume[i]);
+  }
+}
+
 void advanceSecondaryLifecycle(SparseSim3DTP& sim, double stepDt) {
   const SecondaryParticleDomain3D domain{
     sim.grid.nx, sim.grid.ny, sim.grid.nz, sim.grid.dx,
@@ -205,8 +217,13 @@ void advanceSecondaryLifecycle(SparseSim3DTP& sim, double stepDt) {
     sim.secondary_velocity_damping,
     sim.secondary_reabsorb_margin_cells,
     sim.gravity,
+    sim.secondary_droplet_gravity_scale,
     sim.secondary_bubble_buoyancy_scale,
+    sim.secondary_droplet_drag,
+    sim.secondary_bubble_drag,
     sim.Vp};
+  Particles3DTP reabsorbedDroplets;
+  Particles3DTP reabsorbedBubbles;
   const SecondaryParticleLifecycleStats3D stats =
     advanceSecondaryParticles3D(sim.escaped_droplets,
                                 sim.escaped_bubbles,
@@ -214,7 +231,13 @@ void advanceSecondaryLifecycle(SparseSim3DTP& sim, double stepDt) {
                                 sim.escaped_bubble_ages,
                                 domain,
                                 config,
-                                stepDt);
+                                stepDt,
+                                sim.secondary_reabsorb_to_primary ? &reabsorbedDroplets : nullptr,
+                                sim.secondary_reabsorb_to_primary ? &reabsorbedBubbles : nullptr);
+  if (sim.secondary_reabsorb_to_primary) {
+    appendSecondaryToPrimary(sim.particles, reabsorbedDroplets);
+    appendSecondaryToPrimary(sim.particles, reabsorbedBubbles);
+  }
   sim.secondary_lifecycle_stats_last = stats;
   sim.secondary_droplets_advected_total += stats.advected_droplets;
   sim.secondary_bubbles_advected_total += stats.advected_bubbles;
@@ -222,12 +245,20 @@ void advanceSecondaryLifecycle(SparseSim3DTP& sim, double stepDt) {
   sim.secondary_bubbles_reabsorbed_total += stats.reabsorbed_bubbles;
   sim.secondary_droplets_expired_total += stats.expired_droplets;
   sim.secondary_bubbles_expired_total += stats.expired_bubbles;
+  sim.secondary_droplets_dragged_total += stats.dragged_droplets;
+  sim.secondary_bubbles_dragged_total += stats.dragged_bubbles;
+  sim.secondary_droplets_reabsorbed_to_primary_total += stats.reabsorbed_droplets_to_primary;
+  sim.secondary_bubbles_reabsorbed_to_primary_total += stats.reabsorbed_bubbles_to_primary;
   sim.secondary_droplet_volume_current_last = stats.current_droplet_volume;
   sim.secondary_bubble_volume_current_last = stats.current_bubble_volume;
   sim.secondary_droplet_volume_reabsorbed_total += stats.reabsorbed_droplet_volume;
   sim.secondary_bubble_volume_reabsorbed_total += stats.reabsorbed_bubble_volume;
   sim.secondary_droplet_volume_expired_total += stats.expired_droplet_volume;
   sim.secondary_bubble_volume_expired_total += stats.expired_bubble_volume;
+  sim.secondary_droplet_volume_reabsorbed_to_primary_total +=
+    stats.reabsorbed_droplet_volume_to_primary;
+  sim.secondary_bubble_volume_reabsorbed_to_primary_total +=
+    stats.reabsorbed_bubble_volume_to_primary;
 }
 
 void resetTimestepStats(SparseSim3DTP& sim) {
