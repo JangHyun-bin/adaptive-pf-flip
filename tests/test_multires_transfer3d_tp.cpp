@@ -196,7 +196,8 @@ TEST_CASE("multires 3D tp advect reports phase boundary clamps") {
   ps.add({4.0, 4.0, 7.45}, {0.0, 0.0, 0.0}, 1);
 
   ParticleEscapeStats3D stats;
-  mrAdvect3D_tp(ps, g, 0.1, &stats);
+  ParticleEscapeBuffer3D escapeBuffer;
+  mrAdvect3D_tp(ps, g, 0.1, &stats, 2, &escapeBuffer);
 
   CHECK(ps.pos[0].x == doctest::Approx(0.5).epsilon(1e-12));
   CHECK(ps.pos[1].z == doctest::Approx(7.5).epsilon(1e-12));
@@ -207,6 +208,14 @@ TEST_CASE("multires 3D tp advect reports phase boundary clamps") {
   CHECK(stats.clamped_total() == 2);
   CHECK(stats.droplet_candidates() == 1);
   CHECK(stats.bubble_candidates() == 1);
+  REQUIRE(escapeBuffer.records.size() == 2);
+  CHECK(escapeBuffer.droplet_count() == 1);
+  CHECK(escapeBuffer.bubble_count() == 1);
+  CHECK(escapeBuffer.records[0].type == 0);
+  CHECK(escapeBuffer.records[0].pos.x == doctest::Approx(0.5).epsilon(1e-12));
+  CHECK(escapeBuffer.records[0].volume == doctest::Approx(1.0));
+  CHECK(escapeBuffer.records[1].type == 1);
+  CHECK(escapeBuffer.records[1].pos.z == doctest::Approx(7.5).epsilon(1e-12));
 }
 
 TEST_CASE("multires 3D tp advect RK3 follows a linear velocity field") {

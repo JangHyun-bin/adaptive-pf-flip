@@ -318,7 +318,8 @@ Vec3 advectRK3(const MRMacGrid3D<4>& g, const Vec3& pos, double dt) {
 } // namespace
 
 void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt,
-                   ParticleEscapeStats3D* stats, int advectionOrder) {
+                   ParticleEscapeStats3D* stats, int advectionOrder,
+                   ParticleEscapeBuffer3D* escapeBuffer) {
   double minX = 0.5 * g.layout.dx;
   double maxX = (static_cast<double>(g.layout.nx) - 0.5) * g.layout.dx;
   double minY = 0.5 * g.layout.dx;
@@ -339,9 +340,16 @@ void mrAdvect3D_tp(Particles3DTP& ps, const MRMacGrid3D<4>& g, double dt,
     const bool yHi = ny > maxY;
     const bool zLo = nz < minZ;
     const bool zHi = nz > maxZ;
+    const bool clamped = xLo || xHi || yLo || yHi || zLo || zHi;
+    Vec3 clampedPos{
+      std::max(minX, std::min(maxX, nx)),
+      std::max(minY, std::min(maxY, ny)),
+      std::max(minZ, std::min(maxZ, nz))
+    };
     if (stats) stats->recordClamp(ps.type[p], xLo, xHi, yLo, yHi, zLo, zHi);
-    ps.pos[p].x = std::max(minX, std::min(maxX, nx));
-    ps.pos[p].y = std::max(minY, std::min(maxY, ny));
-    ps.pos[p].z = std::max(minZ, std::min(maxZ, nz));
+    if (escapeBuffer && clamped) {
+      escapeBuffer->record(ps.type[p], clampedPos, ps.vel[p], ps.volume[p]);
+    }
+    ps.pos[p] = clampedPos;
   }
 }

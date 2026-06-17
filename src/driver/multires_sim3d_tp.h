@@ -123,6 +123,13 @@ struct MRSim3DTP {
   int escaped_bubble_candidates_last = 0;
   int escaped_droplet_candidates_total = 0;
   int escaped_bubble_candidates_total = 0;
+  bool escaped_particle_branching = false;
+  Particles3DTP escaped_droplets;
+  Particles3DTP escaped_bubbles;
+  int escaped_droplets_added_last = 0;
+  int escaped_bubbles_added_last = 0;
+  int escaped_droplets_added_total = 0;
+  int escaped_bubbles_added_total = 0;
   MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);

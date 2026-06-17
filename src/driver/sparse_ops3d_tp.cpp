@@ -199,7 +199,8 @@ Vec3 advectRK3(const SparseMacGrid3D<4>& g, const Vec3& pos, double dt) {
 } // namespace
 
 void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt,
-                   ParticleEscapeStats3D* stats, int advectionOrder) {
+                   ParticleEscapeStats3D* stats, int advectionOrder,
+                   ParticleEscapeBuffer3D* escapeBuffer) {
   double lox = g.ox + 0.5 * g.dx, hix = g.ox + (g.nx - 0.5) * g.dx;
   double loy = g.oy + 0.5 * g.dx, hiy = g.oy + (g.ny - 0.5) * g.dx;
   double loz = g.oz + 0.5 * g.dx, hiz = g.oz + (g.nz - 0.5) * g.dx;
@@ -216,10 +217,17 @@ void spAdvect3D_tp(Particles3DTP& ps, const SparseMacGrid3D<4>& g, double dt,
     const bool yHi = ny > hiy;
     const bool zLo = nz < loz;
     const bool zHi = nz > hiz;
+    const bool clamped = xLo || xHi || yLo || yHi || zLo || zHi;
+    Vec3 clampedPos{
+      std::max(lox, std::min(hix, nx)),
+      std::max(loy, std::min(hiy, ny)),
+      std::max(loz, std::min(hiz, nz))
+    };
     if (stats) stats->recordClamp(ps.type[p], xLo, xHi, yLo, yHi, zLo, zHi);
-    ps.pos[p].x = std::max(lox, std::min(hix, nx));
-    ps.pos[p].y = std::max(loy, std::min(hiy, ny));
-    ps.pos[p].z = std::max(loz, std::min(hiz, nz));
+    if (escapeBuffer && clamped) {
+      escapeBuffer->record(ps.type[p], clampedPos, ps.vel[p], ps.volume[p]);
+    }
+    ps.pos[p] = clampedPos;
   }
 }
 

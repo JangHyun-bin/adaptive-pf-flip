@@ -275,6 +275,33 @@ void storeParticleBoundaryStats(MRSim3DTP& sim, const ParticleEscapeStats3D& sta
   sim.escaped_bubble_candidates_total += sim.escaped_bubble_candidates_last;
 }
 
+void resetEscapedParticleBranching(MRSim3DTP& sim) {
+  sim.escaped_droplets = Particles3DTP();
+  sim.escaped_bubbles = Particles3DTP();
+  sim.escaped_droplets_added_last = 0;
+  sim.escaped_bubbles_added_last = 0;
+  sim.escaped_droplets_added_total = 0;
+  sim.escaped_bubbles_added_total = 0;
+}
+
+void storeEscapedParticles(MRSim3DTP& sim, const ParticleEscapeBuffer3D& buffer) {
+  sim.escaped_droplets_added_last = 0;
+  sim.escaped_bubbles_added_last = 0;
+  if (!sim.escaped_particle_branching) return;
+
+  for (const EscapedParticleRecord3D& r : buffer.records) {
+    if (r.type == 0) {
+      sim.escaped_droplets.add(r.pos, r.vel, 0, r.volume);
+      ++sim.escaped_droplets_added_last;
+    } else if (r.type == 1) {
+      sim.escaped_bubbles.add(r.pos, r.vel, 1, r.volume);
+      ++sim.escaped_bubbles_added_last;
+    }
+  }
+  sim.escaped_droplets_added_total += sim.escaped_droplets_added_last;
+  sim.escaped_bubbles_added_total += sim.escaped_bubbles_added_last;
+}
+
 void resetTimestepStats(MRSim3DTP& sim) {
   sim.effective_dt_last = sim.dt;
   sim.max_particle_speed_last = 0.0;
@@ -337,6 +364,7 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
 
   int waterLevel = layout.ny / 2;
@@ -583,8 +611,11 @@ void MRSim3DTP::step() {
   projectMR3D(grid, phase, stepDt, pressureConfig, &last_pressure_stats);
   mrG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
-  mrAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order);
+  ParticleEscapeBuffer3D escapeBuffer;
+  mrAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order,
+                escaped_particle_branching ? &escapeBuffer : nullptr);
   storeParticleBoundaryStats(*this, escapeStats);
+  storeEscapedParticles(*this, escapeBuffer);
 }
 
 int MRSim3DTP::activePressureCellCount() const {

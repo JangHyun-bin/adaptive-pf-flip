@@ -94,6 +94,10 @@ struct SparseMetrics {
   int boundaryClampedGasTotal = 0;
   int escapedDropletCandidatesTotal = 0;
   int escapedBubbleCandidatesTotal = 0;
+  int escapedDropletsAddedTotal = 0;
+  int escapedBubblesAddedTotal = 0;
+  size_t escapedDropletParticles = 0;
+  size_t escapedBubbleParticles = 0;
   double effectiveDtLast = 0.0;
   double cflLimitDtLast = 0.0;
   double maxParticleSpeedLast = 0.0;
@@ -146,6 +150,10 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps, double liquidVolume
   metrics.boundaryClampedGasTotal = sim.particle_boundary_clamped_gas_total;
   metrics.escapedDropletCandidatesTotal = sim.escaped_droplet_candidates_total;
   metrics.escapedBubbleCandidatesTotal = sim.escaped_bubble_candidates_total;
+  metrics.escapedDropletsAddedTotal = sim.escaped_droplets_added_total;
+  metrics.escapedBubblesAddedTotal = sim.escaped_bubbles_added_total;
+  metrics.escapedDropletParticles = sim.escaped_droplets.size();
+  metrics.escapedBubbleParticles = sim.escaped_bubbles.size();
   metrics.effectiveDtLast = sim.effective_dt_last;
   metrics.cflLimitDtLast = sim.cfl_limit_dt_last;
   metrics.maxParticleSpeedLast = sim.max_particle_speed_last;
@@ -174,6 +182,7 @@ void usage() {
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
+               "[--escaped-particle-branching] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -238,6 +247,7 @@ int main(int argc, char** argv) {
   const double cDivStrength = argDouble(argc, argv, "--c-div-strength", mr.c_div_strength);
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
+  const bool escapedParticleBranching = hasFlag(argc, argv, "--escaped-particle-branching");
   sparse.adaptive_timestep = adaptiveTimestep;
   sparseAdaptive.adaptive_timestep = adaptiveTimestep;
   mr.adaptive_timestep = adaptiveTimestep;
@@ -247,6 +257,9 @@ int main(int argc, char** argv) {
   sparse.c_div_strength = cDivStrength;
   sparseAdaptive.c_div_strength = cDivStrength;
   mr.c_div_strength = cDivStrength;
+  sparse.escaped_particle_branching = escapedParticleBranching;
+  sparseAdaptive.escaped_particle_branching = escapedParticleBranching;
+  mr.escaped_particle_branching = escapedParticleBranching;
   sparse.advection_order = advectionOrder;
   sparseAdaptive.advection_order = advectionOrder;
   mr.advection_order = advectionOrder;
@@ -321,6 +334,7 @@ int main(int argc, char** argv) {
   mrAdaptive.advection_order = advectionOrder;
   mrAdaptive.c_div_volume_correction = cDivVolumeCorrection;
   mrAdaptive.c_div_strength = cDivStrength;
+  mrAdaptive.escaped_particle_branching = escapedParticleBranching;
   mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
     argInt(argc, argv, "--mr-narrow-band-radius",
@@ -434,6 +448,10 @@ int main(int argc, char** argv) {
   int mrBoundaryClampedGasTotal = mr.particle_boundary_clamped_gas_total;
   int mrEscapedDropletCandidatesTotal = mr.escaped_droplet_candidates_total;
   int mrEscapedBubbleCandidatesTotal = mr.escaped_bubble_candidates_total;
+  int mrEscapedDropletsAddedTotal = mr.escaped_droplets_added_total;
+  int mrEscapedBubblesAddedTotal = mr.escaped_bubbles_added_total;
+  size_t mrEscapedDropletParticles = mr.escaped_droplets.size();
+  size_t mrEscapedBubbleParticles = mr.escaped_bubbles.size();
   double mrEffectiveDtLast = mr.effective_dt_last;
   double mrCflLimitDtLast = mr.cfl_limit_dt_last;
   double mrMaxParticleSpeedLast = mr.max_particle_speed_last;
@@ -459,6 +477,10 @@ int main(int argc, char** argv) {
   int adaptiveMrBoundaryClampedGasTotal = mrBoundaryClampedGasTotal;
   int adaptiveMrEscapedDropletCandidatesTotal = mrEscapedDropletCandidatesTotal;
   int adaptiveMrEscapedBubbleCandidatesTotal = mrEscapedBubbleCandidatesTotal;
+  int adaptiveMrEscapedDropletsAddedTotal = mrEscapedDropletsAddedTotal;
+  int adaptiveMrEscapedBubblesAddedTotal = mrEscapedBubblesAddedTotal;
+  size_t adaptiveMrEscapedDropletParticles = mrEscapedDropletParticles;
+  size_t adaptiveMrEscapedBubbleParticles = mrEscapedBubbleParticles;
   double adaptiveMrEffectiveDtLast = mrEffectiveDtLast;
   double adaptiveMrCflLimitDtLast = mrCflLimitDtLast;
   double adaptiveMrMaxParticleSpeedLast = mrMaxParticleSpeedLast;
@@ -511,6 +533,12 @@ int main(int argc, char** argv) {
       mrAdaptive.escaped_droplet_candidates_total;
     adaptiveMrEscapedBubbleCandidatesTotal =
       mrAdaptive.escaped_bubble_candidates_total;
+    adaptiveMrEscapedDropletsAddedTotal =
+      mrAdaptive.escaped_droplets_added_total;
+    adaptiveMrEscapedBubblesAddedTotal =
+      mrAdaptive.escaped_bubbles_added_total;
+    adaptiveMrEscapedDropletParticles = mrAdaptive.escaped_droplets.size();
+    adaptiveMrEscapedBubbleParticles = mrAdaptive.escaped_bubbles.size();
     adaptiveMrEffectiveDtLast = mrAdaptive.effective_dt_last;
     adaptiveMrCflLimitDtLast = mrAdaptive.cfl_limit_dt_last;
     adaptiveMrMaxParticleSpeedLast = mrAdaptive.max_particle_speed_last;
@@ -584,6 +612,8 @@ int main(int argc, char** argv) {
               cDivVolumeCorrection ? "true" : "false");
   std::printf("c_div_strength=%.9g\n", cDivStrength);
   std::printf("liquid_volume_target_override=%.9g\n", liquidVolumeTargetOverride);
+  std::printf("escaped_particle_branching=%s\n",
+              escapedParticleBranching ? "true" : "false");
   std::printf("rho_l=%.9g\n", mr.phase.rho_l);
   std::printf("rho_g=%.9g\n", mr.phase.rho_g);
   std::printf("rho_ratio=%.9g\n", activeRhoRatio);
@@ -699,6 +729,22 @@ int main(int argc, char** argv) {
               adaptiveMetrics.escapedDropletCandidatesTotal);
   std::printf("adaptive_sparse_escaped_bubble_candidates_total=%d\n",
               adaptiveMetrics.escapedBubbleCandidatesTotal);
+  std::printf("sparse_escaped_droplets_added_total=%d\n",
+              sparseMetrics.escapedDropletsAddedTotal);
+  std::printf("sparse_escaped_bubbles_added_total=%d\n",
+              sparseMetrics.escapedBubblesAddedTotal);
+  std::printf("sparse_escaped_droplet_particles=%zu\n",
+              sparseMetrics.escapedDropletParticles);
+  std::printf("sparse_escaped_bubble_particles=%zu\n",
+              sparseMetrics.escapedBubbleParticles);
+  std::printf("adaptive_sparse_escaped_droplets_added_total=%d\n",
+              adaptiveMetrics.escapedDropletsAddedTotal);
+  std::printf("adaptive_sparse_escaped_bubbles_added_total=%d\n",
+              adaptiveMetrics.escapedBubblesAddedTotal);
+  std::printf("adaptive_sparse_escaped_droplet_particles=%zu\n",
+              adaptiveMetrics.escapedDropletParticles);
+  std::printf("adaptive_sparse_escaped_bubble_particles=%zu\n",
+              adaptiveMetrics.escapedBubbleParticles);
   std::printf("sparse_effective_dt_last=%.9g\n", sparseMetrics.effectiveDtLast);
   std::printf("sparse_cfl_limit_dt_last=%.9g\n", sparseMetrics.cflLimitDtLast);
   std::printf("sparse_max_particle_speed_last=%.9g\n",
@@ -758,6 +804,22 @@ int main(int argc, char** argv) {
               adaptiveMrEscapedDropletCandidatesTotal);
   std::printf("adaptive_mr_escaped_bubble_candidates_total=%d\n",
               adaptiveMrEscapedBubbleCandidatesTotal);
+  std::printf("mr_escaped_droplets_added_total=%d\n",
+              mrEscapedDropletsAddedTotal);
+  std::printf("mr_escaped_bubbles_added_total=%d\n",
+              mrEscapedBubblesAddedTotal);
+  std::printf("mr_escaped_droplet_particles=%zu\n",
+              mrEscapedDropletParticles);
+  std::printf("mr_escaped_bubble_particles=%zu\n",
+              mrEscapedBubbleParticles);
+  std::printf("adaptive_mr_escaped_droplets_added_total=%d\n",
+              adaptiveMrEscapedDropletsAddedTotal);
+  std::printf("adaptive_mr_escaped_bubbles_added_total=%d\n",
+              adaptiveMrEscapedBubblesAddedTotal);
+  std::printf("adaptive_mr_escaped_droplet_particles=%zu\n",
+              adaptiveMrEscapedDropletParticles);
+  std::printf("adaptive_mr_escaped_bubble_particles=%zu\n",
+              adaptiveMrEscapedBubbleParticles);
   std::printf("mr_effective_dt_last=%.9g\n", mrEffectiveDtLast);
   std::printf("mr_cfl_limit_dt_last=%.9g\n", mrCflLimitDtLast);
   std::printf("mr_max_particle_speed_last=%.9g\n", mrMaxParticleSpeedLast);
@@ -962,6 +1024,39 @@ int main(int argc, char** argv) {
       mrGasCount1 != mrGasCount0) {
     ok = false;
   }
+  auto secondaryOk = [&](int dropletCandidates,
+                         int bubbleCandidates,
+                         int dropletsAdded,
+                         int bubblesAdded,
+                         size_t dropletParticles,
+                         size_t bubbleParticles) {
+    if (escapedParticleBranching) {
+      return dropletsAdded == dropletCandidates &&
+             bubblesAdded == bubbleCandidates &&
+             dropletParticles == static_cast<size_t>(dropletsAdded) &&
+             bubbleParticles == static_cast<size_t>(bubblesAdded);
+    }
+    return dropletsAdded == 0 &&
+           bubblesAdded == 0 &&
+           dropletParticles == 0 &&
+           bubbleParticles == 0;
+  };
+  if (!secondaryOk(sparseMetrics.escapedDropletCandidatesTotal,
+                   sparseMetrics.escapedBubbleCandidatesTotal,
+                   sparseMetrics.escapedDropletsAddedTotal,
+                   sparseMetrics.escapedBubblesAddedTotal,
+                   sparseMetrics.escapedDropletParticles,
+                   sparseMetrics.escapedBubbleParticles)) {
+    ok = false;
+  }
+  if (!secondaryOk(mrEscapedDropletCandidatesTotal,
+                   mrEscapedBubbleCandidatesTotal,
+                   mrEscapedDropletsAddedTotal,
+                   mrEscapedBubblesAddedTotal,
+                   mrEscapedDropletParticles,
+                   mrEscapedBubbleParticles)) {
+    ok = false;
+  }
   if (!(sparseRise > 0.0) || !(mrRise > 0.0)) ok = false;
   if (sparseAdaptivity) {
     if (!adaptiveMetrics.finite) ok = false;
@@ -1016,6 +1111,14 @@ int main(int argc, char** argv) {
     if (sparseGasAdaptivity) {
       if (adaptiveMetrics.gasCountEnd > adaptiveMetrics.gasCountStart) ok = false;
     } else if (adaptiveMetrics.gasCountEnd != adaptiveMetrics.gasCountStart) {
+      ok = false;
+    }
+    if (!secondaryOk(adaptiveMetrics.escapedDropletCandidatesTotal,
+                     adaptiveMetrics.escapedBubbleCandidatesTotal,
+                     adaptiveMetrics.escapedDropletsAddedTotal,
+                     adaptiveMetrics.escapedBubblesAddedTotal,
+                     adaptiveMetrics.escapedDropletParticles,
+                     adaptiveMetrics.escapedBubbleParticles)) {
       ok = false;
     }
     if (!(adaptiveRise > 0.0)) ok = false;
@@ -1073,6 +1176,14 @@ int main(int argc, char** argv) {
     if (mrGasAdaptivity) {
       if (adaptiveMrGasCount1 > adaptiveMrGasCount0) ok = false;
     } else if (adaptiveMrGasCount1 != adaptiveMrGasCount0) {
+      ok = false;
+    }
+    if (!secondaryOk(adaptiveMrEscapedDropletCandidatesTotal,
+                     adaptiveMrEscapedBubbleCandidatesTotal,
+                     adaptiveMrEscapedDropletsAddedTotal,
+                     adaptiveMrEscapedBubblesAddedTotal,
+                     adaptiveMrEscapedDropletParticles,
+                     adaptiveMrEscapedBubbleParticles)) {
       ok = false;
     }
     if (!(adaptiveMrRise > 0.0)) ok = false;

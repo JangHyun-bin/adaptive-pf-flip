@@ -129,6 +129,33 @@ void storeParticleBoundaryStats(SparseSim3DTP& sim, const ParticleEscapeStats3D&
   sim.escaped_bubble_candidates_total += sim.escaped_bubble_candidates_last;
 }
 
+void resetEscapedParticleBranching(SparseSim3DTP& sim) {
+  sim.escaped_droplets = Particles3DTP();
+  sim.escaped_bubbles = Particles3DTP();
+  sim.escaped_droplets_added_last = 0;
+  sim.escaped_bubbles_added_last = 0;
+  sim.escaped_droplets_added_total = 0;
+  sim.escaped_bubbles_added_total = 0;
+}
+
+void storeEscapedParticles(SparseSim3DTP& sim, const ParticleEscapeBuffer3D& buffer) {
+  sim.escaped_droplets_added_last = 0;
+  sim.escaped_bubbles_added_last = 0;
+  if (!sim.escaped_particle_branching) return;
+
+  for (const EscapedParticleRecord3D& r : buffer.records) {
+    if (r.type == 0) {
+      sim.escaped_droplets.add(r.pos, r.vel, 0, r.volume);
+      ++sim.escaped_droplets_added_last;
+    } else if (r.type == 1) {
+      sim.escaped_bubbles.add(r.pos, r.vel, 1, r.volume);
+      ++sim.escaped_bubbles_added_last;
+    }
+  }
+  sim.escaped_droplets_added_total += sim.escaped_droplets_added_last;
+  sim.escaped_bubbles_added_total += sim.escaped_bubbles_added_last;
+}
+
 void resetTimestepStats(SparseSim3DTP& sim) {
   sim.effective_dt_last = sim.dt;
   sim.max_particle_speed_last = 0.0;
@@ -184,6 +211,7 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
@@ -211,6 +239,7 @@ void SparseSim3DTP::initRayleighTaylor() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
@@ -239,6 +268,7 @@ void SparseSim3DTP::initBubbleTank() {
   liquid_particle_refill_added_last = 0;
   liquid_particle_refill_added_total = 0;
   resetParticleBoundaryStats(*this);
+  resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
@@ -353,6 +383,9 @@ void SparseSim3DTP::step() {
   spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol, c_div_last);
   spG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);
   ParticleEscapeStats3D escapeStats;
-  spAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order);
+  ParticleEscapeBuffer3D escapeBuffer;
+  spAdvect3D_tp(particles, grid, stepDt, &escapeStats, advection_order,
+                escaped_particle_branching ? &escapeBuffer : nullptr);
   storeParticleBoundaryStats(*this, escapeStats);
+  storeEscapedParticles(*this, escapeBuffer);
 }

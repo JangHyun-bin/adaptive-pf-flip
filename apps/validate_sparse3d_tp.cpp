@@ -90,6 +90,7 @@ void usage() {
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
+               "[--escaped-particle-branching] "
                "[--narrow-band-air] [--narrow-band-radius N] "
                "[--gas-coarsening] [--gas-particles-per-cell N] "
                "[--gas-coarsening-seed N] "
@@ -128,6 +129,7 @@ int main(int argc, char** argv) {
   sim.advection_order = argInt(argc, argv, "--advection-order", sim.advection_order);
   sim.c_div_volume_correction = hasFlag(argc, argv, "--c-div-volume-correction");
   sim.c_div_strength = argDouble(argc, argv, "--c-div-strength", sim.c_div_strength);
+  sim.escaped_particle_branching = hasFlag(argc, argv, "--escaped-particle-branching");
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
   sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
@@ -225,6 +227,8 @@ int main(int argc, char** argv) {
   std::printf("c_div_volume_correction=%s\n",
               sim.c_div_volume_correction ? "true" : "false");
   std::printf("c_div_strength=%.9g\n", sim.c_div_strength);
+  std::printf("escaped_particle_branching=%s\n",
+              sim.escaped_particle_branching ? "true" : "false");
   std::printf("liquid_volume_target=%.9g\n", sim.liquid_volume_target);
   std::printf("liquid_volume_current_last=%.9g\n", sim.liquid_volume_current_last);
   std::printf("liquid_volume_error_last=%.9g\n", sim.liquid_volume_error_last);
@@ -281,6 +285,16 @@ int main(int argc, char** argv) {
               sim.escaped_droplet_candidates_total);
   std::printf("escaped_bubble_candidates_total=%d\n",
               sim.escaped_bubble_candidates_total);
+  std::printf("escaped_droplets_added_last=%d\n",
+              sim.escaped_droplets_added_last);
+  std::printf("escaped_bubbles_added_last=%d\n",
+              sim.escaped_bubbles_added_last);
+  std::printf("escaped_droplets_added_total=%d\n",
+              sim.escaped_droplets_added_total);
+  std::printf("escaped_bubbles_added_total=%d\n",
+              sim.escaped_bubbles_added_total);
+  std::printf("escaped_droplet_particles=%zu\n", sim.escaped_droplets.size());
+  std::printf("escaped_bubble_particles=%zu\n", sim.escaped_bubbles.size());
   std::printf("particle_boundary_clamped_x_lo_last=%d\n",
               sim.particle_boundary_clamped_x_lo_last);
   std::printf("particle_boundary_clamped_x_hi_last=%d\n",
@@ -411,6 +425,17 @@ int main(int argc, char** argv) {
     if (gasCount1 > gasCount0) ok = false;
   } else if (gasCount1 != gasCount0) {
     ok = false;
+  }
+  if (sim.escaped_particle_branching) {
+    if (sim.escaped_droplets_added_total != sim.escaped_droplet_candidates_total) ok = false;
+    if (sim.escaped_bubbles_added_total != sim.escaped_bubble_candidates_total) ok = false;
+    if (sim.escaped_droplets.size() != static_cast<size_t>(sim.escaped_droplets_added_total)) ok = false;
+    if (sim.escaped_bubbles.size() != static_cast<size_t>(sim.escaped_bubbles_added_total)) ok = false;
+  } else {
+    if (sim.escaped_droplets_added_total != 0) ok = false;
+    if (sim.escaped_bubbles_added_total != 0) ok = false;
+    if (sim.escaped_droplets.size() != 0) ok = false;
+    if (sim.escaped_bubbles.size() != 0) ok = false;
   }
   if (std::strcmp(scenario, "rt") == 0 && !(heavy1 < heavy0)) ok = false;
   if (std::strcmp(scenario, "bubble") == 0) {

@@ -1,5 +1,40 @@
 #pragma once
 
+#include "math/vec3.h"
+
+#include <vector>
+
+struct EscapedParticleRecord3D {
+  Vec3 pos{};
+  Vec3 vel{};
+  double volume = 1.0;
+  unsigned char type = 0;
+};
+
+struct ParticleEscapeBuffer3D {
+  std::vector<EscapedParticleRecord3D> records;
+
+  void record(unsigned char type, const Vec3& pos, const Vec3& vel, double volume) {
+    records.push_back(EscapedParticleRecord3D{pos, vel, volume, type});
+  }
+
+  int droplet_count() const {
+    int count = 0;
+    for (const EscapedParticleRecord3D& r : records) {
+      if (r.type == 0) ++count;
+    }
+    return count;
+  }
+
+  int bubble_count() const {
+    int count = 0;
+    for (const EscapedParticleRecord3D& r : records) {
+      if (r.type == 1) ++count;
+    }
+    return count;
+  }
+};
+
 struct ParticleEscapeStats3D {
   int clamped_liquid = 0;
   int clamped_gas = 0;
