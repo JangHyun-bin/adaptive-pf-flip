@@ -366,6 +366,7 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   resetParticleBoundaryStats(*this);
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
+  interface_diagnostics_last = InterfaceDiagnostics3D();
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -572,6 +573,7 @@ void MRSim3DTP::step() {
   updateVolumeCorrectionStats(*this, stepDt);
   markCells(grid, particles);
   mrP2G3D_tp(grid, particles, phase, Vp);
+  interface_diagnostics_last = diagnoseMRInterface3D(grid, phase);
   MRMacGrid3D<4> saved = grid;
 
   applyGravity(grid, stepDt, gravity);

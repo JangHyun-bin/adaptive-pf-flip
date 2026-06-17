@@ -1,4 +1,5 @@
 #pragma once
+#include "driver/interface_diagnostics3d.h"
 #include "grid/sparse_mac_grid3d.h"
 #include "particles/particles3d_tp.h"
 #include "physics/phasefield.h"
@@ -84,6 +85,7 @@ struct SparseSim3DTP {
   int escaped_bubbles_added_last = 0;
   int escaped_droplets_added_total = 0;
   int escaped_bubbles_added_total = 0;
+  InterfaceDiagnostics3D interface_diagnostics_last;
 
   SparseSim3DTP(int nx, int ny, int nz, double dx) : grid(nx, ny, nz, dx) {}
   void initTwoPhaseDamBreak();

@@ -328,6 +328,28 @@ int main(int argc, char** argv) {
   std::printf("liquid_volume_current_last=%.9g\n", sim.liquid_volume_current_last);
   std::printf("liquid_volume_error_last=%.9g\n", sim.liquid_volume_error_last);
   std::printf("c_div_last=%.9g\n", sim.c_div_last);
+  std::printf("interface_sample_cells=%d\n",
+              sim.interface_diagnostics_last.sample_cells);
+  std::printf("interface_cells=%d\n",
+              sim.interface_diagnostics_last.interface_cells);
+  std::printf("interface_phi_min=%.9g\n",
+              sim.interface_diagnostics_last.phi_min);
+  std::printf("interface_phi_max=%.9g\n",
+              sim.interface_diagnostics_last.phi_max);
+  std::printf("interface_phi_mean=%.9g\n",
+              sim.interface_diagnostics_last.phi_mean);
+  std::printf("interface_grad_mean=%.9g\n",
+              sim.interface_diagnostics_last.grad_mean);
+  std::printf("interface_grad_max=%.9g\n",
+              sim.interface_diagnostics_last.grad_max);
+  std::printf("interface_curvature_abs_mean=%.9g\n",
+              sim.interface_diagnostics_last.curvature_abs_mean);
+  std::printf("interface_curvature_abs_max=%.9g\n",
+              sim.interface_diagnostics_last.curvature_abs_max);
+  std::printf("interface_diagnostics_finite=%s\n",
+              sim.interface_diagnostics_last.finite ? "true" : "false");
+  std::printf("surface_tension_candidate=%s\n",
+              sim.interface_diagnostics_last.surface_tension_candidate ? "true" : "false");
   std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
   std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
   std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);
@@ -690,6 +712,10 @@ int main(int argc, char** argv) {
     if (gasCount1 > gasCount0) ok = false;
   } else if (gasCount1 != gasCount0) {
     ok = false;
+  }
+  if (steps > 0) {
+    if (!sim.interface_diagnostics_last.finite) ok = false;
+    if (sim.interface_diagnostics_last.sample_cells <= 0) ok = false;
   }
   if (sim.escaped_particle_branching) {
     if (sim.escaped_droplets_added_total != sim.escaped_droplet_candidates_total) ok = false;

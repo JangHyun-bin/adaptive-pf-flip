@@ -106,6 +106,7 @@ struct SparseMetrics {
   double liquidVolumeCurrentLast = 0.0;
   double liquidVolumeErrorLast = 0.0;
   double cDivLast = 0.0;
+  InterfaceDiagnostics3D interfaceDiagnostics;
   int liquidCoarseningRemovedStart = 0;
   int liquidCoarseningRemovedEnd = 0;
   int liquidCoarseningRemovedDuringRun = 0;
@@ -162,6 +163,7 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps, double liquidVolume
   metrics.liquidVolumeCurrentLast = sim.liquid_volume_current_last;
   metrics.liquidVolumeErrorLast = sim.liquid_volume_error_last;
   metrics.cDivLast = sim.c_div_last;
+  metrics.interfaceDiagnostics = sim.interface_diagnostics_last;
   metrics.liquidCoarseningRemovedEnd = sim.liquid_particle_coarsening_removed_total;
   metrics.liquidCoarseningRemovedDuringRun =
     metrics.liquidCoarseningRemovedEnd - metrics.liquidCoarseningRemovedStart;
@@ -460,6 +462,7 @@ int main(int argc, char** argv) {
   double mrLiquidVolumeCurrentLast = mr.liquid_volume_current_last;
   double mrLiquidVolumeErrorLast = mr.liquid_volume_error_last;
   double mrCDivLast = mr.c_div_last;
+  InterfaceDiagnostics3D mrInterfaceDiagnostics = mr.interface_diagnostics_last;
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
   long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
@@ -489,6 +492,7 @@ int main(int argc, char** argv) {
   double adaptiveMrLiquidVolumeCurrentLast = mrLiquidVolumeCurrentLast;
   double adaptiveMrLiquidVolumeErrorLast = mrLiquidVolumeErrorLast;
   double adaptiveMrCDivLast = mrCDivLast;
+  InterfaceDiagnostics3D adaptiveMrInterfaceDiagnostics = mrInterfaceDiagnostics;
   int adaptiveMrLiquidRefillAdded0 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAdded1 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAddedDuringRun = 0;
@@ -548,6 +552,7 @@ int main(int argc, char** argv) {
     adaptiveMrLiquidVolumeCurrentLast = mrAdaptive.liquid_volume_current_last;
     adaptiveMrLiquidVolumeErrorLast = mrAdaptive.liquid_volume_error_last;
     adaptiveMrCDivLast = mrAdaptive.c_div_last;
+    adaptiveMrInterfaceDiagnostics = mrAdaptive.interface_diagnostics_last;
     adaptiveMrLiquidCoarseningRemoved1 = mrAdaptive.liquid_particle_coarsening_removed_total;
     adaptiveMrLiquidCoarseningRemovedDuringRun =
       adaptiveMrLiquidCoarseningRemoved1 - adaptiveMrLiquidCoarseningRemoved0;
@@ -772,6 +777,30 @@ int main(int argc, char** argv) {
   std::printf("adaptive_sparse_liquid_volume_error_last=%.9g\n",
               adaptiveMetrics.liquidVolumeErrorLast);
   std::printf("adaptive_sparse_c_div_last=%.9g\n", adaptiveMetrics.cDivLast);
+  std::printf("sparse_interface_sample_cells=%d\n",
+              sparseMetrics.interfaceDiagnostics.sample_cells);
+  std::printf("sparse_interface_cells=%d\n",
+              sparseMetrics.interfaceDiagnostics.interface_cells);
+  std::printf("sparse_interface_grad_max=%.9g\n",
+              sparseMetrics.interfaceDiagnostics.grad_max);
+  std::printf("sparse_interface_curvature_abs_max=%.9g\n",
+              sparseMetrics.interfaceDiagnostics.curvature_abs_max);
+  std::printf("sparse_interface_diagnostics_finite=%s\n",
+              sparseMetrics.interfaceDiagnostics.finite ? "true" : "false");
+  std::printf("sparse_surface_tension_candidate=%s\n",
+              sparseMetrics.interfaceDiagnostics.surface_tension_candidate ? "true" : "false");
+  std::printf("adaptive_sparse_interface_sample_cells=%d\n",
+              adaptiveMetrics.interfaceDiagnostics.sample_cells);
+  std::printf("adaptive_sparse_interface_cells=%d\n",
+              adaptiveMetrics.interfaceDiagnostics.interface_cells);
+  std::printf("adaptive_sparse_interface_grad_max=%.9g\n",
+              adaptiveMetrics.interfaceDiagnostics.grad_max);
+  std::printf("adaptive_sparse_interface_curvature_abs_max=%.9g\n",
+              adaptiveMetrics.interfaceDiagnostics.curvature_abs_max);
+  std::printf("adaptive_sparse_interface_diagnostics_finite=%s\n",
+              adaptiveMetrics.interfaceDiagnostics.finite ? "true" : "false");
+  std::printf("adaptive_sparse_surface_tension_candidate=%s\n",
+              adaptiveMetrics.interfaceDiagnostics.surface_tension_candidate ? "true" : "false");
   std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
   std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
   std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
@@ -842,6 +871,30 @@ int main(int argc, char** argv) {
   std::printf("adaptive_mr_liquid_volume_error_last=%.9g\n",
               adaptiveMrLiquidVolumeErrorLast);
   std::printf("adaptive_mr_c_div_last=%.9g\n", adaptiveMrCDivLast);
+  std::printf("mr_interface_sample_cells=%d\n",
+              mrInterfaceDiagnostics.sample_cells);
+  std::printf("mr_interface_cells=%d\n",
+              mrInterfaceDiagnostics.interface_cells);
+  std::printf("mr_interface_grad_max=%.9g\n",
+              mrInterfaceDiagnostics.grad_max);
+  std::printf("mr_interface_curvature_abs_max=%.9g\n",
+              mrInterfaceDiagnostics.curvature_abs_max);
+  std::printf("mr_interface_diagnostics_finite=%s\n",
+              mrInterfaceDiagnostics.finite ? "true" : "false");
+  std::printf("mr_surface_tension_candidate=%s\n",
+              mrInterfaceDiagnostics.surface_tension_candidate ? "true" : "false");
+  std::printf("adaptive_mr_interface_sample_cells=%d\n",
+              adaptiveMrInterfaceDiagnostics.sample_cells);
+  std::printf("adaptive_mr_interface_cells=%d\n",
+              adaptiveMrInterfaceDiagnostics.interface_cells);
+  std::printf("adaptive_mr_interface_grad_max=%.9g\n",
+              adaptiveMrInterfaceDiagnostics.grad_max);
+  std::printf("adaptive_mr_interface_curvature_abs_max=%.9g\n",
+              adaptiveMrInterfaceDiagnostics.curvature_abs_max);
+  std::printf("adaptive_mr_interface_diagnostics_finite=%s\n",
+              adaptiveMrInterfaceDiagnostics.finite ? "true" : "false");
+  std::printf("adaptive_mr_surface_tension_candidate=%s\n",
+              adaptiveMrInterfaceDiagnostics.surface_tension_candidate ? "true" : "false");
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");
@@ -1024,6 +1077,12 @@ int main(int argc, char** argv) {
       mrGasCount1 != mrGasCount0) {
     ok = false;
   }
+  auto interfaceDiagnosticsOk = [&](const InterfaceDiagnostics3D& diagnostics) {
+    return steps == 0 ||
+           (diagnostics.finite && diagnostics.sample_cells > 0);
+  };
+  if (!interfaceDiagnosticsOk(sparseMetrics.interfaceDiagnostics)) ok = false;
+  if (!interfaceDiagnosticsOk(mrInterfaceDiagnostics)) ok = false;
   auto secondaryOk = [&](int dropletCandidates,
                          int bubbleCandidates,
                          int dropletsAdded,
@@ -1113,6 +1172,7 @@ int main(int argc, char** argv) {
     } else if (adaptiveMetrics.gasCountEnd != adaptiveMetrics.gasCountStart) {
       ok = false;
     }
+    if (!interfaceDiagnosticsOk(adaptiveMetrics.interfaceDiagnostics)) ok = false;
     if (!secondaryOk(adaptiveMetrics.escapedDropletCandidatesTotal,
                      adaptiveMetrics.escapedBubbleCandidatesTotal,
                      adaptiveMetrics.escapedDropletsAddedTotal,
@@ -1178,6 +1238,7 @@ int main(int argc, char** argv) {
     } else if (adaptiveMrGasCount1 != adaptiveMrGasCount0) {
       ok = false;
     }
+    if (!interfaceDiagnosticsOk(adaptiveMrInterfaceDiagnostics)) ok = false;
     if (!secondaryOk(adaptiveMrEscapedDropletCandidatesTotal,
                      adaptiveMrEscapedBubbleCandidatesTotal,
                      adaptiveMrEscapedDropletsAddedTotal,

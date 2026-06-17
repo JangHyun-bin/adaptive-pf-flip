@@ -10,6 +10,7 @@ add_library(pfflip2d
   src/driver/sparse_ops2d_tp.cpp
   src/driver/sparse_ops3d.cpp
   src/driver/sparse_ops3d_tp.cpp
+  src/driver/interface_diagnostics3d.cpp
   src/driver/multires_ops2d_tp.cpp
   src/driver/multires_ops3d_tp.cpp
   src/driver/multires_sim2d_tp.cpp

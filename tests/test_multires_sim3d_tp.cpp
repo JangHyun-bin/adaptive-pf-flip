@@ -438,6 +438,23 @@ TEST_CASE("multires 3D adaptive timestep reports effective dt") {
   CHECK(sim.adaptive_timestep_limited_last == 1);
 }
 
+TEST_CASE("multires 3D interface diagnostics report surface candidates") {
+  MRSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 20;
+  sim.initBubbleTankInterfaceBand();
+
+  sim.step();
+
+  CHECK(sim.interface_diagnostics_last.finite == 1);
+  CHECK(sim.interface_diagnostics_last.sample_cells > 0);
+  CHECK(sim.interface_diagnostics_last.interface_cells > 0);
+  CHECK(sim.interface_diagnostics_last.phi_min <= sim.interface_diagnostics_last.phi_max);
+  CHECK(sim.interface_diagnostics_last.grad_max >= 0.0);
+  CHECK(sim.interface_diagnostics_last.curvature_abs_max >= 0.0);
+  CHECK(sim.interface_diagnostics_last.surface_tension_candidate == 1);
+}
+
 TEST_CASE("multires 3D c_div uses liquid volume error") {
   MRSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.02;

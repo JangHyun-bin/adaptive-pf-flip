@@ -213,6 +213,7 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   resetParticleBoundaryStats(*this);
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
+  interface_diagnostics_last = InterfaceDiagnostics3D();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -241,6 +242,7 @@ void SparseSim3DTP::initRayleighTaylor() {
   resetParticleBoundaryStats(*this);
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
+  interface_diagnostics_last = InterfaceDiagnostics3D();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -270,6 +272,7 @@ void SparseSim3DTP::initBubbleTank() {
   resetParticleBoundaryStats(*this);
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
+  interface_diagnostics_last = InterfaceDiagnostics3D();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -377,6 +380,7 @@ void SparseSim3DTP::step() {
   updateVolumeCorrectionStats(*this, stepDt);
   markCells(grid, particles);
   spP2G3D_tp(grid, particles, phase, Vp);
+  interface_diagnostics_last = diagnoseSparseInterface3D(grid, phase);
   SparseMacGrid3D<4> saved = grid;
   applyGravity(grid, stepDt, gravity);
   applyWallBoundary(grid);

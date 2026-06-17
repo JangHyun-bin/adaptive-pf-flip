@@ -1,5 +1,6 @@
 #pragma once
 
+#include "driver/interface_diagnostics3d.h"
 #include "grid/multires_mac_grid3d.h"
 #include "particles/particles3d_tp.h"
 #include "pressure/multires_pressure3d.h"
@@ -130,6 +131,7 @@ struct MRSim3DTP {
   int escaped_bubbles_added_last = 0;
   int escaped_droplets_added_total = 0;
   int escaped_bubbles_added_total = 0;
+  InterfaceDiagnostics3D interface_diagnostics_last;
   MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);

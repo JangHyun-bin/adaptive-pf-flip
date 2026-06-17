@@ -146,6 +146,22 @@ TEST_CASE("sparse 3D two-phase c_div uses liquid volume error") {
   CHECK(sim.c_div_last == doctest::Approx(1.0 / (sim.dt * sim.liquid_volume_target)));
 }
 
+TEST_CASE("sparse 3D two-phase interface diagnostics report surface candidates") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.initBubbleTank();
+
+  sim.step();
+
+  CHECK(sim.interface_diagnostics_last.finite == 1);
+  CHECK(sim.interface_diagnostics_last.sample_cells > 0);
+  CHECK(sim.interface_diagnostics_last.interface_cells > 0);
+  CHECK(sim.interface_diagnostics_last.phi_min <= sim.interface_diagnostics_last.phi_max);
+  CHECK(sim.interface_diagnostics_last.grad_max >= 0.0);
+  CHECK(sim.interface_diagnostics_last.curvature_abs_max >= 0.0);
+  CHECK(sim.interface_diagnostics_last.surface_tension_candidate == 1);
+}
+
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   SparseSim3DTP full(12, 12, 8, 1.0);
   full.initTwoPhaseDamBreak();
