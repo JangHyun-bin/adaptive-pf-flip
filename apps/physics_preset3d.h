@@ -12,6 +12,7 @@ void applyCorePhysicsPreset3D(Sim& sim) {
   sim.c_div_volume_correction = true;
   sim.surface_tension = true;
   sim.escaped_particle_branching = true;
+  sim.secondary_particle_lifecycle = true;
 }
 
 template <typename Sim>
@@ -41,7 +42,8 @@ bool corePhysicsPresetActive3D(const Sim& sim) {
          sim.advection_order == 3 &&
          sim.c_div_volume_correction &&
          sim.surface_tension &&
-         sim.escaped_particle_branching;
+         sim.escaped_particle_branching &&
+         sim.secondary_particle_lifecycle;
 }
 
 template <typename Sim>

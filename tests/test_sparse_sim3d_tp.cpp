@@ -181,6 +181,35 @@ TEST_CASE("sparse 3D two-phase surface tension applies bounded grid force") {
         sim.surface_tension_max_delta_speed + 1e-12);
 }
 
+TEST_CASE("sparse 3D secondary lifecycle reabsorbs tracked droplets") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.1;
+  sim.gravity = 0.0;
+  sim.escaped_particle_branching = true;
+  sim.secondary_particle_lifecycle = true;
+  sim.secondary_velocity_damping = 1.0;
+  sim.secondary_reabsorb_margin_cells = 1.0;
+  sim.initBubbleTank();
+  sim.escaped_droplets.add({0.51, 4.0, 4.0}, {20.0, 0.0, 0.0}, 0, 2.0);
+  sim.escaped_droplet_ages.push_back(0);
+  sim.escaped_droplet_volume_added_total = 2.0 * sim.Vp;
+  sim.secondary_droplet_volume_current_last = 2.0 * sim.Vp;
+
+  sim.step();
+
+  CHECK(sim.secondary_lifecycle_stats_last.enabled == 1);
+  CHECK(sim.secondary_lifecycle_stats_last.finite == 1);
+  CHECK(sim.secondary_droplets_advected_total >= 1);
+  CHECK(sim.secondary_droplets_reabsorbed_total == 1);
+  CHECK(sim.secondary_droplet_volume_reabsorbed_total == doctest::Approx(2.0 * sim.Vp));
+  CHECK(sim.escaped_droplets.size() == 0);
+  CHECK(sim.escaped_droplet_ages.empty());
+  CHECK(sim.escaped_droplet_volume_added_total ==
+        doctest::Approx(sim.secondary_droplet_volume_reabsorbed_total +
+                        sim.secondary_droplet_volume_expired_total +
+                        sim.secondary_droplet_volume_current_last));
+}
+
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   SparseSim3DTP full(12, 12, 8, 1.0);
   full.initTwoPhaseDamBreak();

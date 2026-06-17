@@ -98,6 +98,9 @@ void usage() {
                "[--surface-tension] [--surface-tension-strength S] "
                "[--surface-tension-max-delta-speed V] "
                "[--escaped-particle-branching] "
+               "[--secondary-lifecycle] [--secondary-droplet-lifetime N] "
+               "[--secondary-bubble-lifetime N] [--secondary-velocity-damping D] "
+               "[--secondary-reabsorb-margin C] [--secondary-bubble-buoyancy-scale S] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -167,6 +170,26 @@ int main(int argc, char** argv) {
               sim.surface_tension_max_delta_speed);
   sim.escaped_particle_branching = sim.escaped_particle_branching ||
                                    hasFlag(argc, argv, "--escaped-particle-branching");
+  sim.secondary_particle_lifecycle = sim.secondary_particle_lifecycle ||
+                                     hasFlag(argc, argv, "--secondary-lifecycle");
+  if (sim.secondary_particle_lifecycle) {
+    sim.escaped_particle_branching = true;
+  }
+  sim.secondary_droplet_lifetime_steps =
+    argInt(argc, argv, "--secondary-droplet-lifetime",
+           sim.secondary_droplet_lifetime_steps);
+  sim.secondary_bubble_lifetime_steps =
+    argInt(argc, argv, "--secondary-bubble-lifetime",
+           sim.secondary_bubble_lifetime_steps);
+  sim.secondary_velocity_damping =
+    argDouble(argc, argv, "--secondary-velocity-damping",
+              sim.secondary_velocity_damping);
+  sim.secondary_reabsorb_margin_cells =
+    argDouble(argc, argv, "--secondary-reabsorb-margin",
+              sim.secondary_reabsorb_margin_cells);
+  sim.secondary_bubble_buoyancy_scale =
+    argDouble(argc, argv, "--secondary-bubble-buoyancy-scale",
+              sim.secondary_bubble_buoyancy_scale);
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
@@ -274,6 +297,12 @@ int main(int argc, char** argv) {
       sim.c_div_strength < 0.0 ||
       sim.surface_tension_strength < 0.0 ||
       sim.surface_tension_max_delta_speed < 0.0 ||
+      sim.secondary_droplet_lifetime_steps < 0 ||
+      sim.secondary_bubble_lifetime_steps < 0 ||
+      sim.secondary_velocity_damping < 0.0 ||
+      sim.secondary_velocity_damping > 1.0 ||
+      sim.secondary_reabsorb_margin_cells < 0.0 ||
+      sim.secondary_bubble_buoyancy_scale < 0.0 ||
       liquidVolumeTargetOverride < -0.5 ||
       sim.narrow_band_air_radius < 0 ||
       sim.gas_particles_per_cell_target <= 0 ||
@@ -360,6 +389,18 @@ int main(int argc, char** argv) {
               sim.surface_tension_max_delta_speed);
   std::printf("escaped_particle_branching=%s\n",
               sim.escaped_particle_branching ? "true" : "false");
+  std::printf("secondary_particle_lifecycle=%s\n",
+              sim.secondary_particle_lifecycle ? "true" : "false");
+  std::printf("secondary_droplet_lifetime_steps=%d\n",
+              sim.secondary_droplet_lifetime_steps);
+  std::printf("secondary_bubble_lifetime_steps=%d\n",
+              sim.secondary_bubble_lifetime_steps);
+  std::printf("secondary_velocity_damping=%.9g\n",
+              sim.secondary_velocity_damping);
+  std::printf("secondary_reabsorb_margin_cells=%.9g\n",
+              sim.secondary_reabsorb_margin_cells);
+  std::printf("secondary_bubble_buoyancy_scale=%.9g\n",
+              sim.secondary_bubble_buoyancy_scale);
   std::printf("liquid_volume_target=%.9g\n", sim.liquid_volume_target);
   std::printf("liquid_volume_current_last=%.9g\n", sim.liquid_volume_current_last);
   std::printf("liquid_volume_error_last=%.9g\n", sim.liquid_volume_error_last);
@@ -492,6 +533,56 @@ int main(int argc, char** argv) {
               sim.escaped_bubbles_added_total);
   std::printf("escaped_droplet_particles=%zu\n", sim.escaped_droplets.size());
   std::printf("escaped_bubble_particles=%zu\n", sim.escaped_bubbles.size());
+  std::printf("escaped_droplet_ages=%zu\n", sim.escaped_droplet_ages.size());
+  std::printf("escaped_bubble_ages=%zu\n", sim.escaped_bubble_ages.size());
+  std::printf("escaped_droplet_volume_added_last=%.9g\n",
+              sim.escaped_droplet_volume_added_last);
+  std::printf("escaped_bubble_volume_added_last=%.9g\n",
+              sim.escaped_bubble_volume_added_last);
+  std::printf("escaped_droplet_volume_added_total=%.9g\n",
+              sim.escaped_droplet_volume_added_total);
+  std::printf("escaped_bubble_volume_added_total=%.9g\n",
+              sim.escaped_bubble_volume_added_total);
+  std::printf("secondary_lifecycle_enabled=%s\n",
+              sim.secondary_lifecycle_stats_last.enabled ? "true" : "false");
+  std::printf("secondary_lifecycle_finite=%s\n",
+              sim.secondary_lifecycle_stats_last.finite ? "true" : "false");
+  std::printf("secondary_droplets_advected_last=%d\n",
+              sim.secondary_lifecycle_stats_last.advected_droplets);
+  std::printf("secondary_bubbles_advected_last=%d\n",
+              sim.secondary_lifecycle_stats_last.advected_bubbles);
+  std::printf("secondary_droplets_advected_total=%d\n",
+              sim.secondary_droplets_advected_total);
+  std::printf("secondary_bubbles_advected_total=%d\n",
+              sim.secondary_bubbles_advected_total);
+  std::printf("secondary_droplets_reabsorbed_last=%d\n",
+              sim.secondary_lifecycle_stats_last.reabsorbed_droplets);
+  std::printf("secondary_bubbles_reabsorbed_last=%d\n",
+              sim.secondary_lifecycle_stats_last.reabsorbed_bubbles);
+  std::printf("secondary_droplets_reabsorbed_total=%d\n",
+              sim.secondary_droplets_reabsorbed_total);
+  std::printf("secondary_bubbles_reabsorbed_total=%d\n",
+              sim.secondary_bubbles_reabsorbed_total);
+  std::printf("secondary_droplets_expired_last=%d\n",
+              sim.secondary_lifecycle_stats_last.expired_droplets);
+  std::printf("secondary_bubbles_expired_last=%d\n",
+              sim.secondary_lifecycle_stats_last.expired_bubbles);
+  std::printf("secondary_droplets_expired_total=%d\n",
+              sim.secondary_droplets_expired_total);
+  std::printf("secondary_bubbles_expired_total=%d\n",
+              sim.secondary_bubbles_expired_total);
+  std::printf("secondary_droplet_volume_current=%.9g\n",
+              sim.secondary_droplet_volume_current_last);
+  std::printf("secondary_bubble_volume_current=%.9g\n",
+              sim.secondary_bubble_volume_current_last);
+  std::printf("secondary_droplet_volume_reabsorbed_total=%.9g\n",
+              sim.secondary_droplet_volume_reabsorbed_total);
+  std::printf("secondary_bubble_volume_reabsorbed_total=%.9g\n",
+              sim.secondary_bubble_volume_reabsorbed_total);
+  std::printf("secondary_droplet_volume_expired_total=%.9g\n",
+              sim.secondary_droplet_volume_expired_total);
+  std::printf("secondary_bubble_volume_expired_total=%.9g\n",
+              sim.secondary_bubble_volume_expired_total);
   std::printf("particle_boundary_clamped_x_lo_last=%d\n",
               sim.particle_boundary_clamped_x_lo_last);
   std::printf("particle_boundary_clamped_x_hi_last=%d\n",
@@ -782,13 +873,56 @@ int main(int argc, char** argv) {
   if (sim.escaped_particle_branching) {
     if (sim.escaped_droplets_added_total != sim.escaped_droplet_candidates_total) ok = false;
     if (sim.escaped_bubbles_added_total != sim.escaped_bubble_candidates_total) ok = false;
-    if (sim.escaped_droplets.size() != static_cast<size_t>(sim.escaped_droplets_added_total)) ok = false;
-    if (sim.escaped_bubbles.size() != static_cast<size_t>(sim.escaped_bubbles_added_total)) ok = false;
+    if (sim.secondary_particle_lifecycle) {
+      if (sim.escaped_droplets.size() +
+            static_cast<size_t>(sim.secondary_droplets_reabsorbed_total +
+                                sim.secondary_droplets_expired_total) !=
+          static_cast<size_t>(sim.escaped_droplets_added_total)) {
+        ok = false;
+      }
+      if (sim.escaped_bubbles.size() +
+            static_cast<size_t>(sim.secondary_bubbles_reabsorbed_total +
+                                sim.secondary_bubbles_expired_total) !=
+          static_cast<size_t>(sim.escaped_bubbles_added_total)) {
+        ok = false;
+      }
+    } else {
+      if (sim.escaped_droplets.size() != static_cast<size_t>(sim.escaped_droplets_added_total)) ok = false;
+      if (sim.escaped_bubbles.size() != static_cast<size_t>(sim.escaped_bubbles_added_total)) ok = false;
+    }
   } else {
     if (sim.escaped_droplets_added_total != 0) ok = false;
     if (sim.escaped_bubbles_added_total != 0) ok = false;
     if (sim.escaped_droplets.size() != 0) ok = false;
     if (sim.escaped_bubbles.size() != 0) ok = false;
+  }
+  if (sim.escaped_droplet_ages.size() != sim.escaped_droplets.size()) ok = false;
+  if (sim.escaped_bubble_ages.size() != sim.escaped_bubbles.size()) ok = false;
+  if (sim.secondary_particle_lifecycle) {
+    if (!sim.secondary_lifecycle_stats_last.enabled) ok = false;
+  } else if (sim.secondary_lifecycle_stats_last.enabled) {
+    ok = false;
+  }
+  if (!sim.secondary_lifecycle_stats_last.finite) ok = false;
+  auto secondaryVolumeBalanceOk = [](double added,
+                                     double current,
+                                     double reabsorbed,
+                                     double expired) {
+    const double lhs = current + reabsorbed + expired;
+    const double tol = std::max(1e-9, std::abs(added) * 1e-9);
+    return std::abs(lhs - added) <= tol;
+  };
+  if (!secondaryVolumeBalanceOk(sim.escaped_droplet_volume_added_total,
+                                sim.secondary_droplet_volume_current_last,
+                                sim.secondary_droplet_volume_reabsorbed_total,
+                                sim.secondary_droplet_volume_expired_total)) {
+    ok = false;
+  }
+  if (!secondaryVolumeBalanceOk(sim.escaped_bubble_volume_added_total,
+                                sim.secondary_bubble_volume_current_last,
+                                sim.secondary_bubble_volume_reabsorbed_total,
+                                sim.secondary_bubble_volume_expired_total)) {
+    ok = false;
   }
   if (physicsPreset && !fullPhysicsPresetActive3D(sim)) ok = false;
   if (!(gas1 > gas0)) ok = false;

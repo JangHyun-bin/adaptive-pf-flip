@@ -1,5 +1,6 @@
 #pragma once
 #include "driver/interface_diagnostics3d.h"
+#include "driver/secondary_particles3d.h"
 #include "grid/sparse_mac_grid3d.h"
 #include "particles/particles3d_tp.h"
 #include "physics/phasefield.h"
@@ -81,10 +82,35 @@ struct SparseSim3DTP {
   bool escaped_particle_branching = false;
   Particles3DTP escaped_droplets;
   Particles3DTP escaped_bubbles;
+  std::vector<int> escaped_droplet_ages;
+  std::vector<int> escaped_bubble_ages;
   int escaped_droplets_added_last = 0;
   int escaped_bubbles_added_last = 0;
   int escaped_droplets_added_total = 0;
   int escaped_bubbles_added_total = 0;
+  double escaped_droplet_volume_added_last = 0.0;
+  double escaped_bubble_volume_added_last = 0.0;
+  double escaped_droplet_volume_added_total = 0.0;
+  double escaped_bubble_volume_added_total = 0.0;
+  bool secondary_particle_lifecycle = false;
+  int secondary_droplet_lifetime_steps = 48;
+  int secondary_bubble_lifetime_steps = 48;
+  double secondary_velocity_damping = 0.98;
+  double secondary_reabsorb_margin_cells = 1.0;
+  double secondary_bubble_buoyancy_scale = 0.25;
+  SecondaryParticleLifecycleStats3D secondary_lifecycle_stats_last;
+  int secondary_droplets_advected_total = 0;
+  int secondary_bubbles_advected_total = 0;
+  int secondary_droplets_reabsorbed_total = 0;
+  int secondary_bubbles_reabsorbed_total = 0;
+  int secondary_droplets_expired_total = 0;
+  int secondary_bubbles_expired_total = 0;
+  double secondary_droplet_volume_current_last = 0.0;
+  double secondary_bubble_volume_current_last = 0.0;
+  double secondary_droplet_volume_reabsorbed_total = 0.0;
+  double secondary_bubble_volume_reabsorbed_total = 0.0;
+  double secondary_droplet_volume_expired_total = 0.0;
+  double secondary_bubble_volume_expired_total = 0.0;
   InterfaceDiagnostics3D interface_diagnostics_last;
   bool surface_tension = false;
   double surface_tension_strength = 0.02;

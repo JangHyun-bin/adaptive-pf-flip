@@ -278,28 +278,102 @@ void storeParticleBoundaryStats(MRSim3DTP& sim, const ParticleEscapeStats3D& sta
 void resetEscapedParticleBranching(MRSim3DTP& sim) {
   sim.escaped_droplets = Particles3DTP();
   sim.escaped_bubbles = Particles3DTP();
+  sim.escaped_droplet_ages.clear();
+  sim.escaped_bubble_ages.clear();
   sim.escaped_droplets_added_last = 0;
   sim.escaped_bubbles_added_last = 0;
   sim.escaped_droplets_added_total = 0;
   sim.escaped_bubbles_added_total = 0;
+  sim.escaped_droplet_volume_added_last = 0.0;
+  sim.escaped_bubble_volume_added_last = 0.0;
+  sim.escaped_droplet_volume_added_total = 0.0;
+  sim.escaped_bubble_volume_added_total = 0.0;
+  sim.secondary_lifecycle_stats_last = SecondaryParticleLifecycleStats3D();
+  sim.secondary_droplets_advected_total = 0;
+  sim.secondary_bubbles_advected_total = 0;
+  sim.secondary_droplets_reabsorbed_total = 0;
+  sim.secondary_bubbles_reabsorbed_total = 0;
+  sim.secondary_droplets_expired_total = 0;
+  sim.secondary_bubbles_expired_total = 0;
+  sim.secondary_droplet_volume_current_last = 0.0;
+  sim.secondary_bubble_volume_current_last = 0.0;
+  sim.secondary_droplet_volume_reabsorbed_total = 0.0;
+  sim.secondary_bubble_volume_reabsorbed_total = 0.0;
+  sim.secondary_droplet_volume_expired_total = 0.0;
+  sim.secondary_bubble_volume_expired_total = 0.0;
+}
+
+void updateSecondaryCurrentVolumes(MRSim3DTP& sim) {
+  sim.secondary_droplet_volume_current_last =
+    secondaryVolumeSum3D(sim.escaped_droplets, sim.Vp);
+  sim.secondary_bubble_volume_current_last =
+    secondaryVolumeSum3D(sim.escaped_bubbles, sim.Vp);
 }
 
 void storeEscapedParticles(MRSim3DTP& sim, const ParticleEscapeBuffer3D& buffer) {
   sim.escaped_droplets_added_last = 0;
   sim.escaped_bubbles_added_last = 0;
-  if (!sim.escaped_particle_branching) return;
+  sim.escaped_droplet_volume_added_last = 0.0;
+  sim.escaped_bubble_volume_added_last = 0.0;
+  if (!sim.escaped_particle_branching) {
+    updateSecondaryCurrentVolumes(sim);
+    return;
+  }
 
   for (const EscapedParticleRecord3D& r : buffer.records) {
     if (r.type == 0) {
       sim.escaped_droplets.add(r.pos, r.vel, 0, r.volume);
+      sim.escaped_droplet_ages.push_back(0);
       ++sim.escaped_droplets_added_last;
+      sim.escaped_droplet_volume_added_last += r.volume * sim.Vp;
     } else if (r.type == 1) {
       sim.escaped_bubbles.add(r.pos, r.vel, 1, r.volume);
+      sim.escaped_bubble_ages.push_back(0);
       ++sim.escaped_bubbles_added_last;
+      sim.escaped_bubble_volume_added_last += r.volume * sim.Vp;
     }
   }
   sim.escaped_droplets_added_total += sim.escaped_droplets_added_last;
   sim.escaped_bubbles_added_total += sim.escaped_bubbles_added_last;
+  sim.escaped_droplet_volume_added_total += sim.escaped_droplet_volume_added_last;
+  sim.escaped_bubble_volume_added_total += sim.escaped_bubble_volume_added_last;
+  updateSecondaryCurrentVolumes(sim);
+}
+
+void advanceSecondaryLifecycle(MRSim3DTP& sim, double stepDt) {
+  const SecondaryParticleDomain3D domain{
+    sim.layout.nx, sim.layout.ny, sim.layout.nz, sim.layout.dx,
+    0.0, 0.0, 0.0};
+  const SecondaryParticleLifecycleConfig3D config{
+    sim.secondary_particle_lifecycle,
+    sim.secondary_droplet_lifetime_steps,
+    sim.secondary_bubble_lifetime_steps,
+    sim.secondary_velocity_damping,
+    sim.secondary_reabsorb_margin_cells,
+    sim.gravity,
+    sim.secondary_bubble_buoyancy_scale,
+    sim.Vp};
+  const SecondaryParticleLifecycleStats3D stats =
+    advanceSecondaryParticles3D(sim.escaped_droplets,
+                                sim.escaped_bubbles,
+                                sim.escaped_droplet_ages,
+                                sim.escaped_bubble_ages,
+                                domain,
+                                config,
+                                stepDt);
+  sim.secondary_lifecycle_stats_last = stats;
+  sim.secondary_droplets_advected_total += stats.advected_droplets;
+  sim.secondary_bubbles_advected_total += stats.advected_bubbles;
+  sim.secondary_droplets_reabsorbed_total += stats.reabsorbed_droplets;
+  sim.secondary_bubbles_reabsorbed_total += stats.reabsorbed_bubbles;
+  sim.secondary_droplets_expired_total += stats.expired_droplets;
+  sim.secondary_bubbles_expired_total += stats.expired_bubbles;
+  sim.secondary_droplet_volume_current_last = stats.current_droplet_volume;
+  sim.secondary_bubble_volume_current_last = stats.current_bubble_volume;
+  sim.secondary_droplet_volume_reabsorbed_total += stats.reabsorbed_droplet_volume;
+  sim.secondary_bubble_volume_reabsorbed_total += stats.reabsorbed_bubble_volume;
+  sim.secondary_droplet_volume_expired_total += stats.expired_droplet_volume;
+  sim.secondary_bubble_volume_expired_total += stats.expired_bubble_volume;
 }
 
 void resetTimestepStats(MRSim3DTP& sim) {
@@ -571,6 +645,7 @@ void MRSim3DTP::step() {
                                       adaptive_timestep, adaptive_cfl, adaptive_min_dt);
   storeTimestepStats(*this, timestep);
   const double stepDt = timestep.effective_dt;
+  advanceSecondaryLifecycle(*this, stepDt);
   updateVolumeCorrectionStats(*this, stepDt);
   markCells(grid, particles);
   mrP2G3D_tp(grid, particles, phase, Vp);

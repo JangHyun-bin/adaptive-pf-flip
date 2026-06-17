@@ -39,6 +39,7 @@ add_executable(unit_tests
   tests/test_main.cpp
   tests/test_sanity.cpp
   tests/test_vec2.cpp
+  tests/test_secondary_particles3d.cpp
   tests/test_grid.cpp
   tests/test_particles.cpp
   tests/test_p2g.cpp

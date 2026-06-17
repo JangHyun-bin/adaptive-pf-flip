@@ -99,6 +99,24 @@ struct SparseMetrics {
   int escapedBubblesAddedTotal = 0;
   size_t escapedDropletParticles = 0;
   size_t escapedBubbleParticles = 0;
+  size_t escapedDropletAges = 0;
+  size_t escapedBubbleAges = 0;
+  double escapedDropletVolumeAddedTotal = 0.0;
+  double escapedBubbleVolumeAddedTotal = 0.0;
+  int secondaryLifecycleEnabled = 0;
+  int secondaryLifecycleFinite = 1;
+  int secondaryDropletsAdvectedTotal = 0;
+  int secondaryBubblesAdvectedTotal = 0;
+  int secondaryDropletsReabsorbedTotal = 0;
+  int secondaryBubblesReabsorbedTotal = 0;
+  int secondaryDropletsExpiredTotal = 0;
+  int secondaryBubblesExpiredTotal = 0;
+  double secondaryDropletVolumeCurrent = 0.0;
+  double secondaryBubbleVolumeCurrent = 0.0;
+  double secondaryDropletVolumeReabsorbedTotal = 0.0;
+  double secondaryBubbleVolumeReabsorbedTotal = 0.0;
+  double secondaryDropletVolumeExpiredTotal = 0.0;
+  double secondaryBubbleVolumeExpiredTotal = 0.0;
   double effectiveDtLast = 0.0;
   double cflLimitDtLast = 0.0;
   double maxParticleSpeedLast = 0.0;
@@ -157,6 +175,28 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps, double liquidVolume
   metrics.escapedBubblesAddedTotal = sim.escaped_bubbles_added_total;
   metrics.escapedDropletParticles = sim.escaped_droplets.size();
   metrics.escapedBubbleParticles = sim.escaped_bubbles.size();
+  metrics.escapedDropletAges = sim.escaped_droplet_ages.size();
+  metrics.escapedBubbleAges = sim.escaped_bubble_ages.size();
+  metrics.escapedDropletVolumeAddedTotal = sim.escaped_droplet_volume_added_total;
+  metrics.escapedBubbleVolumeAddedTotal = sim.escaped_bubble_volume_added_total;
+  metrics.secondaryLifecycleEnabled = sim.secondary_lifecycle_stats_last.enabled;
+  metrics.secondaryLifecycleFinite = sim.secondary_lifecycle_stats_last.finite;
+  metrics.secondaryDropletsAdvectedTotal = sim.secondary_droplets_advected_total;
+  metrics.secondaryBubblesAdvectedTotal = sim.secondary_bubbles_advected_total;
+  metrics.secondaryDropletsReabsorbedTotal = sim.secondary_droplets_reabsorbed_total;
+  metrics.secondaryBubblesReabsorbedTotal = sim.secondary_bubbles_reabsorbed_total;
+  metrics.secondaryDropletsExpiredTotal = sim.secondary_droplets_expired_total;
+  metrics.secondaryBubblesExpiredTotal = sim.secondary_bubbles_expired_total;
+  metrics.secondaryDropletVolumeCurrent = sim.secondary_droplet_volume_current_last;
+  metrics.secondaryBubbleVolumeCurrent = sim.secondary_bubble_volume_current_last;
+  metrics.secondaryDropletVolumeReabsorbedTotal =
+    sim.secondary_droplet_volume_reabsorbed_total;
+  metrics.secondaryBubbleVolumeReabsorbedTotal =
+    sim.secondary_bubble_volume_reabsorbed_total;
+  metrics.secondaryDropletVolumeExpiredTotal =
+    sim.secondary_droplet_volume_expired_total;
+  metrics.secondaryBubbleVolumeExpiredTotal =
+    sim.secondary_bubble_volume_expired_total;
   metrics.effectiveDtLast = sim.effective_dt_last;
   metrics.cflLimitDtLast = sim.cfl_limit_dt_last;
   metrics.maxParticleSpeedLast = sim.max_particle_speed_last;
@@ -191,6 +231,9 @@ void usage() {
                "[--surface-tension] [--surface-tension-strength S] "
                "[--surface-tension-max-delta-speed V] "
                "[--escaped-particle-branching] "
+               "[--secondary-lifecycle] [--secondary-droplet-lifetime N] "
+               "[--secondary-bubble-lifetime N] [--secondary-velocity-damping D] "
+               "[--secondary-reabsorb-margin C] [--secondary-bubble-buoyancy-scale S] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
                "[--relax-sweeps N] [--relax-omega W] [--relax-min-omega W] "
@@ -275,8 +318,27 @@ int main(int argc, char** argv) {
   const double surfaceTensionMaxDeltaSpeed =
     argDouble(argc, argv, "--surface-tension-max-delta-speed",
               mr.surface_tension_max_delta_speed);
+  const bool secondaryLifecycle =
+    sparse.secondary_particle_lifecycle || hasFlag(argc, argv, "--secondary-lifecycle");
+  const int secondaryDropletLifetime =
+    argInt(argc, argv, "--secondary-droplet-lifetime",
+           sparse.secondary_droplet_lifetime_steps);
+  const int secondaryBubbleLifetime =
+    argInt(argc, argv, "--secondary-bubble-lifetime",
+           sparse.secondary_bubble_lifetime_steps);
+  const double secondaryVelocityDamping =
+    argDouble(argc, argv, "--secondary-velocity-damping",
+              sparse.secondary_velocity_damping);
+  const double secondaryReabsorbMargin =
+    argDouble(argc, argv, "--secondary-reabsorb-margin",
+              sparse.secondary_reabsorb_margin_cells);
+  const double secondaryBubbleBuoyancyScale =
+    argDouble(argc, argv, "--secondary-bubble-buoyancy-scale",
+              sparse.secondary_bubble_buoyancy_scale);
   const bool escapedParticleBranching =
-    sparse.escaped_particle_branching || hasFlag(argc, argv, "--escaped-particle-branching");
+    sparse.escaped_particle_branching ||
+    hasFlag(argc, argv, "--escaped-particle-branching") ||
+    secondaryLifecycle;
   sparse.adaptive_timestep = adaptiveTimestep;
   sparseAdaptive.adaptive_timestep = adaptiveTimestep;
   mr.adaptive_timestep = adaptiveTimestep;
@@ -298,6 +360,24 @@ int main(int argc, char** argv) {
   sparse.escaped_particle_branching = escapedParticleBranching;
   sparseAdaptive.escaped_particle_branching = escapedParticleBranching;
   mr.escaped_particle_branching = escapedParticleBranching;
+  sparse.secondary_particle_lifecycle = secondaryLifecycle;
+  sparseAdaptive.secondary_particle_lifecycle = secondaryLifecycle;
+  mr.secondary_particle_lifecycle = secondaryLifecycle;
+  sparse.secondary_droplet_lifetime_steps = secondaryDropletLifetime;
+  sparseAdaptive.secondary_droplet_lifetime_steps = secondaryDropletLifetime;
+  mr.secondary_droplet_lifetime_steps = secondaryDropletLifetime;
+  sparse.secondary_bubble_lifetime_steps = secondaryBubbleLifetime;
+  sparseAdaptive.secondary_bubble_lifetime_steps = secondaryBubbleLifetime;
+  mr.secondary_bubble_lifetime_steps = secondaryBubbleLifetime;
+  sparse.secondary_velocity_damping = secondaryVelocityDamping;
+  sparseAdaptive.secondary_velocity_damping = secondaryVelocityDamping;
+  mr.secondary_velocity_damping = secondaryVelocityDamping;
+  sparse.secondary_reabsorb_margin_cells = secondaryReabsorbMargin;
+  sparseAdaptive.secondary_reabsorb_margin_cells = secondaryReabsorbMargin;
+  mr.secondary_reabsorb_margin_cells = secondaryReabsorbMargin;
+  sparse.secondary_bubble_buoyancy_scale = secondaryBubbleBuoyancyScale;
+  sparseAdaptive.secondary_bubble_buoyancy_scale = secondaryBubbleBuoyancyScale;
+  mr.secondary_bubble_buoyancy_scale = secondaryBubbleBuoyancyScale;
   sparse.advection_order = advectionOrder;
   sparseAdaptive.advection_order = advectionOrder;
   mr.advection_order = advectionOrder;
@@ -384,6 +464,12 @@ int main(int argc, char** argv) {
   mrAdaptive.surface_tension_strength = surfaceTensionStrength;
   mrAdaptive.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
   mrAdaptive.escaped_particle_branching = escapedParticleBranching;
+  mrAdaptive.secondary_particle_lifecycle = secondaryLifecycle;
+  mrAdaptive.secondary_droplet_lifetime_steps = secondaryDropletLifetime;
+  mrAdaptive.secondary_bubble_lifetime_steps = secondaryBubbleLifetime;
+  mrAdaptive.secondary_velocity_damping = secondaryVelocityDamping;
+  mrAdaptive.secondary_reabsorb_margin_cells = secondaryReabsorbMargin;
+  mrAdaptive.secondary_bubble_buoyancy_scale = secondaryBubbleBuoyancyScale;
   mrAdaptive.narrow_band_air = mrAdaptive.narrow_band_air ||
                                hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
@@ -443,6 +529,12 @@ int main(int argc, char** argv) {
       cDivStrength < 0.0 ||
       surfaceTensionStrength < 0.0 ||
       surfaceTensionMaxDeltaSpeed < 0.0 ||
+      secondaryDropletLifetime < 0 ||
+      secondaryBubbleLifetime < 0 ||
+      secondaryVelocityDamping < 0.0 ||
+      secondaryVelocityDamping > 1.0 ||
+      secondaryReabsorbMargin < 0.0 ||
+      secondaryBubbleBuoyancyScale < 0.0 ||
       liquidVolumeTargetOverride < -0.5 ||
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
@@ -508,6 +600,28 @@ int main(int argc, char** argv) {
   int mrEscapedBubblesAddedTotal = mr.escaped_bubbles_added_total;
   size_t mrEscapedDropletParticles = mr.escaped_droplets.size();
   size_t mrEscapedBubbleParticles = mr.escaped_bubbles.size();
+  size_t mrEscapedDropletAges = mr.escaped_droplet_ages.size();
+  size_t mrEscapedBubbleAges = mr.escaped_bubble_ages.size();
+  double mrEscapedDropletVolumeAddedTotal = mr.escaped_droplet_volume_added_total;
+  double mrEscapedBubbleVolumeAddedTotal = mr.escaped_bubble_volume_added_total;
+  int mrSecondaryLifecycleEnabled = mr.secondary_lifecycle_stats_last.enabled;
+  int mrSecondaryLifecycleFinite = mr.secondary_lifecycle_stats_last.finite;
+  int mrSecondaryDropletsAdvectedTotal = mr.secondary_droplets_advected_total;
+  int mrSecondaryBubblesAdvectedTotal = mr.secondary_bubbles_advected_total;
+  int mrSecondaryDropletsReabsorbedTotal = mr.secondary_droplets_reabsorbed_total;
+  int mrSecondaryBubblesReabsorbedTotal = mr.secondary_bubbles_reabsorbed_total;
+  int mrSecondaryDropletsExpiredTotal = mr.secondary_droplets_expired_total;
+  int mrSecondaryBubblesExpiredTotal = mr.secondary_bubbles_expired_total;
+  double mrSecondaryDropletVolumeCurrent = mr.secondary_droplet_volume_current_last;
+  double mrSecondaryBubbleVolumeCurrent = mr.secondary_bubble_volume_current_last;
+  double mrSecondaryDropletVolumeReabsorbedTotal =
+    mr.secondary_droplet_volume_reabsorbed_total;
+  double mrSecondaryBubbleVolumeReabsorbedTotal =
+    mr.secondary_bubble_volume_reabsorbed_total;
+  double mrSecondaryDropletVolumeExpiredTotal =
+    mr.secondary_droplet_volume_expired_total;
+  double mrSecondaryBubbleVolumeExpiredTotal =
+    mr.secondary_bubble_volume_expired_total;
   double mrEffectiveDtLast = mr.effective_dt_last;
   double mrCflLimitDtLast = mr.cfl_limit_dt_last;
   double mrMaxParticleSpeedLast = mr.max_particle_speed_last;
@@ -539,6 +653,35 @@ int main(int argc, char** argv) {
   int adaptiveMrEscapedBubblesAddedTotal = mrEscapedBubblesAddedTotal;
   size_t adaptiveMrEscapedDropletParticles = mrEscapedDropletParticles;
   size_t adaptiveMrEscapedBubbleParticles = mrEscapedBubbleParticles;
+  size_t adaptiveMrEscapedDropletAges = mrEscapedDropletAges;
+  size_t adaptiveMrEscapedBubbleAges = mrEscapedBubbleAges;
+  double adaptiveMrEscapedDropletVolumeAddedTotal =
+    mrEscapedDropletVolumeAddedTotal;
+  double adaptiveMrEscapedBubbleVolumeAddedTotal =
+    mrEscapedBubbleVolumeAddedTotal;
+  int adaptiveMrSecondaryLifecycleEnabled = mrSecondaryLifecycleEnabled;
+  int adaptiveMrSecondaryLifecycleFinite = mrSecondaryLifecycleFinite;
+  int adaptiveMrSecondaryDropletsAdvectedTotal =
+    mrSecondaryDropletsAdvectedTotal;
+  int adaptiveMrSecondaryBubblesAdvectedTotal =
+    mrSecondaryBubblesAdvectedTotal;
+  int adaptiveMrSecondaryDropletsReabsorbedTotal =
+    mrSecondaryDropletsReabsorbedTotal;
+  int adaptiveMrSecondaryBubblesReabsorbedTotal =
+    mrSecondaryBubblesReabsorbedTotal;
+  int adaptiveMrSecondaryDropletsExpiredTotal = mrSecondaryDropletsExpiredTotal;
+  int adaptiveMrSecondaryBubblesExpiredTotal = mrSecondaryBubblesExpiredTotal;
+  double adaptiveMrSecondaryDropletVolumeCurrent =
+    mrSecondaryDropletVolumeCurrent;
+  double adaptiveMrSecondaryBubbleVolumeCurrent = mrSecondaryBubbleVolumeCurrent;
+  double adaptiveMrSecondaryDropletVolumeReabsorbedTotal =
+    mrSecondaryDropletVolumeReabsorbedTotal;
+  double adaptiveMrSecondaryBubbleVolumeReabsorbedTotal =
+    mrSecondaryBubbleVolumeReabsorbedTotal;
+  double adaptiveMrSecondaryDropletVolumeExpiredTotal =
+    mrSecondaryDropletVolumeExpiredTotal;
+  double adaptiveMrSecondaryBubbleVolumeExpiredTotal =
+    mrSecondaryBubbleVolumeExpiredTotal;
   double adaptiveMrEffectiveDtLast = mrEffectiveDtLast;
   double adaptiveMrCflLimitDtLast = mrCflLimitDtLast;
   double adaptiveMrMaxParticleSpeedLast = mrMaxParticleSpeedLast;
@@ -599,6 +742,40 @@ int main(int argc, char** argv) {
       mrAdaptive.escaped_bubbles_added_total;
     adaptiveMrEscapedDropletParticles = mrAdaptive.escaped_droplets.size();
     adaptiveMrEscapedBubbleParticles = mrAdaptive.escaped_bubbles.size();
+    adaptiveMrEscapedDropletAges = mrAdaptive.escaped_droplet_ages.size();
+    adaptiveMrEscapedBubbleAges = mrAdaptive.escaped_bubble_ages.size();
+    adaptiveMrEscapedDropletVolumeAddedTotal =
+      mrAdaptive.escaped_droplet_volume_added_total;
+    adaptiveMrEscapedBubbleVolumeAddedTotal =
+      mrAdaptive.escaped_bubble_volume_added_total;
+    adaptiveMrSecondaryLifecycleEnabled =
+      mrAdaptive.secondary_lifecycle_stats_last.enabled;
+    adaptiveMrSecondaryLifecycleFinite =
+      mrAdaptive.secondary_lifecycle_stats_last.finite;
+    adaptiveMrSecondaryDropletsAdvectedTotal =
+      mrAdaptive.secondary_droplets_advected_total;
+    adaptiveMrSecondaryBubblesAdvectedTotal =
+      mrAdaptive.secondary_bubbles_advected_total;
+    adaptiveMrSecondaryDropletsReabsorbedTotal =
+      mrAdaptive.secondary_droplets_reabsorbed_total;
+    adaptiveMrSecondaryBubblesReabsorbedTotal =
+      mrAdaptive.secondary_bubbles_reabsorbed_total;
+    adaptiveMrSecondaryDropletsExpiredTotal =
+      mrAdaptive.secondary_droplets_expired_total;
+    adaptiveMrSecondaryBubblesExpiredTotal =
+      mrAdaptive.secondary_bubbles_expired_total;
+    adaptiveMrSecondaryDropletVolumeCurrent =
+      mrAdaptive.secondary_droplet_volume_current_last;
+    adaptiveMrSecondaryBubbleVolumeCurrent =
+      mrAdaptive.secondary_bubble_volume_current_last;
+    adaptiveMrSecondaryDropletVolumeReabsorbedTotal =
+      mrAdaptive.secondary_droplet_volume_reabsorbed_total;
+    adaptiveMrSecondaryBubbleVolumeReabsorbedTotal =
+      mrAdaptive.secondary_bubble_volume_reabsorbed_total;
+    adaptiveMrSecondaryDropletVolumeExpiredTotal =
+      mrAdaptive.secondary_droplet_volume_expired_total;
+    adaptiveMrSecondaryBubbleVolumeExpiredTotal =
+      mrAdaptive.secondary_bubble_volume_expired_total;
     adaptiveMrEffectiveDtLast = mrAdaptive.effective_dt_last;
     adaptiveMrCflLimitDtLast = mrAdaptive.cfl_limit_dt_last;
     adaptiveMrMaxParticleSpeedLast = mrAdaptive.max_particle_speed_last;
@@ -682,6 +859,18 @@ int main(int argc, char** argv) {
               surfaceTensionMaxDeltaSpeed);
   std::printf("escaped_particle_branching=%s\n",
               escapedParticleBranching ? "true" : "false");
+  std::printf("secondary_particle_lifecycle=%s\n",
+              secondaryLifecycle ? "true" : "false");
+  std::printf("secondary_droplet_lifetime_steps=%d\n",
+              secondaryDropletLifetime);
+  std::printf("secondary_bubble_lifetime_steps=%d\n",
+              secondaryBubbleLifetime);
+  std::printf("secondary_velocity_damping=%.9g\n",
+              secondaryVelocityDamping);
+  std::printf("secondary_reabsorb_margin_cells=%.9g\n",
+              secondaryReabsorbMargin);
+  std::printf("secondary_bubble_buoyancy_scale=%.9g\n",
+              secondaryBubbleBuoyancyScale);
   std::printf("rho_l=%.9g\n", mr.phase.rho_l);
   std::printf("rho_g=%.9g\n", mr.phase.rho_g);
   std::printf("rho_ratio=%.9g\n", activeRhoRatio);
@@ -805,6 +994,42 @@ int main(int argc, char** argv) {
               sparseMetrics.escapedDropletParticles);
   std::printf("sparse_escaped_bubble_particles=%zu\n",
               sparseMetrics.escapedBubbleParticles);
+  std::printf("sparse_escaped_droplet_ages=%zu\n",
+              sparseMetrics.escapedDropletAges);
+  std::printf("sparse_escaped_bubble_ages=%zu\n",
+              sparseMetrics.escapedBubbleAges);
+  std::printf("sparse_escaped_droplet_volume_added_total=%.9g\n",
+              sparseMetrics.escapedDropletVolumeAddedTotal);
+  std::printf("sparse_escaped_bubble_volume_added_total=%.9g\n",
+              sparseMetrics.escapedBubbleVolumeAddedTotal);
+  std::printf("sparse_secondary_lifecycle_enabled=%s\n",
+              sparseMetrics.secondaryLifecycleEnabled ? "true" : "false");
+  std::printf("sparse_secondary_lifecycle_finite=%s\n",
+              sparseMetrics.secondaryLifecycleFinite ? "true" : "false");
+  std::printf("sparse_secondary_droplets_advected_total=%d\n",
+              sparseMetrics.secondaryDropletsAdvectedTotal);
+  std::printf("sparse_secondary_bubbles_advected_total=%d\n",
+              sparseMetrics.secondaryBubblesAdvectedTotal);
+  std::printf("sparse_secondary_droplets_reabsorbed_total=%d\n",
+              sparseMetrics.secondaryDropletsReabsorbedTotal);
+  std::printf("sparse_secondary_bubbles_reabsorbed_total=%d\n",
+              sparseMetrics.secondaryBubblesReabsorbedTotal);
+  std::printf("sparse_secondary_droplets_expired_total=%d\n",
+              sparseMetrics.secondaryDropletsExpiredTotal);
+  std::printf("sparse_secondary_bubbles_expired_total=%d\n",
+              sparseMetrics.secondaryBubblesExpiredTotal);
+  std::printf("sparse_secondary_droplet_volume_current=%.9g\n",
+              sparseMetrics.secondaryDropletVolumeCurrent);
+  std::printf("sparse_secondary_bubble_volume_current=%.9g\n",
+              sparseMetrics.secondaryBubbleVolumeCurrent);
+  std::printf("sparse_secondary_droplet_volume_reabsorbed_total=%.9g\n",
+              sparseMetrics.secondaryDropletVolumeReabsorbedTotal);
+  std::printf("sparse_secondary_bubble_volume_reabsorbed_total=%.9g\n",
+              sparseMetrics.secondaryBubbleVolumeReabsorbedTotal);
+  std::printf("sparse_secondary_droplet_volume_expired_total=%.9g\n",
+              sparseMetrics.secondaryDropletVolumeExpiredTotal);
+  std::printf("sparse_secondary_bubble_volume_expired_total=%.9g\n",
+              sparseMetrics.secondaryBubbleVolumeExpiredTotal);
   std::printf("adaptive_sparse_escaped_droplets_added_total=%d\n",
               adaptiveMetrics.escapedDropletsAddedTotal);
   std::printf("adaptive_sparse_escaped_bubbles_added_total=%d\n",
@@ -813,6 +1038,42 @@ int main(int argc, char** argv) {
               adaptiveMetrics.escapedDropletParticles);
   std::printf("adaptive_sparse_escaped_bubble_particles=%zu\n",
               adaptiveMetrics.escapedBubbleParticles);
+  std::printf("adaptive_sparse_escaped_droplet_ages=%zu\n",
+              adaptiveMetrics.escapedDropletAges);
+  std::printf("adaptive_sparse_escaped_bubble_ages=%zu\n",
+              adaptiveMetrics.escapedBubbleAges);
+  std::printf("adaptive_sparse_escaped_droplet_volume_added_total=%.9g\n",
+              adaptiveMetrics.escapedDropletVolumeAddedTotal);
+  std::printf("adaptive_sparse_escaped_bubble_volume_added_total=%.9g\n",
+              adaptiveMetrics.escapedBubbleVolumeAddedTotal);
+  std::printf("adaptive_sparse_secondary_lifecycle_enabled=%s\n",
+              adaptiveMetrics.secondaryLifecycleEnabled ? "true" : "false");
+  std::printf("adaptive_sparse_secondary_lifecycle_finite=%s\n",
+              adaptiveMetrics.secondaryLifecycleFinite ? "true" : "false");
+  std::printf("adaptive_sparse_secondary_droplets_advected_total=%d\n",
+              adaptiveMetrics.secondaryDropletsAdvectedTotal);
+  std::printf("adaptive_sparse_secondary_bubbles_advected_total=%d\n",
+              adaptiveMetrics.secondaryBubblesAdvectedTotal);
+  std::printf("adaptive_sparse_secondary_droplets_reabsorbed_total=%d\n",
+              adaptiveMetrics.secondaryDropletsReabsorbedTotal);
+  std::printf("adaptive_sparse_secondary_bubbles_reabsorbed_total=%d\n",
+              adaptiveMetrics.secondaryBubblesReabsorbedTotal);
+  std::printf("adaptive_sparse_secondary_droplets_expired_total=%d\n",
+              adaptiveMetrics.secondaryDropletsExpiredTotal);
+  std::printf("adaptive_sparse_secondary_bubbles_expired_total=%d\n",
+              adaptiveMetrics.secondaryBubblesExpiredTotal);
+  std::printf("adaptive_sparse_secondary_droplet_volume_current=%.9g\n",
+              adaptiveMetrics.secondaryDropletVolumeCurrent);
+  std::printf("adaptive_sparse_secondary_bubble_volume_current=%.9g\n",
+              adaptiveMetrics.secondaryBubbleVolumeCurrent);
+  std::printf("adaptive_sparse_secondary_droplet_volume_reabsorbed_total=%.9g\n",
+              adaptiveMetrics.secondaryDropletVolumeReabsorbedTotal);
+  std::printf("adaptive_sparse_secondary_bubble_volume_reabsorbed_total=%.9g\n",
+              adaptiveMetrics.secondaryBubbleVolumeReabsorbedTotal);
+  std::printf("adaptive_sparse_secondary_droplet_volume_expired_total=%.9g\n",
+              adaptiveMetrics.secondaryDropletVolumeExpiredTotal);
+  std::printf("adaptive_sparse_secondary_bubble_volume_expired_total=%.9g\n",
+              adaptiveMetrics.secondaryBubbleVolumeExpiredTotal);
   std::printf("sparse_effective_dt_last=%.9g\n", sparseMetrics.effectiveDtLast);
   std::printf("sparse_cfl_limit_dt_last=%.9g\n", sparseMetrics.cflLimitDtLast);
   std::printf("sparse_max_particle_speed_last=%.9g\n",
@@ -920,6 +1181,40 @@ int main(int argc, char** argv) {
               mrEscapedDropletParticles);
   std::printf("mr_escaped_bubble_particles=%zu\n",
               mrEscapedBubbleParticles);
+  std::printf("mr_escaped_droplet_ages=%zu\n", mrEscapedDropletAges);
+  std::printf("mr_escaped_bubble_ages=%zu\n", mrEscapedBubbleAges);
+  std::printf("mr_escaped_droplet_volume_added_total=%.9g\n",
+              mrEscapedDropletVolumeAddedTotal);
+  std::printf("mr_escaped_bubble_volume_added_total=%.9g\n",
+              mrEscapedBubbleVolumeAddedTotal);
+  std::printf("mr_secondary_lifecycle_enabled=%s\n",
+              mrSecondaryLifecycleEnabled ? "true" : "false");
+  std::printf("mr_secondary_lifecycle_finite=%s\n",
+              mrSecondaryLifecycleFinite ? "true" : "false");
+  std::printf("mr_secondary_droplets_advected_total=%d\n",
+              mrSecondaryDropletsAdvectedTotal);
+  std::printf("mr_secondary_bubbles_advected_total=%d\n",
+              mrSecondaryBubblesAdvectedTotal);
+  std::printf("mr_secondary_droplets_reabsorbed_total=%d\n",
+              mrSecondaryDropletsReabsorbedTotal);
+  std::printf("mr_secondary_bubbles_reabsorbed_total=%d\n",
+              mrSecondaryBubblesReabsorbedTotal);
+  std::printf("mr_secondary_droplets_expired_total=%d\n",
+              mrSecondaryDropletsExpiredTotal);
+  std::printf("mr_secondary_bubbles_expired_total=%d\n",
+              mrSecondaryBubblesExpiredTotal);
+  std::printf("mr_secondary_droplet_volume_current=%.9g\n",
+              mrSecondaryDropletVolumeCurrent);
+  std::printf("mr_secondary_bubble_volume_current=%.9g\n",
+              mrSecondaryBubbleVolumeCurrent);
+  std::printf("mr_secondary_droplet_volume_reabsorbed_total=%.9g\n",
+              mrSecondaryDropletVolumeReabsorbedTotal);
+  std::printf("mr_secondary_bubble_volume_reabsorbed_total=%.9g\n",
+              mrSecondaryBubbleVolumeReabsorbedTotal);
+  std::printf("mr_secondary_droplet_volume_expired_total=%.9g\n",
+              mrSecondaryDropletVolumeExpiredTotal);
+  std::printf("mr_secondary_bubble_volume_expired_total=%.9g\n",
+              mrSecondaryBubbleVolumeExpiredTotal);
   std::printf("adaptive_mr_escaped_droplets_added_total=%d\n",
               adaptiveMrEscapedDropletsAddedTotal);
   std::printf("adaptive_mr_escaped_bubbles_added_total=%d\n",
@@ -928,6 +1223,42 @@ int main(int argc, char** argv) {
               adaptiveMrEscapedDropletParticles);
   std::printf("adaptive_mr_escaped_bubble_particles=%zu\n",
               adaptiveMrEscapedBubbleParticles);
+  std::printf("adaptive_mr_escaped_droplet_ages=%zu\n",
+              adaptiveMrEscapedDropletAges);
+  std::printf("adaptive_mr_escaped_bubble_ages=%zu\n",
+              adaptiveMrEscapedBubbleAges);
+  std::printf("adaptive_mr_escaped_droplet_volume_added_total=%.9g\n",
+              adaptiveMrEscapedDropletVolumeAddedTotal);
+  std::printf("adaptive_mr_escaped_bubble_volume_added_total=%.9g\n",
+              adaptiveMrEscapedBubbleVolumeAddedTotal);
+  std::printf("adaptive_mr_secondary_lifecycle_enabled=%s\n",
+              adaptiveMrSecondaryLifecycleEnabled ? "true" : "false");
+  std::printf("adaptive_mr_secondary_lifecycle_finite=%s\n",
+              adaptiveMrSecondaryLifecycleFinite ? "true" : "false");
+  std::printf("adaptive_mr_secondary_droplets_advected_total=%d\n",
+              adaptiveMrSecondaryDropletsAdvectedTotal);
+  std::printf("adaptive_mr_secondary_bubbles_advected_total=%d\n",
+              adaptiveMrSecondaryBubblesAdvectedTotal);
+  std::printf("adaptive_mr_secondary_droplets_reabsorbed_total=%d\n",
+              adaptiveMrSecondaryDropletsReabsorbedTotal);
+  std::printf("adaptive_mr_secondary_bubbles_reabsorbed_total=%d\n",
+              adaptiveMrSecondaryBubblesReabsorbedTotal);
+  std::printf("adaptive_mr_secondary_droplets_expired_total=%d\n",
+              adaptiveMrSecondaryDropletsExpiredTotal);
+  std::printf("adaptive_mr_secondary_bubbles_expired_total=%d\n",
+              adaptiveMrSecondaryBubblesExpiredTotal);
+  std::printf("adaptive_mr_secondary_droplet_volume_current=%.9g\n",
+              adaptiveMrSecondaryDropletVolumeCurrent);
+  std::printf("adaptive_mr_secondary_bubble_volume_current=%.9g\n",
+              adaptiveMrSecondaryBubbleVolumeCurrent);
+  std::printf("adaptive_mr_secondary_droplet_volume_reabsorbed_total=%.9g\n",
+              adaptiveMrSecondaryDropletVolumeReabsorbedTotal);
+  std::printf("adaptive_mr_secondary_bubble_volume_reabsorbed_total=%.9g\n",
+              adaptiveMrSecondaryBubbleVolumeReabsorbedTotal);
+  std::printf("adaptive_mr_secondary_droplet_volume_expired_total=%.9g\n",
+              adaptiveMrSecondaryDropletVolumeExpiredTotal);
+  std::printf("adaptive_mr_secondary_bubble_volume_expired_total=%.9g\n",
+              adaptiveMrSecondaryBubbleVolumeExpiredTotal);
   std::printf("mr_effective_dt_last=%.9g\n", mrEffectiveDtLast);
   std::printf("mr_cfl_limit_dt_last=%.9g\n", mrCflLimitDtLast);
   std::printf("mr_max_particle_speed_last=%.9g\n", mrMaxParticleSpeedLast);
@@ -1205,24 +1536,102 @@ int main(int argc, char** argv) {
                          int dropletsAdded,
                          int bubblesAdded,
                          size_t dropletParticles,
-                         size_t bubbleParticles) {
+                         size_t bubbleParticles,
+                         size_t dropletAges,
+                         size_t bubbleAges,
+                         int lifecycleEnabled,
+                         int lifecycleFinite,
+                         int dropletsReabsorbed,
+                         int bubblesReabsorbed,
+                         int dropletsExpired,
+                         int bubblesExpired,
+                         double dropletVolumeAdded,
+                         double bubbleVolumeAdded,
+                         double dropletVolumeCurrent,
+                         double bubbleVolumeCurrent,
+                         double dropletVolumeReabsorbed,
+                         double bubbleVolumeReabsorbed,
+                         double dropletVolumeExpired,
+                         double bubbleVolumeExpired) {
+    auto volumeBalanceOk = [](double added,
+                              double current,
+                              double reabsorbed,
+                              double expired) {
+      const double lhs = current + reabsorbed + expired;
+      const double tol = std::max(1e-9, std::abs(added) * 1e-9);
+      return std::abs(lhs - added) <= tol;
+    };
+    if (dropletAges != dropletParticles || bubbleAges != bubbleParticles) {
+      return false;
+    }
+    if (secondaryLifecycle) {
+      if (!lifecycleEnabled || !lifecycleFinite) return false;
+    } else if (lifecycleEnabled || !lifecycleFinite) {
+      return false;
+    }
+    if (!volumeBalanceOk(dropletVolumeAdded,
+                         dropletVolumeCurrent,
+                         dropletVolumeReabsorbed,
+                         dropletVolumeExpired)) {
+      return false;
+    }
+    if (!volumeBalanceOk(bubbleVolumeAdded,
+                         bubbleVolumeCurrent,
+                         bubbleVolumeReabsorbed,
+                         bubbleVolumeExpired)) {
+      return false;
+    }
     if (escapedParticleBranching) {
-      return dropletsAdded == dropletCandidates &&
-             bubblesAdded == bubbleCandidates &&
-             dropletParticles == static_cast<size_t>(dropletsAdded) &&
-             bubbleParticles == static_cast<size_t>(bubblesAdded);
+      if (dropletsAdded != dropletCandidates ||
+          bubblesAdded != bubbleCandidates) {
+        return false;
+      }
+      if (secondaryLifecycle) {
+        return dropletParticles +
+                 static_cast<size_t>(dropletsReabsorbed + dropletsExpired) ==
+                 static_cast<size_t>(dropletsAdded) &&
+               bubbleParticles +
+                 static_cast<size_t>(bubblesReabsorbed + bubblesExpired) ==
+                 static_cast<size_t>(bubblesAdded);
+      }
+      return dropletParticles == static_cast<size_t>(dropletsAdded) &&
+             bubbleParticles == static_cast<size_t>(bubblesAdded) &&
+             dropletsReabsorbed == 0 &&
+             bubblesReabsorbed == 0 &&
+             dropletsExpired == 0 &&
+             bubblesExpired == 0;
     }
     return dropletsAdded == 0 &&
            bubblesAdded == 0 &&
            dropletParticles == 0 &&
-           bubbleParticles == 0;
+           bubbleParticles == 0 &&
+           dropletsReabsorbed == 0 &&
+           bubblesReabsorbed == 0 &&
+           dropletsExpired == 0 &&
+           bubblesExpired == 0;
   };
   if (!secondaryOk(sparseMetrics.escapedDropletCandidatesTotal,
                    sparseMetrics.escapedBubbleCandidatesTotal,
                    sparseMetrics.escapedDropletsAddedTotal,
                    sparseMetrics.escapedBubblesAddedTotal,
                    sparseMetrics.escapedDropletParticles,
-                   sparseMetrics.escapedBubbleParticles)) {
+                   sparseMetrics.escapedBubbleParticles,
+                   sparseMetrics.escapedDropletAges,
+                   sparseMetrics.escapedBubbleAges,
+                   sparseMetrics.secondaryLifecycleEnabled,
+                   sparseMetrics.secondaryLifecycleFinite,
+                   sparseMetrics.secondaryDropletsReabsorbedTotal,
+                   sparseMetrics.secondaryBubblesReabsorbedTotal,
+                   sparseMetrics.secondaryDropletsExpiredTotal,
+                   sparseMetrics.secondaryBubblesExpiredTotal,
+                   sparseMetrics.escapedDropletVolumeAddedTotal,
+                   sparseMetrics.escapedBubbleVolumeAddedTotal,
+                   sparseMetrics.secondaryDropletVolumeCurrent,
+                   sparseMetrics.secondaryBubbleVolumeCurrent,
+                   sparseMetrics.secondaryDropletVolumeReabsorbedTotal,
+                   sparseMetrics.secondaryBubbleVolumeReabsorbedTotal,
+                   sparseMetrics.secondaryDropletVolumeExpiredTotal,
+                   sparseMetrics.secondaryBubbleVolumeExpiredTotal)) {
     ok = false;
   }
   if (!secondaryOk(mrEscapedDropletCandidatesTotal,
@@ -1230,7 +1639,23 @@ int main(int argc, char** argv) {
                    mrEscapedDropletsAddedTotal,
                    mrEscapedBubblesAddedTotal,
                    mrEscapedDropletParticles,
-                   mrEscapedBubbleParticles)) {
+                   mrEscapedBubbleParticles,
+                   mrEscapedDropletAges,
+                   mrEscapedBubbleAges,
+                   mrSecondaryLifecycleEnabled,
+                   mrSecondaryLifecycleFinite,
+                   mrSecondaryDropletsReabsorbedTotal,
+                   mrSecondaryBubblesReabsorbedTotal,
+                   mrSecondaryDropletsExpiredTotal,
+                   mrSecondaryBubblesExpiredTotal,
+                   mrEscapedDropletVolumeAddedTotal,
+                   mrEscapedBubbleVolumeAddedTotal,
+                   mrSecondaryDropletVolumeCurrent,
+                   mrSecondaryBubbleVolumeCurrent,
+                   mrSecondaryDropletVolumeReabsorbedTotal,
+                   mrSecondaryBubbleVolumeReabsorbedTotal,
+                   mrSecondaryDropletVolumeExpiredTotal,
+                   mrSecondaryBubbleVolumeExpiredTotal)) {
     ok = false;
   }
   if (physicsPreset) {
@@ -1307,7 +1732,23 @@ int main(int argc, char** argv) {
                      adaptiveMetrics.escapedDropletsAddedTotal,
                      adaptiveMetrics.escapedBubblesAddedTotal,
                      adaptiveMetrics.escapedDropletParticles,
-                     adaptiveMetrics.escapedBubbleParticles)) {
+                     adaptiveMetrics.escapedBubbleParticles,
+                     adaptiveMetrics.escapedDropletAges,
+                     adaptiveMetrics.escapedBubbleAges,
+                     adaptiveMetrics.secondaryLifecycleEnabled,
+                     adaptiveMetrics.secondaryLifecycleFinite,
+                     adaptiveMetrics.secondaryDropletsReabsorbedTotal,
+                     adaptiveMetrics.secondaryBubblesReabsorbedTotal,
+                     adaptiveMetrics.secondaryDropletsExpiredTotal,
+                     adaptiveMetrics.secondaryBubblesExpiredTotal,
+                     adaptiveMetrics.escapedDropletVolumeAddedTotal,
+                     adaptiveMetrics.escapedBubbleVolumeAddedTotal,
+                     adaptiveMetrics.secondaryDropletVolumeCurrent,
+                     adaptiveMetrics.secondaryBubbleVolumeCurrent,
+                     adaptiveMetrics.secondaryDropletVolumeReabsorbedTotal,
+                     adaptiveMetrics.secondaryBubbleVolumeReabsorbedTotal,
+                     adaptiveMetrics.secondaryDropletVolumeExpiredTotal,
+                     adaptiveMetrics.secondaryBubbleVolumeExpiredTotal)) {
       ok = false;
     }
     if (!(adaptiveRise > 0.0)) ok = false;
@@ -1377,7 +1818,23 @@ int main(int argc, char** argv) {
                      adaptiveMrEscapedDropletsAddedTotal,
                      adaptiveMrEscapedBubblesAddedTotal,
                      adaptiveMrEscapedDropletParticles,
-                     adaptiveMrEscapedBubbleParticles)) {
+                     adaptiveMrEscapedBubbleParticles,
+                     adaptiveMrEscapedDropletAges,
+                     adaptiveMrEscapedBubbleAges,
+                     adaptiveMrSecondaryLifecycleEnabled,
+                     adaptiveMrSecondaryLifecycleFinite,
+                     adaptiveMrSecondaryDropletsReabsorbedTotal,
+                     adaptiveMrSecondaryBubblesReabsorbedTotal,
+                     adaptiveMrSecondaryDropletsExpiredTotal,
+                     adaptiveMrSecondaryBubblesExpiredTotal,
+                     adaptiveMrEscapedDropletVolumeAddedTotal,
+                     adaptiveMrEscapedBubbleVolumeAddedTotal,
+                     adaptiveMrSecondaryDropletVolumeCurrent,
+                     adaptiveMrSecondaryBubbleVolumeCurrent,
+                     adaptiveMrSecondaryDropletVolumeReabsorbedTotal,
+                     adaptiveMrSecondaryBubbleVolumeReabsorbedTotal,
+                     adaptiveMrSecondaryDropletVolumeExpiredTotal,
+                     adaptiveMrSecondaryBubbleVolumeExpiredTotal)) {
       ok = false;
     }
     if (!(adaptiveMrRise > 0.0)) ok = false;
