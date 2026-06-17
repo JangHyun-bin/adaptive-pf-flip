@@ -1,5 +1,6 @@
 #include "driver/multires_sim3d_tp.h"
 #include "driver/sparse_sim3d_tp.h"
+#include "physics_preset3d.h"
 
 #include <algorithm>
 #include <chrono>
@@ -183,6 +184,7 @@ void usage() {
                "usage: bench_multires_sparse3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
+               "[--physics-preset] [--long-physics-preset] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
@@ -218,10 +220,16 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+  const bool physicsPreset = hasFlag(argc, argv, "--physics-preset") ||
+                             hasFlag(argc, argv, "--long-physics-preset");
+  const bool longPhysicsPreset = hasFlag(argc, argv, "--long-physics-preset");
   int nx = argInt(argc, argv, "--nx", 12);
   int ny = argInt(argc, argv, "--ny", 18);
   int nz = argInt(argc, argv, "--nz", 12);
-  int steps = argInt(argc, argv, "--steps", 4);
+  const int defaultSteps = longPhysicsPreset
+    ? kLongPhysicsPresetBenchSteps3D
+    : (physicsPreset ? kPhysicsPresetBenchSteps3D : 4);
+  int steps = argInt(argc, argv, "--steps", defaultSteps);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0) {
     usage();
@@ -231,6 +239,11 @@ int main(int argc, char** argv) {
   SparseSim3DTP sparse(nx, ny, nz, 1.0);
   SparseSim3DTP sparseAdaptive(nx, ny, nz, 1.0);
   MRSim3DTP mr(nx, ny, nz, 1.0);
+  if (physicsPreset) {
+    applyCorePhysicsPreset3D(sparse);
+    applyFullPhysicsPreset3D(sparseAdaptive);
+    applyCorePhysicsPreset3D(mr);
+  }
   double requestedRhoRatio = argDouble(argc, argv, "--rho-ratio", 0.0);
   if (requestedRhoRatio > 0.0) {
     sparse.phase.rho_l = requestedRhoRatio;
@@ -245,21 +258,25 @@ int main(int argc, char** argv) {
   sparse.dt = dt;
   sparseAdaptive.dt = dt;
   mr.dt = dt;
-  const bool adaptiveTimestep = hasFlag(argc, argv, "--adaptive-timestep");
+  const bool adaptiveTimestep =
+    sparse.adaptive_timestep || hasFlag(argc, argv, "--adaptive-timestep");
   const double adaptiveCfl = argDouble(argc, argv, "--adaptive-cfl", mr.adaptive_cfl);
   const double adaptiveMinDt = argDouble(argc, argv, "--adaptive-min-dt", mr.adaptive_min_dt);
   const int advectionOrder = argInt(argc, argv, "--advection-order", mr.advection_order);
-  const bool cDivVolumeCorrection = hasFlag(argc, argv, "--c-div-volume-correction");
+  const bool cDivVolumeCorrection =
+    sparse.c_div_volume_correction || hasFlag(argc, argv, "--c-div-volume-correction");
   const double cDivStrength = argDouble(argc, argv, "--c-div-strength", mr.c_div_strength);
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
-  const bool surfaceTension = hasFlag(argc, argv, "--surface-tension");
+  const bool surfaceTension =
+    sparse.surface_tension || hasFlag(argc, argv, "--surface-tension");
   const double surfaceTensionStrength =
     argDouble(argc, argv, "--surface-tension-strength", mr.surface_tension_strength);
   const double surfaceTensionMaxDeltaSpeed =
     argDouble(argc, argv, "--surface-tension-max-delta-speed",
               mr.surface_tension_max_delta_speed);
-  const bool escapedParticleBranching = hasFlag(argc, argv, "--escaped-particle-branching");
+  const bool escapedParticleBranching =
+    sparse.escaped_particle_branching || hasFlag(argc, argv, "--escaped-particle-branching");
   sparse.adaptive_timestep = adaptiveTimestep;
   sparseAdaptive.adaptive_timestep = adaptiveTimestep;
   mr.adaptive_timestep = adaptiveTimestep;
@@ -293,11 +310,13 @@ int main(int argc, char** argv) {
   sparse.cg_iters = cgIters;
   sparseAdaptive.cg_iters = cgIters;
   mr.cg_iters = cgIters;
-  sparseAdaptive.narrow_band_air = hasFlag(argc, argv, "--sparse-narrow-band-air");
+  sparseAdaptive.narrow_band_air = sparseAdaptive.narrow_band_air ||
+                                   hasFlag(argc, argv, "--sparse-narrow-band-air");
   sparseAdaptive.narrow_band_air_radius =
     argInt(argc, argv, "--sparse-narrow-band-radius",
            sparseAdaptive.narrow_band_air_radius);
   sparseAdaptive.gas_particle_coarsening =
+    sparseAdaptive.gas_particle_coarsening ||
     hasFlag(argc, argv, "--sparse-gas-coarsening");
   sparseAdaptive.gas_particles_per_cell_target =
     argInt(argc, argv, "--sparse-gas-particles-per-cell",
@@ -306,6 +325,7 @@ int main(int argc, char** argv) {
     argUInt(argc, argv, "--sparse-gas-coarsening-seed",
             sparseAdaptive.gas_particle_coarsening_seed);
   sparseAdaptive.liquid_particle_coarsening =
+    sparseAdaptive.liquid_particle_coarsening ||
     hasFlag(argc, argv, "--sparse-liquid-coarsening");
   sparseAdaptive.liquid_particles_per_cell_target =
     argInt(argc, argv, "--sparse-liquid-particles-per-cell",
@@ -314,6 +334,7 @@ int main(int argc, char** argv) {
     argUInt(argc, argv, "--sparse-liquid-coarsening-seed",
             sparseAdaptive.liquid_particle_coarsening_seed);
   sparseAdaptive.liquid_particle_refill =
+    sparseAdaptive.liquid_particle_refill ||
     hasFlag(argc, argv, "--sparse-liquid-refill");
   sparseAdaptive.liquid_refill_particles_per_cell_target =
     argInt(argc, argv, "--sparse-liquid-refill-particles-per-cell",
@@ -325,6 +346,7 @@ int main(int argc, char** argv) {
     argInt(argc, argv, "--sparse-liquid-refill-max-added-per-step",
            sparseAdaptive.liquid_particle_refill_max_added_per_step);
   sparseAdaptive.liquid_particle_refill_interface_only =
+    sparseAdaptive.liquid_particle_refill_interface_only ||
     hasFlag(argc, argv, "--sparse-liquid-refill-interface-only");
   sparseAdaptive.liquid_particle_refill_interface_radius =
     argInt(argc, argv, "--sparse-liquid-refill-interface-radius",
@@ -349,6 +371,9 @@ int main(int argc, char** argv) {
   mr.dynamic_hysteresis_cells = argInt(argc, argv, "--hysteresis", mr.dynamic_hysteresis_cells);
   mr.dynamic_max_fine_leaves = argInt(argc, argv, "--max-fine-leaves", mr.dynamic_max_fine_leaves);
   MRSim3DTP mrAdaptive = mr;
+  if (physicsPreset) {
+    applyFullPhysicsPreset3D(mrAdaptive);
+  }
   mrAdaptive.adaptive_timestep = adaptiveTimestep;
   mrAdaptive.adaptive_cfl = adaptiveCfl;
   mrAdaptive.adaptive_min_dt = adaptiveMinDt;
@@ -359,11 +384,13 @@ int main(int argc, char** argv) {
   mrAdaptive.surface_tension_strength = surfaceTensionStrength;
   mrAdaptive.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
   mrAdaptive.escaped_particle_branching = escapedParticleBranching;
-  mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
+  mrAdaptive.narrow_band_air = mrAdaptive.narrow_band_air ||
+                               hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
     argInt(argc, argv, "--mr-narrow-band-radius",
            mrAdaptive.narrow_band_air_radius);
   mrAdaptive.gas_particle_coarsening =
+    mrAdaptive.gas_particle_coarsening ||
     hasFlag(argc, argv, "--mr-gas-coarsening");
   mrAdaptive.gas_particles_per_cell_target =
     argInt(argc, argv, "--mr-gas-particles-per-cell",
@@ -372,6 +399,7 @@ int main(int argc, char** argv) {
     argUInt(argc, argv, "--mr-gas-coarsening-seed",
             mrAdaptive.gas_particle_coarsening_seed);
   mrAdaptive.liquid_particle_coarsening =
+    mrAdaptive.liquid_particle_coarsening ||
     hasFlag(argc, argv, "--mr-liquid-coarsening");
   mrAdaptive.liquid_particles_per_cell_target =
     argInt(argc, argv, "--mr-liquid-particles-per-cell",
@@ -380,6 +408,7 @@ int main(int argc, char** argv) {
     argUInt(argc, argv, "--mr-liquid-coarsening-seed",
             mrAdaptive.liquid_particle_coarsening_seed);
   mrAdaptive.liquid_particle_refill =
+    mrAdaptive.liquid_particle_refill ||
     hasFlag(argc, argv, "--mr-liquid-refill");
   mrAdaptive.liquid_refill_particles_per_cell_target =
     argInt(argc, argv, "--mr-liquid-refill-particles-per-cell",
@@ -391,6 +420,7 @@ int main(int argc, char** argv) {
     argInt(argc, argv, "--mr-liquid-refill-max-added-per-step",
            mrAdaptive.liquid_particle_refill_max_added_per_step);
   mrAdaptive.liquid_particle_refill_interface_only =
+    mrAdaptive.liquid_particle_refill_interface_only ||
     hasFlag(argc, argv, "--mr-liquid-refill-interface-only");
   mrAdaptive.liquid_particle_refill_interface_radius =
     argInt(argc, argv, "--mr-liquid-refill-interface-radius",
@@ -635,6 +665,8 @@ int main(int argc, char** argv) {
 
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
+  std::printf("physics_preset=%s\n", physicsPreset ? "true" : "false");
+  std::printf("long_physics_preset=%s\n", longPhysicsPreset ? "true" : "false");
   std::printf("dt=%.9g\n", dt);
   std::printf("adaptive_timestep=%s\n", adaptiveTimestep ? "true" : "false");
   std::printf("adaptive_cfl=%.9g\n", adaptiveCfl);
@@ -1200,6 +1232,14 @@ int main(int argc, char** argv) {
                    mrEscapedDropletParticles,
                    mrEscapedBubbleParticles)) {
     ok = false;
+  }
+  if (physicsPreset) {
+    if (!corePhysicsPresetActive3D(sparse) ||
+        !fullPhysicsPresetActive3D(sparseAdaptive) ||
+        !corePhysicsPresetActive3D(mr) ||
+        !fullPhysicsPresetActive3D(mrAdaptive)) {
+      ok = false;
+    }
   }
   if (!(sparseRise > 0.0) || !(mrRise > 0.0)) ok = false;
   if (sparseAdaptivity) {

@@ -1,4 +1,5 @@
 #include "driver/multires_sim3d_tp.h"
+#include "physics_preset3d.h"
 
 #include <algorithm>
 #include <chrono>
@@ -90,6 +91,7 @@ void usage() {
                "usage: validate_multires3d_tp [--scenario bubble] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--hysteresis N] "
                "[--max-fine-leaves N] [--cg-rel-tol T] [--rho-ratio R] "
+               "[--physics-preset] [--long-physics-preset] "
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
@@ -121,11 +123,17 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+  const bool physicsPreset = hasFlag(argc, argv, "--physics-preset") ||
+                             hasFlag(argc, argv, "--long-physics-preset");
+  const bool longPhysicsPreset = hasFlag(argc, argv, "--long-physics-preset");
   const char* scenario = argString(argc, argv, "--scenario", "bubble");
   int nx = argInt(argc, argv, "--nx", 12);
   int ny = argInt(argc, argv, "--ny", 18);
   int nz = argInt(argc, argv, "--nz", 12);
-  int steps = argInt(argc, argv, "--steps", 20);
+  const int defaultSteps = longPhysicsPreset
+    ? kLongPhysicsPresetSteps3D
+    : (physicsPreset ? kPhysicsPresetSteps3D : 20);
+  int steps = argInt(argc, argv, "--steps", defaultSteps);
 
   if (nx < 4 || ny < 4 || nz < 4 || steps < 0 || std::strcmp(scenario, "bubble") != 0) {
     usage();
@@ -133,25 +141,32 @@ int main(int argc, char** argv) {
   }
 
   MRSim3DTP sim(nx, ny, nz, 1.0);
+  if (physicsPreset) {
+    applyFullPhysicsPreset3D(sim);
+  }
   double requestedRhoRatio = argDouble(argc, argv, "--rho-ratio", 0.0);
   if (requestedRhoRatio > 0.0) {
     sim.phase.rho_l = requestedRhoRatio;
     sim.phase.rho_g = 1.0;
   }
   sim.dt = argDouble(argc, argv, "--dt", sim.dt);
-  sim.adaptive_timestep = hasFlag(argc, argv, "--adaptive-timestep");
+  sim.adaptive_timestep = sim.adaptive_timestep ||
+                          hasFlag(argc, argv, "--adaptive-timestep");
   sim.adaptive_cfl = argDouble(argc, argv, "--adaptive-cfl", sim.adaptive_cfl);
   sim.adaptive_min_dt = argDouble(argc, argv, "--adaptive-min-dt", sim.adaptive_min_dt);
   sim.advection_order = argInt(argc, argv, "--advection-order", sim.advection_order);
-  sim.c_div_volume_correction = hasFlag(argc, argv, "--c-div-volume-correction");
+  sim.c_div_volume_correction = sim.c_div_volume_correction ||
+                                hasFlag(argc, argv, "--c-div-volume-correction");
   sim.c_div_strength = argDouble(argc, argv, "--c-div-strength", sim.c_div_strength);
-  sim.surface_tension = hasFlag(argc, argv, "--surface-tension");
+  sim.surface_tension = sim.surface_tension ||
+                        hasFlag(argc, argv, "--surface-tension");
   sim.surface_tension_strength =
     argDouble(argc, argv, "--surface-tension-strength", sim.surface_tension_strength);
   sim.surface_tension_max_delta_speed =
     argDouble(argc, argv, "--surface-tension-max-delta-speed",
               sim.surface_tension_max_delta_speed);
-  sim.escaped_particle_branching = hasFlag(argc, argv, "--escaped-particle-branching");
+  sim.escaped_particle_branching = sim.escaped_particle_branching ||
+                                   hasFlag(argc, argv, "--escaped-particle-branching");
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
   sim.cg_iters = argInt(argc, argv, "--cg-iters", sim.cg_iters);
@@ -197,20 +212,24 @@ int main(int argc, char** argv) {
     argInt(argc, argv,
            "--coarse-pre-auto-disable-after",
            sim.cg_coarse_preconditioner_auto_disable_after);
-  sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
+  sim.narrow_band_air = sim.narrow_band_air ||
+                        hasFlag(argc, argv, "--narrow-band-air");
   sim.narrow_band_air_radius =
     argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
-  sim.gas_particle_coarsening = hasFlag(argc, argv, "--gas-coarsening");
+  sim.gas_particle_coarsening = sim.gas_particle_coarsening ||
+                                hasFlag(argc, argv, "--gas-coarsening");
   sim.gas_particles_per_cell_target =
     argInt(argc, argv, "--gas-particles-per-cell", sim.gas_particles_per_cell_target);
   sim.gas_particle_coarsening_seed =
     argUInt(argc, argv, "--gas-coarsening-seed", sim.gas_particle_coarsening_seed);
-  sim.liquid_particle_coarsening = hasFlag(argc, argv, "--liquid-coarsening");
+  sim.liquid_particle_coarsening = sim.liquid_particle_coarsening ||
+                                   hasFlag(argc, argv, "--liquid-coarsening");
   sim.liquid_particles_per_cell_target =
     argInt(argc, argv, "--liquid-particles-per-cell", sim.liquid_particles_per_cell_target);
   sim.liquid_particle_coarsening_seed =
     argUInt(argc, argv, "--liquid-coarsening-seed", sim.liquid_particle_coarsening_seed);
-  sim.liquid_particle_refill = hasFlag(argc, argv, "--liquid-refill");
+  sim.liquid_particle_refill = sim.liquid_particle_refill ||
+                               hasFlag(argc, argv, "--liquid-refill");
   sim.liquid_refill_particles_per_cell_target =
     argInt(argc, argv, "--liquid-refill-particles-per-cell",
            sim.liquid_refill_particles_per_cell_target);
@@ -220,6 +239,7 @@ int main(int argc, char** argv) {
     argInt(argc, argv, "--liquid-refill-max-added-per-step",
            sim.liquid_particle_refill_max_added_per_step);
   sim.liquid_particle_refill_interface_only =
+    sim.liquid_particle_refill_interface_only ||
     hasFlag(argc, argv, "--liquid-refill-interface-only");
   sim.liquid_particle_refill_interface_radius =
     argInt(argc, argv, "--liquid-refill-interface-radius",
@@ -322,6 +342,8 @@ int main(int argc, char** argv) {
     (st.converged && st.final_residual <= st.effective_tolerance);
 
   std::printf("scenario=%s\n", scenario);
+  std::printf("physics_preset=%s\n", physicsPreset ? "true" : "false");
+  std::printf("long_physics_preset=%s\n", longPhysicsPreset ? "true" : "false");
   std::printf("dims=%d,%d,%d\n", nx, ny, nz);
   std::printf("steps=%d\n", steps);
   std::printf("dt=%.9g\n", sim.dt);
@@ -768,6 +790,7 @@ int main(int argc, char** argv) {
     if (sim.escaped_droplets.size() != 0) ok = false;
     if (sim.escaped_bubbles.size() != 0) ok = false;
   }
+  if (physicsPreset && !fullPhysicsPresetActive3D(sim)) ok = false;
   if (!(gas1 > gas0)) ok = false;
   if (!(pressureCellsEnd < fineCells)) ok = false;
   if (steps > 0 && sim.last_pressure_stats.breakdown) ok = false;
