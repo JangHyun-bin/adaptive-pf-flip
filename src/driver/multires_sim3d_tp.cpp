@@ -367,6 +367,7 @@ void MRSim3DTP::initBubbleTankInterfaceBand() {
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   interface_diagnostics_last = InterfaceDiagnostics3D();
+  surface_tension_stats_last = SurfaceTensionStats3D();
 
   int waterLevel = layout.ny / 2;
   layout.setCoarseEverywhere(1);
@@ -577,6 +578,11 @@ void MRSim3DTP::step() {
   MRMacGrid3D<4> saved = grid;
 
   applyGravity(grid, stepDt, gravity);
+  surface_tension_stats_last = surface_tension
+    ? applyMRSurfaceTension3D(grid, phase, stepDt,
+                              surface_tension_strength,
+                              surface_tension_max_delta_speed)
+    : SurfaceTensionStats3D();
   applyWallBoundary(grid);
   MRPressureSolveConfig3D pressureConfig;
   pressureConfig.max_iterations = cg_iters;

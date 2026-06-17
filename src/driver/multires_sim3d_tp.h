@@ -132,6 +132,10 @@ struct MRSim3DTP {
   int escaped_droplets_added_total = 0;
   int escaped_bubbles_added_total = 0;
   InterfaceDiagnostics3D interface_diagnostics_last;
+  bool surface_tension = false;
+  double surface_tension_strength = 0.02;
+  double surface_tension_max_delta_speed = 0.25;
+  SurfaceTensionStats3D surface_tension_stats_last;
   MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);

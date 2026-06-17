@@ -455,6 +455,26 @@ TEST_CASE("multires 3D interface diagnostics report surface candidates") {
   CHECK(sim.interface_diagnostics_last.surface_tension_candidate == 1);
 }
 
+TEST_CASE("multires 3D surface tension applies bounded grid force") {
+  MRSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 20;
+  sim.surface_tension = true;
+  sim.surface_tension_strength = 0.02;
+  sim.surface_tension_max_delta_speed = 0.05;
+  sim.initBubbleTankInterfaceBand();
+
+  sim.step();
+
+  CHECK(sim.surface_tension_stats_last.enabled == 1);
+  CHECK(sim.surface_tension_stats_last.finite == 1);
+  CHECK(sim.surface_tension_stats_last.applied_cells > 0);
+  CHECK(sim.surface_tension_stats_last.mean_delta_speed > 0.0);
+  CHECK(sim.surface_tension_stats_last.max_delta_speed > 0.0);
+  CHECK(sim.surface_tension_stats_last.max_delta_speed <=
+        sim.surface_tension_max_delta_speed + 1e-12);
+}
+
 TEST_CASE("multires 3D c_div uses liquid volume error") {
   MRSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.02;

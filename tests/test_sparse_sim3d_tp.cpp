@@ -162,6 +162,25 @@ TEST_CASE("sparse 3D two-phase interface diagnostics report surface candidates")
   CHECK(sim.interface_diagnostics_last.surface_tension_candidate == 1);
 }
 
+TEST_CASE("sparse 3D two-phase surface tension applies bounded grid force") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.surface_tension = true;
+  sim.surface_tension_strength = 0.02;
+  sim.surface_tension_max_delta_speed = 0.05;
+  sim.initBubbleTank();
+
+  sim.step();
+
+  CHECK(sim.surface_tension_stats_last.enabled == 1);
+  CHECK(sim.surface_tension_stats_last.finite == 1);
+  CHECK(sim.surface_tension_stats_last.applied_cells > 0);
+  CHECK(sim.surface_tension_stats_last.mean_delta_speed > 0.0);
+  CHECK(sim.surface_tension_stats_last.max_delta_speed > 0.0);
+  CHECK(sim.surface_tension_stats_last.max_delta_speed <=
+        sim.surface_tension_max_delta_speed + 1e-12);
+}
+
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   SparseSim3DTP full(12, 12, 8, 1.0);
   full.initTwoPhaseDamBreak();

@@ -63,6 +63,36 @@ void finishStats(InterfaceDiagnostics3D& stats) {
     stats.finite && stats.interface_cells > 0 && stats.grad_max > kGradientThreshold;
 }
 
+bool interfacePhi(double phi) {
+  return phi > kInterfacePhiLo && phi < kInterfacePhiHi;
+}
+
+Vec3 limitedDelta(Vec3 delta, double maxDeltaSpeed) {
+  const double mag = delta.length();
+  if (!finiteValue(mag)) return {};
+  if (maxDeltaSpeed > 0.0 && mag > maxDeltaSpeed) {
+    return delta * (maxDeltaSpeed / mag);
+  }
+  return delta;
+}
+
+void accumulateSurfaceStats(SurfaceTensionStats3D& stats, const Vec3& delta) {
+  const double mag = delta.length();
+  if (!finiteValue(mag)) {
+    stats.finite = 0;
+    return;
+  }
+  ++stats.applied_cells;
+  stats.mean_delta_speed += mag;
+  stats.max_delta_speed = std::max(stats.max_delta_speed, mag);
+}
+
+void finishSurfaceStats(SurfaceTensionStats3D& stats) {
+  if (stats.applied_cells > 0) {
+    stats.mean_delta_speed /= static_cast<double>(stats.applied_cells);
+  }
+}
+
 double sparseCellPhi(const SparseMacGrid3D<4>& g, const PhaseParams& phase,
                      int i, int j, int k) {
   if (!g.inBounds(i, j, k)) return 0.0;
@@ -272,5 +302,97 @@ InterfaceDiagnostics3D diagnoseMRInterface3D(const MRMacGrid3D<4>& g,
     accumulate(stats, phi, grad.length(), curvature);
   }
   finishStats(stats);
+  return stats;
+}
+
+SurfaceTensionStats3D applySparseSurfaceTension3D(SparseMacGrid3D<4>& g,
+                                                  const PhaseParams& phase,
+                                                  double dt,
+                                                  double strength,
+                                                  double maxDeltaSpeed) {
+  SurfaceTensionStats3D stats;
+  stats.enabled = strength > 0.0 && dt > 0.0;
+  stats.strength = strength;
+  stats.max_delta_speed_limit = maxDeltaSpeed;
+  if (!stats.enabled) return stats;
+
+  const std::vector<int> cells = sparse3d::collectCellsWithMarker(g, 1);
+  for (int c : cells) {
+    const int i = c % g.nx;
+    const int q = c / g.nx;
+    const int j = q % g.ny;
+    const int k = q / g.ny;
+    const double phi = sparseCellPhi(g, phase, i, j, k);
+    if (!interfacePhi(phi)) continue;
+
+    const Vec3 grad = sparseGradient(g, phase, i, j, k);
+    const double gradMag = grad.length();
+    if (gradMag <= kGradientThreshold) continue;
+
+    const double curvature = sparseCurvature(g, phase, i, j, k);
+    Vec3 delta = limitedDelta(grad * (-strength * curvature * dt), maxDeltaSpeed);
+    accumulateSurfaceStats(stats, delta);
+    if (!stats.finite) continue;
+
+    if (g.gmu(i, j, k) > 0.0f) g.u(i, j, k) += static_cast<float>(0.5 * delta.x);
+    if (g.gmu(i + 1, j, k) > 0.0f) g.u(i + 1, j, k) += static_cast<float>(0.5 * delta.x);
+    if (g.gmv(i, j, k) > 0.0f) g.v(i, j, k) += static_cast<float>(0.5 * delta.y);
+    if (g.gmv(i, j + 1, k) > 0.0f) g.v(i, j + 1, k) += static_cast<float>(0.5 * delta.y);
+    if (g.gmw(i, j, k) > 0.0f) g.w(i, j, k) += static_cast<float>(0.5 * delta.z);
+    if (g.gmw(i, j, k + 1) > 0.0f) g.w(i, j, k + 1) += static_cast<float>(0.5 * delta.z);
+  }
+  finishSurfaceStats(stats);
+  return stats;
+}
+
+SurfaceTensionStats3D applyMRSurfaceTension3D(MRMacGrid3D<4>& g,
+                                              const PhaseParams& phase,
+                                              double dt,
+                                              double strength,
+                                              double maxDeltaSpeed) {
+  SurfaceTensionStats3D stats;
+  stats.enabled = strength > 0.0 && dt > 0.0;
+  stats.strength = strength;
+  stats.max_delta_speed_limit = maxDeltaSpeed;
+  if (!stats.enabled) return stats;
+
+  for (const MRCellKey3D& c : g.marker.leafCells()) {
+    const int marker = static_cast<int>(g.marker.get(c) + 0.5f);
+    if (marker != 1) continue;
+
+    int i = 0;
+    int j = 0;
+    int k = 0;
+    mrCellFineCenter(c, i, j, k);
+    i = clampInt(i, 0, g.layout.nx - 1);
+    j = clampInt(j, 0, g.layout.ny - 1);
+    k = clampInt(k, 0, g.layout.nz - 1);
+
+    const double phi = mrCellPhiFine(g, phase, i, j, k);
+    if (!interfacePhi(phi)) continue;
+
+    const Vec3 grad = mrGradient(g, phase, i, j, k);
+    const double gradMag = grad.length();
+    if (gradMag <= kGradientThreshold) continue;
+
+    const double curvature = mrCurvature(g, phase, i, j, k);
+    Vec3 delta = limitedDelta(grad * (-strength * curvature * dt), maxDeltaSpeed);
+    accumulateSurfaceStats(stats, delta);
+    if (!stats.finite) continue;
+
+    const MRFaceKey3D u0{0, i, j, k, 1, 1};
+    const MRFaceKey3D u1{0, i + 1, j, k, 1, 1};
+    const MRFaceKey3D v0{1, i, j, k, 1, 1};
+    const MRFaceKey3D v1{1, i, j + 1, k, 1, 1};
+    const MRFaceKey3D w0{2, i, j, k, 1, 1};
+    const MRFaceKey3D w1{2, i, j, k + 1, 1, 1};
+    if (g.gmu(u0) > 0.0f) g.u(u0) += static_cast<float>(0.5 * delta.x);
+    if (g.gmu(u1) > 0.0f) g.u(u1) += static_cast<float>(0.5 * delta.x);
+    if (g.gmv(v0) > 0.0f) g.v(v0) += static_cast<float>(0.5 * delta.y);
+    if (g.gmv(v1) > 0.0f) g.v(v1) += static_cast<float>(0.5 * delta.y);
+    if (g.gmw(w0) > 0.0f) g.w(w0) += static_cast<float>(0.5 * delta.z);
+    if (g.gmw(w1) > 0.0f) g.w(w1) += static_cast<float>(0.5 * delta.z);
+  }
+  finishSurfaceStats(stats);
   return stats;
 }

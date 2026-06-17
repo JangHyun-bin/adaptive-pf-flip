@@ -90,6 +90,8 @@ void usage() {
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
+               "[--surface-tension] [--surface-tension-strength S] "
+               "[--surface-tension-max-delta-speed V] "
                "[--escaped-particle-branching] "
                "[--narrow-band-air] [--narrow-band-radius N] "
                "[--gas-coarsening] [--gas-particles-per-cell N] "
@@ -129,6 +131,12 @@ int main(int argc, char** argv) {
   sim.advection_order = argInt(argc, argv, "--advection-order", sim.advection_order);
   sim.c_div_volume_correction = hasFlag(argc, argv, "--c-div-volume-correction");
   sim.c_div_strength = argDouble(argc, argv, "--c-div-strength", sim.c_div_strength);
+  sim.surface_tension = hasFlag(argc, argv, "--surface-tension");
+  sim.surface_tension_strength =
+    argDouble(argc, argv, "--surface-tension-strength", sim.surface_tension_strength);
+  sim.surface_tension_max_delta_speed =
+    argDouble(argc, argv, "--surface-tension-max-delta-speed",
+              sim.surface_tension_max_delta_speed);
   sim.escaped_particle_branching = hasFlag(argc, argv, "--escaped-particle-branching");
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
@@ -169,6 +177,8 @@ int main(int argc, char** argv) {
       sim.adaptive_min_dt < 0.0 ||
       (sim.advection_order != 2 && sim.advection_order != 3) ||
       sim.c_div_strength < 0.0 ||
+      sim.surface_tension_strength < 0.0 ||
+      sim.surface_tension_max_delta_speed < 0.0 ||
       liquidVolumeTargetOverride < -0.5) {
     usage();
     return 2;
@@ -227,6 +237,10 @@ int main(int argc, char** argv) {
   std::printf("c_div_volume_correction=%s\n",
               sim.c_div_volume_correction ? "true" : "false");
   std::printf("c_div_strength=%.9g\n", sim.c_div_strength);
+  std::printf("surface_tension=%s\n", sim.surface_tension ? "true" : "false");
+  std::printf("surface_tension_strength=%.9g\n", sim.surface_tension_strength);
+  std::printf("surface_tension_max_delta_speed=%.9g\n",
+              sim.surface_tension_max_delta_speed);
   std::printf("escaped_particle_branching=%s\n",
               sim.escaped_particle_branching ? "true" : "false");
   std::printf("liquid_volume_target=%.9g\n", sim.liquid_volume_target);
@@ -255,6 +269,16 @@ int main(int argc, char** argv) {
               sim.interface_diagnostics_last.finite ? "true" : "false");
   std::printf("surface_tension_candidate=%s\n",
               sim.interface_diagnostics_last.surface_tension_candidate ? "true" : "false");
+  std::printf("surface_tension_enabled=%s\n",
+              sim.surface_tension_stats_last.enabled ? "true" : "false");
+  std::printf("surface_tension_applied_cells=%d\n",
+              sim.surface_tension_stats_last.applied_cells);
+  std::printf("surface_tension_force_finite=%s\n",
+              sim.surface_tension_stats_last.finite ? "true" : "false");
+  std::printf("surface_tension_mean_delta_speed=%.9g\n",
+              sim.surface_tension_stats_last.mean_delta_speed);
+  std::printf("surface_tension_max_delta_speed_last=%.9g\n",
+              sim.surface_tension_stats_last.max_delta_speed);
   std::printf("effective_dt_last=%.9g\n", sim.effective_dt_last);
   std::printf("cfl_limit_dt_last=%.9g\n", sim.cfl_limit_dt_last);
   std::printf("max_particle_speed_last=%.9g\n", sim.max_particle_speed_last);
@@ -451,6 +475,22 @@ int main(int argc, char** argv) {
   if (steps > 0) {
     if (!sim.interface_diagnostics_last.finite) ok = false;
     if (sim.interface_diagnostics_last.sample_cells <= 0) ok = false;
+  }
+  if (sim.surface_tension) {
+    if (!sim.surface_tension_stats_last.enabled) ok = false;
+    if (!sim.surface_tension_stats_last.finite) ok = false;
+    if (steps > 0 && sim.interface_diagnostics_last.interface_cells > 0 &&
+        sim.surface_tension_stats_last.applied_cells <= 0) {
+      ok = false;
+    }
+    if (sim.surface_tension_max_delta_speed > 0.0 &&
+        sim.surface_tension_stats_last.max_delta_speed >
+          sim.surface_tension_max_delta_speed + 1e-12) {
+      ok = false;
+    }
+  } else if (sim.surface_tension_stats_last.enabled ||
+             sim.surface_tension_stats_last.applied_cells != 0) {
+    ok = false;
   }
   if (sim.escaped_particle_branching) {
     if (sim.escaped_droplets_added_total != sim.escaped_droplet_candidates_total) ok = false;

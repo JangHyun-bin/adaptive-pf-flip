@@ -214,6 +214,7 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   interface_diagnostics_last = InterfaceDiagnostics3D();
+  surface_tension_stats_last = SurfaceTensionStats3D();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
@@ -243,6 +244,7 @@ void SparseSim3DTP::initRayleighTaylor() {
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   interface_diagnostics_last = InterfaceDiagnostics3D();
+  surface_tension_stats_last = SurfaceTensionStats3D();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
@@ -273,6 +275,7 @@ void SparseSim3DTP::initBubbleTank() {
   resetEscapedParticleBranching(*this);
   resetTimestepStats(*this);
   interface_diagnostics_last = InterfaceDiagnostics3D();
+  surface_tension_stats_last = SurfaceTensionStats3D();
   phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
@@ -383,6 +386,11 @@ void SparseSim3DTP::step() {
   interface_diagnostics_last = diagnoseSparseInterface3D(grid, phase);
   SparseMacGrid3D<4> saved = grid;
   applyGravity(grid, stepDt, gravity);
+  surface_tension_stats_last = surface_tension
+    ? applySparseSurfaceTension3D(grid, phase, stepDt,
+                                  surface_tension_strength,
+                                  surface_tension_max_delta_speed)
+    : SurfaceTensionStats3D();
   applyWallBoundary(grid);
   spProjectStepVC3D(grid, phase, stepDt, cg_iters, cg_tol, c_div_last);
   spG2P3D_tp(grid, particles, saved, alpha_liquid, alpha_gas);

@@ -18,8 +18,30 @@ struct InterfaceDiagnostics3D {
   double curvature_abs_max = 0.0;
 };
 
+struct SurfaceTensionStats3D {
+  int enabled = 0;
+  int applied_cells = 0;
+  int finite = 1;
+  double strength = 0.0;
+  double max_delta_speed_limit = 0.0;
+  double mean_delta_speed = 0.0;
+  double max_delta_speed = 0.0;
+};
+
 InterfaceDiagnostics3D diagnoseSparseInterface3D(const SparseMacGrid3D<4>& g,
                                                  const PhaseParams& phase);
 
 InterfaceDiagnostics3D diagnoseMRInterface3D(const MRMacGrid3D<4>& g,
                                              const PhaseParams& phase);
+
+SurfaceTensionStats3D applySparseSurfaceTension3D(SparseMacGrid3D<4>& g,
+                                                  const PhaseParams& phase,
+                                                  double dt,
+                                                  double strength,
+                                                  double maxDeltaSpeed);
+
+SurfaceTensionStats3D applyMRSurfaceTension3D(MRMacGrid3D<4>& g,
+                                              const PhaseParams& phase,
+                                              double dt,
+                                              double strength,
+                                              double maxDeltaSpeed);

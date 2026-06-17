@@ -107,6 +107,7 @@ struct SparseMetrics {
   double liquidVolumeErrorLast = 0.0;
   double cDivLast = 0.0;
   InterfaceDiagnostics3D interfaceDiagnostics;
+  SurfaceTensionStats3D surfaceTensionStats;
   int liquidCoarseningRemovedStart = 0;
   int liquidCoarseningRemovedEnd = 0;
   int liquidCoarseningRemovedDuringRun = 0;
@@ -164,6 +165,7 @@ SparseMetrics runSparseBubble(SparseSim3DTP& sim, int steps, double liquidVolume
   metrics.liquidVolumeErrorLast = sim.liquid_volume_error_last;
   metrics.cDivLast = sim.c_div_last;
   metrics.interfaceDiagnostics = sim.interface_diagnostics_last;
+  metrics.surfaceTensionStats = sim.surface_tension_stats_last;
   metrics.liquidCoarseningRemovedEnd = sim.liquid_particle_coarsening_removed_total;
   metrics.liquidCoarseningRemovedDuringRun =
     metrics.liquidCoarseningRemovedEnd - metrics.liquidCoarseningRemovedStart;
@@ -184,6 +186,8 @@ void usage() {
                "[--adaptive-timestep] [--adaptive-cfl C] [--adaptive-min-dt DT] "
                "[--advection-order 2|3] "
                "[--c-div-volume-correction] [--c-div-strength S] [--liquid-volume-target V] "
+               "[--surface-tension] [--surface-tension-strength S] "
+               "[--surface-tension-max-delta-speed V] "
                "[--escaped-particle-branching] "
                "[--require-converged] [--no-jacobi] [--flexible-cg] "
                "[--no-restart] [--restart-growth G] "
@@ -249,6 +253,12 @@ int main(int argc, char** argv) {
   const double cDivStrength = argDouble(argc, argv, "--c-div-strength", mr.c_div_strength);
   const double liquidVolumeTargetOverride =
     argDouble(argc, argv, "--liquid-volume-target", -0.25);
+  const bool surfaceTension = hasFlag(argc, argv, "--surface-tension");
+  const double surfaceTensionStrength =
+    argDouble(argc, argv, "--surface-tension-strength", mr.surface_tension_strength);
+  const double surfaceTensionMaxDeltaSpeed =
+    argDouble(argc, argv, "--surface-tension-max-delta-speed",
+              mr.surface_tension_max_delta_speed);
   const bool escapedParticleBranching = hasFlag(argc, argv, "--escaped-particle-branching");
   sparse.adaptive_timestep = adaptiveTimestep;
   sparseAdaptive.adaptive_timestep = adaptiveTimestep;
@@ -259,6 +269,15 @@ int main(int argc, char** argv) {
   sparse.c_div_strength = cDivStrength;
   sparseAdaptive.c_div_strength = cDivStrength;
   mr.c_div_strength = cDivStrength;
+  sparse.surface_tension = surfaceTension;
+  sparseAdaptive.surface_tension = surfaceTension;
+  mr.surface_tension = surfaceTension;
+  sparse.surface_tension_strength = surfaceTensionStrength;
+  sparseAdaptive.surface_tension_strength = surfaceTensionStrength;
+  mr.surface_tension_strength = surfaceTensionStrength;
+  sparse.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
+  sparseAdaptive.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
+  mr.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
   sparse.escaped_particle_branching = escapedParticleBranching;
   sparseAdaptive.escaped_particle_branching = escapedParticleBranching;
   mr.escaped_particle_branching = escapedParticleBranching;
@@ -336,6 +355,9 @@ int main(int argc, char** argv) {
   mrAdaptive.advection_order = advectionOrder;
   mrAdaptive.c_div_volume_correction = cDivVolumeCorrection;
   mrAdaptive.c_div_strength = cDivStrength;
+  mrAdaptive.surface_tension = surfaceTension;
+  mrAdaptive.surface_tension_strength = surfaceTensionStrength;
+  mrAdaptive.surface_tension_max_delta_speed = surfaceTensionMaxDeltaSpeed;
   mrAdaptive.escaped_particle_branching = escapedParticleBranching;
   mrAdaptive.narrow_band_air = hasFlag(argc, argv, "--mr-narrow-band-air");
   mrAdaptive.narrow_band_air_radius =
@@ -389,6 +411,8 @@ int main(int argc, char** argv) {
       adaptiveMinDt < 0.0 ||
       (advectionOrder != 2 && advectionOrder != 3) ||
       cDivStrength < 0.0 ||
+      surfaceTensionStrength < 0.0 ||
+      surfaceTensionMaxDeltaSpeed < 0.0 ||
       liquidVolumeTargetOverride < -0.5 ||
       sparseAdaptive.narrow_band_air_radius < 0 ||
       sparseAdaptive.gas_particles_per_cell_target <= 0 ||
@@ -463,6 +487,7 @@ int main(int argc, char** argv) {
   double mrLiquidVolumeErrorLast = mr.liquid_volume_error_last;
   double mrCDivLast = mr.c_div_last;
   InterfaceDiagnostics3D mrInterfaceDiagnostics = mr.interface_diagnostics_last;
+  SurfaceTensionStats3D mrSurfaceTensionStats = mr.surface_tension_stats_last;
   bool mrFinite = finiteParticles(mr.particles);
   int mrPressureCells = mr.activePressureCellCount();
   long long mrMs = std::chrono::duration_cast<std::chrono::milliseconds>(mrEnd - mrStart).count();
@@ -493,6 +518,7 @@ int main(int argc, char** argv) {
   double adaptiveMrLiquidVolumeErrorLast = mrLiquidVolumeErrorLast;
   double adaptiveMrCDivLast = mrCDivLast;
   InterfaceDiagnostics3D adaptiveMrInterfaceDiagnostics = mrInterfaceDiagnostics;
+  SurfaceTensionStats3D adaptiveMrSurfaceTensionStats = mrSurfaceTensionStats;
   int adaptiveMrLiquidRefillAdded0 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAdded1 = mr.liquid_particle_refill_added_total;
   int adaptiveMrLiquidRefillAddedDuringRun = 0;
@@ -553,6 +579,7 @@ int main(int argc, char** argv) {
     adaptiveMrLiquidVolumeErrorLast = mrAdaptive.liquid_volume_error_last;
     adaptiveMrCDivLast = mrAdaptive.c_div_last;
     adaptiveMrInterfaceDiagnostics = mrAdaptive.interface_diagnostics_last;
+    adaptiveMrSurfaceTensionStats = mrAdaptive.surface_tension_stats_last;
     adaptiveMrLiquidCoarseningRemoved1 = mrAdaptive.liquid_particle_coarsening_removed_total;
     adaptiveMrLiquidCoarseningRemovedDuringRun =
       adaptiveMrLiquidCoarseningRemoved1 - adaptiveMrLiquidCoarseningRemoved0;
@@ -617,6 +644,10 @@ int main(int argc, char** argv) {
               cDivVolumeCorrection ? "true" : "false");
   std::printf("c_div_strength=%.9g\n", cDivStrength);
   std::printf("liquid_volume_target_override=%.9g\n", liquidVolumeTargetOverride);
+  std::printf("surface_tension=%s\n", surfaceTension ? "true" : "false");
+  std::printf("surface_tension_strength=%.9g\n", surfaceTensionStrength);
+  std::printf("surface_tension_max_delta_speed=%.9g\n",
+              surfaceTensionMaxDeltaSpeed);
   std::printf("escaped_particle_branching=%s\n",
               escapedParticleBranching ? "true" : "false");
   std::printf("rho_l=%.9g\n", mr.phase.rho_l);
@@ -801,6 +832,22 @@ int main(int argc, char** argv) {
               adaptiveMetrics.interfaceDiagnostics.finite ? "true" : "false");
   std::printf("adaptive_sparse_surface_tension_candidate=%s\n",
               adaptiveMetrics.interfaceDiagnostics.surface_tension_candidate ? "true" : "false");
+  std::printf("sparse_surface_tension_enabled=%s\n",
+              sparseMetrics.surfaceTensionStats.enabled ? "true" : "false");
+  std::printf("sparse_surface_tension_applied_cells=%d\n",
+              sparseMetrics.surfaceTensionStats.applied_cells);
+  std::printf("sparse_surface_tension_force_finite=%s\n",
+              sparseMetrics.surfaceTensionStats.finite ? "true" : "false");
+  std::printf("sparse_surface_tension_max_delta_speed_last=%.9g\n",
+              sparseMetrics.surfaceTensionStats.max_delta_speed);
+  std::printf("adaptive_sparse_surface_tension_enabled=%s\n",
+              adaptiveMetrics.surfaceTensionStats.enabled ? "true" : "false");
+  std::printf("adaptive_sparse_surface_tension_applied_cells=%d\n",
+              adaptiveMetrics.surfaceTensionStats.applied_cells);
+  std::printf("adaptive_sparse_surface_tension_force_finite=%s\n",
+              adaptiveMetrics.surfaceTensionStats.finite ? "true" : "false");
+  std::printf("adaptive_sparse_surface_tension_max_delta_speed_last=%.9g\n",
+              adaptiveMetrics.surfaceTensionStats.max_delta_speed);
   std::printf("mr_liquid_particles_start=%zu\n", mrLiquid0);
   std::printf("mr_liquid_particles_end=%zu\n", mrLiquid1);
   std::printf("mr_gas_particles_start=%zu\n", mrGasCount0);
@@ -895,6 +942,22 @@ int main(int argc, char** argv) {
               adaptiveMrInterfaceDiagnostics.finite ? "true" : "false");
   std::printf("adaptive_mr_surface_tension_candidate=%s\n",
               adaptiveMrInterfaceDiagnostics.surface_tension_candidate ? "true" : "false");
+  std::printf("mr_surface_tension_enabled=%s\n",
+              mrSurfaceTensionStats.enabled ? "true" : "false");
+  std::printf("mr_surface_tension_applied_cells=%d\n",
+              mrSurfaceTensionStats.applied_cells);
+  std::printf("mr_surface_tension_force_finite=%s\n",
+              mrSurfaceTensionStats.finite ? "true" : "false");
+  std::printf("mr_surface_tension_max_delta_speed_last=%.9g\n",
+              mrSurfaceTensionStats.max_delta_speed);
+  std::printf("adaptive_mr_surface_tension_enabled=%s\n",
+              adaptiveMrSurfaceTensionStats.enabled ? "true" : "false");
+  std::printf("adaptive_mr_surface_tension_applied_cells=%d\n",
+              adaptiveMrSurfaceTensionStats.applied_cells);
+  std::printf("adaptive_mr_surface_tension_force_finite=%s\n",
+              adaptiveMrSurfaceTensionStats.finite ? "true" : "false");
+  std::printf("adaptive_mr_surface_tension_max_delta_speed_last=%.9g\n",
+              adaptiveMrSurfaceTensionStats.max_delta_speed);
   std::printf("sparse_finite=%s\n", sparseMetrics.finite ? "true" : "false");
   std::printf("adaptive_sparse_finite=%s\n",
               adaptiveMetrics.finite ? "true" : "false");
@@ -1081,8 +1144,30 @@ int main(int argc, char** argv) {
     return steps == 0 ||
            (diagnostics.finite && diagnostics.sample_cells > 0);
   };
+  auto surfaceTensionOk = [&](const InterfaceDiagnostics3D& diagnostics,
+                              const SurfaceTensionStats3D& stats) {
+    if (surfaceTension) {
+      if (!stats.enabled || !stats.finite) return false;
+      if (steps > 0 && diagnostics.interface_cells > 0 && stats.applied_cells <= 0) {
+        return false;
+      }
+      if (surfaceTensionMaxDeltaSpeed > 0.0 &&
+          stats.max_delta_speed > surfaceTensionMaxDeltaSpeed + 1e-12) {
+        return false;
+      }
+      return true;
+    }
+    return !stats.enabled && stats.applied_cells == 0;
+  };
   if (!interfaceDiagnosticsOk(sparseMetrics.interfaceDiagnostics)) ok = false;
   if (!interfaceDiagnosticsOk(mrInterfaceDiagnostics)) ok = false;
+  if (!surfaceTensionOk(sparseMetrics.interfaceDiagnostics,
+                        sparseMetrics.surfaceTensionStats)) {
+    ok = false;
+  }
+  if (!surfaceTensionOk(mrInterfaceDiagnostics, mrSurfaceTensionStats)) {
+    ok = false;
+  }
   auto secondaryOk = [&](int dropletCandidates,
                          int bubbleCandidates,
                          int dropletsAdded,
@@ -1173,6 +1258,10 @@ int main(int argc, char** argv) {
       ok = false;
     }
     if (!interfaceDiagnosticsOk(adaptiveMetrics.interfaceDiagnostics)) ok = false;
+    if (!surfaceTensionOk(adaptiveMetrics.interfaceDiagnostics,
+                          adaptiveMetrics.surfaceTensionStats)) {
+      ok = false;
+    }
     if (!secondaryOk(adaptiveMetrics.escapedDropletCandidatesTotal,
                      adaptiveMetrics.escapedBubbleCandidatesTotal,
                      adaptiveMetrics.escapedDropletsAddedTotal,
@@ -1239,6 +1328,10 @@ int main(int argc, char** argv) {
       ok = false;
     }
     if (!interfaceDiagnosticsOk(adaptiveMrInterfaceDiagnostics)) ok = false;
+    if (!surfaceTensionOk(adaptiveMrInterfaceDiagnostics,
+                          adaptiveMrSurfaceTensionStats)) {
+      ok = false;
+    }
     if (!secondaryOk(adaptiveMrEscapedDropletCandidatesTotal,
                      adaptiveMrEscapedBubbleCandidatesTotal,
                      adaptiveMrEscapedDropletsAddedTotal,

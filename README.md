@@ -111,6 +111,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S22** | **Physical residual escaped-particle classification** - sparse/MR 3D TP sims now classify boundary-clamped liquid as droplet candidates and gas as bubble candidates for later secondary-particle handling. | done |
 | **S23** | **Physical residual escaped-particle branching scaffold** - opt-in sparse/MR 3D TP sims store boundary-clamped liquid/gas escape events into secondary droplet/bubble particle containers. | done |
 | **S24** | **Physical residual interface diagnostics** - sparse/MR 3D TP sims report phase-interface gradient and curvature metrics so surface-tension work can be gated by measured interface behavior. | done |
+| **S25** | **Physical residual surface tension scaffold** - sparse/MR 3D TP sims expose opt-in bounded CSF-style interface force with validator and paired-bench diagnostics. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
