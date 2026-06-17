@@ -147,6 +147,8 @@ TEST_CASE("sparse 3D tp advect reports phase boundary clamps") {
   CHECK(stats.clamped_x_hi == 1);
   CHECK(stats.clamped_y_lo == 1);
   CHECK(stats.clamped_total() == 2);
+  CHECK(stats.droplet_candidates() == 1);
+  CHECK(stats.bubble_candidates() == 1);
 }
 
 TEST_CASE("sparse 3D tp advect RK3 follows a linear velocity field") {

@@ -14,6 +14,14 @@ struct ParticleEscapeStats3D {
     return clamped_liquid + clamped_gas;
   }
 
+  int droplet_candidates() const {
+    return clamped_liquid;
+  }
+
+  int bubble_candidates() const {
+    return clamped_gas;
+  }
+
   void recordClamp(unsigned char type,
                    bool xLo,
                    bool xHi,

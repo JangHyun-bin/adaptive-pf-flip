@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
   sim.c_div_volume_correction = hasFlag(argc, argv, "--c-div-volume-correction");
   sim.c_div_strength = argDouble(argc, argv, "--c-div-strength", sim.c_div_strength);
   const double liquidVolumeTargetOverride =
-    argDouble(argc, argv, "--liquid-volume-target", -1.0);
+    argDouble(argc, argv, "--liquid-volume-target", -0.25);
   sim.narrow_band_air = hasFlag(argc, argv, "--narrow-band-air");
   sim.narrow_band_air_radius =
     argInt(argc, argv, "--narrow-band-radius", sim.narrow_band_air_radius);
@@ -273,6 +273,14 @@ int main(int argc, char** argv) {
               sim.particle_boundary_clamped_liquid_total);
   std::printf("particle_boundary_clamped_gas_total=%d\n",
               sim.particle_boundary_clamped_gas_total);
+  std::printf("escaped_droplet_candidates_last=%d\n",
+              sim.escaped_droplet_candidates_last);
+  std::printf("escaped_bubble_candidates_last=%d\n",
+              sim.escaped_bubble_candidates_last);
+  std::printf("escaped_droplet_candidates_total=%d\n",
+              sim.escaped_droplet_candidates_total);
+  std::printf("escaped_bubble_candidates_total=%d\n",
+              sim.escaped_bubble_candidates_total);
   std::printf("particle_boundary_clamped_x_lo_last=%d\n",
               sim.particle_boundary_clamped_x_lo_last);
   std::printf("particle_boundary_clamped_x_hi_last=%d\n",

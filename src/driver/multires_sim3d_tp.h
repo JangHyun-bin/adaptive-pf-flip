@@ -119,6 +119,10 @@ struct MRSim3DTP {
   int particle_boundary_clamped_y_hi_last = 0;
   int particle_boundary_clamped_z_lo_last = 0;
   int particle_boundary_clamped_z_hi_last = 0;
+  int escaped_droplet_candidates_last = 0;
+  int escaped_bubble_candidates_last = 0;
+  int escaped_droplet_candidates_total = 0;
+  int escaped_bubble_candidates_total = 0;
   MRPressureSolveStats3D last_pressure_stats;
 
   MRSim3DTP(int nx, int ny, int nz, double dx);

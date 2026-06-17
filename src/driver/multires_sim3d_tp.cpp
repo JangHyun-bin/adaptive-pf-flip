@@ -252,6 +252,10 @@ void resetParticleBoundaryStats(MRSim3DTP& sim) {
   sim.particle_boundary_clamped_y_hi_last = 0;
   sim.particle_boundary_clamped_z_lo_last = 0;
   sim.particle_boundary_clamped_z_hi_last = 0;
+  sim.escaped_droplet_candidates_last = 0;
+  sim.escaped_bubble_candidates_last = 0;
+  sim.escaped_droplet_candidates_total = 0;
+  sim.escaped_bubble_candidates_total = 0;
 }
 
 void storeParticleBoundaryStats(MRSim3DTP& sim, const ParticleEscapeStats3D& stats) {
@@ -265,6 +269,10 @@ void storeParticleBoundaryStats(MRSim3DTP& sim, const ParticleEscapeStats3D& sta
   sim.particle_boundary_clamped_y_hi_last = stats.clamped_y_hi;
   sim.particle_boundary_clamped_z_lo_last = stats.clamped_z_lo;
   sim.particle_boundary_clamped_z_hi_last = stats.clamped_z_hi;
+  sim.escaped_droplet_candidates_last = stats.droplet_candidates();
+  sim.escaped_bubble_candidates_last = stats.bubble_candidates();
+  sim.escaped_droplet_candidates_total += sim.escaped_droplet_candidates_last;
+  sim.escaped_bubble_candidates_total += sim.escaped_bubble_candidates_last;
 }
 
 void resetTimestepStats(MRSim3DTP& sim) {

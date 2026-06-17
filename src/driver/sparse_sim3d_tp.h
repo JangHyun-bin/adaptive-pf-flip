@@ -73,6 +73,10 @@ struct SparseSim3DTP {
   int particle_boundary_clamped_y_hi_last = 0;
   int particle_boundary_clamped_z_lo_last = 0;
   int particle_boundary_clamped_z_hi_last = 0;
+  int escaped_droplet_candidates_last = 0;
+  int escaped_bubble_candidates_last = 0;
+  int escaped_droplet_candidates_total = 0;
+  int escaped_bubble_candidates_total = 0;
 
   SparseSim3DTP(int nx, int ny, int nz, double dx) : grid(nx, ny, nz, dx) {}
   void initTwoPhaseDamBreak();
