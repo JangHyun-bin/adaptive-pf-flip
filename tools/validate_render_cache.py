@@ -46,6 +46,12 @@ def require_int(value, label):
     return value
 
 
+def require_bool(value, label):
+    if not isinstance(value, bool):
+        fail(f"{label}: expected boolean")
+    return value
+
+
 def require_nonnegative(value, label):
     value = require_finite(value, label)
     if value < 0.0:
@@ -75,6 +81,29 @@ def require_dims(value, label):
     return tuple(dims)
 
 
+def optional_schema_version(rec, label):
+    value = rec.get("cache_schema_version", 1)
+    value = require_int(value, f"{label}.cache_schema_version")
+    if value not in (1, 2):
+        fail(f"{label}.cache_schema_version: expected 1 or 2")
+    return value
+
+
+def require_world_units(value, label):
+    if not isinstance(value, str) or not value:
+        fail(f"{label}: expected non-empty world units string")
+    return value
+
+
+def require_bounds_pair(rec, label, min_key, max_key):
+    lo = require_vec3(rec.get(min_key), f"{label}.{min_key}")
+    hi = require_vec3(rec.get(max_key), f"{label}.{max_key}")
+    for axis in range(3):
+        if hi[axis] < lo[axis]:
+            fail(f"{label}: {max_key}[{axis}] must be >= {min_key}[{axis}]")
+    return lo, hi
+
+
 def resolve_frame_path(base_dir, path):
     if os.path.isabs(path):
         return path
@@ -84,7 +113,7 @@ def resolve_frame_path(base_dir, path):
     return path
 
 
-def load_manifest(path):
+def load_manifest(path, require_cinematic=False):
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
@@ -93,6 +122,9 @@ def load_manifest(path):
 
     if data.get("lsfs_cache3d_manifest_version") != 1:
         fail(f"{path}: expected lsfs_cache3d_manifest_version=1")
+    schema_version = optional_schema_version(data, path)
+    if require_cinematic and schema_version < 2:
+        fail(f"{path}: require-cinematic needs cache_schema_version >= 2")
     sim_kind = data.get("sim_kind")
     if sim_kind not in SIM_KINDS:
         fail(f"{path}: invalid sim_kind {sim_kind!r}")
@@ -104,6 +136,9 @@ def load_manifest(path):
     frame_count = require_int(data.get("frame_count"), f"{path}: frame_count")
     if frame_count != len(frames):
         fail(f"{path}: frame_count {frame_count} != frames length {len(frames)}")
+    if require_cinematic or schema_version >= 2:
+        require_world_units(data.get("world_units"), f"{path}: world_units")
+        require_bounds_pair(data, path, "frame_bounds_min", "frame_bounds_max")
 
     base_dir = os.path.dirname(os.path.abspath(path))
     parsed_frames = []
@@ -133,6 +168,12 @@ def load_manifest(path):
             fail(f"{path}: missing frame file {frame_path}")
         if bytes_value > 0 and os.path.getsize(resolved) != bytes_value:
             fail(f"{path}: byte size mismatch for {frame_path}")
+        if require_cinematic or schema_version >= 2:
+            shutter_open = require_finite(frame.get("shutter_open"), f"{path}: frames[{i}].shutter_open")
+            shutter_close = require_finite(frame.get("shutter_close"), f"{path}: frames[{i}].shutter_close")
+            if shutter_close < shutter_open:
+                fail(f"{path}: frames[{i}].shutter_close must be >= shutter_open")
+            require_bounds_pair(frame, f"{path}: frames[{i}]", "frame_bounds_min", "frame_bounds_max")
         parsed_frames.append({
             "frame": frame_index,
             "step": step,
@@ -147,16 +188,17 @@ def load_manifest(path):
     return {
         "path": path,
         "sim_kind": sim_kind,
+        "schema_version": schema_version,
         "dims": dims,
         "dx": dx,
         "frames": parsed_frames,
     }
 
 
-def discover_inputs(src):
+def discover_inputs(src, require_cinematic=False):
     manifest = None
     if os.path.isfile(src) and src.lower().endswith(".json"):
-        manifest = load_manifest(src)
+        manifest = load_manifest(src, require_cinematic=require_cinematic)
         files = [f["path"] for f in manifest["frames"]]
         return manifest, files
 
@@ -199,9 +241,12 @@ def require_single_section(path, records, section):
     return found[0]
 
 
-def validate_header(path, rec, expected):
+def validate_header(path, rec, expected, require_cinematic=False):
     if rec.get("lsfs_cache3d_version") != 1:
         fail(f"{path}: header missing lsfs_cache3d_version=1")
+    schema_version = optional_schema_version(rec, f"{path}: header")
+    if require_cinematic and schema_version < 2:
+        fail(f"{path}: header require-cinematic needs cache_schema_version >= 2")
     sim_kind = rec.get("sim_kind")
     if sim_kind not in SIM_KINDS:
         fail(f"{path}: header invalid sim_kind {sim_kind!r}")
@@ -210,6 +255,13 @@ def validate_header(path, rec, expected):
     dt = require_positive(rec.get("dt"), f"{path}: header.dt")
     dims = require_dims(rec.get("dims"), f"{path}: header.dims")
     dx = require_positive(rec.get("dx"), f"{path}: header.dx")
+    if require_cinematic or schema_version >= 2:
+        require_world_units(rec.get("world_units"), f"{path}: header.world_units")
+        shutter_open = require_finite(rec.get("shutter_open"), f"{path}: header.shutter_open")
+        shutter_close = require_finite(rec.get("shutter_close"), f"{path}: header.shutter_close")
+        if shutter_close < shutter_open:
+            fail(f"{path}: header.shutter_close must be >= shutter_open")
+        require_bounds_pair(rec, f"{path}: header", "frame_bounds_min", "frame_bounds_max")
     phase = rec.get("phase")
     if not isinstance(phase, dict):
         fail(f"{path}: header.phase must be an object")
@@ -230,10 +282,18 @@ def validate_header(path, rec, expected):
         if manifest_time is not None and abs(time - manifest_time) > 1e-8:
             fail(f"{path}: header time {time} != manifest time {manifest_time}")
 
-    return {"sim_kind": sim_kind, "frame": frame, "time": time, "dt": dt, "dims": dims, "dx": dx}
+    return {
+        "sim_kind": sim_kind,
+        "schema_version": schema_version,
+        "frame": frame,
+        "time": time,
+        "dt": dt,
+        "dims": dims,
+        "dx": dx,
+    }
 
 
-def validate_camera(path, rec):
+def validate_camera(path, rec, require_cinematic=False):
     for key in ("position", "target", "up"):
         require_vec3(rec.get(key), f"{path}: camera.{key}")
     require_positive(rec.get("fov_degrees"), f"{path}: camera.fov_degrees")
@@ -241,9 +301,13 @@ def validate_camera(path, rec):
     far_clip = require_positive(rec.get("far_clip"), f"{path}: camera.far_clip")
     if far_clip <= near_clip:
         fail(f"{path}: camera far_clip must be greater than near_clip")
+    has_cinematic = "vertical_fov_degrees" in rec or "focal_length_mm" in rec
+    if require_cinematic or has_cinematic:
+        require_positive(rec.get("vertical_fov_degrees"), f"{path}: camera.vertical_fov_degrees")
+        require_positive(rec.get("focal_length_mm"), f"{path}: camera.focal_length_mm")
 
 
-def validate_water(path, rec):
+def validate_water(path, rec, require_cinematic=False):
     volumes = {}
     for key in (
         "primary_liquid_volume",
@@ -256,7 +320,42 @@ def validate_water(path, rec):
     phase_field_cells = require_int(rec.get("phase_field_cells"), f"{path}: water_volume.phase_field_cells")
     if phase_field_cells < 0:
         fail(f"{path}: water_volume.phase_field_cells must be non-negative")
-    return volumes, phase_field_cells
+    counts = None
+    has_counts = any(key in rec for key in (
+        "primary_liquid_count",
+        "primary_gas_count",
+        "secondary_droplet_count",
+        "secondary_bubble_count",
+        "secondary_particle_count",
+        "secondary_droplet_age_min",
+        "secondary_droplet_age_max",
+        "secondary_bubble_age_min",
+        "secondary_bubble_age_max",
+    ))
+    if require_cinematic or has_counts:
+        counts = {}
+        for key in (
+            "primary_liquid_count",
+            "primary_gas_count",
+            "secondary_droplet_count",
+            "secondary_bubble_count",
+            "secondary_particle_count",
+            "secondary_droplet_age_min",
+            "secondary_droplet_age_max",
+            "secondary_bubble_age_min",
+            "secondary_bubble_age_max",
+        ):
+            value = require_int(rec.get(key), f"{path}: water_volume.{key}")
+            if value < 0:
+                fail(f"{path}: water_volume.{key} must be non-negative")
+            counts[key] = value
+        if counts["secondary_particle_count"] != counts["secondary_droplet_count"] + counts["secondary_bubble_count"]:
+            fail(f"{path}: water_volume.secondary_particle_count mismatch")
+        if counts["secondary_droplet_age_max"] < counts["secondary_droplet_age_min"]:
+            fail(f"{path}: water_volume secondary droplet age range is inverted")
+        if counts["secondary_bubble_age_max"] < counts["secondary_bubble_age_min"]:
+            fail(f"{path}: water_volume secondary bubble age range is inverted")
+    return volumes, phase_field_cells, counts
 
 
 def validate_phase(path, phase_field_rec, phase_cells, dims, dx):
@@ -312,6 +411,11 @@ def validate_particles(path, particle_sections, particle_records, dims, dx):
             fail(f"{path}: missing {required} particles declaration")
 
     observed = {kind: 0 for kind in PARTICLE_KINDS}
+    observed_by_phase = {
+        kind: {phase: 0 for phase in PARTICLE_PHASES}
+        for kind in PARTICLE_KINDS
+    }
+    ages = {kind: [] for kind in PARTICLE_KINDS}
     volumes = {
         kind: {phase: 0.0 for phase in PARTICLE_PHASES}
         for kind in PARTICLE_KINDS
@@ -338,36 +442,123 @@ def validate_particles(path, particle_sections, particle_records, dims, dx):
             age = require_int(rec.get("age"), f"{path}:{line_no}: particle.age")
             if age < 0:
                 fail(f"{path}:{line_no}: particle.age must be non-negative")
+            ages[kind].append(age)
         observed[kind] += 1
+        observed_by_phase[kind][phase] += 1
         volumes[kind][phase] += volume
         _ = vel
 
     for kind, count in declared.items():
         if observed[kind] != count:
             fail(f"{path}: particles kind {kind} count {count} != records {observed[kind]}")
-    return sum(observed.values()), volumes
+    age_ranges = {}
+    for kind, values in ages.items():
+        if values:
+            age_ranges[kind] = (min(values), max(values))
+        else:
+            age_ranges[kind] = (0, 0)
+    return sum(observed.values()), volumes, observed, observed_by_phase, age_ranges
 
 
-def validate_frame(path, expected=None):
+def validate_cinematic_metadata(path,
+                                records,
+                                header,
+                                particle_counts,
+                                particle_counts_by_phase,
+                                phase_cell_count,
+                                require_cinematic=False):
+    sections = section_records(records, "cinematic_metadata")
+    if not sections:
+        if require_cinematic:
+            fail(f"{path}: missing cinematic_metadata section")
+        return
+    if len(sections) != 1:
+        fail(f"{path}: expected at most one cinematic_metadata section, found {len(sections)}")
+    _, rec = sections[0]
+    schema_version = optional_schema_version(rec, f"{path}: cinematic_metadata")
+    if schema_version < 2:
+        fail(f"{path}: cinematic_metadata requires cache_schema_version >= 2")
+    require_world_units(rec.get("world_units"), f"{path}: cinematic_metadata.world_units")
+    shutter_open = require_finite(rec.get("shutter_open"), f"{path}: cinematic_metadata.shutter_open")
+    shutter_close = require_finite(rec.get("shutter_close"), f"{path}: cinematic_metadata.shutter_close")
+    if shutter_close < shutter_open:
+        fail(f"{path}: cinematic_metadata.shutter_close must be >= shutter_open")
+    frame_time = require_finite(rec.get("frame_time"), f"{path}: cinematic_metadata.frame_time")
+    if abs(frame_time - header["time"]) > 1e-8:
+        fail(f"{path}: cinematic_metadata.frame_time does not match header time")
+    stride = require_int(rec.get("phase_field_sampling_stride"), f"{path}: cinematic_metadata.phase_field_sampling_stride")
+    if stride <= 0:
+        fail(f"{path}: cinematic_metadata.phase_field_sampling_stride must be positive")
+    require_bool(rec.get("water_bounds_valid"), f"{path}: cinematic_metadata.water_bounds_valid")
+    require_bool(rec.get("secondary_bounds_valid"), f"{path}: cinematic_metadata.secondary_bounds_valid")
+    for prefix in ("frame_bounds", "water_bounds", "secondary_bounds"):
+        require_bounds_pair(rec, f"{path}: cinematic_metadata", f"{prefix}_min", f"{prefix}_max")
+
+    primary_count = require_int(rec.get("primary_particle_count"), f"{path}: cinematic_metadata.primary_particle_count")
+    primary_liquid = require_int(rec.get("primary_liquid_count"), f"{path}: cinematic_metadata.primary_liquid_count")
+    primary_gas = require_int(rec.get("primary_gas_count"), f"{path}: cinematic_metadata.primary_gas_count")
+    droplets = require_int(rec.get("secondary_droplet_count"), f"{path}: cinematic_metadata.secondary_droplet_count")
+    bubbles = require_int(rec.get("secondary_bubble_count"), f"{path}: cinematic_metadata.secondary_bubble_count")
+    if min(primary_count, primary_liquid, primary_gas, droplets, bubbles) < 0:
+        fail(f"{path}: cinematic_metadata counts must be non-negative")
+    if primary_count != particle_counts["primary"]:
+        fail(f"{path}: cinematic_metadata.primary_particle_count mismatch")
+    if primary_liquid != particle_counts_by_phase["primary"]["liquid"]:
+        fail(f"{path}: cinematic_metadata.primary_liquid_count mismatch")
+    if primary_gas != particle_counts_by_phase["primary"]["gas"]:
+        fail(f"{path}: cinematic_metadata.primary_gas_count mismatch")
+    if droplets != particle_counts["secondary_droplet"]:
+        fail(f"{path}: cinematic_metadata.secondary_droplet_count mismatch")
+    if bubbles != particle_counts["secondary_bubble"]:
+        fail(f"{path}: cinematic_metadata.secondary_bubble_count mismatch")
+    _ = phase_cell_count
+
+
+def validate_frame(path, expected=None, require_cinematic=False):
     records = parse_jsonl(path)
     _, header_rec = require_single_section(path, records, "header")
     _, camera_rec = require_single_section(path, records, "camera")
     _, water_rec = require_single_section(path, records, "water_volume")
     _, phase_field_rec = require_single_section(path, records, "phase_field")
 
-    header = validate_header(path, header_rec, expected)
-    validate_camera(path, camera_rec)
-    water, phase_field_cells_declared = validate_water(path, water_rec)
+    header = validate_header(path, header_rec, expected, require_cinematic=require_cinematic)
+    validate_camera(path, camera_rec, require_cinematic=require_cinematic)
+    water, phase_field_cells_declared, water_counts = validate_water(
+        path, water_rec, require_cinematic=require_cinematic)
     phase_cells = section_records(records, "phase_cell")
     particle_sections = section_records(records, "particles")
     particle_records = section_records(records, "particle")
     phase_cell_count, phase_liquid_volume = validate_phase(
         path, phase_field_rec, phase_cells, header["dims"], header["dx"])
-    particle_count, particle_volumes = validate_particles(
+    particle_count, particle_volumes, particle_counts, particle_counts_by_phase, age_ranges = validate_particles(
         path, particle_sections, particle_records, header["dims"], header["dx"])
+    validate_cinematic_metadata(path,
+                                records,
+                                header,
+                                particle_counts,
+                                particle_counts_by_phase,
+                                phase_cell_count,
+                                require_cinematic=require_cinematic)
 
     if phase_field_cells_declared != phase_cell_count:
         fail(f"{path}: water_volume.phase_field_cells does not match phase_field count")
+    if water_counts is not None:
+        if water_counts["primary_liquid_count"] != particle_counts_by_phase["primary"]["liquid"]:
+            fail(f"{path}: water_volume.primary_liquid_count mismatch")
+        if water_counts["primary_gas_count"] != particle_counts_by_phase["primary"]["gas"]:
+            fail(f"{path}: water_volume.primary_gas_count mismatch")
+        if water_counts["secondary_droplet_count"] != particle_counts["secondary_droplet"]:
+            fail(f"{path}: water_volume.secondary_droplet_count mismatch")
+        if water_counts["secondary_bubble_count"] != particle_counts["secondary_bubble"]:
+            fail(f"{path}: water_volume.secondary_bubble_count mismatch")
+        if water_counts["secondary_droplet_age_min"] != age_ranges["secondary_droplet"][0]:
+            fail(f"{path}: water_volume.secondary_droplet_age_min mismatch")
+        if water_counts["secondary_droplet_age_max"] != age_ranges["secondary_droplet"][1]:
+            fail(f"{path}: water_volume.secondary_droplet_age_max mismatch")
+        if water_counts["secondary_bubble_age_min"] != age_ranges["secondary_bubble"][0]:
+            fail(f"{path}: water_volume.secondary_bubble_age_min mismatch")
+        if water_counts["secondary_bubble_age_max"] != age_ranges["secondary_bubble"][1]:
+            fail(f"{path}: water_volume.secondary_bubble_age_max mismatch")
     if abs(water["phase_field_liquid_volume"] - phase_liquid_volume) > max(1e-6, 1e-6 * phase_liquid_volume):
         fail(f"{path}: phase field liquid volume summary mismatch")
     if abs(water["primary_liquid_volume"] - particle_volumes["primary"]["liquid"]) > max(1e-6, 1e-6 * particle_volumes["primary"]["liquid"]):
@@ -399,7 +590,7 @@ def validate_frame(path, expected=None):
     }
 
 
-def validate_sequence(files, manifest, max_volume_drift):
+def validate_sequence(files, manifest, max_volume_drift, require_cinematic=False):
     results = []
     prev_frame = -1
     prev_time = -math.inf
@@ -416,7 +607,7 @@ def validate_sequence(files, manifest, max_volume_drift):
 
     for path in files:
         expected = manifest_by_path.get(os.path.abspath(path))
-        result = validate_frame(path, expected)
+        result = validate_frame(path, expected, require_cinematic=require_cinematic)
         if result["frame"] <= prev_frame:
             fail(f"{path}: frame index must be strictly increasing across input")
         if result["time"] < prev_time:
@@ -444,6 +635,8 @@ def main(argv):
                         help="maximum relative water-like volume drift across frames")
     parser.add_argument("--allow-empty-secondary", action="store_true",
                         help="accepted for scripts; secondary particle sections may already be empty")
+    parser.add_argument("--require-cinematic", action="store_true",
+                        help="require cache_schema_version 2 cinematic metadata")
     parser.add_argument("--verbose", action="store_true", help="print one summary line per frame")
     args = parser.parse_args(argv)
 
@@ -452,8 +645,11 @@ def main(argv):
         return 2
 
     try:
-        manifest, files = discover_inputs(args.src)
-        results, max_drift = validate_sequence(files, manifest, args.max_volume_drift)
+        manifest, files = discover_inputs(args.src, require_cinematic=args.require_cinematic)
+        results, max_drift = validate_sequence(files,
+                                               manifest,
+                                               args.max_volume_drift,
+                                               require_cinematic=args.require_cinematic)
     except ValidationError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
         return 1

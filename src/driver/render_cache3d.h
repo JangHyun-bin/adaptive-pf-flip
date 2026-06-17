@@ -9,8 +9,10 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 struct RenderCacheCamera3D {
@@ -20,6 +22,7 @@ struct RenderCacheCamera3D {
   double fov_degrees = 45.0;
   double near_clip = 0.1;
   double far_clip = 1000.0;
+  double focal_length_mm = 50.0;
 };
 
 struct RenderCacheCell3D {
@@ -51,14 +54,58 @@ inline RenderCacheCamera3D defaultRenderCacheCamera3D(int nx, int ny, int nz, do
     Vec3{0.0, 1.0, 0.0},
     45.0,
     0.05 * dx,
-    5.0 * span
+    5.0 * span,
+    50.0
   };
 }
 
 namespace render_cache3d_detail {
 
+constexpr int kCacheSchemaVersion = 2;
+constexpr const char* kWorldUnits = "cell";
+
+struct Bounds3D {
+  Vec3 min;
+  Vec3 max;
+  bool valid = false;
+};
+
 inline bool finiteVec(const Vec3& v) {
   return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+}
+
+inline Bounds3D emptyBounds() {
+  const double inf = std::numeric_limits<double>::infinity();
+  return Bounds3D{Vec3{inf, inf, inf}, Vec3{-inf, -inf, -inf}, false};
+}
+
+inline Bounds3D domainBounds(int nx, int ny, int nz, double dx) {
+  return Bounds3D{
+    Vec3{0.0, 0.0, 0.0},
+    Vec3{nx * dx, ny * dx, nz * dx},
+    true
+  };
+}
+
+inline void includePoint(Bounds3D& bounds, const Vec3& p) {
+  if (!finiteVec(p)) return;
+  if (!bounds.valid) {
+    bounds.min = p;
+    bounds.max = p;
+    bounds.valid = true;
+    return;
+  }
+  bounds.min.x = std::min(bounds.min.x, p.x);
+  bounds.min.y = std::min(bounds.min.y, p.y);
+  bounds.min.z = std::min(bounds.min.z, p.z);
+  bounds.max.x = std::max(bounds.max.x, p.x);
+  bounds.max.y = std::max(bounds.max.y, p.y);
+  bounds.max.z = std::max(bounds.max.z, p.z);
+}
+
+inline void includeBox(Bounds3D& bounds, const Vec3& lo, const Vec3& hi) {
+  includePoint(bounds, lo);
+  includePoint(bounds, hi);
 }
 
 inline void requireValidPath(const std::string& path) {
@@ -114,8 +161,27 @@ inline void writeVec3(std::ostream& out, const char* key, const Vec3& v) {
   out << "\"" << key << "\":[" << v.x << "," << v.y << "," << v.z << "]";
 }
 
+inline void writeBounds(std::ostream& out,
+                        const char* minKey,
+                        const char* maxKey,
+                        const Bounds3D& bounds,
+                        const Bounds3D& fallback) {
+  const Bounds3D& b = bounds.valid ? bounds : fallback;
+  writeVec3(out, minKey, b.min);
+  out << ",";
+  writeVec3(out, maxKey, b.max);
+}
+
 inline const char* particlePhaseName(unsigned char type) {
   return type == 0 ? "liquid" : "gas";
+}
+
+inline size_t particleCountByType(const Particles3DTP& ps, unsigned char type) {
+  size_t count = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (ps.type[i] == type) ++count;
+  }
+  return count;
 }
 
 inline double particleVolume(const Particles3DTP& ps, size_t p, double volumeScale) {
@@ -138,6 +204,50 @@ inline double secondaryVolume(const Particles3DTP& ps, double volumeScale) {
     volume += particleVolume(ps, i, volumeScale);
   }
   return volume;
+}
+
+inline std::pair<int, int> secondaryAgeRange(const Particles3DTP& ps,
+                                             const std::vector<int>& ages) {
+  if (ps.size() == 0) return {0, 0};
+  int minAge = std::numeric_limits<int>::max();
+  int maxAge = 0;
+  for (size_t i = 0; i < ps.size(); ++i) {
+    const int age = i < ages.size() ? std::max(0, ages[i]) : 0;
+    minAge = std::min(minAge, age);
+    maxAge = std::max(maxAge, age);
+  }
+  return {minAge == std::numeric_limits<int>::max() ? 0 : minAge, maxAge};
+}
+
+inline Bounds3D particleBounds(const Particles3DTP& ps, int phaseFilter = -1) {
+  Bounds3D bounds = emptyBounds();
+  for (size_t i = 0; i < ps.size(); ++i) {
+    if (phaseFilter >= 0 && ps.type[i] != static_cast<unsigned char>(phaseFilter)) continue;
+    includePoint(bounds, ps.pos[i]);
+  }
+  return bounds;
+}
+
+inline Bounds3D secondaryBounds(const Particles3DTP& droplets,
+                                const Particles3DTP& bubbles) {
+  Bounds3D bounds = emptyBounds();
+  for (size_t i = 0; i < droplets.size(); ++i) includePoint(bounds, droplets.pos[i]);
+  for (size_t i = 0; i < bubbles.size(); ++i) includePoint(bounds, bubbles.pos[i]);
+  return bounds;
+}
+
+inline Bounds3D waterBounds(const std::vector<RenderCacheCell3D>& cells,
+                            const Particles3DTP& primary,
+                            double dx) {
+  Bounds3D bounds = particleBounds(primary, 0);
+  for (const RenderCacheCell3D& c : cells) {
+    if (c.phi <= 0.0 && c.liquid_volume <= 0.0) continue;
+    const int step = 1 << std::max(0, c.level);
+    includeBox(bounds,
+               Vec3{c.i * dx, c.j * dx, c.k * dx},
+               Vec3{(c.i + step) * dx, (c.j + step) * dx, (c.k + step) * dx});
+  }
+  return bounds;
 }
 
 inline double sparseFacePhi(const SparseMacGrid3D<4>& g,
@@ -212,17 +322,29 @@ inline void writeHeader(std::ostream& out,
                         const RenderCacheCamera3D& camera) {
   if (nx <= 0 || ny <= 0 || nz <= 0 || dx <= 0.0 || !std::isfinite(dx) ||
       !std::isfinite(dt) || !std::isfinite(time) ||
-      !finiteVec(camera.position) || !finiteVec(camera.target) || !finiteVec(camera.up)) {
+      !finiteVec(camera.position) || !finiteVec(camera.target) || !finiteVec(camera.up) ||
+      camera.fov_degrees <= 0.0 || !std::isfinite(camera.fov_degrees) ||
+      camera.near_clip <= 0.0 || camera.far_clip <= camera.near_clip ||
+      !std::isfinite(camera.near_clip) || !std::isfinite(camera.far_clip) ||
+      camera.focal_length_mm <= 0.0 || !std::isfinite(camera.focal_length_mm)) {
     throw std::invalid_argument("invalid render cache metadata");
   }
+  const Bounds3D domain = domainBounds(nx, ny, nz, dx);
+  const double shutterClose = time + std::max(0.0, dt);
 
   out << "{\"section\":\"header\",\"lsfs_cache3d_version\":1"
+      << ",\"cache_schema_version\":" << kCacheSchemaVersion
       << ",\"sim_kind\":\"" << simKind << "\""
       << ",\"frame\":" << frame
       << ",\"time\":" << time
       << ",\"dt\":" << dt
       << ",\"dims\":[" << nx << "," << ny << "," << nz << "]"
       << ",\"dx\":" << dx
+      << ",\"world_units\":\"" << kWorldUnits << "\""
+      << ",\"shutter_open\":" << time
+      << ",\"shutter_close\":" << shutterClose
+      << ",\"frame_bounds_min\":[" << domain.min.x << "," << domain.min.y << "," << domain.min.z << "]"
+      << ",\"frame_bounds_max\":[" << domain.max.x << "," << domain.max.y << "," << domain.max.z << "]"
       << ",\"phase\":{\"rho_l\":" << phase.rho_l
       << ",\"rho_g\":" << phase.rho_g
       << ",\"alpha_phi\":" << phase.alpha_phi
@@ -235,24 +357,78 @@ inline void writeHeader(std::ostream& out,
   out << ",";
   writeVec3(out, "up", camera.up);
   out << ",\"fov_degrees\":" << camera.fov_degrees
+      << ",\"vertical_fov_degrees\":" << camera.fov_degrees
       << ",\"near_clip\":" << camera.near_clip
-      << ",\"far_clip\":" << camera.far_clip << "}\n";
+      << ",\"far_clip\":" << camera.far_clip
+      << ",\"focal_length_mm\":" << camera.focal_length_mm << "}\n";
 }
 
 inline void writeWaterSummary(std::ostream& out,
                               const Particles3DTP& primary,
                               const Particles3DTP& droplets,
                               const Particles3DTP& bubbles,
+                              const std::vector<int>& dropletAges,
+                              const std::vector<int>& bubbleAges,
                               double volumeScale,
                               double phaseFieldLiquidVolume,
                               size_t phaseFieldCells) {
+  const std::pair<int, int> dropletAgesRange = secondaryAgeRange(droplets, dropletAges);
+  const std::pair<int, int> bubbleAgesRange = secondaryAgeRange(bubbles, bubbleAges);
   out << "{\"section\":\"water_volume\""
       << ",\"primary_liquid_volume\":" << particleVolumeByType(primary, 0, volumeScale)
       << ",\"primary_gas_volume\":" << particleVolumeByType(primary, 1, volumeScale)
       << ",\"secondary_droplet_volume\":" << secondaryVolume(droplets, volumeScale)
       << ",\"secondary_bubble_volume\":" << secondaryVolume(bubbles, volumeScale)
       << ",\"phase_field_liquid_volume\":" << phaseFieldLiquidVolume
-      << ",\"phase_field_cells\":" << phaseFieldCells << "}\n";
+      << ",\"phase_field_cells\":" << phaseFieldCells
+      << ",\"primary_liquid_count\":" << particleCountByType(primary, 0)
+      << ",\"primary_gas_count\":" << particleCountByType(primary, 1)
+      << ",\"secondary_droplet_count\":" << droplets.size()
+      << ",\"secondary_bubble_count\":" << bubbles.size()
+      << ",\"secondary_particle_count\":" << (droplets.size() + bubbles.size())
+      << ",\"secondary_droplet_age_min\":" << dropletAgesRange.first
+      << ",\"secondary_droplet_age_max\":" << dropletAgesRange.second
+      << ",\"secondary_bubble_age_min\":" << bubbleAgesRange.first
+      << ",\"secondary_bubble_age_max\":" << bubbleAgesRange.second << "}\n";
+}
+
+inline void writeCinematicMetadata(std::ostream& out,
+                                   int nx,
+                                   int ny,
+                                   int nz,
+                                   double dx,
+                                   double dt,
+                                   double time,
+                                   const std::vector<RenderCacheCell3D>& cells,
+                                   const Particles3DTP& primary,
+                                   const Particles3DTP& droplets,
+                                   const Particles3DTP& bubbles) {
+  const Bounds3D domain = domainBounds(nx, ny, nz, dx);
+  const Bounds3D water = waterBounds(cells, primary, dx);
+  const Bounds3D secondary = secondaryBounds(droplets, bubbles);
+  const double shutterClose = time + std::max(0.0, dt);
+
+  out << "{\"section\":\"cinematic_metadata\""
+      << ",\"cache_schema_version\":" << kCacheSchemaVersion
+      << ",\"world_units\":\"" << kWorldUnits << "\""
+      << ",\"shutter_open\":" << time
+      << ",\"shutter_close\":" << shutterClose
+      << ",\"frame_time\":" << time
+      << ",\"phase_field_sampling_stride\":1"
+      << ",\"water_bounds_valid\":" << (water.valid ? "true" : "false")
+      << ",\"secondary_bounds_valid\":" << (secondary.valid ? "true" : "false")
+      << ",\"primary_particle_count\":" << primary.size()
+      << ",\"primary_liquid_count\":" << particleCountByType(primary, 0)
+      << ",\"primary_gas_count\":" << particleCountByType(primary, 1)
+      << ",\"secondary_droplet_count\":" << droplets.size()
+      << ",\"secondary_bubble_count\":" << bubbles.size();
+  out << ",";
+  writeBounds(out, "frame_bounds_min", "frame_bounds_max", domain, domain);
+  out << ",";
+  writeBounds(out, "water_bounds_min", "water_bounds_max", water, domain);
+  out << ",";
+  writeBounds(out, "secondary_bounds_min", "secondary_bounds_max", secondary, domain);
+  out << "}\n";
 }
 
 inline void writePhaseField(std::ostream& out, const std::vector<RenderCacheCell3D>& cells) {
@@ -369,9 +545,17 @@ inline void writeSparseRenderCache3D(const SparseSim3DTP& sim,
   render_cache3d_detail::writeWaterSummary(out, sim.particles,
                                            sim.escaped_droplets,
                                            sim.escaped_bubbles,
+                                           sim.escaped_droplet_ages,
+                                           sim.escaped_bubble_ages,
                                            sim.Vp,
                                            phaseFieldLiquidVolume,
                                            cells.size());
+  render_cache3d_detail::writeCinematicMetadata(out,
+                                                sim.grid.nx, sim.grid.ny, sim.grid.nz,
+                                                sim.grid.dx, sim.effective_dt_last,
+                                                time, cells, sim.particles,
+                                                sim.escaped_droplets,
+                                                sim.escaped_bubbles);
   render_cache3d_detail::writePhaseField(out, cells);
   render_cache3d_detail::writeParticleSection(out, sim.particles, "primary", nullptr, sim.Vp);
   render_cache3d_detail::writeParticleSection(out, sim.escaped_droplets, "secondary_droplet",
@@ -401,9 +585,17 @@ inline void writeMRRenderCache3D(const MRSim3DTP& sim,
   render_cache3d_detail::writeWaterSummary(out, sim.particles,
                                            sim.escaped_droplets,
                                            sim.escaped_bubbles,
+                                           sim.escaped_droplet_ages,
+                                           sim.escaped_bubble_ages,
                                            sim.Vp,
                                            phaseFieldLiquidVolume,
                                            cells.size());
+  render_cache3d_detail::writeCinematicMetadata(out,
+                                                sim.layout.nx, sim.layout.ny, sim.layout.nz,
+                                                sim.layout.dx, sim.effective_dt_last,
+                                                time, cells, sim.particles,
+                                                sim.escaped_droplets,
+                                                sim.escaped_bubbles);
   render_cache3d_detail::writePhaseField(out, cells);
   render_cache3d_detail::writeParticleSection(out, sim.particles, "primary", nullptr, sim.Vp);
   render_cache3d_detail::writeParticleSection(out, sim.escaped_droplets, "secondary_droplet",
@@ -428,11 +620,15 @@ inline void writeRenderCacheManifest3D(const std::string& path,
   out << std::setprecision(17);
   out << "{\n";
   out << "  \"lsfs_cache3d_manifest_version\":1,\n";
+  out << "  \"cache_schema_version\":" << render_cache3d_detail::kCacheSchemaVersion << ",\n";
+  out << "  \"world_units\":\"" << render_cache3d_detail::kWorldUnits << "\",\n";
   out << "  \"sim_kind\":";
   render_cache3d_detail::writeJsonString(out, simKind);
   out << ",\n";
   out << "  \"dims\":[" << nx << "," << ny << "," << nz << "],\n";
   out << "  \"dx\":" << dx << ",\n";
+  out << "  \"frame_bounds_min\":[0,0,0],\n";
+  out << "  \"frame_bounds_max\":[" << nx * dx << "," << ny * dx << "," << nz * dx << "],\n";
   out << "  \"frame_count\":" << frames.size() << ",\n";
   out << "  \"frames\":[\n";
   for (size_t i = 0; i < frames.size(); ++i) {
@@ -440,6 +636,10 @@ inline void writeRenderCacheManifest3D(const std::string& path,
     out << "    {\"frame\":" << f.frame
         << ",\"step\":" << f.step
         << ",\"time\":" << f.time
+        << ",\"shutter_open\":" << f.time
+        << ",\"shutter_close\":" << f.time
+        << ",\"frame_bounds_min\":[0,0,0]"
+        << ",\"frame_bounds_max\":[" << nx * dx << "," << ny * dx << "," << nz * dx << "]"
         << ",\"path\":";
     render_cache3d_detail::writeJsonString(out, f.path);
     out << ",\"bytes\":" << f.bytes << "}";

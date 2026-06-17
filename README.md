@@ -123,6 +123,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S34** | **SPEC-4 secondary preview controls** - render-cache previews can color secondary droplet/bubble particles by type, age, or speed and isolate them from primary water. | done |
 | **S35** | **Secondary particle physics upgrade** - sparse/MR 3D TP secondary droplets and bubbles expose dt-based drag, droplet gravity scale, buoyancy, and opt-in reabsorb-to-primary accounting. | done |
 | **S36** | **Large-scale benchmark v2** - large-scale CSV runner now records per-phase counts, render-cache export bytes/time, cache validation time, preview time, and total memory proxy. | done |
+| **S37** | **Cinematic cache schema v2** - render cache frames and manifests now carry v2 camera timing, world units, frame bounds, focal metadata, and secondary-channel summaries while preserving v1 compatibility markers. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -203,6 +204,7 @@ cmake --build build --config Release --target export_render_cache3d
 ./build/Release/export_render_cache3d.exe --kind sparse --steps 4 --every 4 --out-prefix render_cache_sparse
 ./build/Release/export_render_cache3d.exe --kind mr --steps 4 --every 4 --out-prefix render_cache_mr
 python tools/validate_render_cache.py render_cache_sparse_manifest.json
+python tools/validate_render_cache.py render_cache_sparse_manifest.json --require-cinematic
 python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview 6
 python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview_age 6 --secondary-mode age
 python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview_speed 6 --secondary-mode speed --hide-primary-water

@@ -90,6 +90,9 @@ def cache_inputs_from_manifest(path):
             return None
     if data.get("lsfs_cache3d_manifest_version") != 1:
         return None
+    schema_version = data.get("cache_schema_version", 1)
+    if not isinstance(schema_version, int) or schema_version < 1:
+        raise RuntimeError(f"{path}: invalid cache_schema_version")
 
     base_dir = os.path.dirname(os.path.abspath(path))
     frames = data.get("frames", [])

@@ -42,9 +42,18 @@ TEST_CASE("sparse 3D render cache writes schema sections") {
   std::remove(path);
 
   CHECK(contains(text, "\"lsfs_cache3d_version\":1"));
+  CHECK(contains(text, "\"cache_schema_version\":2"));
   CHECK(contains(text, "\"sim_kind\":\"sparse3d_tp\""));
   CHECK(contains(text, "\"section\":\"camera\""));
+  CHECK(contains(text, "\"vertical_fov_degrees\""));
+  CHECK(contains(text, "\"focal_length_mm\""));
   CHECK(contains(text, "\"section\":\"water_volume\""));
+  CHECK(contains(text, "\"secondary_droplet_count\":1"));
+  CHECK(contains(text, "\"secondary_droplet_age_min\":7"));
+  CHECK(contains(text, "\"section\":\"cinematic_metadata\""));
+  CHECK(contains(text, "\"world_units\":\"cell\""));
+  CHECK(contains(text, "\"frame_bounds_min\""));
+  CHECK(contains(text, "\"water_bounds_valid\":true"));
   CHECK(contains(text, "\"section\":\"phase_field\""));
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"primary\""));
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"secondary_droplet\""));
@@ -72,9 +81,17 @@ TEST_CASE("multires 3D render cache writes schema sections") {
   std::remove(path);
 
   CHECK(contains(text, "\"lsfs_cache3d_version\":1"));
+  CHECK(contains(text, "\"cache_schema_version\":2"));
   CHECK(contains(text, "\"sim_kind\":\"multires3d_tp\""));
   CHECK(contains(text, "\"section\":\"camera\""));
+  CHECK(contains(text, "\"vertical_fov_degrees\""));
+  CHECK(contains(text, "\"focal_length_mm\""));
   CHECK(contains(text, "\"section\":\"water_volume\""));
+  CHECK(contains(text, "\"secondary_bubble_count\":1"));
+  CHECK(contains(text, "\"secondary_bubble_age_max\":5"));
+  CHECK(contains(text, "\"section\":\"cinematic_metadata\""));
+  CHECK(contains(text, "\"world_units\":\"cell\""));
+  CHECK(contains(text, "\"secondary_bounds_valid\":true"));
   CHECK(contains(text, "\"section\":\"phase_field\""));
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"primary\""));
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"secondary_bubble\""));
@@ -95,8 +112,12 @@ TEST_CASE("3D render cache manifest writes frame sequence") {
   std::remove(path);
 
   CHECK(contains(text, "\"lsfs_cache3d_manifest_version\":1"));
+  CHECK(contains(text, "\"cache_schema_version\":2"));
+  CHECK(contains(text, "\"world_units\":\"cell\""));
   CHECK(contains(text, "\"sim_kind\":\"sparse3d_tp\""));
   CHECK(contains(text, "\"dims\":[8,12,8]"));
+  CHECK(contains(text, "\"frame_bounds_max\":[8,12,8]"));
+  CHECK(contains(text, "\"shutter_open\""));
   CHECK(contains(text, "\"path\":\"cache_000.jsonl\""));
   CHECK(contains(text, "\"step\":3"));
   CHECK(contains(text, "\"bytes\":456"));
