@@ -23,6 +23,7 @@ import sys
 
 PARTICLE_COLUMNS = [
     "kind",
+    "render_channel",
     "index",
     "phase",
     "x",
@@ -272,6 +273,7 @@ def particle_row(rec, path):
     vel = require_vec3(rec.get("velocity"), f"{path}: particle.velocity")
     return {
         "kind": require_string(rec.get("kind"), f"{path}: particle.kind"),
+        "render_channel": rec.get("render_channel", ""),
         "index": require_int(rec.get("index"), f"{path}: particle.index"),
         "phase": require_string(rec.get("phase"), f"{path}: particle.phase"),
         "x": pos[0],
@@ -318,6 +320,7 @@ def convert_frame(manifest, manifest_frame, out_dir, frames_dir, require_cinemat
     camera = single_section(records, "camera", source_path)
     water = single_section(records, "water_volume", source_path)
     cinematic = optional_single_section(records, "cinematic_metadata", source_path)
+    secondary_channels = optional_single_section(records, "secondary_channels", source_path)
     validate_header(header, source_path, manifest, manifest_frame, require_cinematic)
     validate_camera(camera, source_path, require_cinematic)
     validate_cinematic(cinematic, source_path, require_cinematic)
@@ -348,6 +351,7 @@ def convert_frame(manifest, manifest_frame, out_dir, frames_dir, require_cinemat
         "camera": camera,
         "water_volume": water,
         "cinematic_metadata": cinematic,
+        "secondary_channels": secondary_channels,
         "particle_count": len(particles),
         "phase_cell_count": len(phase_cells),
     }

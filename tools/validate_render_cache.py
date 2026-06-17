@@ -20,6 +20,8 @@ import sys
 SIM_KINDS = {"sparse3d_tp", "multires3d_tp"}
 PARTICLE_KINDS = {"primary", "secondary_droplet", "secondary_bubble"}
 PARTICLE_PHASES = {"liquid", "gas"}
+RENDER_CHANNELS = {"water", "air", "droplet", "spray", "foam", "bubble"}
+SECONDARY_RENDER_CHANNELS = {"droplet", "spray", "foam", "bubble"}
 
 
 class ValidationError(Exception):
@@ -92,6 +94,12 @@ def optional_schema_version(rec, label):
 def require_world_units(value, label):
     if not isinstance(value, str) or not value:
         fail(f"{label}: expected non-empty world units string")
+    return value
+
+
+def require_string(value, label):
+    if not isinstance(value, str) or not value:
+        fail(f"{label}: expected non-empty string")
     return value
 
 
@@ -416,6 +424,7 @@ def validate_particles(path, particle_sections, particle_records, dims, dx):
         for kind in PARTICLE_KINDS
     }
     ages = {kind: [] for kind in PARTICLE_KINDS}
+    render_channels = {channel: 0 for channel in SECONDARY_RENDER_CHANNELS}
     volumes = {
         kind: {phase: 0.0 for phase in PARTICLE_PHASES}
         for kind in PARTICLE_KINDS
@@ -430,6 +439,23 @@ def validate_particles(path, particle_sections, particle_records, dims, dx):
         phase = rec.get("phase")
         if phase not in PARTICLE_PHASES:
             fail(f"{path}:{line_no}: invalid particle phase {phase!r}")
+        render_channel = rec.get("render_channel")
+        if render_channel is not None:
+            render_channel = require_string(render_channel, f"{path}:{line_no}: particle.render_channel")
+            if render_channel not in RENDER_CHANNELS:
+                fail(f"{path}:{line_no}: invalid particle render_channel {render_channel!r}")
+            if kind == "primary":
+                expected_channel = "water" if phase == "liquid" else "air"
+                if render_channel != expected_channel:
+                    fail(f"{path}:{line_no}: primary particle render_channel must be {expected_channel!r}")
+            elif kind == "secondary_droplet":
+                if render_channel not in {"droplet", "spray", "foam"}:
+                    fail(f"{path}:{line_no}: secondary_droplet render_channel must be droplet, spray, or foam")
+                render_channels[render_channel] += 1
+            elif kind == "secondary_bubble":
+                if render_channel != "bubble":
+                    fail(f"{path}:{line_no}: secondary_bubble render_channel must be bubble")
+                render_channels["bubble"] += 1
         index = require_int(rec.get("index"), f"{path}:{line_no}: particle.index")
         if index < 0:
             fail(f"{path}:{line_no}: particle.index must be non-negative")
@@ -457,7 +483,43 @@ def validate_particles(path, particle_sections, particle_records, dims, dx):
             age_ranges[kind] = (min(values), max(values))
         else:
             age_ranges[kind] = (0, 0)
-    return sum(observed.values()), volumes, observed, observed_by_phase, age_ranges
+    return sum(observed.values()), volumes, observed, observed_by_phase, age_ranges, render_channels
+
+
+def validate_secondary_channels(path, records, render_channels):
+    sections = section_records(records, "secondary_channels")
+    if not sections:
+        return
+    if len(sections) != 1:
+        fail(f"{path}: expected at most one secondary_channels section, found {len(sections)}")
+    _, rec = sections[0]
+    if rec.get("encoding") != "render_channel_counts":
+        fail(f"{path}: secondary_channels.encoding must be render_channel_counts")
+    names = rec.get("channel_names")
+    if not isinstance(names, list):
+        fail(f"{path}: secondary_channels.channel_names must be a list")
+    for i, name in enumerate(names):
+        if name not in SECONDARY_RENDER_CHANNELS:
+            fail(f"{path}: secondary_channels.channel_names[{i}] invalid channel {name!r}")
+    counts = {}
+    for key, channel in (
+        ("droplet_count", "droplet"),
+        ("spray_count", "spray"),
+        ("foam_count", "foam"),
+        ("bubble_count", "bubble"),
+    ):
+        value = require_int(rec.get(key), f"{path}: secondary_channels.{key}")
+        if value < 0:
+            fail(f"{path}: secondary_channels.{key} must be non-negative")
+        counts[channel] = value
+    total = require_int(rec.get("total_count"), f"{path}: secondary_channels.total_count")
+    if total < 0:
+        fail(f"{path}: secondary_channels.total_count must be non-negative")
+    if total != sum(counts.values()):
+        fail(f"{path}: secondary_channels.total_count mismatch")
+    for channel, count in counts.items():
+        if count != render_channels[channel]:
+            fail(f"{path}: secondary_channels {channel} count {count} != observed {render_channels[channel]}")
 
 
 def validate_cinematic_metadata(path,
@@ -465,6 +527,7 @@ def validate_cinematic_metadata(path,
                                 header,
                                 particle_counts,
                                 particle_counts_by_phase,
+                                render_channels,
                                 phase_cell_count,
                                 require_cinematic=False):
     sections = section_records(records, "cinematic_metadata")
@@ -511,6 +574,14 @@ def validate_cinematic_metadata(path,
         fail(f"{path}: cinematic_metadata.secondary_droplet_count mismatch")
     if bubbles != particle_counts["secondary_bubble"]:
         fail(f"{path}: cinematic_metadata.secondary_bubble_count mismatch")
+    if "secondary_spray_count" in rec:
+        spray = require_int(rec.get("secondary_spray_count"), f"{path}: cinematic_metadata.secondary_spray_count")
+        if spray != render_channels["spray"]:
+            fail(f"{path}: cinematic_metadata.secondary_spray_count mismatch")
+    if "secondary_foam_count" in rec:
+        foam = require_int(rec.get("secondary_foam_count"), f"{path}: cinematic_metadata.secondary_foam_count")
+        if foam != render_channels["foam"]:
+            fail(f"{path}: cinematic_metadata.secondary_foam_count mismatch")
     _ = phase_cell_count
 
 
@@ -530,13 +601,15 @@ def validate_frame(path, expected=None, require_cinematic=False):
     particle_records = section_records(records, "particle")
     phase_cell_count, phase_liquid_volume = validate_phase(
         path, phase_field_rec, phase_cells, header["dims"], header["dx"])
-    particle_count, particle_volumes, particle_counts, particle_counts_by_phase, age_ranges = validate_particles(
+    particle_count, particle_volumes, particle_counts, particle_counts_by_phase, age_ranges, render_channels = validate_particles(
         path, particle_sections, particle_records, header["dims"], header["dx"])
+    validate_secondary_channels(path, records, render_channels)
     validate_cinematic_metadata(path,
                                 records,
                                 header,
                                 particle_counts,
                                 particle_counts_by_phase,
+                                render_channels,
                                 phase_cell_count,
                                 require_cinematic=require_cinematic)
 

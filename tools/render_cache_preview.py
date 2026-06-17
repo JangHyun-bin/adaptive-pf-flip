@@ -44,6 +44,8 @@ WATER_SHALLOW = np.array([65, 160, 215], float)
 RIM = np.array([185, 230, 250], float)
 DROPLET = np.array([195, 240, 255], float)
 BUBBLE = np.array([245, 205, 120], float)
+SPRAY = np.array([225, 248, 255], float)
+FOAM = np.array([235, 238, 222], float)
 AGE_YOUNG = np.array([170, 235, 255], float)
 AGE_OLD = np.array([255, 112, 70], float)
 SPEED_SLOW = np.array([70, 145, 255], float)
@@ -190,12 +192,27 @@ def splat_phase_cells(field, cells, dims, scale):
         field[y0:y1, x0:x1] += phi * step / z_norm
 
 
-def secondary_particles(frame, dx):
+def default_render_channel(p):
+    channel = p.get("render_channel")
+    if channel in ("droplet", "spray", "foam", "bubble"):
+        return channel
+    kind = p.get("kind", "primary")
+    if kind == "secondary_bubble":
+        return "bubble"
+    if kind == "secondary_droplet":
+        return "droplet"
+    return "water" if p.get("phase", "liquid") == "liquid" else "air"
+
+
+def secondary_particles(frame, dx, channel_filter):
     cell_volume = max(1e-12, dx * dx * dx)
     out = []
     for p in frame["particles"]:
         kind = p.get("kind", "primary")
         if kind not in ("secondary_droplet", "secondary_bubble"):
+            continue
+        channel = default_render_channel(p)
+        if channel_filter != "all" and channel != channel_filter:
             continue
         pos = p.get("position")
         vel = p.get("velocity", [0.0, 0.0, 0.0])
@@ -206,6 +223,7 @@ def secondary_particles(frame, dx):
         age = max(0.0, float(p.get("age", 0.0)))
         out.append({
             "kind": kind,
+            "render_channel": channel,
             "position": pos,
             "weight": volume_weight,
             "age": age,
@@ -216,7 +234,14 @@ def secondary_particles(frame, dx):
 
 def secondary_color(particle, mode, max_age, max_speed):
     if mode == "type":
-        return DROPLET if particle["kind"] == "secondary_droplet" else BUBBLE
+        channel = particle.get("render_channel", "droplet")
+        if channel == "spray":
+            return SPRAY
+        if channel == "foam":
+            return FOAM
+        if channel == "bubble":
+            return BUBBLE
+        return DROPLET
     if mode == "age":
         t = particle["age"] / max(max_age, 1.0)
         return AGE_YOUNG * (1.0 - t) + AGE_OLD * t
@@ -228,7 +253,7 @@ def secondary_color(particle, mode, max_age, max_speed):
 
 def overlay_secondary(out, frame, scale, options):
     dx = frame["dx"]
-    secondary = secondary_particles(frame, dx)
+    secondary = secondary_particles(frame, dx, options.secondary_channel)
     if not secondary or options.secondary_gain <= 0.0:
         return out
 
@@ -310,6 +335,8 @@ def parse_args(argv):
                         help="pixels per simulation cell")
     parser.add_argument("--secondary-mode", choices=("type", "age", "speed"), default="type",
                         help="secondary droplet/bubble coloring mode")
+    parser.add_argument("--secondary-channel", choices=("all", "droplet", "spray", "foam", "bubble"),
+                        default="all", help="secondary render channel to preview")
     parser.add_argument("--secondary-gain", type=float, default=1.0,
                         help="secondary overlay opacity multiplier")
     parser.add_argument("--secondary-radius", type=float, default=1.0,
@@ -350,6 +377,7 @@ def main(argv=None):
     images[0].save(gif, save_all=True, append_images=images[1:], duration=120, loop=0)
     print(f"rendered {len(images)} frames -> {gif}")
     print(f"secondary_mode={options.secondary_mode}")
+    print(f"secondary_channel={options.secondary_channel}")
     return 0
 
 

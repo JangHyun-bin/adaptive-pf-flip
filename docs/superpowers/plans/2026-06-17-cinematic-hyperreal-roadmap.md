@@ -85,7 +85,7 @@ The missing work is not one feature. It is a pipeline:
 | S37 | Cinematic cache schema v2 | Stable cache fields for camera, water, secondary, and render metadata | Done in `feat: extend cinematic render cache schema` |
 | S38 | Cache-to-render conversion | Renderer-neutral conversion tool and validation loop | Done in `feat: add render cache conversion tool` |
 | S39 | First cinematic preview renderer | Local PNG/GIF shot preview from cache manifest | Done in `feat: add cinematic cache preview renderer` |
-| S40 | Secondary spray/foam visual channels | Separate droplet/bubble/foam-like channels in cache and preview | `feat: add secondary render channels` |
+| S40 | Secondary spray/foam visual channels | Separate droplet/bubble/foam-like channels in cache and preview | Done in `feat: add secondary render channels` |
 | S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | `feat: add water reconstruction export` |
 | S42 | External renderer bridge | Blender/USD/OpenVDB bridge selected by measured feasibility | `feat: add external render bridge` |
 | S43 | Shot orchestration runner | Single command emits cache, validation, render frames, and movie | `feat: add cinematic shot pipeline` |
@@ -428,11 +428,11 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S40.
+Continue with S41.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-17-secondary-render-channels.md`
+`docs/superpowers/plans/2026-06-17-water-reconstruction-export.md`
 
 The next command target should start from:
 
@@ -440,4 +440,4 @@ The next command target should start from:
 python tools\cinematic_render_stub.py build\s37_sparse_manifest.json build\cinematic_preview --frames 12 --width 1280 --height 720
 ```
 
-The next success condition is explicit secondary spray, foam, droplet, and bubble render-channel metadata that the cache validator and cinematic preview can isolate and count.
+The next success condition is a first water-body reconstruction export, either OBJ mesh or volume slices, generated from validated phase-cell cache data and consumed by the cinematic preview path.

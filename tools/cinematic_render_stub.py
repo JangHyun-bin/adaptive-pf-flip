@@ -33,6 +33,8 @@ WATER_RIM = (185, 232, 250, 90)
 PRIMARY_DOT = (70, 178, 230, 42)
 DROPLET = (204, 245, 255, 210)
 BUBBLE = (255, 212, 126, 205)
+SPRAY = (230, 250, 255, 225)
+FOAM = (238, 238, 220, 215)
 MOTION = (255, 255, 255, 95)
 
 
@@ -220,6 +222,7 @@ def read_particle_csv(path):
             rec = {
                 "section": "particle",
                 "kind": row.get("kind", "primary"),
+                "render_channel": row.get("render_channel", ""),
                 "index": as_int(row.get("index")),
                 "phase": row.get("phase", "liquid"),
                 "position": [as_float(row.get("x")), as_float(row.get("y")), as_float(row.get("z"))],
@@ -336,7 +339,29 @@ def phase_cell_center(cell, dx):
     ), step
 
 
-def render_frame(frame, out_path, width, height):
+def default_render_channel(particle):
+    channel = particle.get("render_channel")
+    if channel in ("droplet", "spray", "foam", "bubble", "water", "air"):
+        return channel
+    kind = particle.get("kind", "primary")
+    if kind == "secondary_bubble":
+        return "bubble"
+    if kind == "secondary_droplet":
+        return "droplet"
+    return "water" if particle.get("phase", "liquid") == "liquid" else "air"
+
+
+def secondary_color_for_channel(channel):
+    if channel == "spray":
+        return SPRAY
+    if channel == "foam":
+        return FOAM
+    if channel == "bubble":
+        return BUBBLE
+    return DROPLET
+
+
+def render_frame(frame, out_path, width, height, secondary_channel):
     img = make_background(width, height)
     water_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     particle_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -377,6 +402,7 @@ def render_frame(frame, out_path, width, height):
     water_layer = Image.alpha_composite(water_layer, rim_layer)
 
     cell_volume = max(1e-12, dx ** 3)
+    channel_counts = {"droplet": 0, "spray": 0, "foam": 0, "bubble": 0}
     for particle in frame["particles"]:
         pos = vec3(particle.get("position"))
         vel = vec3(particle.get("velocity"))
@@ -385,12 +411,17 @@ def render_frame(frame, out_path, width, height):
             continue
         kind = particle.get("kind", "primary")
         phase = particle.get("phase", "liquid")
+        channel = default_render_channel(particle)
         volume_weight = max(0.25, as_float(particle.get("volume"), cell_volume) / cell_volume)
         if kind == "primary" and phase == "liquid":
             draw_ellipse(particle_draw, water_mask_draw, px, py, max(0.7, scale * 0.035 * volume_weight),
                          PRIMARY_DOT, mask_value=210)
         elif kind in ("secondary_droplet", "secondary_bubble"):
-            color = DROPLET if kind == "secondary_droplet" else BUBBLE
+            if channel in channel_counts:
+                channel_counts[channel] += 1
+            if secondary_channel != "all" and channel != secondary_channel:
+                continue
+            color = secondary_color_for_channel(channel)
             speed = length(vel)
             radius = max(1.8, min(9.0, scale * 0.055 * math.sqrt(volume_weight) + speed * 0.08))
             end = project(vector_add(pos, vector_mul(vel, -0.12)), frame, width, height, basis, scale)
@@ -414,6 +445,8 @@ def render_frame(frame, out_path, width, height):
         "time": frame["time"],
         "water_pixels": water_pixels,
         "secondary_pixels": secondary_pixels,
+        "secondary_channel_counts": channel_counts,
+        "secondary_channel_filter": secondary_channel,
         "occupancy": occupancy,
     }
 
@@ -432,6 +465,8 @@ def parse_args(argv):
     parser.add_argument("--height", type=int, default=720, help="output image height")
     parser.add_argument("--min-occupancy", type=float, default=0.01,
                         help="minimum water-or-secondary pixel occupancy required per frame")
+    parser.add_argument("--secondary-channel", choices=("all", "droplet", "spray", "foam", "bubble"),
+                        default="all", help="secondary render channel to draw")
     args = parser.parse_args(argv)
     if args.frames <= 0:
         parser.error("frames must be positive")
@@ -458,7 +493,7 @@ def main(argv=None):
                 src_index = round(i * (len(source_frames) - 1) / max(1, args.frames - 1))
             frame = source_frames[src_index % len(source_frames)]
             out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
-            summaries.append(render_frame(frame, out_path, args.width, args.height))
+            summaries.append(render_frame(frame, out_path, args.width, args.height, args.secondary_channel))
         min_occupancy = min(item["occupancy"] for item in summaries) if summaries else 0.0
         summary = {
             "renderer": "lsfs_cinematic_render_stub",
@@ -466,6 +501,7 @@ def main(argv=None):
             "source": args.src,
             "width": args.width,
             "height": args.height,
+            "secondary_channel": args.secondary_channel,
             "frame_count": len(summaries),
             "min_occupancy": min_occupancy,
             "frames": summaries,

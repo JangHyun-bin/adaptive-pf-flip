@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -68,6 +69,13 @@ struct Bounds3D {
   Vec3 min;
   Vec3 max;
   bool valid = false;
+};
+
+struct SecondaryRenderChannelCounts3D {
+  size_t droplet = 0;
+  size_t spray = 0;
+  size_t foam = 0;
+  size_t bubble = 0;
 };
 
 inline bool finiteVec(const Vec3& v) {
@@ -174,6 +182,61 @@ inline void writeBounds(std::ostream& out,
 
 inline const char* particlePhaseName(unsigned char type) {
   return type == 0 ? "liquid" : "gas";
+}
+
+inline double particleSpeed(const Particles3DTP& ps, size_t p) {
+  return p < ps.vel.size() ? ps.vel[p].length() : 0.0;
+}
+
+inline int secondaryAgeAt(const std::vector<int>* ages, size_t p) {
+  return ages && p < ages->size() ? std::max(0, (*ages)[p]) : 0;
+}
+
+inline const char* renderChannelForParticle(const Particles3DTP& ps,
+                                            const char* kind,
+                                            const std::vector<int>* ages,
+                                            size_t p) {
+  if (std::strcmp(kind, "primary") == 0) {
+    return ps.type[p] == 0 ? "water" : "air";
+  }
+  if (std::strcmp(kind, "secondary_bubble") == 0) {
+    return "bubble";
+  }
+  if (std::strcmp(kind, "secondary_droplet") == 0) {
+    const int age = secondaryAgeAt(ages, p);
+    const double speed = particleSpeed(ps, p);
+    if (age >= 4 && speed <= 0.5) return "foam";
+    if (age <= 1 || speed >= 1.0) return "spray";
+    return "droplet";
+  }
+  return "water";
+}
+
+inline void addSecondaryRenderChannel(SecondaryRenderChannelCounts3D& counts,
+                                      const char* channel) {
+  if (std::strcmp(channel, "droplet") == 0) ++counts.droplet;
+  else if (std::strcmp(channel, "spray") == 0) ++counts.spray;
+  else if (std::strcmp(channel, "foam") == 0) ++counts.foam;
+  else if (std::strcmp(channel, "bubble") == 0) ++counts.bubble;
+}
+
+inline SecondaryRenderChannelCounts3D secondaryRenderChannelCounts(
+    const Particles3DTP& droplets,
+    const std::vector<int>& dropletAges,
+    const Particles3DTP& bubbles,
+    const std::vector<int>& bubbleAges) {
+  SecondaryRenderChannelCounts3D counts;
+  for (size_t i = 0; i < droplets.size(); ++i) {
+    addSecondaryRenderChannel(
+      counts,
+      renderChannelForParticle(droplets, "secondary_droplet", &dropletAges, i));
+  }
+  for (size_t i = 0; i < bubbles.size(); ++i) {
+    addSecondaryRenderChannel(
+      counts,
+      renderChannelForParticle(bubbles, "secondary_bubble", &bubbleAges, i));
+  }
+  return counts;
 }
 
 inline size_t particleCountByType(const Particles3DTP& ps, unsigned char type) {
@@ -392,6 +455,24 @@ inline void writeWaterSummary(std::ostream& out,
       << ",\"secondary_bubble_age_max\":" << bubbleAgesRange.second << "}\n";
 }
 
+inline void writeSecondaryChannels(std::ostream& out,
+                                   const Particles3DTP& droplets,
+                                   const std::vector<int>& dropletAges,
+                                   const Particles3DTP& bubbles,
+                                   const std::vector<int>& bubbleAges) {
+  const SecondaryRenderChannelCounts3D counts =
+    secondaryRenderChannelCounts(droplets, dropletAges, bubbles, bubbleAges);
+  const size_t total = counts.droplet + counts.spray + counts.foam + counts.bubble;
+  out << "{\"section\":\"secondary_channels\""
+      << ",\"encoding\":\"render_channel_counts\""
+      << ",\"channel_names\":[\"droplet\",\"spray\",\"foam\",\"bubble\"]"
+      << ",\"droplet_count\":" << counts.droplet
+      << ",\"spray_count\":" << counts.spray
+      << ",\"foam_count\":" << counts.foam
+      << ",\"bubble_count\":" << counts.bubble
+      << ",\"total_count\":" << total << "}\n";
+}
+
 inline void writeCinematicMetadata(std::ostream& out,
                                    int nx,
                                    int ny,
@@ -402,11 +483,15 @@ inline void writeCinematicMetadata(std::ostream& out,
                                    const std::vector<RenderCacheCell3D>& cells,
                                    const Particles3DTP& primary,
                                    const Particles3DTP& droplets,
-                                   const Particles3DTP& bubbles) {
+                                   const std::vector<int>& dropletAges,
+                                   const Particles3DTP& bubbles,
+                                   const std::vector<int>& bubbleAges) {
   const Bounds3D domain = domainBounds(nx, ny, nz, dx);
   const Bounds3D water = waterBounds(cells, primary, dx);
   const Bounds3D secondary = secondaryBounds(droplets, bubbles);
   const double shutterClose = time + std::max(0.0, dt);
+  const SecondaryRenderChannelCounts3D channelCounts =
+    secondaryRenderChannelCounts(droplets, dropletAges, bubbles, bubbleAges);
 
   out << "{\"section\":\"cinematic_metadata\""
       << ",\"cache_schema_version\":" << kCacheSchemaVersion
@@ -421,7 +506,9 @@ inline void writeCinematicMetadata(std::ostream& out,
       << ",\"primary_liquid_count\":" << particleCountByType(primary, 0)
       << ",\"primary_gas_count\":" << particleCountByType(primary, 1)
       << ",\"secondary_droplet_count\":" << droplets.size()
-      << ",\"secondary_bubble_count\":" << bubbles.size();
+      << ",\"secondary_bubble_count\":" << bubbles.size()
+      << ",\"secondary_spray_count\":" << channelCounts.spray
+      << ",\"secondary_foam_count\":" << channelCounts.foam;
   out << ",";
   writeBounds(out, "frame_bounds_min", "frame_bounds_max", domain, domain);
   out << ",";
@@ -454,8 +541,10 @@ inline void writeParticleSection(std::ostream& out,
   out << "{\"section\":\"particles\",\"kind\":\"" << kind
       << "\",\"count\":" << ps.size() << "}\n";
   for (size_t i = 0; i < ps.size(); ++i) {
+    const char* channel = renderChannelForParticle(ps, kind, ages, i);
     out << "{\"section\":\"particle\""
         << ",\"kind\":\"" << kind << "\""
+        << ",\"render_channel\":\"" << channel << "\""
         << ",\"index\":" << i
         << ",\"phase\":\"" << particlePhaseName(ps.type[i]) << "\""
         << ",\"position\":[" << ps.pos[i].x << "," << ps.pos[i].y << "," << ps.pos[i].z << "]"
@@ -550,12 +639,19 @@ inline void writeSparseRenderCache3D(const SparseSim3DTP& sim,
                                            sim.Vp,
                                            phaseFieldLiquidVolume,
                                            cells.size());
+  render_cache3d_detail::writeSecondaryChannels(out,
+                                                sim.escaped_droplets,
+                                                sim.escaped_droplet_ages,
+                                                sim.escaped_bubbles,
+                                                sim.escaped_bubble_ages);
   render_cache3d_detail::writeCinematicMetadata(out,
                                                 sim.grid.nx, sim.grid.ny, sim.grid.nz,
                                                 sim.grid.dx, sim.effective_dt_last,
                                                 time, cells, sim.particles,
                                                 sim.escaped_droplets,
-                                                sim.escaped_bubbles);
+                                                sim.escaped_droplet_ages,
+                                                sim.escaped_bubbles,
+                                                sim.escaped_bubble_ages);
   render_cache3d_detail::writePhaseField(out, cells);
   render_cache3d_detail::writeParticleSection(out, sim.particles, "primary", nullptr, sim.Vp);
   render_cache3d_detail::writeParticleSection(out, sim.escaped_droplets, "secondary_droplet",
@@ -590,12 +686,19 @@ inline void writeMRRenderCache3D(const MRSim3DTP& sim,
                                            sim.Vp,
                                            phaseFieldLiquidVolume,
                                            cells.size());
+  render_cache3d_detail::writeSecondaryChannels(out,
+                                                sim.escaped_droplets,
+                                                sim.escaped_droplet_ages,
+                                                sim.escaped_bubbles,
+                                                sim.escaped_bubble_ages);
   render_cache3d_detail::writeCinematicMetadata(out,
                                                 sim.layout.nx, sim.layout.ny, sim.layout.nz,
                                                 sim.layout.dx, sim.effective_dt_last,
                                                 time, cells, sim.particles,
                                                 sim.escaped_droplets,
-                                                sim.escaped_bubbles);
+                                                sim.escaped_droplet_ages,
+                                                sim.escaped_bubbles,
+                                                sim.escaped_bubble_ages);
   render_cache3d_detail::writePhaseField(out, cells);
   render_cache3d_detail::writeParticleSection(out, sim.particles, "primary", nullptr, sim.Vp);
   render_cache3d_detail::writeParticleSection(out, sim.escaped_droplets, "secondary_droplet",

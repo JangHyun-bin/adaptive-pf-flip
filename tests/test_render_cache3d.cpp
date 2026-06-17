@@ -33,6 +33,10 @@ TEST_CASE("sparse 3D render cache writes schema sections") {
   sim.step();
   sim.escaped_droplets.add({1.0, 2.0, 3.0}, {0.1, 0.2, 0.3}, 0, 0.5);
   sim.escaped_droplet_ages.push_back(7);
+  sim.escaped_droplets.add({1.5, 2.0, 3.0}, {1.2, 0.0, 0.0}, 0, 0.25);
+  sim.escaped_droplet_ages.push_back(0);
+  sim.escaped_droplets.add({2.0, 2.0, 3.0}, {0.6, 0.0, 0.0}, 0, 0.25);
+  sim.escaped_droplet_ages.push_back(2);
 
   const RenderCacheCamera3D camera =
     defaultRenderCacheCamera3D(sim.grid.nx, sim.grid.ny, sim.grid.nz, sim.grid.dx);
@@ -48,8 +52,15 @@ TEST_CASE("sparse 3D render cache writes schema sections") {
   CHECK(contains(text, "\"vertical_fov_degrees\""));
   CHECK(contains(text, "\"focal_length_mm\""));
   CHECK(contains(text, "\"section\":\"water_volume\""));
-  CHECK(contains(text, "\"secondary_droplet_count\":1"));
-  CHECK(contains(text, "\"secondary_droplet_age_min\":7"));
+  CHECK(contains(text, "\"secondary_droplet_count\":3"));
+  CHECK(contains(text, "\"secondary_droplet_age_min\":0"));
+  CHECK(contains(text, "\"section\":\"secondary_channels\""));
+  CHECK(contains(text, "\"droplet_count\":1"));
+  CHECK(contains(text, "\"spray_count\":1"));
+  CHECK(contains(text, "\"foam_count\":1"));
+  CHECK(contains(text, "\"render_channel\":\"foam\""));
+  CHECK(contains(text, "\"render_channel\":\"spray\""));
+  CHECK(contains(text, "\"render_channel\":\"droplet\""));
   CHECK(contains(text, "\"section\":\"cinematic_metadata\""));
   CHECK(contains(text, "\"world_units\":\"cell\""));
   CHECK(contains(text, "\"frame_bounds_min\""));
@@ -58,6 +69,8 @@ TEST_CASE("sparse 3D render cache writes schema sections") {
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"primary\""));
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"secondary_droplet\""));
   CHECK(contains(text, "\"age\":7"));
+  CHECK(contains(text, "\"age\":0"));
+  CHECK(contains(text, "\"age\":2"));
 }
 
 TEST_CASE("multires 3D render cache writes schema sections") {
@@ -89,6 +102,9 @@ TEST_CASE("multires 3D render cache writes schema sections") {
   CHECK(contains(text, "\"section\":\"water_volume\""));
   CHECK(contains(text, "\"secondary_bubble_count\":1"));
   CHECK(contains(text, "\"secondary_bubble_age_max\":5"));
+  CHECK(contains(text, "\"section\":\"secondary_channels\""));
+  CHECK(contains(text, "\"bubble_count\":1"));
+  CHECK(contains(text, "\"render_channel\":\"bubble\""));
   CHECK(contains(text, "\"section\":\"cinematic_metadata\""));
   CHECK(contains(text, "\"world_units\":\"cell\""));
   CHECK(contains(text, "\"secondary_bounds_valid\":true"));

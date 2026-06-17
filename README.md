@@ -126,6 +126,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S37** | **Cinematic cache schema v2** - render cache frames and manifests now carry v2 camera timing, world units, frame bounds, focal metadata, and secondary-channel summaries while preserving v1 compatibility markers. | done |
 | **S38** | **Cache-to-render conversion** - validated render cache manifests can be converted into movable renderer-neutral bundles with per-frame camera JSON, particle CSV, phase-cell CSV, and `sequence.json`. | done |
 | **S39** | **First cinematic preview renderer** - render cache manifests or converted sequences can now produce local `frame_####.png` previews, `preview.gif`, and occupancy QA summaries before external renderer integration. | done |
+| **S40** | **Secondary render channels** - secondary particles now export droplet, spray, foam, and bubble render channels with validator cross-checks and preview isolation controls. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -209,8 +210,10 @@ python tools/validate_render_cache.py render_cache_sparse_manifest.json
 python tools/validate_render_cache.py render_cache_sparse_manifest.json --require-cinematic
 python tools/convert_render_cache.py render_cache_sparse_manifest.json build/render_cache_convert --require-cinematic
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
+python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0
 python tools/assemble_frames.py build/cinematic_preview build/cinematic_preview.gif --fps 12
 python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview 6
+python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview_foam 6 --secondary-channel foam --hide-primary-water
 python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview_age 6 --secondary-mode age
 python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview_speed 6 --secondary-mode speed --hide-primary-water
 
