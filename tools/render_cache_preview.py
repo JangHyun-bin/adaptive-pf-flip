@@ -6,11 +6,13 @@ quick projected PNG sequence plus an animated GIF. This is a cache/schema
 consumer and smoke-visualization tool, not the final SPEC-4 ray tracer.
 
 Usage:
-  python tools/render_cache_preview.py <manifest.json|cache.jsonl|cache-dir|glob> [out_dir] [scale]
+  python tools/render_cache_preview.py <manifest.json|cache.jsonl|cache-dir|glob> [out_dir] [scale] [options]
 """
 
+import argparse
 import glob
 import json
+import math
 import os
 import sys
 
@@ -42,6 +44,10 @@ WATER_SHALLOW = np.array([65, 160, 215], float)
 RIM = np.array([185, 230, 250], float)
 DROPLET = np.array([195, 240, 255], float)
 BUBBLE = np.array([245, 205, 120], float)
+AGE_YOUNG = np.array([170, 235, 255], float)
+AGE_OLD = np.array([255, 112, 70], float)
+SPEED_SLOW = np.array([70, 145, 255], float)
+SPEED_FAST = np.array([255, 238, 145], float)
 
 
 def smoothstep(x):
@@ -148,6 +154,14 @@ def add_particle(field, pos, dx, scale, weight):
         field[pj, pi] += weight
 
 
+def add_colored_particle(weight_field, color_field, pos, dx, scale, weight, color):
+    height, width = weight_field.shape
+    pi, pj = pixel_from_position(pos, dx, scale, height)
+    if 0 <= pi < width and 0 <= pj < height:
+        weight_field[pj, pi] += weight
+        color_field[pj, pi, :] += color * weight
+
+
 def splat_phase_cells(field, cells, dims, scale):
     nx, ny, nz = dims
     height, width = field.shape
@@ -173,15 +187,79 @@ def splat_phase_cells(field, cells, dims, scale):
         field[y0:y1, x0:x1] += phi * step / z_norm
 
 
-def render_frame(frame, scale):
+def secondary_particles(frame, dx):
+    cell_volume = max(1e-12, dx * dx * dx)
+    out = []
+    for p in frame["particles"]:
+        kind = p.get("kind", "primary")
+        if kind not in ("secondary_droplet", "secondary_bubble"):
+            continue
+        pos = p.get("position")
+        vel = p.get("velocity", [0.0, 0.0, 0.0])
+        if not pos or len(pos) != 3 or not vel or len(vel) != 3:
+            continue
+        volume_weight = max(0.25, float(p.get("volume", cell_volume)) / cell_volume)
+        speed = math.sqrt(sum(float(v) * float(v) for v in vel))
+        age = max(0.0, float(p.get("age", 0.0)))
+        out.append({
+            "kind": kind,
+            "position": pos,
+            "weight": volume_weight,
+            "age": age,
+            "speed": speed,
+        })
+    return out
+
+
+def secondary_color(particle, mode, max_age, max_speed):
+    if mode == "type":
+        return DROPLET if particle["kind"] == "secondary_droplet" else BUBBLE
+    if mode == "age":
+        t = particle["age"] / max(max_age, 1.0)
+        return AGE_YOUNG * (1.0 - t) + AGE_OLD * t
+    if mode == "speed":
+        t = particle["speed"] / max(max_speed, 1e-9)
+        return SPEED_SLOW * (1.0 - t) + SPEED_FAST * t
+    raise ValueError(f"unknown secondary mode: {mode}")
+
+
+def overlay_secondary(out, frame, scale, options):
+    dx = frame["dx"]
+    secondary = secondary_particles(frame, dx)
+    if not secondary or options.secondary_gain <= 0.0:
+        return out
+
+    height, width, _ = out.shape
+    weight = np.zeros((height, width), float)
+    color = np.zeros((height, width, 3), float)
+    max_age = max(p["age"] for p in secondary)
+    max_speed = max(p["speed"] for p in secondary)
+
+    for p in secondary:
+        c = secondary_color(p, options.secondary_mode, max_age, max_speed)
+        add_colored_particle(weight, color, p["position"], dx, scale, p["weight"], c)
+
+    sigma = max(0.5, scale * 0.5 * options.secondary_radius)
+    weight = blur2d(weight, sigma)
+    for channel in range(3):
+        color[:, :, channel] = blur2d(color[:, :, channel], sigma)
+
+    nz_weight = weight[weight > 1e-9]
+    ref = np.percentile(nz_weight, 88) if nz_weight.size else 1.0
+    alpha = smoothstep(weight / (ref + 1e-9)) * np.clip(options.secondary_gain, 0.0, 4.0) * 0.68
+    alpha = np.clip(alpha, 0.0, 1.0)
+    color = color / (weight[..., None] + 1e-9)
+    return out * (1.0 - alpha[..., None]) + color * alpha[..., None]
+
+
+def render_frame(frame, scale, options):
     nx, ny, nz = frame["dims"]
     dx = frame["dx"]
     width, height = nx * scale, ny * scale
     liquid = np.zeros((height, width), float)
-    droplets = np.zeros((height, width), float)
-    bubbles = np.zeros((height, width), float)
 
-    splat_phase_cells(liquid, frame["phase_cells"], frame["dims"], scale)
+    if not options.hide_primary_water:
+        splat_phase_cells(liquid, frame["phase_cells"], frame["dims"], scale)
 
     cell_volume = max(1e-12, dx * dx * dx)
     for p in frame["particles"]:
@@ -191,16 +269,10 @@ def render_frame(frame, scale):
         volume_weight = max(0.25, float(p.get("volume", cell_volume)) / cell_volume)
         kind = p.get("kind", "primary")
         phase = p.get("phase", "liquid")
-        if kind == "secondary_droplet":
-            add_particle(droplets, pos, dx, scale, volume_weight)
-        elif kind == "secondary_bubble":
-            add_particle(bubbles, pos, dx, scale, volume_weight)
-        elif phase == "liquid":
+        if kind == "primary" and phase == "liquid" and not options.hide_primary_water:
             add_particle(liquid, pos, dx, scale, 0.18 * volume_weight)
 
     liquid = blur2d(liquid, max(0.5, scale * 0.75))
-    droplets = blur2d(droplets, max(0.5, scale * 0.45))
-    bubbles = blur2d(bubbles, max(0.5, scale * 0.55))
 
     nz_liquid = liquid[liquid > 1e-7]
     ref = np.percentile(nz_liquid, 82) if nz_liquid.size else 1.0
@@ -220,24 +292,42 @@ def render_frame(frame, scale):
 
     out = bg * (1 - opacity[..., None]) + water * opacity[..., None]
     out += RIM[None, None, :] * spec[..., None] * 0.85
-
-    if droplets.max() > 1e-9:
-        d = smoothstep(droplets / (np.percentile(droplets[droplets > 1e-9], 90) + 1e-9))
-        out = out * (1 - 0.55 * d[..., None]) + DROPLET[None, None, :] * (0.55 * d[..., None])
-    if bubbles.max() > 1e-9:
-        b = smoothstep(bubbles / (np.percentile(bubbles[bubbles > 1e-9], 90) + 1e-9))
-        out = out * (1 - 0.45 * b[..., None]) + BUBBLE[None, None, :] * (0.45 * b[..., None])
+    out = overlay_secondary(out, frame, scale, options)
 
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGB")
 
 
-def main():
-    src = sys.argv[1] if len(sys.argv) > 1 else "."
-    out_dir = sys.argv[2] if len(sys.argv) > 2 else "render_cache_preview"
-    scale = int(sys.argv[3]) if len(sys.argv) > 3 else 6
-    if scale <= 0:
-        print("scale must be positive", file=sys.stderr)
-        return 2
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description="Preview LSFS 3D render cache frames")
+    parser.add_argument("src", nargs="?", default=".",
+                        help="manifest JSON, JSONL frame, directory, or glob")
+    parser.add_argument("out_dir", nargs="?", default="render_cache_preview",
+                        help="output directory for PNG frames and GIF")
+    parser.add_argument("scale", nargs="?", type=int, default=6,
+                        help="pixels per simulation cell")
+    parser.add_argument("--secondary-mode", choices=("type", "age", "speed"), default="type",
+                        help="secondary droplet/bubble coloring mode")
+    parser.add_argument("--secondary-gain", type=float, default=1.0,
+                        help="secondary overlay opacity multiplier")
+    parser.add_argument("--secondary-radius", type=float, default=1.0,
+                        help="secondary particle splat radius multiplier")
+    parser.add_argument("--hide-primary-water", action="store_true",
+                        help="render only background plus secondary particle overlay")
+    args = parser.parse_args(argv)
+    if args.scale <= 0:
+        parser.error("scale must be positive")
+    if args.secondary_gain < 0.0 or not np.isfinite(args.secondary_gain):
+        parser.error("secondary-gain must be finite and non-negative")
+    if args.secondary_radius <= 0.0 or not np.isfinite(args.secondary_radius):
+        parser.error("secondary-radius must be finite and positive")
+    return args
+
+
+def main(argv=None):
+    options = parse_args(sys.argv[1:] if argv is None else argv)
+    src = options.src
+    out_dir = options.out_dir
+    scale = options.scale
 
     files = cache_inputs(src)
     if not files:
@@ -248,7 +338,7 @@ def main():
     images = []
     for idx, path in enumerate(files):
         frame = read_cache(path)
-        img = render_frame(frame, scale)
+        img = render_frame(frame, scale, options)
         png = os.path.join(out_dir, f"cache_preview_{idx:03d}.png")
         img.save(png)
         images.append(img)
@@ -256,6 +346,7 @@ def main():
     gif = os.path.join(out_dir, "cache_preview.gif")
     images[0].save(gif, save_all=True, append_images=images[1:], duration=120, loop=0)
     print(f"rendered {len(images)} frames -> {gif}")
+    print(f"secondary_mode={options.secondary_mode}")
     return 0
 
 
