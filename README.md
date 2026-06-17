@@ -215,6 +215,7 @@ cmake --build build --config Release --target bench_multires_sparse3d_tp
 cmake --build build --config Release --target bench_large_scale3d_tp
 ./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver baseline --csv build/large_scale3d_tp.csv
 ./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver all --csv build/large_scale3d_tp_solvers.csv
+./build/Release/bench_large_scale3d_tp.exe --nx 16 --ny 24 --nz 16 --steps 8 --solver all --mr-particle-padding 0 --mr-gas-padding 1 --mr-hysteresis 0 --csv build/large_scale3d_tp_compact_mr.csv
 
 # compare 3D multires pressure solver variants with baseline-relative summary lines
 cmake --build build --config Release --target bench_multires3d_solver

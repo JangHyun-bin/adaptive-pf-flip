@@ -82,6 +82,10 @@ struct Config {
   std::string csv = "build/large_scale3d_tp.csv";
   std::string solver = "baseline";
   bool physics_preset = false;
+  int mr_particle_padding = -1;
+  int mr_gas_padding = -1;
+  int mr_hysteresis = -1;
+  int mr_max_fine_leaves = -1;
 };
 
 struct Row {
@@ -92,6 +96,10 @@ struct Row {
   int nz = 0;
   int steps = 0;
   bool adaptivity = false;
+  int mr_particle_padding = -1;
+  int mr_gas_padding = -1;
+  int mr_hysteresis = -1;
+  int mr_max_fine_leaves = -1;
   size_t particles_start = 0;
   size_t particles_end = 0;
   double liquid_volume_start = 0.0;
@@ -128,11 +136,14 @@ void usage() {
   std::fprintf(stderr,
                "usage: bench_large_scale3d_tp [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--dt DT] [--cg-iters N] [--csv PATH] "
-               "[--solver baseline|relax|coarse_pre|all] [--physics-preset]\n");
+               "[--solver baseline|relax|coarse_pre|all] [--physics-preset] "
+               "[--mr-particle-padding N] [--mr-gas-padding N] "
+               "[--mr-hysteresis N] [--mr-max-fine-leaves N]\n");
 }
 
 void writeHeader(std::ostream& out) {
-  out << "variant,solver,nx,ny,nz,steps,adaptivity,particles_start,particles_end,"
+  out << "variant,solver,nx,ny,nz,steps,adaptivity,mr_particle_padding,"
+      << "mr_gas_padding,mr_hysteresis,mr_max_fine_leaves,particles_start,particles_end,"
       << "liquid_volume_start,liquid_volume_end,gas_volume_start,gas_volume_end,"
       << "gas_mean_y_start,gas_mean_y_end,active_pressure_cells,total_pressure_cells,"
       << "active_pressure_blocks_max,total_pressure_blocks,leaf_level0,leaf_level1,"
@@ -150,6 +161,10 @@ void writeRow(std::ostream& out, const Row& r) {
       << r.nz << ","
       << r.steps << ","
       << (r.adaptivity ? "true" : "false") << ","
+      << r.mr_particle_padding << ","
+      << r.mr_gas_padding << ","
+      << r.mr_hysteresis << ","
+      << r.mr_max_fine_leaves << ","
       << r.particles_start << ","
       << r.particles_end << ","
       << r.liquid_volume_start << ","
@@ -336,6 +351,10 @@ Row runMR(const Config& cfg, bool adaptivity, const std::string& solver) {
   MRSim3DTP sim(cfg.nx, cfg.ny, cfg.nz, 1.0);
   if (cfg.physics_preset) applyCorePhysicsPreset3D(sim);
   if (adaptivity) applyParticleAdaptivityPreset3D(sim);
+  if (cfg.mr_particle_padding >= 0) sim.dynamic_particle_padding = cfg.mr_particle_padding;
+  if (cfg.mr_gas_padding >= 0) sim.dynamic_gas_padding = cfg.mr_gas_padding;
+  if (cfg.mr_hysteresis >= 0) sim.dynamic_hysteresis_cells = cfg.mr_hysteresis;
+  if (cfg.mr_max_fine_leaves >= 0) sim.dynamic_max_fine_leaves = cfg.mr_max_fine_leaves;
   sim.dt = cfg.dt;
   sim.cg_iters = cfg.cg_iters;
   applySolverMode(sim, solver);
@@ -349,6 +368,10 @@ Row runMR(const Config& cfg, bool adaptivity, const std::string& solver) {
   r.nz = cfg.nz;
   r.steps = cfg.steps;
   r.adaptivity = adaptivity;
+  r.mr_particle_padding = sim.dynamic_particle_padding;
+  r.mr_gas_padding = sim.dynamic_gas_padding;
+  r.mr_hysteresis = sim.dynamic_hysteresis_cells;
+  r.mr_max_fine_leaves = sim.dynamic_max_fine_leaves;
   r.particles_start = sim.particles.size();
   r.liquid_volume_start = volumeType(sim.particles, 0, sim.Vp);
   r.gas_volume_start = volumeType(sim.particles, 1, sim.Vp);
@@ -416,9 +439,20 @@ int main(int argc, char** argv) {
   cfg.csv = argString(argc, argv, "--csv", cfg.csv.c_str());
   cfg.solver = argString(argc, argv, "--solver", cfg.solver.c_str());
   cfg.physics_preset = hasFlag(argc, argv, "--physics-preset");
+  cfg.mr_particle_padding = argInt(argc, argv, "--mr-particle-padding",
+                                   cfg.mr_particle_padding);
+  cfg.mr_gas_padding = argInt(argc, argv, "--mr-gas-padding",
+                              cfg.mr_gas_padding);
+  cfg.mr_hysteresis = argInt(argc, argv, "--mr-hysteresis", cfg.mr_hysteresis);
+  cfg.mr_max_fine_leaves = argInt(argc, argv, "--mr-max-fine-leaves",
+                                  cfg.mr_max_fine_leaves);
 
   if (cfg.nx < 4 || cfg.ny < 4 || cfg.nz < 4 ||
       cfg.steps <= 0 || cfg.dt <= 0.0 || cfg.cg_iters < 0 ||
+      cfg.mr_particle_padding < -1 ||
+      cfg.mr_gas_padding < -1 ||
+      cfg.mr_hysteresis < -1 ||
+      cfg.mr_max_fine_leaves < -1 ||
       cfg.csv.empty() ||
       (cfg.solver != "baseline" && cfg.solver != "relax" &&
        cfg.solver != "coarse_pre" && cfg.solver != "all")) {
