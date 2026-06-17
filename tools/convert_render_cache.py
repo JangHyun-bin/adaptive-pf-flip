@@ -446,6 +446,13 @@ def convert(manifest_path, out_dir, require_cinematic=False, water_reconstructio
         "dims": manifest["dims"],
         "dx": manifest["dx"],
         "frame_count": len(converted_frames),
+        "renderer_assets": {
+            "preferred_external_bridge": "blender",
+            "camera": "json",
+            "particles": "csv",
+            "phase_cells": "csv",
+            "water_mesh": "obj" if water_reconstruction else None,
+        },
         "frames": converted_frames,
     }
     if water_reconstruction:

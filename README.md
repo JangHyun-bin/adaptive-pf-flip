@@ -128,6 +128,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S39** | **First cinematic preview renderer** - render cache manifests or converted sequences can now produce local `frame_####.png` previews, `preview.gif`, and occupancy QA summaries before external renderer integration. | done |
 | **S40** | **Secondary render channels** - secondary particles now export droplet, spray, foam, and bubble render channels with validator cross-checks and preview isolation controls. | done |
 | **S41** | **Water reconstruction export** - phase-cell render caches can now export dependency-free OBJ water mesh sequences with reconstruction indexes, converter attachment, and cinematic preview mesh overlays. | done |
+| **S42** | **External renderer bridge** - converted cache bundles with OBJ water meshes can now generate Blender scene specs, dependency reports, and background-rendered PNG frame sequences through a documented bridge. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -212,6 +213,9 @@ python tools/validate_render_cache.py render_cache_sparse_manifest.json --requir
 python tools/convert_render_cache.py render_cache_sparse_manifest.json build/render_cache_convert --require-cinematic
 python tools/reconstruct_water.py render_cache_sparse_manifest.json build/water_mesh --frames 8 --threshold 0.02
 python tools/convert_render_cache.py render_cache_sparse_manifest.json build/render_cache_convert_mesh --require-cinematic --water-reconstruction build/water_mesh/water_reconstruction.json
+python tools/render_bridge_blender.py --check
+python tools/render_bridge_blender.py build/render_cache_convert_mesh/sequence.json build/blender_bridge --frames 8 --width 1280 --height 720
+python tools/render_bridge_blender.py build/render_cache_convert_mesh/sequence.json build/blender_bridge_dry --frames 8 --dry-run
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0
@@ -285,7 +289,7 @@ apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, ru
                export_render_cache3d, validate_multires3d_tp, bench_multires_sparse3d_tp,
                bench_multires3d_solver, bench_large_scale3d_tp
 tools/         rough_render.py, render_cache_preview.py, validate_render_cache.py, convert_render_cache.py,
-               reconstruct_water.py, cinematic_render_stub.py, and assemble_frames.py export/preview consumers
+               reconstruct_water.py, cinematic_render_stub.py, render_bridge_blender.py, and assemble_frames.py export/preview consumers
 tests/         doctest unit + integration tests (one per module)
 docs/          design specs and implementation plans
 external/      vendored doctest
