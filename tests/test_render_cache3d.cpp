@@ -80,3 +80,25 @@ TEST_CASE("multires 3D render cache writes schema sections") {
   CHECK(contains(text, "\"section\":\"particles\",\"kind\":\"secondary_bubble\""));
   CHECK(contains(text, "\"age\":5"));
 }
+
+TEST_CASE("3D render cache manifest writes frame sequence") {
+  const char* path = "test_render_cache_manifest3d.json";
+  std::remove(path);
+
+  std::vector<RenderCacheManifestFrame3D> frames;
+  frames.push_back(RenderCacheManifestFrame3D{0, 3, 0.06, "cache_000.jsonl", 123});
+  frames.push_back(RenderCacheManifestFrame3D{1, 5, 0.10, "nested\\cache_001.jsonl", 456});
+
+  writeRenderCacheManifest3D(path, "sparse3d_tp", 8, 12, 8, 1.0, frames);
+
+  const std::string text = readTextFile(path);
+  std::remove(path);
+
+  CHECK(contains(text, "\"lsfs_cache3d_manifest_version\":1"));
+  CHECK(contains(text, "\"sim_kind\":\"sparse3d_tp\""));
+  CHECK(contains(text, "\"dims\":[8,12,8]"));
+  CHECK(contains(text, "\"path\":\"cache_000.jsonl\""));
+  CHECK(contains(text, "\"step\":3"));
+  CHECK(contains(text, "\"bytes\":456"));
+  CHECK(contains(text, "nested\\\\cache_001.jsonl"));
+}

@@ -32,6 +32,14 @@ struct RenderCacheCell3D {
   double liquid_volume = 0.0;
 };
 
+struct RenderCacheManifestFrame3D {
+  int frame = 0;
+  int step = 0;
+  double time = 0.0;
+  std::string path;
+  long long bytes = 0;
+};
+
 inline RenderCacheCamera3D defaultRenderCacheCamera3D(int nx, int ny, int nz, double dx) {
   const double cx = 0.5 * nx * dx;
   const double cy = 0.5 * ny * dx;
@@ -56,6 +64,49 @@ inline bool finiteVec(const Vec3& v) {
 inline void requireValidPath(const std::string& path) {
   if (path.empty()) {
     throw std::runtime_error("render cache path is empty");
+  }
+}
+
+inline void writeJsonString(std::ostream& out, const std::string& text) {
+  static const char* hex = "0123456789abcdef";
+  out << '"';
+  for (unsigned char c : text) {
+    switch (c) {
+      case '"': out << "\\\""; break;
+      case '\\': out << "\\\\"; break;
+      case '\b': out << "\\b"; break;
+      case '\f': out << "\\f"; break;
+      case '\n': out << "\\n"; break;
+      case '\r': out << "\\r"; break;
+      case '\t': out << "\\t"; break;
+      default:
+        if (c < 0x20) {
+          out << "\\u00" << hex[(c >> 4) & 0x0f] << hex[c & 0x0f];
+        } else {
+          out << static_cast<char>(c);
+        }
+        break;
+    }
+  }
+  out << '"';
+}
+
+inline void requireManifestArgs(const char* simKind,
+                                int nx,
+                                int ny,
+                                int nz,
+                                double dx,
+                                const std::vector<RenderCacheManifestFrame3D>& frames) {
+  if (!simKind || simKind[0] == '\0' ||
+      nx <= 0 || ny <= 0 || nz <= 0 ||
+      dx <= 0.0 || !std::isfinite(dx)) {
+    throw std::invalid_argument("invalid render cache manifest metadata");
+  }
+  for (const RenderCacheManifestFrame3D& f : frames) {
+    if (f.frame < 0 || f.step < 0 || f.path.empty() || f.bytes < 0 ||
+        !std::isfinite(f.time)) {
+      throw std::invalid_argument("invalid render cache manifest frame");
+    }
   }
 }
 
@@ -360,4 +411,42 @@ inline void writeMRRenderCache3D(const MRSim3DTP& sim,
   render_cache3d_detail::writeParticleSection(out, sim.escaped_bubbles, "secondary_bubble",
                                               &sim.escaped_bubble_ages, sim.Vp);
   if (!out) throw std::runtime_error("render cache write failed: " + path);
+}
+
+inline void writeRenderCacheManifest3D(const std::string& path,
+                                       const char* simKind,
+                                       int nx,
+                                       int ny,
+                                       int nz,
+                                       double dx,
+                                       const std::vector<RenderCacheManifestFrame3D>& frames) {
+  render_cache3d_detail::requireValidPath(path);
+  render_cache3d_detail::requireManifestArgs(simKind, nx, ny, nz, dx, frames);
+
+  std::ofstream out(path);
+  if (!out) throw std::runtime_error("render cache manifest open failed: " + path);
+  out << std::setprecision(17);
+  out << "{\n";
+  out << "  \"lsfs_cache3d_manifest_version\":1,\n";
+  out << "  \"sim_kind\":";
+  render_cache3d_detail::writeJsonString(out, simKind);
+  out << ",\n";
+  out << "  \"dims\":[" << nx << "," << ny << "," << nz << "],\n";
+  out << "  \"dx\":" << dx << ",\n";
+  out << "  \"frame_count\":" << frames.size() << ",\n";
+  out << "  \"frames\":[\n";
+  for (size_t i = 0; i < frames.size(); ++i) {
+    const RenderCacheManifestFrame3D& f = frames[i];
+    out << "    {\"frame\":" << f.frame
+        << ",\"step\":" << f.step
+        << ",\"time\":" << f.time
+        << ",\"path\":";
+    render_cache3d_detail::writeJsonString(out, f.path);
+    out << ",\"bytes\":" << f.bytes << "}";
+    if (i + 1 < frames.size()) out << ",";
+    out << "\n";
+  }
+  out << "  ]\n";
+  out << "}\n";
+  if (!out) throw std::runtime_error("render cache manifest write failed: " + path);
 }

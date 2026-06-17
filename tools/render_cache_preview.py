@@ -6,7 +6,7 @@ quick projected PNG sequence plus an animated GIF. This is a cache/schema
 consumer and smoke-visualization tool, not the final SPEC-4 ray tracer.
 
 Usage:
-  python tools/render_cache_preview.py <cache.jsonl|cache-dir|glob> [out_dir] [scale]
+  python tools/render_cache_preview.py <manifest.json|cache.jsonl|cache-dir|glob> [out_dir] [scale]
 """
 
 import glob
@@ -54,6 +54,10 @@ def lerp(a, b, t):
 
 
 def cache_inputs(src):
+    if os.path.isfile(src) and src.lower().endswith(".json"):
+        manifest_files = cache_inputs_from_manifest(src)
+        if manifest_files is not None:
+            return manifest_files
     if any(ch in src for ch in "*?[]"):
         files = sorted(glob.glob(src))
     elif os.path.isdir(src):
@@ -61,6 +65,38 @@ def cache_inputs(src):
     else:
         files = [src]
     return [p for p in files if os.path.isfile(p)]
+
+
+def resolve_manifest_path(base_dir, path):
+    if os.path.isabs(path):
+        return path
+    base_candidate = os.path.join(base_dir, path)
+    if os.path.isfile(base_candidate):
+        return base_candidate
+    return path
+
+
+def cache_inputs_from_manifest(path):
+    with open(path, encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            return None
+    if data.get("lsfs_cache3d_manifest_version") != 1:
+        return None
+
+    base_dir = os.path.dirname(os.path.abspath(path))
+    frames = data.get("frames", [])
+    files = []
+    for frame in frames:
+        frame_path = frame.get("path")
+        if not isinstance(frame_path, str) or not frame_path:
+            raise RuntimeError(f"{path}: manifest frame missing path")
+        files.append(resolve_manifest_path(base_dir, frame_path))
+    missing = [p for p in files if not os.path.isfile(p)]
+    if missing:
+        raise RuntimeError(f"{path}: manifest references missing frame {missing[0]}")
+    return files
 
 
 def read_cache(path):

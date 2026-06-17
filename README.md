@@ -118,6 +118,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S29** | **SPEC-4 pre-render cache format** - sparse/MR 3D TP sims can export JSONL render caches containing camera metadata, water volume summaries, phase-field cells, primary particles, and secondary droplet/bubble particles. | done |
 | **S30** | **Large-scale benchmark gate** - CSV runner records sparse vs MR, adaptivity on/off, solver option, memory-proxy, time, and pressure convergence metrics for larger 3D bubble workloads. | done |
 | **S31** | **SPEC-4 cache preview tool** - JSONL render cache frames can be projected into quick PNG/GIF previews for schema and motion inspection before the full renderer exists. | done |
+| **S32** | **SPEC-4 render cache manifest** - export runs now write a JSON sequence manifest and the preview tool can consume the manifest directly. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -195,7 +196,7 @@ cmake --build build --config Release --target validate_surface_tension3d
 cmake --build build --config Release --target export_render_cache3d
 ./build/Release/export_render_cache3d.exe --kind sparse --steps 4 --every 4 --out-prefix render_cache_sparse
 ./build/Release/export_render_cache3d.exe --kind mr --steps 4 --every 4 --out-prefix render_cache_mr
-python tools/render_cache_preview.py render_cache_sparse_000.jsonl build/render_cache_preview 6
+python tools/render_cache_preview.py render_cache_sparse_manifest.json build/render_cache_preview 6
 
 # run 3D multires two-phase bubble slices -> mrb3_###.ppm
 cmake --build build --config Release --target run_multires_bubble3d

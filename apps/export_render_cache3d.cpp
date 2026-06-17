@@ -7,7 +7,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -43,13 +45,40 @@ void usage() {
   std::fprintf(stderr,
                "usage: export_render_cache3d [--kind sparse|mr] [--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
-               "[--out-prefix NAME] [--physics-preset]\n");
+               "[--out-prefix NAME] [--manifest PATH] [--physics-preset]\n");
 }
 
 std::string framePath(const std::string& prefix, int frame) {
   char suffix[64];
   std::snprintf(suffix, sizeof(suffix), "_%03d.jsonl", frame);
   return prefix + suffix;
+}
+
+bool isPathSep(char c) {
+  return c == '/' || c == '\\';
+}
+
+std::string dirName(const std::string& path) {
+  const size_t pos = path.find_last_of("/\\");
+  return pos == std::string::npos ? std::string() : path.substr(0, pos);
+}
+
+std::string manifestFramePath(const std::string& framePath,
+                              const std::string& manifestPath) {
+  std::string dir = dirName(manifestPath);
+  if (dir.empty()) return framePath;
+  if (framePath.size() > dir.size() &&
+      framePath.compare(0, dir.size(), dir) == 0 &&
+      isPathSep(framePath[dir.size()])) {
+    return framePath.substr(dir.size() + 1);
+  }
+  return framePath;
+}
+
+long long fileSizeBytes(const std::string& path) {
+  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  if (!in) return 0;
+  return static_cast<long long>(in.tellg());
 }
 
 } // namespace
@@ -66,18 +95,23 @@ int main(int argc, char** argv) {
   double dt = argDouble(argc, argv, "--dt", 0.02);
   int cgIters = argInt(argc, argv, "--cg-iters", sparseKind ? 600 : 160);
   const char* prefix = argString(argc, argv, "--out-prefix", "render_cache3d");
+  const std::string defaultManifestPath = std::string(prefix) + "_manifest.json";
+  const char* manifestArg = argString(argc, argv, "--manifest", nullptr);
+  const std::string manifestPath = manifestArg ? manifestArg : defaultManifestPath;
   const bool physicsPreset = hasFlag(argc, argv, "--physics-preset");
 
   if ((!sparseKind && !mrKind) ||
       nx < 4 || ny < 4 || nz < 4 ||
       steps <= 0 || every <= 0 ||
       dt <= 0.0 || cgIters < 0 ||
-      std::strlen(prefix) == 0) {
+      std::strlen(prefix) == 0 ||
+      manifestPath.empty()) {
     usage();
     return 2;
   }
 
-  int frames = 0;
+  int frameCount = 0;
+  std::vector<RenderCacheManifestFrame3D> manifestFrames;
   if (sparseKind) {
     SparseSim3DTP sim(nx, ny, nz, 1.0);
     if (physicsPreset) applyFullPhysicsPreset3D(sim);
@@ -86,15 +120,25 @@ int main(int argc, char** argv) {
     sim.initBubbleTank();
     const RenderCacheCamera3D camera =
       defaultRenderCacheCamera3D(sim.grid.nx, sim.grid.ny, sim.grid.nz, sim.grid.dx);
+    double simTime = 0.0;
     for (int s = 0; s < steps; ++s) {
       sim.step();
+      simTime += sim.effective_dt_last;
       if (s % every == 0 || s == steps - 1) {
-        const std::string path = framePath(prefix, frames);
-        writeSparseRenderCache3D(sim, path, frames, (s + 1) * sim.effective_dt_last, camera);
+        const int frameIndex = frameCount;
+        const std::string path = framePath(prefix, frameIndex);
+        writeSparseRenderCache3D(sim, path, frameIndex, simTime, camera);
         std::printf("wrote=%s\n", path.c_str());
-        ++frames;
+        manifestFrames.push_back(RenderCacheManifestFrame3D{
+          frameIndex, s + 1, simTime, manifestFramePath(path, manifestPath), fileSizeBytes(path)
+        });
+        ++frameCount;
       }
     }
+    writeRenderCacheManifest3D(manifestPath, "sparse3d_tp",
+                               sim.grid.nx, sim.grid.ny, sim.grid.nz,
+                               sim.grid.dx, manifestFrames);
+    std::printf("manifest=%s\n", manifestPath.c_str());
     std::printf("kind=sparse\n");
     std::printf("particles=%zu\n", sim.particles.size());
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
@@ -107,22 +151,32 @@ int main(int argc, char** argv) {
     sim.initBubbleTankInterfaceBand();
     const RenderCacheCamera3D camera =
       defaultRenderCacheCamera3D(sim.layout.nx, sim.layout.ny, sim.layout.nz, sim.layout.dx);
+    double simTime = 0.0;
     for (int s = 0; s < steps; ++s) {
       sim.step();
+      simTime += sim.effective_dt_last;
       if (s % every == 0 || s == steps - 1) {
-        const std::string path = framePath(prefix, frames);
-        writeMRRenderCache3D(sim, path, frames, (s + 1) * sim.effective_dt_last, camera);
+        const int frameIndex = frameCount;
+        const std::string path = framePath(prefix, frameIndex);
+        writeMRRenderCache3D(sim, path, frameIndex, simTime, camera);
         std::printf("wrote=%s\n", path.c_str());
-        ++frames;
+        manifestFrames.push_back(RenderCacheManifestFrame3D{
+          frameIndex, s + 1, simTime, manifestFramePath(path, manifestPath), fileSizeBytes(path)
+        });
+        ++frameCount;
       }
     }
+    writeRenderCacheManifest3D(manifestPath, "multires3d_tp",
+                               sim.layout.nx, sim.layout.ny, sim.layout.nz,
+                               sim.layout.dx, manifestFrames);
+    std::printf("manifest=%s\n", manifestPath.c_str());
     std::printf("kind=mr\n");
     std::printf("particles=%zu\n", sim.particles.size());
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
   }
 
-  std::printf("frames=%d\n", frames);
+  std::printf("frames=%d\n", frameCount);
   std::printf("status=ok\n");
   return 0;
 }
