@@ -787,6 +787,23 @@
           "roughness": 0.1
         }
       }
+    },
+    "dam_break_water_impact_ripple_fade": {
+      "extends": "dam_break_water_impact_ripple_tuned",
+      "description": "Impact ripple tuning with UV edge-falloff material for softer arc edges.",
+      "renderer": {
+        "water_impact_ripple_pass": {
+          "material_falloff": "edge_shader",
+          "alpha_scale": 0.42,
+          "emission_scale": 0.72
+        }
+      },
+      "materials": {
+        "water_ripple": {
+          "emission_strength": 0.38,
+          "roughness": 0.08
+        }
+      }
     }
   }
 }

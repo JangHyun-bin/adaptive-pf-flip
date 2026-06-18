@@ -849,6 +849,7 @@ def water_impact_ripple_pass_summary(render_preset):
         "width": as_float(cfg.get("width"), 0.035),
         "vertical_offset": as_float(cfg.get("vertical_offset"), -1.78),
         "flow_center": vec3(cfg.get("flow_center"), (14.0, 0.0, 11.0)),
+        "material_falloff": str(cfg.get("material_falloff", "solid")),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.26),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.42),
     }
@@ -1529,6 +1530,7 @@ def water_impact_ripple_pass_values(spec):
         "width": max(0.001, scalar_value(cfg.get("width"), 0.035)),
         "vertical_offset": scalar_value(cfg.get("vertical_offset"), -1.78),
         "flow_center": vector_value(cfg.get("flow_center"), (14.0, 0.0, 11.0), 3),
+        "material_falloff": str(cfg.get("material_falloff", "solid")),
         "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.26)),
         "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.42)),
     }
@@ -1691,6 +1693,7 @@ def add_water_impact_ripple_pass(frame, material, ripple_pass):
 
 def add_water_impact_ripple_mesh(name, arcs, material, segments):
     verts = []
+    vert_uvs = []
     faces = []
     segments = max(4, int(segments))
     for center, axis_x, axis_z, radius, width, sweep in arcs:
@@ -1702,8 +1705,11 @@ def add_water_impact_ripple_mesh(name, arcs, material, segments):
             t = -float(sweep) * 0.5 + float(sweep) * seg / float(segments)
             c = math.cos(t)
             s = math.sin(t)
+            u = seg / float(segments)
             verts.append(tuple(center_vec + axis_x * (c * inner) + axis_z * (s * inner)))
+            vert_uvs.append((u, 0.0))
             verts.append(tuple(center_vec + axis_x * (c * outer) + axis_z * (s * outer)))
+            vert_uvs.append((u, 1.0))
         for seg in range(segments):
             i0 = base + seg * 2
             i1 = i0 + 1
@@ -1713,6 +1719,12 @@ def add_water_impact_ripple_mesh(name, arcs, material, segments):
     mesh = bpy.data.meshes.new(name + " Mesh")
     mesh.from_pydata(verts, [], faces)
     mesh.update()
+    if vert_uvs:
+        uv_layer = mesh.uv_layers.new(name="ImpactRippleFalloffUV")
+        for poly in mesh.polygons:
+            for loop_index in poly.loop_indices:
+                vertex_index = mesh.loops[loop_index].vertex_index
+                uv_layer.data[loop_index].uv = vert_uvs[vertex_index]
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj["lsfs_frame_asset"] = True
@@ -2102,6 +2114,42 @@ def make_radial_soft_material(name, values):
     return mat
 
 
+def make_edge_falloff_material(name, values):
+    mat = make_principled_material(name,
+                                   values["color"],
+                                   values["roughness"],
+                                   values["alpha"],
+                                   values["transmission"],
+                                   values["emission_color"],
+                                   values["emission_strength"])
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        return mat
+    try:
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+        texcoord = nodes.new(type="ShaderNodeTexCoord")
+        separate = nodes.new(type="ShaderNodeSeparateXYZ")
+        ramp = nodes.new(type="ShaderNodeValToRGB")
+        ramp.color_ramp.elements[0].position = 0.0
+        ramp.color_ramp.elements[0].color = (1.0, 1.0, 1.0, 0.0)
+        ramp.color_ramp.elements[1].position = 1.0
+        ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 0.0)
+        mid = ramp.color_ramp.elements.new(0.5)
+        mid.color = (1.0, 1.0, 1.0, clamp01(values["alpha"]))
+        inner = ramp.color_ramp.elements.new(0.22)
+        inner.color = (1.0, 1.0, 1.0, clamp01(values["alpha"] * 0.42))
+        outer = ramp.color_ramp.elements.new(0.78)
+        outer.color = (1.0, 1.0, 1.0, clamp01(values["alpha"] * 0.42))
+        links.new(texcoord.outputs["UV"], separate.inputs["Vector"])
+        links.new(separate.outputs["Y"], ramp.inputs["Fac"])
+        if "Alpha" in ramp.outputs and "Alpha" in bsdf.inputs:
+            links.new(ramp.outputs["Alpha"], bsdf.inputs["Alpha"])
+    except Exception:
+        pass
+    return mat
+
+
 def main():
     spec = read_spec()
     preset = spec.get("render_preset") or {}
@@ -2176,6 +2224,8 @@ def main():
         particle_mats["foam_soft_falloff"] = [make_radial_soft_material("LSFS Foam Soft Radial", foam_soft)]
     if contact_foam_pass.get("material_falloff") == "radial_shader":
         particle_mats["foam_contact"] = make_radial_soft_material("LSFS Surface Contact Foam Radial", foam_contact)
+    if ripple_pass.get("material_falloff") == "edge_shader":
+        particle_mats["water_ripple"] = make_edge_falloff_material("LSFS Impact Ripple Edge Falloff", water_ripple)
     channel_scales = spec.get("secondary_channel_radius_scales") or {}
     if spec.get("frames"):
         add_floor(spec["frames"][0], floor_mat, preset)
