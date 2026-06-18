@@ -127,6 +127,7 @@ The missing work is not one feature. It is a pipeline:
 | S79 | Water-surface glint flow | Add subtle directional surface glint strokes so the main water body carries visible flow cues | Done in `feat: add water surface glint flow` |
 | S80 | Water reflection continuity | Add longer camera-stable water reflection ribbons over S79 glints to reduce the flat-slab read of the main water body | Done in `feat: add water reflection continuity pass` |
 | S81 | Water highlight temporal QA | Gate frame-to-frame luminance and highlight-mask deltas to catch flicker in glint/reflection layers | Done in `test: add water highlight temporal qa` |
+| S82 | Water highlight temporal diff sheet | Emit frame-difference review artifacts so highlight movement can be visually inspected | Done in `test: add water highlight temporal diff sheet` |
 
 ## Decision Gates
 
@@ -464,16 +465,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S82.
+Continue with S83.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-highlight-temporal-diff-sheet.md`
+`docs/superpowers/plans/2026-06-18-water-highlight-motion-tuning.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_highlight_temporal_review --out build\shots\s82_water_highlight_temporal_diff_sheet --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s82.md --compare-review-manifest build\shots\s81_water_highlight_temporal_review\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_highlight_temporal_diff_sheet --out build\shots\s83_water_highlight_motion_tuning --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s83.md --compare-review-manifest build\shots\s82_water_highlight_temporal_diff_sheet\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a temporal difference contact sheet that makes highlight movement and shimmer visually inspectable alongside the scalar temporal QA.
+The next success condition is tuned water highlight motion that keeps the new temporal diff sheet active without producing high highlight-mask change ratios.

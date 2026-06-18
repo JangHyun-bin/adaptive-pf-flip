@@ -688,6 +688,18 @@
           "max_highlight_change_ratio": 0.006
         }
       }
+    },
+    "dam_break_water_highlight_temporal_diff_sheet": {
+      "extends": "dam_break_water_highlight_temporal_review",
+      "description": "Water highlight temporal QA with visual frame-difference review artifacts.",
+      "renderer": {
+        "temporal_diff_review": {
+          "enabled": true,
+          "sample_width": 320,
+          "max_pairs": 8,
+          "amplify": 3.0
+        }
+      }
     }
   }
 }

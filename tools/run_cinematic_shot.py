@@ -339,6 +339,129 @@ def summarize_temporal_highlights(frame_dir, qa_config):
     }
 
 
+def select_temporal_pairs(frame_dir, count):
+    paths = [
+        os.path.join(frame_dir, name)
+        for name in sorted(os.listdir(frame_dir))
+        if name.startswith("frame_") and name.lower().endswith(".png")
+    ]
+    if len(paths) < 2 or count <= 0:
+        return []
+    pair_total = len(paths) - 1
+    if count >= pair_total:
+        indexes = list(range(pair_total))
+    elif count == 1:
+        indexes = [0]
+    else:
+        indexes = []
+        used = set()
+        for i in range(count):
+            index = int(round(i * (pair_total - 1) / float(count - 1)))
+            while index in used and index + 1 < pair_total:
+                index += 1
+            while index in used and index > 0:
+                index -= 1
+            used.add(index)
+            indexes.append(index)
+    return [(paths[index], paths[index + 1]) for index in indexes]
+
+
+def create_temporal_diff_review(summary, root, frame_dir, diff_config):
+    if not isinstance(diff_config, dict) or not diff_config.get("enabled", False):
+        return None
+    try:
+        from PIL import Image, ImageChops, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the temporal difference review")
+
+    pairs = select_temporal_pairs(frame_dir, int(diff_config.get("max_pairs", 8) or 8))
+    if not pairs:
+        return None
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    diff_dir = os.path.join(review_dir, "temporal_diffs")
+    os.makedirs(diff_dir, exist_ok=True)
+    target_width = int(diff_config.get("sample_width", 320) or 320)
+    amplify = max(1.0, float(diff_config.get("amplify", 3.0) or 3.0))
+    label_h = 24
+    pad = 12
+    diff_images = []
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "BILINEAR", getattr(Image, "BICUBIC", 3))
+    for pair_index, (a_path, b_path) in enumerate(pairs):
+        with Image.open(a_path) as a_source, Image.open(b_path) as b_source:
+            a = a_source.convert("L")
+            b = b_source.convert("L")
+            if target_width > 0 and a.width > target_width:
+                target_height = max(1, int(round(a.height * (target_width / float(a.width)))))
+                a = a.resize((target_width, target_height), resample_filter)
+                b = b.resize((target_width, target_height), resample_filter)
+            diff = ImageChops.difference(a, b)
+            diff = diff.point(lambda value: min(255, int(value * amplify)))
+            diff_rgb = Image.merge("RGB", (diff, diff, diff))
+            a_frame = frame_number_from_path(a_path)
+            b_frame = frame_number_from_path(b_path)
+            diff_name = f"temporal_diff_{pair_index:02d}_{a_frame:04d}_{b_frame:04d}.png"
+            diff_path = os.path.join(diff_dir, diff_name)
+            diff_rgb.save(diff_path)
+            diff_images.append({
+                "source_a": a_path,
+                "source_b": b_path,
+                "frame_a": a_frame,
+                "frame_b": b_frame,
+                "diff": diff_path,
+            })
+    with Image.open(diff_images[0]["diff"]) as first_diff:
+        thumb_w, thumb_h = first_diff.size
+    columns = min(4, max(1, int(math.ceil(math.sqrt(len(diff_images))))))
+    rows = int(math.ceil(len(diff_images) / float(columns)))
+    sheet_w = pad + columns * (thumb_w + pad)
+    sheet_h = pad + rows * (thumb_h + label_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, item in enumerate(diff_images):
+        with Image.open(item["diff"]) as img:
+            cell = img.convert("RGB")
+        col = index % columns
+        row = index // columns
+        x = pad + col * (thumb_w + pad)
+        y = pad + row * (thumb_h + label_h + pad)
+        sheet.paste(cell, (x, y))
+        draw.text((x + 6, y + thumb_h + 5),
+                  f"frames {item['frame_a']:04d}->{item['frame_b']:04d}",
+                  fill=(224, 234, 240))
+    sheet_path = os.path.join(review_dir, "temporal_diff_sheet.png")
+    manifest_path = os.path.join(review_dir, "temporal_diff_manifest.json")
+    sheet.save(sheet_path)
+    manifest = {
+        "schema": "lsfs_cinematic_temporal_diff_review",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "render_preset": summary.get("render_preset"),
+        "sample_width": target_width,
+        "amplify": amplify,
+        "temporal_diff_sheet": rel_path(sheet_path, root),
+        "pair_count": len(diff_images),
+        "pairs": [
+            {
+                "frame_a": item["frame_a"],
+                "frame_b": item["frame_b"],
+                "source_a": rel_path(item["source_a"], root),
+                "source_b": rel_path(item["source_b"], root),
+                "diff": rel_path(item["diff"], root),
+            }
+            for item in diff_images
+        ],
+    }
+    write_json(manifest_path, manifest)
+    return {
+        "temporal_diff_sheet": sheet_path,
+        "temporal_diff_manifest": manifest_path,
+        "temporal_diff_pair_count": len(diff_images),
+    }
+
+
 def create_review_pack(summary, root, frame_dir, review_frame_count):
     try:
         from PIL import Image, ImageDraw
@@ -714,7 +837,8 @@ def render_report(summary, root):
     ]
     for key in ("manifest", "sequence", "water_reconstruction", "render_summary",
                 "render_frame_dir", "gif", "contact_sheet", "review_manifest",
-                "comparison_sheet", "comparison_manifest", "review_dir"):
+                "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
+                "temporal_diff_manifest", "review_dir"):
         if key in artifacts:
             lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
     lines.extend([
@@ -758,6 +882,7 @@ def render_report(summary, root):
         f"- Secondary interface gate: `{format_secondary_interface_gate(summary.get('export_metrics', {}))}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         f"- Review comparison sources: `{metrics.get('comparison_source_count', 'n/a')}`",
+        f"- Temporal diff review pairs: `{metrics.get('temporal_diff_pair_count', 'n/a')}`",
         "",
         "## Stage Timings",
         "",
@@ -793,7 +918,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S82 should add a temporal difference review sheet so water highlight motion can be inspected visually, not only through scalar metrics.",
+        "S83 should use the temporal review evidence to tune or animate highlight/reflection layers without introducing flicker.",
         "",
     ])
     return "\n".join(lines)
@@ -1072,6 +1197,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                           0.05),
         "visual_qa": section(renderer, "visual_qa"),
         "temporal_highlight_qa": section(renderer, "temporal_highlight_qa"),
+        "temporal_diff_review": section(renderer, "temporal_diff_review"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
@@ -1422,6 +1548,12 @@ def run_pipeline(args):
                 summary["artifacts"]["comparison_sheet"] = comparison["comparison_sheet"]
                 summary["artifacts"]["comparison_manifest"] = comparison["comparison_manifest"]
                 summary["metrics"]["comparison_source_count"] = comparison["comparison_source_count"]
+            temporal_diff = create_temporal_diff_review(
+                summary, root, frame_dir, config.get("temporal_diff_review", {}))
+            if temporal_diff:
+                summary["artifacts"]["temporal_diff_sheet"] = temporal_diff["temporal_diff_sheet"]
+                summary["artifacts"]["temporal_diff_manifest"] = temporal_diff["temporal_diff_manifest"]
+                summary["metrics"]["temporal_diff_pair_count"] = temporal_diff["temporal_diff_pair_count"]
         finish("ok")
         if args.report:
             write_text(report_out, render_report(summary, root))
