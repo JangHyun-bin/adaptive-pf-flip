@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S118 should return to Blender render-quality work with the full warm-cache path enabled.",
+        "S119 should add a side-by-side Blender quality comparison against the previous large-grid baseline.",
         "",
     ])
     return "\n".join(lines)

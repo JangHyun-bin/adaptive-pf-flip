@@ -2247,7 +2247,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S118 should return to a Blender quality gate while keeping the warm-cache controls enabled for iteration.",
+        "S119 should produce a direct visual comparison package between the S106 baseline and the current warm-cache Blender quality output.",
         "",
     ])
     return "\n".join(lines)
