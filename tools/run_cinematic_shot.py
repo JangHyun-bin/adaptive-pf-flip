@@ -1083,6 +1083,112 @@ def create_focus_review_comparison(summary, root, current_review_manifest, compa
     }
 
 
+def load_ripple_readability_source(path, root):
+    manifest_path = os.path.abspath(path)
+    if not os.path.isfile(manifest_path):
+        fail(f"ripple diagnostic comparison review manifest not found: {manifest_path}")
+    manifest = read_json(manifest_path)
+    if manifest.get("schema") != "lsfs_cinematic_review_pack":
+        fail(f"{manifest_path}: expected lsfs_cinematic_review_pack schema")
+    sheet = resolve_review_artifact(manifest_path, root, manifest.get("ripple_readability_sheet"))
+    if not sheet or not os.path.isfile(sheet):
+        return None
+    diag_manifest = resolve_review_artifact(manifest_path, root, manifest.get("ripple_readability_manifest"))
+    return {
+        "manifest": manifest_path,
+        "ripple_readability_sheet": sheet,
+        "ripple_readability_manifest": diag_manifest if diag_manifest and os.path.isfile(diag_manifest) else None,
+        "shot_preset": manifest.get("shot_preset", "unknown"),
+        "render_preset": manifest.get("render_preset", "unknown"),
+        "selected_renderer": manifest.get("selected_renderer", "unknown"),
+        "frame_count": manifest.get("frame_count", "n/a"),
+    }
+
+
+def create_ripple_readability_comparison(summary, root, current_review_manifest, compare_manifests):
+    if not compare_manifests:
+        return None
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the ripple diagnostic comparison")
+
+    sources = []
+    for path in compare_manifests:
+        source = load_ripple_readability_source(path, root)
+        if source:
+            sources.append(source)
+    current = load_ripple_readability_source(current_review_manifest, root)
+    if current:
+        sources.append(current)
+    if len(sources) < 2:
+        return None
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    os.makedirs(review_dir, exist_ok=True)
+    max_panel_w = 640
+    label_h = 40
+    pad = 14
+    panels = []
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+    for source in sources:
+        with Image.open(source["ripple_readability_sheet"]) as img:
+            panel = img.convert("RGB")
+            if panel.width > max_panel_w:
+                scale = max_panel_w / float(panel.width)
+                panel = panel.resize((max_panel_w, max(1, int(round(panel.height * scale)))), resample_filter)
+        panels.append((source, panel))
+
+    columns = min(2, len(panels))
+    rows = int(math.ceil(len(panels) / float(columns)))
+    panel_w = max(panel.width for _source, panel in panels)
+    panel_h = max(panel.height for _source, panel in panels)
+    sheet_w = pad + columns * (panel_w + pad)
+    sheet_h = pad + rows * (label_h + panel_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, (source, panel) in enumerate(panels):
+        col = index % columns
+        row = index // columns
+        x = pad + col * (panel_w + pad)
+        y = pad + row * (label_h + panel_h + pad)
+        label = f"{source['shot_preset']} / ripple diagnostic / frames={source['frame_count']}"
+        draw.text((x + 6, y + 8), label, fill=(224, 234, 240))
+        panel_x = x + (panel_w - panel.width) // 2
+        sheet.paste(panel, (panel_x, y + label_h))
+
+    comparison_sheet = os.path.join(review_dir, "ripple_readability_comparison_sheet.png")
+    comparison_manifest = os.path.join(review_dir, "ripple_readability_comparison_manifest.json")
+    sheet.save(comparison_sheet)
+    manifest = {
+        "schema": "lsfs_cinematic_ripple_readability_comparison",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "ripple_readability_comparison_sheet": rel_path(comparison_sheet, root),
+        "sources": [
+            {
+                "manifest": rel_path(item["manifest"], root),
+                "ripple_readability_sheet": rel_path(item["ripple_readability_sheet"], root),
+                "ripple_readability_manifest": rel_path(item["ripple_readability_manifest"], root),
+                "shot_preset": item["shot_preset"],
+                "render_preset": item["render_preset"],
+                "selected_renderer": item["selected_renderer"],
+                "frame_count": item["frame_count"],
+            }
+            for item in sources
+        ],
+    }
+    write_json(comparison_manifest, manifest)
+    return {
+        "ripple_readability_comparison_sheet": comparison_sheet,
+        "ripple_readability_comparison_manifest": comparison_manifest,
+        "ripple_readability_comparison_source_count": len(sources),
+    }
+
+
 def evaluate_camera_stability(config, camera_path):
     gate = config.get("camera_stability")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
@@ -1333,6 +1439,7 @@ def render_report(summary, root):
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
                 "focus_comparison_sheet", "focus_comparison_manifest",
                 "ripple_readability_sheet", "ripple_readability_manifest",
+                "ripple_readability_comparison_sheet", "ripple_readability_comparison_manifest",
                 "review_dir"):
             if key in artifacts:
                 lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
@@ -1384,6 +1491,7 @@ def render_report(summary, root):
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         f"- Review comparison sources: `{metrics.get('comparison_source_count', 'n/a')}`",
         f"- Focus comparison sources: `{metrics.get('focus_comparison_source_count', 'n/a')}`",
+        f"- Ripple readability comparison sources: `{metrics.get('ripple_readability_comparison_source_count', 'n/a')}`",
         f"- Temporal diff review pairs: `{metrics.get('temporal_diff_pair_count', 'n/a')}`",
         "",
         "## Stage Timings",
@@ -1420,7 +1528,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S92 should compare ripple/contact diagnostic sheets across nearby milestones.",
+        "S93 should tune contact foam and ripple integration while preserving diagnostic and temporal gates.",
         "",
     ])
     return "\n".join(lines)
@@ -2082,6 +2190,18 @@ def run_pipeline(args):
                 summary["artifacts"]["focus_comparison_sheet"] = focus_comparison["focus_comparison_sheet"]
                 summary["artifacts"]["focus_comparison_manifest"] = focus_comparison["focus_comparison_manifest"]
                 summary["metrics"]["focus_comparison_source_count"] = focus_comparison["focus_comparison_source_count"]
+            readability_comparison = create_ripple_readability_comparison(
+                summary, root, review["review_manifest"], config["compare_review_manifests"])
+            if readability_comparison:
+                summary["artifacts"]["ripple_readability_comparison_sheet"] = (
+                    readability_comparison["ripple_readability_comparison_sheet"]
+                )
+                summary["artifacts"]["ripple_readability_comparison_manifest"] = (
+                    readability_comparison["ripple_readability_comparison_manifest"]
+                )
+                summary["metrics"]["ripple_readability_comparison_source_count"] = (
+                    readability_comparison["ripple_readability_comparison_source_count"]
+                )
             temporal_diff = create_temporal_diff_review(
                 summary, root, frame_dir, config.get("temporal_diff_review", {}))
             if temporal_diff:
