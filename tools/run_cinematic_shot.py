@@ -694,7 +694,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S77 should make contact foam read as moving with the impact flow rather than only static horizontal patches.",
+        "S78 should soften contact foam integration so flow strokes fade into the water surface instead of reading as separate bright marks.",
         "",
     ])
     return "\n".join(lines)

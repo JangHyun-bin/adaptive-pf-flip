@@ -583,6 +583,26 @@
           "max_vertical_fov_degrees": 44.0
         }
       }
+    },
+    "dam_break_contact_foam_flow": {
+      "extends": "dam_break_impact_framing",
+      "description": "Impact framing with flow-aligned surface foam strokes.",
+      "renderer": {
+        "surface_contact_foam_pass": {
+          "enabled": true,
+          "channels": {
+            "foam": 1.0
+          },
+          "max_count": 256,
+          "radius_x": 1.35,
+          "radius_z": 0.22,
+          "vertical_offset": -1.85,
+          "flow_aligned": true,
+          "flow_center": [14.0, 0.0, 11.0],
+          "alpha_scale": 0.5,
+          "emission_scale": 0.68
+        }
+      }
     }
   }
 }

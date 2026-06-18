@@ -122,6 +122,7 @@ The missing work is not one feature. It is a pipeline:
 | S74 | Impact framing gate | Add inherited impact-framing preset and gate so the active secondary band stays visible longer | Done in `feat: add impact framing gate` |
 | S75 | Active secondary framing QA | Project spray/foam particles into camera space and gate inside-frame ratio plus vertical placement | Done in `test: add active secondary framing qa` |
 | S76 | Surface contact foam pass | Render flattened foam patches near the water surface to connect secondary foam back to the water body | Done in `feat: add surface contact foam pass` |
+| S77 | Contact foam flow lines | Use an inherited preset with flow-aligned surface foam strokes for less static contact foam | Done in `feat: add contact foam flow lines` |
 
 ## Decision Gates
 
@@ -459,16 +460,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S77.
+Continue with S78.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-contact-foam-flow-lines.md`
+`docs/superpowers/plans/2026-06-18-contact-foam-material-fade.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_impact_framing --out build\shots\s77_contact_foam_flow_lines --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s77.md --compare-review-manifest build\shots\s76_surface_foam_contact\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_foam_flow --out build\shots\s78_contact_foam_material_fade --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s78.md --compare-review-manifest build\shots\s77_contact_foam_flow_lines\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is contact foam that reads as moving with the impact flow, not only as static horizontal patches.
+The next success condition is softer contact foam integration: strokes should fade into the water surface instead of reading as separate bright marks.

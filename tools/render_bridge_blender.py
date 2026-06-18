@@ -791,6 +791,8 @@ def surface_contact_foam_pass_summary(render_preset):
         "radius_x": as_float(cfg.get("radius_x"), 0.7),
         "radius_z": as_float(cfg.get("radius_z"), 0.22),
         "vertical_offset": as_float(cfg.get("vertical_offset"), -1.2),
+        "flow_aligned": bool(cfg.get("flow_aligned", False)),
+        "flow_center": vec3(cfg.get("flow_center"), (14.0, 0.0, 11.0)),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.32),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.35),
     }
@@ -1356,6 +1358,8 @@ def surface_contact_foam_pass_values(spec):
         "radius_x": max(0.01, scalar_value(cfg.get("radius_x"), 0.7)),
         "radius_z": max(0.01, scalar_value(cfg.get("radius_z"), 0.22)),
         "vertical_offset": scalar_value(cfg.get("vertical_offset"), -1.2),
+        "flow_aligned": bool(cfg.get("flow_aligned", False)),
+        "flow_center": vector_value(cfg.get("flow_center"), (14.0, 0.0, 11.0), 3),
     }
 
 
@@ -1371,6 +1375,8 @@ def add_surface_contact_foam_pass(frame, material, contact_pass):
     vertical_offset = float(contact_pass.get("vertical_offset", -1.2))
     radius_x = float(contact_pass.get("radius_x", 0.7))
     radius_z = float(contact_pass.get("radius_z", 0.22))
+    flow_aligned = bool(contact_pass.get("flow_aligned", False))
+    flow_center = contact_pass.get("flow_center", (14.0, 0.0, 11.0))
     with open(path, encoding="utf-8", newline="") as f:
         for row in csv.DictReader(f):
             if len(patches) >= max_count:
@@ -1384,7 +1390,20 @@ def add_surface_contact_foam_pass(frame, material, contact_pass):
                 float(row.get("y", 0.0)) + vertical_offset,
                 float(row.get("z", 0.0)),
             )
-            patches.append((to_blender(pos), radius_x * scale, radius_z * scale))
+            direction = (1.0, 0.0)
+            if flow_aligned:
+                vx = float(row.get("vx", 0.0))
+                vz = float(row.get("vz", 0.0))
+                horizontal_speed = math.sqrt(vx * vx + vz * vz)
+                if horizontal_speed > 1e-5:
+                    direction = (vx / horizontal_speed, vz / horizontal_speed)
+                else:
+                    dx = pos[0] - float(flow_center[0])
+                    dz = pos[2] - float(flow_center[2])
+                    radial = math.sqrt(dx * dx + dz * dz)
+                    if radial > 1e-5:
+                        direction = (dx / radial, dz / radial)
+            patches.append((to_blender(pos), direction, radius_x * scale, radius_z * scale))
     if patches:
         add_surface_contact_foam_mesh("LSFS Surface Contact Foam", patches, material)
     return len(patches)
@@ -1394,10 +1413,13 @@ def add_surface_contact_foam_mesh(name, patches, material, segments=14):
     verts = []
     faces = []
     segments = max(6, int(segments))
-    axis_x = Vector((1.0, 0.0, 0.0))
-    axis_z = Vector((0.0, -1.0, 0.0))
-    for center, radius_x, radius_z in patches:
+    for center, direction, radius_x, radius_z in patches:
         center_vec = Vector(center)
+        axis_x = Vector((float(direction[0]), -float(direction[1]), 0.0))
+        if axis_x.length <= 1e-8:
+            axis_x = Vector((1.0, 0.0, 0.0))
+        axis_x = axis_x.normalized()
+        axis_z = Vector((-axis_x.y, axis_x.x, 0.0))
         base = len(verts)
         verts.append(tuple(center_vec))
         for seg in range(segments):
