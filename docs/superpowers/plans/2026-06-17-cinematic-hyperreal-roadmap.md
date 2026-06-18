@@ -179,7 +179,8 @@ The missing work is not one feature. It is a pipeline:
 | S131 | S130 gallery refresh/publish | Package and publish the S130 review artifacts for external inspection before the next shot-shape adjustment | Done in `docs: publish s130 cinematic gallery` |
 | S132 | S130 public gallery visual triage | Review the S130 public gallery and choose the next concrete visible shot-shape adjustment from current evidence | Done in `docs: triage s130 public gallery` |
 | S133 | Falling-source silhouette breakup pass | Break the upper falling-water mass into staggered rounded lobes with less continuous vertical side-wall structure | Done in `feat: add falling source silhouette breakup` |
-| S134 | S133 gallery refresh/publish | Package and publish the S133 review artifacts for external inspection | Planned |
+| S134 | S133 gallery refresh/publish | Package and publish the S133 review artifacts for external inspection | Done in `docs: publish s133 cinematic gallery` |
+| S135 | S133 public gallery visual triage | Review the S133 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -517,18 +518,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S134.
+Continue with S135.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s133-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s133-public-gallery-visual-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s133_falling_source_silhouette_breakup --out docs\reports\cinematic_artifact_package_s134.md
-python tools\build_cinematic_gallery.py build\shots\s133_falling_source_silhouette_breakup --package docs\reports\cinematic_artifact_package_s134.md --out build\shots\s133_falling_source_silhouette_breakup\gallery --report docs\reports\cinematic_static_gallery_s134.md
-python tools\publish_cinematic_gallery.py build\shots\s133_falling_source_silhouette_breakup\gallery --port 8799 --cftunnel --manifest build\shots\s133_falling_source_silhouette_breakup\gallery\publish_manifest_s134.json --report docs\reports\cinematic_gallery_publish_s134.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s133_falling_source_silhouette_breakup\gallery\gallery_manifest.json --publish build\shots\s133_falling_source_silhouette_breakup\gallery\publish_manifest_s134.json --out docs\reports\cinematic_visual_review_s135.md
 ```
 
-The next success condition is a checked-in S133 gallery package/publish report with verified local/public `index.html` and `assets/shot.gif`.
+The next success condition is a checked-in visual triage report that records the S133 public gallery state and selects the next concrete visible shot adjustment.

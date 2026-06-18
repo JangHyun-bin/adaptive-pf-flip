@@ -25,6 +25,17 @@ python tools\publish_cinematic_gallery.py build\shots\s133_falling_source_silhou
 - Publisher verifies local/public `index.html` and `assets/shot.gif`.
 - README and roadmap point to the next S133 public-gallery triage or visible shot-shape adjustment.
 
+## Result
+
+- Artifact package: `docs/reports/cinematic_artifact_package_s134.md`
+- Static gallery report: `docs/reports/cinematic_static_gallery_s134.md`
+- Publish report: `docs/reports/cinematic_gallery_publish_s134.md`
+- Local URL: `http://127.0.0.1:8799`
+- Public URL: `https://abstract-shareware-hawaiian-healthy.trycloudflare.com`
+- HTTP server PID: `24600`
+- cloudflared PID: `56808`
+- Verified local/public `index.html` and `assets/shot.gif`.
+
 ## Verification
 
 ```powershell
