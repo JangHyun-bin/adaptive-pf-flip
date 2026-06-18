@@ -154,6 +154,7 @@ The missing work is not one feature. It is a pipeline:
 | S106 | Large-grid render-quality followup | Reuse the S104 large-grid stack with a higher, wider camera to improve early secondary framing while preserving the render/review gates | Done in `test: tune large grid render quality` |
 | S107 | Large-grid benchmark summary refresh | Include S106 in the compact benchmark table and expose framing-min plus validate/reconstruct/convert timing columns | Done in `tools: refresh large grid benchmark summary` |
 | S108 | Cinematic stage profile | Turn the S107 benchmark table into render/non-render cost splits and rank large-grid stage bottlenecks | Done in `tools: profile cinematic stage costs` |
+| S109 | Converted sequence reuse | Add opt-in SHA256 fingerprint reuse for converted sequence assets and expose reuse status in shot reports | Done in `perf: reuse fresh converted render cache` |
 
 ## Decision Gates
 
@@ -491,16 +492,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S109.
+Continue with S110.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-converted-sequence-reuse.md`
+`docs/superpowers/plans/2026-06-18-render-cache-validation-reuse.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_large_grid_render_quality_followup --out build\shots\s109_converted_sequence_reuse_probe --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer preview --review-frames 4 --reuse-converted --report docs\reports\cinematic_gate_s109.md --no-build --timeout-seconds 900
+python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s110_validation_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-converted --reuse-validation --no-build --timeout-seconds 120
 ```
 
-The next success condition is a conservative converted-sequence freshness check that can skip `convert_render_cache` on repeated review runs without weakening validation or changing render artifacts.
+The next success condition is a conservative validation freshness stamp that can skip `validate_render_cache` on repeated review runs only when manifest and cache frame contents are unchanged.

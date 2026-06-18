@@ -1918,6 +1918,7 @@ def render_report(summary, root):
         "",
         f"- Cache frames: `{metrics.get('cache_frame_count', 'n/a')}`",
         f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
+        f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
         f"- Surface mode: `{metrics.get('surface_mode', 'n/a')}`",
         f"- Implicit blur iterations: `{metrics.get('implicit_blur_iterations', 'n/a')}`",
@@ -2002,7 +2003,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S109 should add a conservative converted-sequence freshness check so repeated review runs can skip convert_render_cache without weakening validation or changing render artifacts.",
+        "S110 should add a conservative validation freshness stamp so repeated review runs can skip validate_render_cache only when manifest and cache frame contents are unchanged.",
         "",
     ])
     return "\n".join(lines)
@@ -2128,6 +2129,8 @@ def parse_args(argv):
                         help="skip contact sheet and review manifest generation")
     parser.add_argument("--compare-review-manifest", action="append", default=[],
                         help="previous review_manifest.json to include in a wide/close comparison sheet")
+    parser.add_argument("--reuse-converted", action="store_true",
+                        help="let convert_render_cache.py reuse sequence.json when inputs are unchanged")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -2468,14 +2471,18 @@ def run_pipeline(args):
         pipeline.run("reconstruct_water", reconstruct_cmd)
         require_file(water_index, "water reconstruction index")
 
-        pipeline.run("convert_render_cache", [
+        convert_cmd = [
             sys.executable,
             tool_path(root, "convert_render_cache.py"),
             manifest_path,
             converted_dir,
             "--require-cinematic",
             "--water-reconstruction", water_index,
-        ])
+        ]
+        if args.reuse_converted:
+            convert_cmd.append("--reuse-if-fresh")
+        convert_result, _convert_item = pipeline.run("convert_render_cache", convert_cmd)
+        summary["convert_metrics"] = parse_key_value_stdout(convert_result.stdout)
         require_file(sequence_path, "converted sequence")
 
         selected_renderer, blender_report = choose_renderer(config["renderer"], args, pipeline, root)
@@ -2545,6 +2552,7 @@ def run_pipeline(args):
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
+            "converted_sequence_reused": bool(summary.get("convert_metrics", {}).get("reused", False)),
             "secondary_channels": secondary_channels,
             "secondary_volumes": secondary_volumes,
             "shot_gif_bytes": os.path.getsize(gif_path),

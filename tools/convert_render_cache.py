@@ -10,11 +10,12 @@ writes a simple movable bundle:
   frames/frame_000_phase_cells.csv
 
 Usage:
-  python tools/convert_render_cache.py <manifest.json> <out_dir> [--require-cinematic]
+  python tools/convert_render_cache.py <manifest.json> <out_dir> [--require-cinematic] [--reuse-if-fresh]
 """
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -117,6 +118,93 @@ def resolve_frame_path(base_dir, path):
 
 def output_relpath(path, out_dir):
     return os.path.relpath(path, out_dir).replace(os.sep, "/")
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_fingerprint(role, path, **extra):
+    abs_path = os.path.abspath(path)
+    payload = {
+        "role": role,
+        "path": abs_path,
+        "bytes": os.path.getsize(abs_path),
+        "sha256": sha256_file(abs_path),
+    }
+    payload.update(extra)
+    return payload
+
+
+def conversion_fingerprint(manifest, require_cinematic, water_reconstruction):
+    files = [
+        file_fingerprint("converter", __file__),
+        file_fingerprint("manifest", manifest["path"]),
+    ]
+    for frame in manifest["frames"]:
+        files.append(file_fingerprint(
+            "cache_frame",
+            frame["path"],
+            frame=frame["frame"],
+            manifest_path=frame["manifest_path"]))
+    if water_reconstruction:
+        files.append(file_fingerprint("water_reconstruction", water_reconstruction["_abs_path"]))
+        for index, frame in enumerate(water_reconstruction["frames"]):
+            files.append(file_fingerprint(
+                "water_mesh",
+                frame["_abs_mesh"],
+                frame=index,
+                mesh=frame.get("mesh", "")))
+    return {
+        "version": 1,
+        "require_cinematic": bool(require_cinematic),
+        "files": files,
+    }
+
+
+def output_asset_exists(out_dir, value):
+    if not isinstance(value, str) or not value:
+        return False
+    path = value if os.path.isabs(value) else os.path.join(out_dir, value)
+    return os.path.isfile(path)
+
+
+def converted_assets_exist(sequence, out_dir):
+    frames = sequence.get("frames")
+    if not isinstance(frames, list) or not frames:
+        return False
+    if sequence.get("frame_count") != len(frames):
+        return False
+    for frame in frames:
+        if not isinstance(frame, dict):
+            return False
+        for key in ("camera", "particles", "phase_cells"):
+            if not output_asset_exists(out_dir, frame.get(key)):
+                return False
+        if frame.get("water_mesh") and not output_asset_exists(out_dir, frame.get("water_mesh")):
+            return False
+    return True
+
+
+def load_reusable_sequence(out_dir, expected_fingerprint):
+    sequence_path = os.path.join(out_dir, "sequence.json")
+    if not os.path.isfile(sequence_path):
+        return None
+    try:
+        with open(sequence_path, encoding="utf-8") as f:
+            sequence = json.load(f)
+    except json.JSONDecodeError:
+        return None
+    if sequence.get("conversion_fingerprint") != expected_fingerprint:
+        return None
+    if not converted_assets_exist(sequence, out_dir):
+        return None
+    sequence["_runtime_reused"] = True
+    return sequence
 
 
 def load_water_reconstruction(path):
@@ -420,10 +508,20 @@ def convert_frame(manifest,
     return result
 
 
-def convert(manifest_path, out_dir, require_cinematic=False, water_reconstruction_path=None):
+def convert(manifest_path,
+            out_dir,
+            require_cinematic=False,
+            water_reconstruction_path=None,
+            reuse_if_fresh=False):
     manifest = load_manifest(manifest_path, require_cinematic=require_cinematic)
     water_reconstruction = load_water_reconstruction(water_reconstruction_path)
     out_dir = os.path.abspath(out_dir)
+    fingerprint = conversion_fingerprint(manifest, require_cinematic, water_reconstruction)
+    if reuse_if_fresh:
+        sequence = load_reusable_sequence(out_dir, fingerprint)
+        if sequence:
+            return sequence
+
     frames_dir = os.path.join(out_dir, "frames")
     os.makedirs(frames_dir, exist_ok=True)
 
@@ -453,6 +551,8 @@ def convert(manifest_path, out_dir, require_cinematic=False, water_reconstructio
             "phase_cells": "csv",
             "water_mesh": "obj" if water_reconstruction else None,
         },
+        "conversion_fingerprint": fingerprint,
+        "conversion_reused": False,
         "frames": converted_frames,
     }
     if water_reconstruction:
@@ -473,6 +573,8 @@ def parse_args(argv):
                         help="require S37 cache_schema_version 2 cinematic metadata")
     parser.add_argument("--water-reconstruction",
                         help="optional S41 water_reconstruction.json to attach to sequence entries")
+    parser.add_argument("--reuse-if-fresh", action="store_true",
+                        help="reuse an existing sequence.json if its input fingerprint still matches")
     return parser.parse_args(argv)
 
 
@@ -482,14 +584,17 @@ def main(argv):
         sequence = convert(args.manifest,
                            args.out_dir,
                            require_cinematic=args.require_cinematic,
-                           water_reconstruction_path=args.water_reconstruction)
+                           water_reconstruction_path=args.water_reconstruction,
+                           reuse_if_fresh=args.reuse_if_fresh)
     except ConvertError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
         return 1
 
+    reused = bool(sequence.pop("_runtime_reused", False))
     print(f"frames={sequence['frame_count']}")
     print(f"sequence={os.path.join(args.out_dir, 'sequence.json')}")
-    print("status=ok")
+    print(f"reused={'true' if reused else 'false'}")
+    print("status=reused" if reused else "status=ok")
     return 0
 
 
