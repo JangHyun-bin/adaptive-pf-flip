@@ -2000,7 +2000,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S99 should tune stronger water-body volume/depth cues while preserving visual, temporal, ripple, and secondary depth comparison gates.",
+        "S100 should add a water-depth-focused comparison diagnostic so water-body tuning can be reviewed without relying only on full-frame contact sheets.",
         "",
     ])
     return "\n".join(lines)

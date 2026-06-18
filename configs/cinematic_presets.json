@@ -1056,6 +1056,34 @@
           "transmission": 0.0
         }
       }
+    },
+    "dam_break_water_volume_depth_cued": {
+      "extends": "dam_break_secondary_volume_depth_tuned",
+      "description": "Secondary volume tuning with stronger water-body depth and rim cues.",
+      "materials": {
+        "water": {
+          "base_color": [0.1, 0.5, 0.9, 0.6],
+          "depth_color": [0.012, 0.095, 0.28, 0.78],
+          "depth_strength": 0.52,
+          "rim_color": [0.68, 0.94, 1.0, 0.9],
+          "rim_strength": 0.52,
+          "rim_width": 0.28,
+          "specular": 0.86,
+          "coat_weight": 0.32,
+          "roughness": 0.032,
+          "alpha": 0.6,
+          "transmission": 0.3
+        }
+      },
+      "renderer": {
+        "water_reflection_pass": {
+          "alpha_scale": 0.34,
+          "emission_scale": 0.72
+        },
+        "focus_review": {
+          "min_mean_bright_ratio": 0.00015
+        }
+      }
     }
   }
 }
