@@ -76,6 +76,15 @@ def read_json(path):
         return json.load(f)
 
 
+def rel_path(path, root):
+    if not path:
+        return None
+    try:
+        return os.path.relpath(path, root).replace(os.sep, "/")
+    except ValueError:
+        return path
+
+
 def tool_path(root, name):
     return os.path.join(root, "tools", name)
 
@@ -116,10 +125,135 @@ def format_ms(value):
 def report_path(path, root):
     if not path:
         return "n/a"
+    return rel_path(path, root)
+
+
+def frame_number_from_path(path):
+    stem = os.path.splitext(os.path.basename(path))[0]
+    tail = stem.rsplit("_", 1)[-1]
     try:
-        return os.path.relpath(path, root).replace(os.sep, "/")
+        return int(tail)
     except ValueError:
-        return path
+        return None
+
+
+def select_keyframes(frame_dir, count):
+    paths = [
+        os.path.join(frame_dir, name)
+        for name in sorted(os.listdir(frame_dir))
+        if name.startswith("frame_") and name.lower().endswith(".png")
+    ]
+    if not paths:
+        fail(f"no PNG frames found in render frame directory: {frame_dir}")
+    if count <= 0:
+        return []
+    if count >= len(paths):
+        return paths
+    if count == 1:
+        return [paths[0]]
+    selected = []
+    used = set()
+    for i in range(count):
+        index = int(round(i * (len(paths) - 1) / float(count - 1)))
+        while index in used and index + 1 < len(paths):
+            index += 1
+        while index in used and index > 0:
+            index -= 1
+        used.add(index)
+        selected.append(paths[index])
+    return selected
+
+
+def create_review_pack(summary, root, frame_dir, review_frame_count):
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the cinematic review pack")
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    keyframe_dir = os.path.join(review_dir, "keyframes")
+    os.makedirs(keyframe_dir, exist_ok=True)
+    selected = select_keyframes(frame_dir, review_frame_count)
+    if not selected:
+        fail("review pack requires at least one key frame")
+
+    with Image.open(selected[0]) as first:
+        src_w, src_h = first.size
+    thumb_w = min(320, max(160, src_w // 3))
+    thumb_h = max(1, int(round(src_h * (thumb_w / float(src_w)))))
+    label_h = 24
+    pad = 12
+    columns = min(4, max(1, int(math.ceil(math.sqrt(len(selected))))))
+    rows = int(math.ceil(len(selected) / float(columns)))
+    sheet_w = pad + columns * (thumb_w + pad)
+    sheet_h = pad + rows * (thumb_h + label_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (18, 22, 26))
+    draw = ImageDraw.Draw(sheet)
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+
+    keyframes = []
+    for out_index, source in enumerate(selected):
+        with Image.open(source) as img:
+            thumb = img.convert("RGB")
+            thumb.thumbnail((thumb_w, thumb_h), resample_filter)
+            cell = Image.new("RGB", (thumb_w, thumb_h), (8, 10, 12))
+            cell.paste(thumb, ((thumb_w - thumb.width) // 2, (thumb_h - thumb.height) // 2))
+            thumb_name = f"keyframe_{out_index:02d}_{os.path.basename(source)}"
+            thumb_path = os.path.join(keyframe_dir, thumb_name)
+            cell.save(thumb_path)
+
+        col = out_index % columns
+        row = out_index // columns
+        x = pad + col * (thumb_w + pad)
+        y = pad + row * (thumb_h + label_h + pad)
+        sheet.paste(cell, (x, y))
+        frame_no = frame_number_from_path(source)
+        label = f"frame {frame_no:04d}" if frame_no is not None else os.path.basename(source)
+        draw.text((x + 6, y + thumb_h + 5), label, fill=(224, 234, 240))
+        keyframes.append({
+            "source": source,
+            "thumbnail": thumb_path,
+            "frame": frame_no,
+        })
+
+    contact_sheet = os.path.join(review_dir, "contact_sheet.png")
+    sheet.save(contact_sheet)
+    manifest_path = os.path.join(review_dir, "review_manifest.json")
+    metrics = dict(summary.get("metrics", {}))
+    metrics["review_frame_count"] = len(keyframes)
+    manifest = {
+        "schema": "lsfs_cinematic_review_pack",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "render_preset": summary.get("render_preset"),
+        "selected_renderer": summary.get("selected_renderer"),
+        "frame_count": summary.get("config", {}).get("frames"),
+        "contact_sheet": rel_path(contact_sheet, root),
+        "gif": rel_path(summary.get("artifacts", {}).get("gif"), root),
+        "report": rel_path(summary.get("artifacts", {}).get("report"), root),
+        "shot_summary": rel_path(os.path.join(out_dir, "shot_summary.json"), root),
+        "render_frame_dir": rel_path(frame_dir, root),
+        "metrics": metrics,
+        "keyframes": [
+            {
+                "frame": item["frame"],
+                "source": rel_path(item["source"], root),
+                "thumbnail": rel_path(item["thumbnail"], root),
+            }
+            for item in keyframes
+        ],
+    }
+    write_json(manifest_path, manifest)
+    return {
+        "review_dir": review_dir,
+        "contact_sheet": contact_sheet,
+        "review_manifest": manifest_path,
+        "review_keyframes": [item["thumbnail"] for item in keyframes],
+        "review_frame_count": len(keyframes),
+    }
 
 
 def render_report(summary, root):
@@ -147,7 +281,7 @@ def render_report(summary, root):
         "",
     ]
     for key in ("manifest", "sequence", "water_reconstruction", "render_summary",
-                "render_frame_dir", "gif"):
+                "render_frame_dir", "gif", "contact_sheet", "review_manifest", "review_dir"):
         if key in artifacts:
             lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
     lines.extend([
@@ -161,6 +295,7 @@ def render_report(summary, root):
         f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
+        f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         "",
         "## Stage Timings",
         "",
@@ -185,7 +320,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S51 should package review artifacts with a contact sheet, GIF, and compact report bundle; later physics work should replace demo secondary seeding with physical spray generation.",
+        "S52 should run a larger visual gate through the current cinematic stack and compare artifact size, render time, and visible quality against S45-S51.",
         "",
     ])
     return "\n".join(lines)
@@ -294,6 +429,10 @@ def parse_args(argv):
     parser.add_argument("--timeout-seconds", type=int, default=300,
                         help="Blender subprocess timeout")
     parser.add_argument("--report", help="optional markdown report path")
+    parser.add_argument("--review-frames", type=int, default=6,
+                        help="number of evenly sampled keyframes in the review contact sheet")
+    parser.add_argument("--no-review-pack", action="store_true",
+                        help="skip contact sheet and review manifest generation")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -324,6 +463,8 @@ def parse_args(argv):
         parser.error("min-nonblank-ratio must be finite and non-negative")
     if args.timeout_seconds <= 0:
         parser.error("timeout-seconds must be positive")
+    if args.review_frames <= 0:
+        parser.error("review-frames must be positive")
     return args
 
 
@@ -420,6 +561,8 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                     reconstruction.get("smooth_alpha"),
                                     0.18),
         "write_normals": bool(args.write_normals or reconstruction.get("write_normals", False)),
+        "review_pack": not args.no_review_pack,
+        "review_frames": args.review_frames,
     }
 
 
@@ -656,6 +799,13 @@ def run_pipeline(args):
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out
+        if config["review_pack"]:
+            review = create_review_pack(summary, root, frame_dir, config["review_frames"])
+            summary["artifacts"]["review_dir"] = review["review_dir"]
+            summary["artifacts"]["contact_sheet"] = review["contact_sheet"]
+            summary["artifacts"]["review_manifest"] = review["review_manifest"]
+            summary["artifacts"]["review_keyframes"] = review["review_keyframes"]
+            summary["metrics"]["review_frame_count"] = review["review_frame_count"]
         finish("ok")
         if args.report:
             write_text(report_out, render_report(summary, root))

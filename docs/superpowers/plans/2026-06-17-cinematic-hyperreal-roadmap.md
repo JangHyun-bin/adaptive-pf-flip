@@ -96,7 +96,7 @@ The missing work is not one feature. It is a pipeline:
 | S48 | Visible secondary particle pass | Ensure spray/foam/bubble channels can be seen in cinematic frames | Done in `feat: enhance secondary cinematic render` |
 | S49 | Camera motion and shot grammar | Add camera path interpolation, framing presets, and shot continuity checks | Done in `feat: add cinematic camera motion` |
 | S50 | Water material depth pass | Improve material response with depth tint, edge highlights, and preset sweeps | Done in `feat: improve water material presets` |
-| S51 | Presentation artifact pack | Emit GIF/contact sheet/report bundle for fast visual review and sharing | `feat: package cinematic review artifacts` |
+| S51 | Presentation artifact pack | Emit GIF/contact sheet/report bundle for fast visual review and sharing | Done in `feat: package cinematic review artifacts` |
 | S52 | Visual gate v2 | Run a larger dynamic shot through the improved surface/render stack | `test: add cinematic visual gate v2` |
 
 ## Decision Gates
