@@ -475,6 +475,31 @@ def camera_framing_summary(render_preset, frames):
     }
 
 
+def distance3(a, b):
+    if not isinstance(a, list) or not isinstance(b, list) or len(a) < 3 or len(b) < 3:
+        return 0.0
+    return math.sqrt(sum((as_float(a[i]) - as_float(b[i])) ** 2 for i in range(3)))
+
+
+def camera_path_metrics(frames):
+    cameras = [frame.get("camera", {}) for frame in frames]
+    positions = [vec3(camera.get("position"), [0.0, 0.0, 0.0]) for camera in cameras]
+    targets = [vec3(camera.get("target"), [0.0, 0.0, 0.0]) for camera in cameras]
+    fovs = [as_float(camera.get("vertical_fov_degrees"), 0.0) for camera in cameras]
+    target_distances = [distance3(pos, target) for pos, target in zip(positions, targets)]
+    return {
+        "frame_count": len(cameras),
+        "min_position_y": min((item[1] for item in positions), default=0.0),
+        "max_position_y": max((item[1] for item in positions), default=0.0),
+        "min_target_y": min((item[1] for item in targets), default=0.0),
+        "max_target_y": max((item[1] for item in targets), default=0.0),
+        "min_target_distance": min(target_distances, default=0.0),
+        "max_target_distance": max(target_distances, default=0.0),
+        "min_vertical_fov_degrees": min(fovs, default=0.0),
+        "max_vertical_fov_degrees": max(fovs, default=0.0),
+    }
+
+
 def water_material_summary(render_preset):
     water = preset_section(preset_section(render_preset, "materials"), "water")
     return {
@@ -592,6 +617,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
         "camera_framing": camera_framing_summary(render_preset, frames),
+        "camera_path_metrics": camera_path_metrics(frames),
         "water_material": water_material_summary(render_preset),
         "water_surface_detail": water_surface_detail_summary(render_preset),
         "world_units": "cell",
@@ -1165,6 +1191,7 @@ def main(argv=None):
             "secondary_channel_radius_scales": spec["secondary_channel_radius_scales"],
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
+            "camera_path_metrics": spec["camera_path_metrics"],
             "water_material": spec["water_material"],
             "water_surface_detail": spec["water_surface_detail"],
             "render_preset_name": args.render_preset,

@@ -371,6 +371,149 @@ def create_review_pack(summary, root, frame_dir, review_frame_count):
     }
 
 
+def resolve_review_artifact(manifest_path, root, path):
+    if not path:
+        return None
+    candidates = []
+    if os.path.isabs(path):
+        candidates.append(path)
+    else:
+        candidates.append(os.path.abspath(os.path.join(root, path)))
+        candidates.append(os.path.abspath(os.path.join(os.path.dirname(manifest_path), path)))
+        candidates.append(os.path.abspath(path))
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return candidates[0] if candidates else None
+
+
+def load_review_source(path, root):
+    manifest_path = os.path.abspath(path)
+    if not os.path.isfile(manifest_path):
+        fail(f"comparison review manifest not found: {manifest_path}")
+    manifest = read_json(manifest_path)
+    if manifest.get("schema") != "lsfs_cinematic_review_pack":
+        fail(f"{manifest_path}: expected lsfs_cinematic_review_pack schema")
+    contact_sheet = resolve_review_artifact(manifest_path, root, manifest.get("contact_sheet"))
+    if not contact_sheet or not os.path.isfile(contact_sheet):
+        fail(f"{manifest_path}: comparison contact sheet not found")
+    return {
+        "manifest": manifest_path,
+        "contact_sheet": contact_sheet,
+        "shot_preset": manifest.get("shot_preset", "unknown"),
+        "render_preset": manifest.get("render_preset", "unknown"),
+        "selected_renderer": manifest.get("selected_renderer", "unknown"),
+        "frame_count": manifest.get("frame_count", "n/a"),
+    }
+
+
+def create_review_comparison(summary, root, current_review_manifest, compare_manifests):
+    if not compare_manifests:
+        return None
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the cinematic review comparison")
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    os.makedirs(review_dir, exist_ok=True)
+    sources = [load_review_source(path, root) for path in compare_manifests]
+    sources.append(load_review_source(current_review_manifest, root))
+
+    max_panel_w = 640
+    label_h = 40
+    pad = 14
+    panels = []
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+    for source in sources:
+        with Image.open(source["contact_sheet"]) as img:
+            panel = img.convert("RGB")
+            if panel.width > max_panel_w:
+                scale = max_panel_w / float(panel.width)
+                panel = panel.resize((max_panel_w, max(1, int(round(panel.height * scale)))), resample_filter)
+        panels.append((source, panel))
+
+    columns = min(2, len(panels))
+    rows = int(math.ceil(len(panels) / float(columns)))
+    panel_w = max(panel.width for _source, panel in panels)
+    panel_h = max(panel.height for _source, panel in panels)
+    sheet_w = pad + columns * (panel_w + pad)
+    sheet_h = pad + rows * (label_h + panel_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, (source, panel) in enumerate(panels):
+        col = index % columns
+        row = index // columns
+        x = pad + col * (panel_w + pad)
+        y = pad + row * (label_h + panel_h + pad)
+        label = f"{source['shot_preset']} / {source['selected_renderer']} / frames={source['frame_count']}"
+        draw.text((x + 6, y + 8), label, fill=(224, 234, 240))
+        panel_x = x + (panel_w - panel.width) // 2
+        sheet.paste(panel, (panel_x, y + label_h))
+
+    comparison_sheet = os.path.join(review_dir, "comparison_sheet.png")
+    comparison_manifest = os.path.join(review_dir, "comparison_manifest.json")
+    sheet.save(comparison_sheet)
+    manifest = {
+        "schema": "lsfs_cinematic_review_comparison",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "comparison_sheet": rel_path(comparison_sheet, root),
+        "sources": [
+            {
+                "manifest": rel_path(item["manifest"], root),
+                "contact_sheet": rel_path(item["contact_sheet"], root),
+                "shot_preset": item["shot_preset"],
+                "render_preset": item["render_preset"],
+                "selected_renderer": item["selected_renderer"],
+                "frame_count": item["frame_count"],
+            }
+            for item in sources
+        ],
+    }
+    write_json(comparison_manifest, manifest)
+    return {
+        "comparison_sheet": comparison_sheet,
+        "comparison_manifest": comparison_manifest,
+        "comparison_source_count": len(sources),
+    }
+
+
+def evaluate_camera_stability(config, camera_path):
+    gate = config.get("camera_stability")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_position_y": (camera_path.get("min_position_y"), gate.get("min_position_y"), ">="),
+        "min_target_distance": (camera_path.get("min_target_distance"), gate.get("min_target_distance"), ">="),
+        "max_vertical_fov_degrees": (camera_path.get("max_vertical_fov_degrees"), gate.get("max_vertical_fov_degrees"), "<="),
+    }
+    passed = True
+    for name, (value, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def render_report(summary, root):
     config = summary.get("config", {})
     metrics = summary.get("metrics", {})
@@ -397,7 +540,8 @@ def render_report(summary, root):
         "",
     ]
     for key in ("manifest", "sequence", "water_reconstruction", "render_summary",
-                "render_frame_dir", "gif", "contact_sheet", "review_manifest", "review_dir"):
+                "render_frame_dir", "gif", "contact_sheet", "review_manifest",
+                "comparison_sheet", "comparison_manifest", "review_dir"):
         if key in artifacts:
             lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
     lines.extend([
@@ -413,6 +557,8 @@ def render_report(summary, root):
         f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
         f"- Camera auto framing: `{metrics.get('camera_framing', {}).get('enabled', False)}`",
         f"- Camera frame scale: `{metrics.get('camera_framing', {}).get('max_scale', 1.0)}`",
+        f"- Camera path metrics: `{metrics.get('camera_path', {})}`",
+        f"- Camera stability: `{metrics.get('camera_stability', {})}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
@@ -425,6 +571,7 @@ def render_report(summary, root):
         f"- Secondary foam acceptance min: `{metrics.get('secondary_foam_acceptance_min', 'n/a')}`",
         f"- Secondary interface gate: `{format_secondary_interface_gate(summary.get('export_metrics', {}))}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
+        f"- Review comparison sources: `{metrics.get('comparison_source_count', 'n/a')}`",
         "",
         "## Stage Timings",
         "",
@@ -460,7 +607,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S64 should add contact-camera stability checks and a wide/close review comparison so close-up foam/spray stays readable without the camera sinking into the water body.",
+        "S65 should add screen-space visual QA metrics so empty, low-contrast, or weakly readable cinematic gates can fail before manual review.",
         "",
     ])
     return "\n".join(lines)
@@ -584,6 +731,8 @@ def parse_args(argv):
                         help="number of evenly sampled keyframes in the review contact sheet")
     parser.add_argument("--no-review-pack", action="store_true",
                         help="skip contact sheet and review manifest generation")
+    parser.add_argument("--compare-review-manifest", action="append", default=[],
+                        help="previous review_manifest.json to include in a wide/close comparison sheet")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -733,6 +882,8 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                                 0),
         "review_pack": not args.no_review_pack,
         "review_frames": args.review_frames,
+        "compare_review_manifests": list(args.compare_review_manifest or []),
+        "camera_stability": section(section(render_preset, "camera"), "stability"),
     }
 
 
@@ -1010,6 +1161,11 @@ def run_pipeline(args):
             render_summary = read_json(render_summary_path)
             summary["metrics"]["camera_motion"] = render_summary.get("camera_motion", {})
             summary["metrics"]["camera_framing"] = render_summary.get("camera_framing", {})
+            summary["metrics"]["camera_path"] = render_summary.get("camera_path_metrics", {})
+            summary["metrics"]["camera_stability"] = evaluate_camera_stability(
+                config, summary["metrics"]["camera_path"])
+            if summary["metrics"]["camera_stability"].get("enabled") and not summary["metrics"]["camera_stability"].get("passed"):
+                fail(f"camera stability gate failed: {summary['metrics']['camera_stability']}")
             summary["metrics"]["water_material"] = render_summary.get("water_material", {})
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
@@ -1023,6 +1179,12 @@ def run_pipeline(args):
             summary["artifacts"]["review_manifest"] = review["review_manifest"]
             summary["artifacts"]["review_keyframes"] = review["review_keyframes"]
             summary["metrics"]["review_frame_count"] = review["review_frame_count"]
+            comparison = create_review_comparison(
+                summary, root, review["review_manifest"], config["compare_review_manifests"])
+            if comparison:
+                summary["artifacts"]["comparison_sheet"] = comparison["comparison_sheet"]
+                summary["artifacts"]["comparison_manifest"] = comparison["comparison_manifest"]
+                summary["metrics"]["comparison_source_count"] = comparison["comparison_source_count"]
         finish("ok")
         if args.report:
             write_text(report_out, render_report(summary, root))

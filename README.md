@@ -150,6 +150,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S61** | **Contact foam and surface detail gate** - impact-driven droplets now split into spray and foam channels, shot reports enforce foam acceptance, and Blender water meshes get opt-in surface detail displacement. | done |
 | **S62** | **Secondary render size pass** - Blender rendering now supports channel-specific secondary radii and spray/foam emission so contact particles are more legible in the large water-event gate. | done |
 | **S63** | **Contact close-up camera gate** - `dam_break_contact_closeup` provides a closer inspection preset for foam, spray, and contact-region surface breakup. | done |
+| **S64** | **Contact camera stability review** - close-up shots now report camera path stability and can emit a wide/close review comparison sheet. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -260,6 +261,7 @@ python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shot
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s61_contact_foam_surface --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s61.md --timeout-seconds 1500
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s62_secondary_size_pass --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s62.md --timeout-seconds 1500
 python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out build/shots/s63_contact_closeup --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s63.md --timeout-seconds 1500
+python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out build/shots/s64_contact_camera_stability --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s64.md --compare-review-manifest build/shots/s62_secondary_size_pass/review/review_manifest.json --timeout-seconds 1500
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0

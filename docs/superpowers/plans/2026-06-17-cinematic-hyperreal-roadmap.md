@@ -109,6 +109,7 @@ The missing work is not one feature. It is a pipeline:
 | S61 | Contact foam and surface detail gate | Split impact secondaries into spray/foam channels and add opt-in Blender water surface detail | Done in `feat: add contact foam surface detail gate` |
 | S62 | Secondary render size pass | Add channel-specific secondary radii and spray/foam emission controls for stronger contact readability | Done in `feat: add secondary render size pass` |
 | S63 | Contact close-up camera gate | Add `dam_break_contact_closeup` as a closer inspection preset with a 36-frame Blender visual gate | Done in `feat: add contact closeup camera gate` |
+| S64 | Contact camera stability review | Report camera path stability gates and emit a wide/close review comparison sheet | Done in `feat: add contact camera stability review` |
 
 ## Decision Gates
 
@@ -446,16 +447,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S64.
+Continue with S65.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-contact-camera-stability-review.md`
+`docs/superpowers/plans/2026-06-18-cinematic-visual-qa-metrics.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s64_contact_camera_stability --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s64.md --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s65_visual_qa_metrics --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s65.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a close contact view that keeps foam/spray readable without the camera sinking into the water body, plus a review artifact that can compare the wide and close gates.
+The next success condition is screen-space visual QA in the shot summary: frame luminance/contrast ranges, water image coverage, and secondary-readability proxy metrics with thresholds that can fail a visually empty gate before manual review.
