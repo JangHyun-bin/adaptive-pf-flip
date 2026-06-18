@@ -371,7 +371,63 @@ def interpolate_camera_keys(keys, t, fallback):
     return out
 
 
-def apply_camera_preset(base_camera, render_preset, out_index, out_count):
+def dims3(value, fallback):
+    if not isinstance(value, list) or len(value) < 3:
+        return [float(fallback[0]), float(fallback[1]), float(fallback[2])]
+    return [max(1e-12, as_float(value[i], fallback[i])) for i in range(3)]
+
+
+def clamp(value, lo, hi):
+    return max(lo, min(hi, value))
+
+
+def apply_camera_auto_frame(cam, preset_camera, header):
+    auto = preset_section(preset_camera, "auto_frame")
+    if not auto.get("enabled", False):
+        return cam
+    dims = dims3(header.get("dims"), [1.0, 1.0, 1.0])
+    reference_dims = dims3(auto.get("reference_dims"), dims)
+    raw_scale = max(
+        dims[0] / max(1e-12, reference_dims[0]),
+        dims[1] / max(1e-12, reference_dims[1]),
+        dims[2] / max(1e-12, reference_dims[2]),
+    )
+    strength = clamp(as_float(auto.get("strength"), 1.0), 0.0, 1.0)
+    scale = lerp(1.0, raw_scale, strength)
+    scale = clamp(scale,
+                  max(0.01, as_float(auto.get("min_scale"), 1.0)),
+                  max(0.01, as_float(auto.get("max_scale"), 2.0)))
+    reference_center = vec3(auto.get("reference_center"),
+                            [reference_dims[0] * 0.5, reference_dims[1] * 0.5, reference_dims[2] * 0.5])
+    scene_center = vec3(auto.get("scene_center"),
+                        [dims[0] * 0.5, dims[1] * 0.5, dims[2] * 0.5])
+    target_offset_scale = as_float(auto.get("target_offset_scale"), scale)
+    old_target = vec3(cam.get("target"), reference_center)
+    old_position = vec3(cam.get("position"), old_target)
+    target = [
+        scene_center[i] + (old_target[i] - reference_center[i]) * target_offset_scale
+        for i in range(3)
+    ]
+    position = [
+        target[i] + (old_position[i] - old_target[i]) * scale
+        for i in range(3)
+    ]
+    fov_pad = max(0.0, as_float(auto.get("fov_pad_degrees"), 0.0))
+    cam["position"] = position
+    cam["target"] = target
+    cam["vertical_fov_degrees"] = min(175.0, as_float(cam.get("vertical_fov_degrees"), 45.0) + fov_pad)
+    cam["auto_frame"] = {
+        "enabled": True,
+        "dims": dims,
+        "reference_dims": reference_dims,
+        "raw_scale": raw_scale,
+        "scale": scale,
+        "target_offset_scale": target_offset_scale,
+    }
+    return cam
+
+
+def apply_camera_preset(base_camera, render_preset, out_index, out_count, header=None):
     cam = normalize_camera(base_camera)
     preset_camera = preset_section(render_preset, "camera")
     motion = preset_section(preset_camera, "motion")
@@ -391,6 +447,7 @@ def apply_camera_preset(base_camera, render_preset, out_index, out_count):
             cam["motion_enabled"] = True
             cam["motion_t"] = raw_t
             cam["motion_eased_t"] = eased_t
+    cam = apply_camera_auto_frame(cam, preset_camera, header or {})
     return cam
 
 
@@ -401,6 +458,20 @@ def camera_motion_summary(render_preset):
         "enabled": bool(motion.get("enabled", False) and path),
         "key_count": len(path),
         "easing": motion.get("easing", "linear"),
+    }
+
+
+def camera_framing_summary(render_preset, frames):
+    configured = preset_section(preset_section(render_preset, "camera"), "auto_frame")
+    applied = [frame["camera"].get("auto_frame") for frame in frames if frame["camera"].get("auto_frame")]
+    scales = [as_float(item.get("scale"), 1.0) for item in applied]
+    return {
+        "configured": bool(configured.get("enabled", False)),
+        "enabled": bool(applied),
+        "frame_count": len(applied),
+        "reference_dims": dims3(configured.get("reference_dims"), [1.0, 1.0, 1.0]) if configured else [],
+        "min_scale": min(scales) if scales else 1.0,
+        "max_scale": max(scales) if scales else 1.0,
     }
 
 
@@ -461,17 +532,18 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             fail("sequence does not include water_mesh entries; run reconstruct_water.py and convert_render_cache.py first")
         mesh_path = require_file(water_mesh.get("mesh"), "water_mesh")
         secondary_counts = count_secondary_particles(frame["particles_csv"])
+        header = {
+            "dims": frame.get("header", {}).get("dims", sequence["sequence"].get("dims", [1, 1, 1])),
+            "dx": as_float(frame.get("header", {}).get("dx"), as_float(sequence["sequence"].get("dx"), 1.0)),
+        }
         frames.append({
             "index": out_index,
             "frame": frame["frame"],
             "time": frame["time"],
             "source_cache": frame.get("source_cache"),
-            "camera": apply_camera_preset(frame["camera"], render_preset, out_index, frame_count),
+            "camera": apply_camera_preset(frame["camera"], render_preset, out_index, frame_count, header),
             "cinematic": frame.get("cinematic") or {},
-            "header": {
-                "dims": frame.get("header", {}).get("dims", sequence["sequence"].get("dims", [1, 1, 1])),
-                "dx": as_float(frame.get("header", {}).get("dx"), as_float(sequence["sequence"].get("dx"), 1.0)),
-            },
+            "header": header,
             "water_mesh": mesh_path,
             "water_mesh_vertex_count": as_int(water_mesh.get("vertex_count")),
             "water_mesh_face_count": as_int(water_mesh.get("face_count")),
@@ -498,6 +570,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
+        "camera_framing": camera_framing_summary(render_preset, frames),
         "water_material": water_material_summary(render_preset),
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
@@ -1026,6 +1099,7 @@ def main(argv=None):
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],
             "camera_motion": spec["camera_motion"],
+            "camera_framing": spec["camera_framing"],
             "water_material": spec["water_material"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
