@@ -124,6 +124,7 @@ The missing work is not one feature. It is a pipeline:
 | S76 | Surface contact foam pass | Render flattened foam patches near the water surface to connect secondary foam back to the water body | Done in `feat: add surface contact foam pass` |
 | S77 | Contact foam flow lines | Use an inherited preset with flow-aligned surface foam strokes for less static contact foam | Done in `feat: add contact foam flow lines` |
 | S78 | Contact foam material fade | Add radial shader falloff to flow-aligned contact foam so strokes blend into the water surface | Done in `feat: add contact foam material fade` |
+| S79 | Water-surface glint flow | Add subtle directional surface glint strokes so the main water body carries visible flow cues | Done in `feat: add water surface glint flow` |
 
 ## Decision Gates
 
@@ -461,16 +462,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S79.
+Continue with S80.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-surface-glint-flow.md`
+`docs/superpowers/plans/2026-06-18-water-surface-reflection-continuity.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_foam_fade --out build\shots\s79_water_surface_glint_flow --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s79.md --compare-review-manifest build\shots\s78_contact_foam_material_fade\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_glint_flow --out build\shots\s80_water_reflection_continuity --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s80.md --compare-review-manifest build\shots\s79_water_surface_glint_flow\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a water-surface material pass that gives the body itself directional glints/flow cues so the shot is not carried only by secondary particles.
+The next success condition is a reflection-continuity pass that keeps water highlights stable across the moving camera and reduces the flat slab read of the main water body.

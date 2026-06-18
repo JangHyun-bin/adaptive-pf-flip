@@ -616,6 +616,34 @@
           "emission_scale": 0.52
         }
       }
+    },
+    "dam_break_water_glint_flow": {
+      "extends": "dam_break_contact_foam_fade",
+      "description": "Contact foam fade plus subtle directional water-surface glints.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "enabled": true,
+          "count": 44,
+          "region_min": [0.8, 4.9, 3.0],
+          "region_max": [27.4, 8.1, 19.2],
+          "length": 1.55,
+          "width": 0.035,
+          "flow_dir": [1.0, 0.0, 0.22],
+          "drift_per_frame": 0.08,
+          "alpha_scale": 0.22,
+          "emission_scale": 0.48
+        }
+      },
+      "materials": {
+        "water_glint": {
+          "base_color": [0.78, 0.95, 1.0, 1.0],
+          "emission_color": [0.72, 0.95, 1.0, 1.0],
+          "emission_strength": 0.46,
+          "roughness": 0.08,
+          "alpha": 1.0,
+          "transmission": 0.0
+        }
+      }
     }
   }
 }
