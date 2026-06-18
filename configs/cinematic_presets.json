@@ -125,7 +125,8 @@
         "dt": 0.02,
         "cg_iters": null,
         "physics_preset": false,
-        "secondary_demo_particles": 96
+        "secondary_demo_particles": 0,
+        "secondary_physical_particles": 96
       },
       "shot": {
         "frames": 24,

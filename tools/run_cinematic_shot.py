@@ -76,6 +76,18 @@ def read_json(path):
         return json.load(f)
 
 
+def read_jsonl_section(path, section):
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            if rec.get("section") == section:
+                return rec
+    return {}
+
+
 def rel_path(path, root):
     if not path:
         return None
@@ -126,6 +138,33 @@ def report_path(path, root):
     if not path:
         return "n/a"
     return rel_path(path, root)
+
+
+def format_secondary_channels(channels):
+    if not isinstance(channels, dict) or not channels:
+        return "n/a"
+    keys = ("spray_count", "droplet_count", "foam_count", "bubble_count", "total_count")
+    return " ".join(f"{key.replace('_count', '')}={channels.get(key, 0)}" for key in keys)
+
+
+def manifest_frame_path(manifest_path, frame_entry):
+    path = frame_entry.get("path", "")
+    if os.path.isabs(path):
+        return path
+    return os.path.join(os.path.dirname(os.path.abspath(manifest_path)), path)
+
+
+def secondary_channel_metrics(manifest_path, manifest):
+    frames = manifest.get("frames", [])
+    if not frames:
+        return {}
+    first_path = manifest_frame_path(manifest_path, frames[0])
+    last_path = manifest_frame_path(manifest_path, frames[-1])
+    out = {
+        "first": read_jsonl_section(first_path, "secondary_channels"),
+        "last": read_jsonl_section(last_path, "secondary_channels"),
+    }
+    return out
 
 
 def frame_number_from_path(path):
@@ -271,6 +310,7 @@ def render_report(summary, root):
         f"- Selected renderer: `{summary.get('selected_renderer', 'unknown')}`",
         f"- Simulation scene: `{config.get('scene', 'bubble')}`",
         f"- Secondary demo particles: `{config.get('secondary_demo_particles', 0)}`",
+        f"- Secondary physical particles: `{config.get('secondary_physical_particles', 0)}`",
         f"- Secondary radius scale: `{config.get('secondary_radius_scale', 1.0)}`",
         f"- Frames: `{config.get('frames', 'n/a')}`",
         f"- Resolution: `{config.get('width', 'n/a')} x {config.get('height', 'n/a')}`",
@@ -299,6 +339,8 @@ def render_report(summary, root):
         f"- Camera frame scale: `{metrics.get('camera_framing', {}).get('max_scale', 1.0)}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
+        f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
+        f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         "",
         "## Stage Timings",
@@ -317,18 +359,23 @@ def render_report(summary, root):
     surface_note = "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky."
     if surface_mode == "tetra":
         surface_note = "- The current gate uses implicit tetra water surfaces, but detail is still limited by coarse sparse phase-cell resolution."
+    secondary_note = "- This gate has no visible secondary particle model enabled."
+    if config.get("secondary_physical_particles", 0) > 0:
+        secondary_note = "- Physically conditioned secondary spray seeds are now emitted from liquid particle candidates, but this is not yet a fully coupled spray/foam solver."
+    elif config.get("secondary_demo_particles", 0) > 0:
+        secondary_note = "- Opt-in secondary demo particles make spray/foam/bubble channels visible, but they are not yet a physical spray-generation model."
     lines.extend([
         "",
         "## Known Limitations",
         "",
         surface_note,
         scene_note,
-        "- Opt-in secondary demo particles make spray/foam/bubble channels visible, but they are not yet a physical spray-generation model.",
+        secondary_note,
         "- This is an opt-in cinematic gate; it is intentionally not part of default `ctest`.",
         "",
         "## Next Recommended Milestone",
         "",
-        "S56 should begin replacing demo secondary seeding with physical spray generation and keep the review-pack gate as the visual acceptance loop.",
+        "S57 should promote secondary spray emission from a render-facing seed into a sim-side lifecycle gate with volume accounting and acceptance thresholds.",
         "",
     ])
     return "\n".join(lines)
@@ -413,6 +460,8 @@ def parse_args(argv):
     parser.add_argument("--physics-preset", action="store_true", help="enable full physics preset in exporter")
     parser.add_argument("--secondary-demo-particles", type=int,
                         help="opt-in render-demo secondary particles per exported frame")
+    parser.add_argument("--secondary-physical-particles", type=int,
+                        help="opt-in physically conditioned secondary spray particles per exported frame")
     parser.add_argument("--build-dir", default="build", help="CMake build directory")
     parser.add_argument("--config", default="Release", help="CMake build config")
     parser.add_argument("--no-build", action="store_true", help="do not build exporter if missing")
@@ -470,6 +519,8 @@ def parse_args(argv):
         parser.error("samples must be positive")
     if args.secondary_demo_particles is not None and args.secondary_demo_particles < 0:
         parser.error("secondary-demo-particles must be non-negative")
+    if args.secondary_physical_particles is not None and args.secondary_physical_particles < 0:
+        parser.error("secondary-physical-particles must be non-negative")
     if args.max_secondary_particles is not None and args.max_secondary_particles < 0:
         parser.error("max-secondary-particles must be non-negative")
     if args.secondary_radius_scale is not None and (
@@ -555,6 +606,9 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "secondary_demo_particles": first_value(args.secondary_demo_particles,
                                                 sim.get("secondary_demo_particles"),
                                                 0),
+        "secondary_physical_particles": first_value(args.secondary_physical_particles,
+                                                    sim.get("secondary_physical_particles"),
+                                                    0),
         "sim_steps": first_value(args.sim_steps, shot.get("sim_steps"), frames),
         "cache_every": first_value(args.cache_every, shot.get("cache_every"), 1),
         "frames": frames,
@@ -720,6 +774,8 @@ def run_pipeline(args):
             export_cmd.append("--physics-preset")
         if config["secondary_demo_particles"] > 0:
             export_cmd.extend(["--secondary-demo-particles", str(config["secondary_demo_particles"])])
+        if config["secondary_physical_particles"] > 0:
+            export_cmd.extend(["--secondary-physical-particles", str(config["secondary_physical_particles"])])
         pipeline.run("export_render_cache", export_cmd)
         require_file(manifest_path, "render cache manifest")
 
@@ -823,6 +879,7 @@ def run_pipeline(args):
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
+            "secondary_channels": secondary_channel_metrics(manifest_path, manifest),
             "shot_gif_bytes": os.path.getsize(gif_path),
         }
         render_summary_path = summary["artifacts"].get("render_summary")

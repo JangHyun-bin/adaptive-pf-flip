@@ -101,6 +101,7 @@ The missing work is not one feature. It is a pipeline:
 | S53 | Implicit tetra water surface | Reduce voxel stair stepping with an opt-in implicit tetra OBJ reconstruction path | Done in `feat: add implicit tetra water surfaces` |
 | S54 | High-detail surface gate | Run a higher-density tetra surface close-up and record timing/framing limits | Done in `test: add high detail cinematic surface gate` |
 | S55 | Grid-aware cinematic framing | Scale preset camera target/distance from reference grid dims for high-detail gates | Done in `feat: add grid-aware cinematic framing` |
+| S56 | Physically conditioned secondary seed | Replace demo secondary rings with liquid-candidate spray seeds in cinematic cache export | Done in `feat: add physical secondary spray seeds` |
 
 ## Decision Gates
 

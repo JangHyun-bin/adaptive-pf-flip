@@ -48,7 +48,7 @@ void usage() {
                "[--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
                "[--out-prefix NAME] [--manifest PATH] [--physics-preset] "
-               "[--secondary-demo-particles N]\n");
+               "[--secondary-demo-particles N] [--secondary-physical-particles N]\n");
 }
 
 bool sceneIsBubble(const char* scene) {
@@ -182,6 +182,90 @@ void seedCinematicSecondaries(Sim& sim, int frameIndex, int requestedParticles) 
   }
 }
 
+struct SprayCandidate3D {
+  Vec3 pos{0.0, 0.0, 0.0};
+  Vec3 vel{0.0, 0.0, 0.0};
+  double score = 0.0;
+};
+
+template <typename Sim>
+void seedPhysicalSpraySecondaries(Sim& sim, int frameIndex, int requestedParticles) {
+  if (requestedParticles <= 0) return;
+  sim.escaped_droplets = Particles3DTP();
+  sim.escaped_bubbles = Particles3DTP();
+  sim.escaped_droplet_ages.clear();
+  sim.escaped_bubble_ages.clear();
+
+  const ParticleBounds3D bounds = liquidParticleBounds(sim.particles);
+  if (!bounds.valid) return;
+
+  const double surfaceY = bounds.min.y + 0.68 * (bounds.max.y - bounds.min.y);
+  const double cx = 0.5 * (bounds.min.x + bounds.max.x);
+  const double cz = 0.5 * (bounds.min.z + bounds.max.z);
+  std::vector<SprayCandidate3D> candidates;
+  candidates.reserve(sim.particles.size());
+  for (size_t i = 0; i < sim.particles.size(); ++i) {
+    if (sim.particles.type[i] != 0) continue;
+    const Vec3& p = sim.particles.pos[i];
+    const Vec3& v = sim.particles.vel[i];
+    const double hspeed = std::sqrt(v.x * v.x + v.z * v.z);
+    const double upward = std::max(0.0, v.y);
+    const double nearSurface = std::max(0.0, p.y - surfaceY);
+    const double lateral = std::sqrt((p.x - cx) * (p.x - cx) + (p.z - cz) * (p.z - cz));
+    const double score = nearSurface * 4.0 + upward * 2.0 + hspeed * 0.25 + lateral * 0.03;
+    if (p.y >= surfaceY || upward > 0.02 || hspeed > 0.25) {
+      candidates.push_back(SprayCandidate3D{p, v, score});
+    }
+  }
+  if (candidates.empty()) {
+    for (size_t i = 0; i < sim.particles.size(); ++i) {
+      if (sim.particles.type[i] != 0) continue;
+      candidates.push_back(SprayCandidate3D{sim.particles.pos[i], sim.particles.vel[i], sim.particles.pos[i].y});
+    }
+  }
+  if (candidates.empty()) return;
+
+  std::sort(candidates.begin(), candidates.end(),
+            [](const SprayCandidate3D& a, const SprayCandidate3D& b) {
+              return a.score > b.score;
+            });
+  const int dropletCount = std::max(0, requestedParticles * 9 / 10);
+  const int bubbleCount = std::max(0, requestedParticles - dropletCount);
+  const size_t window = std::min(candidates.size(), static_cast<size_t>(std::max(1, requestedParticles * 3)));
+  for (int n = 0; n < dropletCount; ++n) {
+    const size_t idx = (static_cast<size_t>(n) * 37u + static_cast<size_t>(frameIndex) * 11u) % window;
+    const SprayCandidate3D& c = candidates[idx];
+    const double dx = c.pos.x - cx;
+    const double dz = c.pos.z - cz;
+    const double len = std::sqrt(dx * dx + dz * dz);
+    const double ox = len > 1e-8 ? dx / len : 0.0;
+    const double oz = len > 1e-8 ? dz / len : 0.0;
+    const double lift = 0.18 + 0.035 * static_cast<double>((n + frameIndex) % 5);
+    const Vec3 pos{
+      c.pos.x + 0.035 * ox,
+      c.pos.y + 0.04 + 0.01 * static_cast<double>(n % 3),
+      c.pos.z + 0.035 * oz
+    };
+    const Vec3 vel{
+      c.vel.x + 0.16 * ox,
+      c.vel.y + lift,
+      c.vel.z + 0.16 * oz
+    };
+    const double speed = vel.length();
+    const int age = speed > 1.0 ? 0 : (n % 4 == 0 ? 5 : 2);
+    sim.escaped_droplets.add(pos, vel, 0, 0.55);
+    sim.escaped_droplet_ages.push_back(age);
+  }
+
+  for (int n = 0; n < bubbleCount; ++n) {
+    const size_t idx = (static_cast<size_t>(n) * 53u + static_cast<size_t>(frameIndex) * 7u) % window;
+    const SprayCandidate3D& c = candidates[idx];
+    const Vec3 pos{c.pos.x, std::max(bounds.min.y + 0.25, c.pos.y - 0.12), c.pos.z};
+    sim.escaped_bubbles.add(pos, Vec3{0.0, 0.16, 0.0}, 1, 0.45);
+    sim.escaped_bubble_ages.push_back(0);
+  }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -205,6 +289,7 @@ int main(int argc, char** argv) {
   const std::string manifestPath = manifestArg ? manifestArg : defaultManifestPath;
   const bool physicsPreset = hasFlag(argc, argv, "--physics-preset");
   const int secondaryDemoParticles = argInt(argc, argv, "--secondary-demo-particles", 0);
+  const int secondaryPhysicalParticles = argInt(argc, argv, "--secondary-physical-particles", 0);
 
   if ((!sparseKind && !mrKind) ||
       (!bubbleScene && !damBreakScene && !fallingWaterScene) ||
@@ -212,6 +297,7 @@ int main(int argc, char** argv) {
       steps <= 0 || every <= 0 ||
       dt <= 0.0 || cgIters < 0 ||
       secondaryDemoParticles < 0 ||
+      secondaryPhysicalParticles < 0 ||
       std::strlen(prefix) == 0 ||
       manifestPath.empty()) {
     usage();
@@ -245,7 +331,11 @@ int main(int argc, char** argv) {
       if (s % every == 0 || s == steps - 1) {
         const int frameIndex = frameCount;
         const std::string path = framePath(prefix, frameIndex);
-        seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
+        if (secondaryPhysicalParticles > 0) {
+          seedPhysicalSpraySecondaries(sim, frameIndex, secondaryPhysicalParticles);
+        } else {
+          seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
+        }
         writeSparseRenderCache3D(sim, path, frameIndex, simTime, camera);
         std::printf("wrote=%s\n", path.c_str());
         manifestFrames.push_back(RenderCacheManifestFrame3D{
@@ -264,6 +354,7 @@ int main(int argc, char** argv) {
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
     std::printf("secondary_demo_particles=%d\n", secondaryDemoParticles);
+    std::printf("secondary_physical_particles=%d\n", secondaryPhysicalParticles);
   } else {
     MRSim3DTP sim(nx, ny, nz, 1.0);
     if (physicsPreset) applyFullPhysicsPreset3D(sim);
@@ -279,7 +370,11 @@ int main(int argc, char** argv) {
       if (s % every == 0 || s == steps - 1) {
         const int frameIndex = frameCount;
         const std::string path = framePath(prefix, frameIndex);
-        seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
+        if (secondaryPhysicalParticles > 0) {
+          seedPhysicalSpraySecondaries(sim, frameIndex, secondaryPhysicalParticles);
+        } else {
+          seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
+        }
         writeMRRenderCache3D(sim, path, frameIndex, simTime, camera);
         std::printf("wrote=%s\n", path.c_str());
         manifestFrames.push_back(RenderCacheManifestFrame3D{
@@ -298,6 +393,7 @@ int main(int argc, char** argv) {
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
     std::printf("secondary_demo_particles=%d\n", secondaryDemoParticles);
+    std::printf("secondary_physical_particles=%d\n", secondaryPhysicalParticles);
   }
 
   std::printf("frames=%d\n", frameCount);
