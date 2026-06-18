@@ -544,6 +544,8 @@ def create_review_pack(summary, root, frame_dir, review_frame_count):
         "render_frame_dir": rel_path(frame_dir, root),
         "focus_sheet": rel_path(summary.get("artifacts", {}).get("focus_sheet"), root),
         "focus_review_manifest": rel_path(summary.get("artifacts", {}).get("focus_review_manifest"), root),
+        "ripple_readability_sheet": rel_path(summary.get("artifacts", {}).get("ripple_readability_sheet"), root),
+        "ripple_readability_manifest": rel_path(summary.get("artifacts", {}).get("ripple_readability_manifest"), root),
         "metrics": metrics,
         "keyframes": [
             {
@@ -726,6 +728,141 @@ def create_focus_review(summary, root, frame_dir, focus_config, review_frame_cou
         "focus_sheet": focus_sheet,
         "focus_review_manifest": manifest_path,
         "focus_review": metrics,
+    }
+
+
+def summarize_readability_stats(frame_stats):
+    return {
+        "edge_mean": summarize_values([item["edge_mean"] for item in frame_stats]),
+        "edge_nonzero_ratio": summarize_values([item["edge_nonzero_ratio"] for item in frame_stats]),
+        "highlight_ratio": summarize_values([item["highlight_ratio"] for item in frame_stats]),
+        "mean_luminance": summarize_values([item["mean_luminance"] for item in frame_stats]),
+    }
+
+
+def create_ripple_readability_review(summary, root, frame_dir, review_config, review_frame_count):
+    if not isinstance(review_config, dict) or not review_config.get("enabled", False):
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageStat
+    except ImportError:
+        fail("Pillow is required to create the ripple readability review")
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    keyframe_dir = os.path.join(review_dir, "ripple_readability_keyframes")
+    os.makedirs(keyframe_dir, exist_ok=True)
+    selected = select_keyframes(frame_dir, review_frame_count)
+    if not selected:
+        fail("ripple readability review requires at least one key frame")
+
+    crop = normalized_crop(review_config.get("crop"))
+    thumb_w = max(160, int(review_config.get("thumbnail_width", 420) or 420))
+    edge_amplify = max(1.0, float(review_config.get("edge_amplify", 3.0) or 3.0))
+    edge_threshold = int(review_config.get("edge_threshold", 18) or 18)
+    highlight_threshold = int(review_config.get("highlight_threshold", 220) or 220)
+    label_h = 24
+    pad = 12
+    columns = min(4, max(1, int(math.ceil(math.sqrt(len(selected))))))
+    rows = int(math.ceil(len(selected) / float(columns)))
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+
+    frames = []
+    frame_stats = []
+    thumb_h = None
+    for out_index, source in enumerate(selected):
+        with Image.open(source) as img:
+            crop_img = img.convert("RGB").crop(crop_box_for_image(img, crop))
+            gray = crop_img.convert("L")
+            edge = gray.filter(ImageFilter.FIND_EDGES)
+            edge = edge.point(lambda value: min(255, int(value * edge_amplify)))
+            edge = ImageOps.autocontrast(edge)
+            highlight = gray.point(lambda value: 255 if value >= highlight_threshold else 0)
+            pixels = max(1, edge.width * edge.height)
+            edge_nonzero = edge.point(lambda value: 255 if value >= edge_threshold else 0)
+            stats = {
+                "edge_mean": ImageStat.Stat(edge).mean[0],
+                "edge_nonzero_ratio": ImageStat.Stat(edge_nonzero).sum[0] / float(255 * pixels),
+                "highlight_ratio": ImageStat.Stat(highlight).sum[0] / float(255 * pixels),
+                "mean_luminance": ImageStat.Stat(gray).mean[0],
+            }
+            diag = Image.merge("RGB", (edge, edge, highlight))
+            if diag.width != thumb_w:
+                target_h = max(1, int(round(diag.height * (thumb_w / float(diag.width)))))
+                diag = diag.resize((thumb_w, target_h), resample_filter)
+            if thumb_h is None:
+                thumb_h = diag.height
+            diag_name = f"ripple_diag_{out_index:02d}_{os.path.basename(source)}"
+            diag_path = os.path.join(keyframe_dir, diag_name)
+            diag.save(diag_path)
+
+        frame_no = frame_number_from_path(source)
+        frame_stats.append(stats)
+        frames.append({
+            "source": source,
+            "thumbnail": diag_path,
+            "frame": frame_no,
+            "stats": stats,
+        })
+
+    thumb_h = thumb_h or max(1, int(round(thumb_w * 0.56)))
+    sheet_w = pad + columns * (thumb_w + pad)
+    sheet_h = pad + rows * (thumb_h + label_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, item in enumerate(frames):
+        with Image.open(item["thumbnail"]) as img:
+            cell = img.convert("RGB")
+        if cell.size != (thumb_w, thumb_h):
+            base = Image.new("RGB", (thumb_w, thumb_h), (8, 10, 12))
+            base.paste(cell, ((thumb_w - cell.width) // 2, (thumb_h - cell.height) // 2))
+            cell = base
+        col = index % columns
+        row = index // columns
+        x = pad + col * (thumb_w + pad)
+        y = pad + row * (thumb_h + label_h + pad)
+        sheet.paste(cell, (x, y))
+        label = f"frame {item['frame']:04d}" if item["frame"] is not None else os.path.basename(item["source"])
+        draw.text((x + 6, y + thumb_h + 5), label, fill=(224, 234, 240))
+
+    sheet_path = os.path.join(review_dir, "ripple_readability_sheet.png")
+    manifest_path = os.path.join(review_dir, "ripple_readability_manifest.json")
+    sheet.save(sheet_path)
+    metrics = {
+        "enabled": True,
+        "frame_count": len(frames),
+        "crop": crop,
+        "edge_amplify": edge_amplify,
+        "edge_threshold": edge_threshold,
+        "highlight_threshold": highlight_threshold,
+        "summary": summarize_readability_stats(frame_stats),
+    }
+    manifest = {
+        "schema": "lsfs_cinematic_ripple_readability_review",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "render_preset": summary.get("render_preset"),
+        "selected_renderer": summary.get("selected_renderer"),
+        "ripple_readability_sheet": rel_path(sheet_path, root),
+        "render_frame_dir": rel_path(frame_dir, root),
+        "metrics": metrics,
+        "keyframes": [
+            {
+                "frame": item["frame"],
+                "source": rel_path(item["source"], root),
+                "thumbnail": rel_path(item["thumbnail"], root),
+                "stats": item["stats"],
+            }
+            for item in frames
+        ],
+    }
+    write_json(manifest_path, manifest)
+    return {
+        "ripple_readability_sheet": sheet_path,
+        "ripple_readability_manifest": manifest_path,
+        "ripple_readability": metrics,
     }
 
 
@@ -1127,6 +1264,44 @@ def evaluate_focus_review_qa(config, focus_review):
     }
 
 
+def evaluate_ripple_readability_qa(config, readability):
+    gate = config.get("ripple_readability_review")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_frame_count": (("frame_count",), gate.get("min_frame_count"), ">="),
+        "min_edge_mean": (("summary", "edge_mean", "mean"), gate.get("min_edge_mean"), ">="),
+        "min_edge_nonzero_ratio": (
+            ("summary", "edge_nonzero_ratio", "mean"),
+            gate.get("min_edge_nonzero_ratio"),
+            ">=",
+        ),
+        "max_highlight_ratio": (("summary", "highlight_ratio", "max"), gate.get("max_highlight_ratio"), "<="),
+    }
+    passed = True
+    for name, (path, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = nested_metric(readability, path)
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def render_report(summary, root):
     config = summary.get("config", {})
     metrics = summary.get("metrics", {})
@@ -1157,6 +1332,7 @@ def render_report(summary, root):
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
                 "focus_comparison_sheet", "focus_comparison_manifest",
+                "ripple_readability_sheet", "ripple_readability_manifest",
                 "review_dir"):
             if key in artifacts:
                 lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
@@ -1196,6 +1372,8 @@ def render_report(summary, root):
         f"- Secondary framing gate: `{metrics.get('secondary_framing_gate', {})}`",
         f"- Focus review summary: `{metrics.get('focus_review', {})}`",
         f"- Focus review gate: `{metrics.get('focus_review_gate', {})}`",
+        f"- Ripple readability summary: `{metrics.get('ripple_readability', {})}`",
+        f"- Ripple readability gate: `{metrics.get('ripple_readability_gate', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
@@ -1242,7 +1420,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S91 should add ripple/contact readability diagnostics so subtle focus-region changes are easier to inspect.",
+        "S92 should compare ripple/contact diagnostic sheets across nearby milestones.",
         "",
     ])
     return "\n".join(lines)
@@ -1524,6 +1702,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "temporal_diff_review": section(renderer, "temporal_diff_review"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
         "focus_review": section(renderer, "focus_review"),
+        "ripple_readability_review": section(renderer, "ripple_readability_review"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
                                          reconstruction.get("smooth_iterations"),
@@ -1873,6 +2052,17 @@ def run_pipeline(args):
             if (summary["metrics"]["focus_review_gate"].get("enabled")
                     and not summary["metrics"]["focus_review_gate"].get("passed")):
                 fail(f"focus review QA gate failed: {summary['metrics']['focus_review_gate']}")
+        ripple_readability = create_ripple_readability_review(
+            summary, root, frame_dir, config.get("ripple_readability_review", {}), config["review_frames"])
+        if ripple_readability:
+            summary["artifacts"]["ripple_readability_sheet"] = ripple_readability["ripple_readability_sheet"]
+            summary["artifacts"]["ripple_readability_manifest"] = ripple_readability["ripple_readability_manifest"]
+            summary["metrics"]["ripple_readability"] = ripple_readability["ripple_readability"]
+            summary["metrics"]["ripple_readability_gate"] = evaluate_ripple_readability_qa(
+                config, summary["metrics"]["ripple_readability"])
+            if (summary["metrics"]["ripple_readability_gate"].get("enabled")
+                    and not summary["metrics"]["ripple_readability_gate"].get("passed")):
+                fail(f"ripple readability QA gate failed: {summary['metrics']['ripple_readability_gate']}")
         if config["review_pack"]:
             review = create_review_pack(summary, root, frame_dir, config["review_frames"])
             summary["artifacts"]["review_dir"] = review["review_dir"]

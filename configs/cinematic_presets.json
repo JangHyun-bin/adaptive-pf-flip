@@ -902,6 +902,24 @@
           "roughness": 0.07
         }
       }
+    },
+    "dam_break_ripple_readability_diagnostics": {
+      "extends": "dam_break_ripple_placement_focus_tuned",
+      "description": "Ripple placement tuning with edge/highlight diagnostics for contact readability review.",
+      "renderer": {
+        "ripple_readability_review": {
+          "enabled": true,
+          "crop": [0.02, 0.3, 0.98, 0.88],
+          "thumbnail_width": 420,
+          "edge_amplify": 3.5,
+          "edge_threshold": 18,
+          "highlight_threshold": 220,
+          "min_frame_count": 8,
+          "min_edge_mean": 8.0,
+          "min_edge_nonzero_ratio": 0.025,
+          "max_highlight_ratio": 0.01
+        }
+      }
     }
   }
 }

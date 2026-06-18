@@ -136,6 +136,7 @@ The missing work is not one feature. It is a pipeline:
 | S88 | Water impact ripple focus comparison | Compare focus review sheets across nearby cinematic gates without replacing the full-frame contact sheet | Done in `test: add water impact ripple focus comparison` |
 | S89 | Contact focus camera tuning | Narrow the contact camera and focus crop while preserving visual, temporal, camera, and secondary framing gates | Done in `style: tune contact focus camera` |
 | S90 | Ripple placement focus tuning | Widen and slightly strengthen contact-region impact ripples while preserving all cinematic gates | Done in `style: tune ripple placement focus` |
+| S91 | Ripple readability diagnostics | Add edge/highlight diagnostic sheets for contact-region ripple readability review | Done in `test: add ripple readability diagnostics` |
 
 ## Decision Gates
 
@@ -473,16 +474,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S91.
+Continue with S92.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-ripple-readability-diagnostics.md`
+`docs/superpowers/plans/2026-06-18-ripple-diagnostic-comparison.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_ripple_placement_focus_tuned --out build\shots\s91_ripple_readability_diagnostics --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s91.md --compare-review-manifest build\shots\s90_ripple_placement_focus_tuning\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_ripple_readability_diagnostics --out build\shots\s92_ripple_diagnostic_comparison --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s92.md --compare-review-manifest build\shots\s91_ripple_readability_diagnostics\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a diagnostic review artifact that makes subtle ripple/contact readability changes easier to inspect than full-frame sheets alone.
+The next success condition is a side-by-side diagnostic comparison artifact for ripple/contact readability sheets across nearby milestones.
