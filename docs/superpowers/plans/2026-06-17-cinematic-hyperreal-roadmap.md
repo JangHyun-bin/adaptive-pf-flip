@@ -184,7 +184,8 @@ The missing work is not one feature. It is a pipeline:
 | S136 | Offscreen-source impact framing pass | Reframe the S133 scene so the source is mostly out of frame and attention stays on water entering frame and impacting the pool | Done in `style: add offscreen source impact framing` |
 | S137 | S136 gallery refresh/publish | Package and publish the S136 review artifacts for external inspection before the next visual triage | Done in `docs: publish s136 cinematic gallery` |
 | S138 | S136 public gallery visual triage | Review the S136 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s136 public gallery` |
-| S139 | Low-angle impact close-up framing | Move the camera lower and closer to the contact band so the upper source is fully cropped while spray/ripple readability remains gated | Planned |
+| S139 | Low-angle impact close-up framing | Move the camera lower and closer to the contact band so the upper source is mostly cropped while spray/ripple readability remains gated | Done in `style: add low angle impact closeup framing` |
+| S140 | S139 gallery refresh/publish | Package and publish the S139 review artifacts for external inspection before the next visual triage | Planned |
 
 ## Decision Gates
 
@@ -522,16 +523,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S139.
+Continue with S140.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-low-angle-impact-closeup-framing.md`
+`docs/superpowers/plans/2026-06-18-s139-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_low_angle_impact_closeup --out build\shots\s139_low_angle_impact_closeup --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s136_offscreen_source_impact_framing\review\review_manifest.json --report docs\reports\cinematic_low_angle_impact_closeup_s139.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s139_low_angle_impact_closeup --out docs\reports\cinematic_artifact_package_s140.md
+python tools\build_cinematic_gallery.py build\shots\s139_low_angle_impact_closeup --package docs\reports\cinematic_artifact_package_s140.md --out build\shots\s139_low_angle_impact_closeup\gallery --report docs\reports\cinematic_static_gallery_s140.md
+python tools\publish_cinematic_gallery.py build\shots\s139_low_angle_impact_closeup\gallery --port 8801 --cftunnel --manifest build\shots\s139_low_angle_impact_closeup\gallery\publish_manifest_s140.json --report docs\reports\cinematic_gallery_publish_s140.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S139 Blender gate report where the upper source is fully cropped from the review frames and visual/focus/secondary-depth/ripple/temporal/camera/secondary-framing gates remain passing.
+The next success condition is a checked-in S140 package/gallery/publish report with local and public `index.html` plus `assets/shot.gif` verification.
