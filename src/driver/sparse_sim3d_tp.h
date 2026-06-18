@@ -133,6 +133,7 @@ struct SparseSim3DTP {
   bool secondary_spray_impact_candidates = false;
   double secondary_spray_impact_region_fraction = 0.55;
   double secondary_spray_impact_downward_speed_min = 1.0;
+  double secondary_spray_impact_foam_fraction = 0.3;
   int secondary_spray_emission_step_index = 0;
   SecondarySprayEmissionStats3D secondary_spray_emission_stats_last;
   int secondary_spray_effective_requested_last = 0;
@@ -140,6 +141,7 @@ struct SparseSim3DTP {
   int secondary_spray_interface_cells_last = 0;
   int secondary_spray_candidates_last = 0;
   int secondary_spray_impact_candidates_last = 0;
+  int secondary_spray_foam_ready_droplets_last = 0;
   int secondary_spray_emitted_droplets_last = 0;
   int secondary_spray_emitted_bubbles_last = 0;
   double secondary_spray_interface_grad_max_last = 0.0;

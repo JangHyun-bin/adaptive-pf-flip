@@ -199,9 +199,16 @@ def format_secondary_interface_gate(metrics):
         f"effective_requested={metrics.get('secondary_spray_effective_requested_last', 'n/a')} "
         f"interface_cells={metrics.get('secondary_spray_interface_cells_last', 'n/a')} "
         f"impact_candidates={metrics.get('secondary_spray_impact_candidates_last', 'n/a')} "
+        f"foam_ready={metrics.get('secondary_spray_foam_ready_droplets_last', 'n/a')} "
         f"grad_max={metrics.get('secondary_spray_interface_grad_max_last', 'n/a')} "
         f"curvature_abs_max={metrics.get('secondary_spray_interface_curvature_abs_max_last', 'n/a')}"
     )
+
+
+def secondary_channel_count(channels, name):
+    if not isinstance(channels, dict):
+        return 0
+    return int(channels.get(f"{name}_count", 0) or 0)
 
 
 def manifest_frame_path(manifest_path, frame_entry):
@@ -408,11 +415,13 @@ def render_report(summary, root):
         f"- Camera frame scale: `{metrics.get('camera_framing', {}).get('max_scale', 1.0)}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
+        f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
         f"- Secondary volume last: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('last'))}`",
         f"- Secondary acceptance min: `{metrics.get('secondary_acceptance_min', 'n/a')}`",
+        f"- Secondary foam acceptance min: `{metrics.get('secondary_foam_acceptance_min', 'n/a')}`",
         f"- Secondary interface gate: `{format_secondary_interface_gate(summary.get('export_metrics', {}))}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         "",
@@ -450,7 +459,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S61 should add contact foam/spray channel emphasis and more surface detail to reduce the smooth slab look.",
+        "S62 should make foam/spray visually stronger on screen, likely with larger channel-specific render sizing or a closer contact camera pass.",
         "",
     ])
     return "\n".join(lines)
@@ -971,6 +980,12 @@ def run_pipeline(args):
             last_total = secondary_total_count(secondary_channels.get("last", {}))
             if first_total < acceptance_min or last_total < acceptance_min:
                 fail(f"physical secondary channel count below acceptance min {acceptance_min}: first={first_total} last={last_total}")
+            foam_acceptance_min = max(1, int(config["secondary_physical_particles"] * 0.08))
+            summary["metrics"]["secondary_foam_acceptance_min"] = foam_acceptance_min
+            first_foam = secondary_channel_count(secondary_channels.get("first", {}), "foam")
+            last_foam = secondary_channel_count(secondary_channels.get("last", {}), "foam")
+            if first_foam < foam_acceptance_min or last_foam < foam_acceptance_min:
+                fail(f"physical secondary foam count below acceptance min {foam_acceptance_min}: first={first_foam} last={last_foam}")
             export_metrics = summary.get("export_metrics", {})
             if export_metrics.get("secondary_spray_interface_gate") is True:
                 if export_metrics.get("secondary_spray_interface_gate_passed_last") is not True:
@@ -985,12 +1000,17 @@ def run_pipeline(args):
                     impact_candidates = int(export_metrics.get("secondary_spray_impact_candidates_last", 0) or 0)
                     if impact_candidates <= 0:
                         fail("physical secondary impact candidate count is zero")
+                if "secondary_spray_foam_ready_droplets_last" in export_metrics:
+                    foam_ready = int(export_metrics.get("secondary_spray_foam_ready_droplets_last", 0) or 0)
+                    if foam_ready < foam_acceptance_min:
+                        fail(f"physical secondary foam-ready droplet count below acceptance min {foam_acceptance_min}: foam_ready={foam_ready}")
         render_summary_path = summary["artifacts"].get("render_summary")
         if render_summary_path and os.path.isfile(render_summary_path):
             render_summary = read_json(render_summary_path)
             summary["metrics"]["camera_motion"] = render_summary.get("camera_motion", {})
             summary["metrics"]["camera_framing"] = render_summary.get("camera_framing", {})
             summary["metrics"]["water_material"] = render_summary.get("water_material", {})
+            summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out

@@ -70,6 +70,7 @@ struct SecondarySprayEmissionConfig3D {
   bool impact_splash_candidates = false;
   double impact_region_fraction = 0.55;
   double impact_downward_speed_min = 1.0;
+  double impact_foam_fraction = 0.3;
 };
 
 struct SecondarySprayEmissionStats3D {
@@ -82,6 +83,7 @@ struct SecondarySprayEmissionStats3D {
   int interface_cells = 0;
   int candidate_liquid_particles = 0;
   int impact_candidate_liquid_particles = 0;
+  int foam_ready_droplets = 0;
   int emitted_droplets = 0;
   int emitted_bubbles = 0;
   double interface_grad_max = 0.0;
@@ -94,6 +96,7 @@ struct SecondarySprayCandidate3D {
   Vec3 pos{0.0, 0.0, 0.0};
   Vec3 vel{0.0, 0.0, 0.0};
   double score = 0.0;
+  bool impact = false;
 };
 
 struct SecondaryParticleBounds3D {
@@ -194,14 +197,14 @@ inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
       (impactCandidate ? downward * 2.5 + impactDepth * 0.8 : 0.0);
     if (p.y >= surfaceY || upward > 0.02 || hspeed > 0.25 || impactCandidate) {
       if (impactCandidate) ++stats.impact_candidate_liquid_particles;
-      candidates.push_back(SecondarySprayCandidate3D{p, v, score});
+      candidates.push_back(SecondarySprayCandidate3D{p, v, score, impactCandidate});
     }
   }
   if (candidates.empty()) {
     for (size_t i = 0; i < primary.size(); ++i) {
       if (primary.type[i] != 0 || !finiteSecondaryParticle3D(primary, i)) continue;
       candidates.push_back(SecondarySprayCandidate3D{
-        primary.pos[i], primary.vel[i], primary.pos[i].y});
+        primary.pos[i], primary.vel[i], primary.pos[i].y, false});
     }
   }
   stats.candidate_liquid_particles = static_cast<int>(candidates.size());
@@ -227,20 +230,24 @@ inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
     const double ox = len > 1e-8 ? dx / len : 0.0;
     const double oz = len > 1e-8 ? dz / len : 0.0;
     const double lift = 0.18 + 0.035 * static_cast<double>((n + frameIndex) % 5);
+    const double foamFraction = std::max(0.0, std::min(1.0, config.impact_foam_fraction));
+    const int foamStride = foamFraction > 0.0
+      ? std::max(1, static_cast<int>(std::floor((1.0 / foamFraction) + 0.5)))
+      : requested + 1;
+    const bool foamReady = c.impact && ((n + frameIndex) % foamStride == 0);
     const Vec3 pos{
       c.pos.x + 0.035 * ox,
-      c.pos.y + 0.04 + 0.01 * static_cast<double>(n % 3),
+      c.pos.y + (foamReady ? 0.025 : 0.04 + 0.01 * static_cast<double>(n % 3)),
       c.pos.z + 0.035 * oz
     };
-    const Vec3 vel{
-      c.vel.x + 0.16 * ox,
-      c.vel.y + lift,
-      c.vel.z + 0.16 * oz
-    };
+    const Vec3 vel = foamReady
+      ? Vec3{0.08 * ox, 0.08, 0.08 * oz}
+      : Vec3{c.vel.x + 0.16 * ox, c.vel.y + lift, c.vel.z + 0.16 * oz};
     const double speed = vel.length();
-    const int age = speed > 1.0 ? 0 : (n % 4 == 0 ? 5 : 2);
+    const int age = foamReady ? 6 : (speed > 1.0 ? 0 : (n % 4 == 0 ? 5 : 2));
     droplets.add(pos, vel, 0, config.droplet_volume);
     dropletAges.push_back(age);
+    if (foamReady) ++stats.foam_ready_droplets;
     ++stats.emitted_droplets;
     stats.emitted_droplet_volume += config.droplet_volume * config.particle_volume_scale;
   }

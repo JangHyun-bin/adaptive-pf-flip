@@ -424,11 +424,13 @@ TEST_CASE("sparse 3D secondary spray emission includes impact candidates") {
   sim.secondary_spray_impact_candidates = true;
   sim.secondary_spray_impact_region_fraction = 0.65;
   sim.secondary_spray_impact_downward_speed_min = 0.75;
+  sim.secondary_spray_impact_foam_fraction = 0.35;
 
   sim.step();
 
   CHECK(sim.secondary_spray_candidates_last > 0);
   CHECK(sim.secondary_spray_impact_candidates_last > 0);
+  CHECK(sim.secondary_spray_foam_ready_droplets_last > 0);
   CHECK(sim.secondary_spray_effective_requested_last == 24);
   CHECK(sim.secondary_spray_emitted_droplets_last == 22);
   CHECK(sim.secondary_spray_emitted_bubbles_last == 2);

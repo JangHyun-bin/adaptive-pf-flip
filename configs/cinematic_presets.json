@@ -143,7 +143,13 @@
         "max_secondary_particles": 1536,
         "secondary_radius_scale": 3.0,
         "min_nonblank_ratio": 0.05,
-        "min_occupancy": 0.005
+        "min_occupancy": 0.005,
+        "water_surface_detail": {
+          "enabled": true,
+          "strength": 0.045,
+          "scale": 2.8,
+          "depth": 4
+        }
       },
       "reconstruction": {
         "surface_mode": "tetra",
@@ -245,8 +251,8 @@
           "transmission": 0.12
         },
         "foam": {
-          "base_color": [0.98, 0.95, 0.82, 1.0],
-          "roughness": 0.64,
+          "base_color": [1.0, 0.98, 0.88, 1.0],
+          "roughness": 0.72,
           "alpha": 1.0,
           "transmission": 0.0
         },

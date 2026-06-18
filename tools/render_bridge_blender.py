@@ -484,6 +484,16 @@ def water_material_summary(render_preset):
     }
 
 
+def water_surface_detail_summary(render_preset):
+    detail = preset_section(preset_section(render_preset, "renderer"), "water_surface_detail")
+    return {
+        "enabled": bool(detail.get("enabled", False)),
+        "strength": as_float(detail.get("strength"), 0.0),
+        "scale": as_float(detail.get("scale"), 3.0),
+        "depth": as_int(detail.get("depth"), 3),
+    }
+
+
 def pick_water_mesh(frame, water_index, out_index, out_count):
     if water_index:
         water_frame = select_resampled(water_index["frames"], out_index, out_count)
@@ -572,6 +582,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "camera_motion": camera_motion_summary(render_preset),
         "camera_framing": camera_framing_summary(render_preset, frames),
         "water_material": water_material_summary(render_preset),
+        "water_surface_detail": water_surface_detail_summary(render_preset),
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "water_reconstruction": sequence.get("water_reconstruction", {}),
@@ -722,6 +733,16 @@ def make_water_material(name, values):
     return mat
 
 
+def surface_detail_values(preset):
+    detail = preset_section(preset_section(preset, "renderer"), "water_surface_detail")
+    return {
+        "enabled": bool(detail.get("enabled", False)),
+        "strength": max(0.0, scalar_value(detail.get("strength"), 0.0)),
+        "scale": max(0.01, scalar_value(detail.get("scale"), 3.0)),
+        "depth": max(1, int(scalar_value(detail.get("depth"), 3))),
+    }
+
+
 def configure_engine(scene, engine, samples):
     choices = ["CYCLES"] if engine == "cycles" else ["BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "BLENDER_WORKBENCH"]
     for choice in choices:
@@ -838,7 +859,21 @@ def import_obj(path):
     return objects
 
 
-def add_water_mesh(frame, material):
+def apply_surface_detail(obj, detail, frame_index):
+    if not detail.get("enabled") or detail.get("strength", 0.0) <= 0.0:
+        return
+    try:
+        tex = bpy.data.textures.new(f"LSFS Water Detail {frame_index}", type="VORONOI")
+        tex.noise_scale = float(detail.get("scale", 3.0))
+        tex.intensity = 0.35
+        mod = obj.modifiers.new("LSFS surface detail", type="DISPLACE")
+        mod.strength = float(detail.get("strength", 0.0))
+        mod.texture = tex
+    except Exception:
+        return
+
+
+def add_water_mesh(frame, material, detail):
     objects = import_obj(frame["water_mesh"])
     for obj in objects:
         obj.name = "LSFS Water"
@@ -847,6 +882,7 @@ def add_water_mesh(frame, material):
         if hasattr(obj.data, "polygons"):
             for poly in obj.data.polygons:
                 poly.use_smooth = True
+        apply_surface_detail(obj, detail, int(frame.get("index", 0)))
         obj.data.materials.append(material)
     return len(objects)
 
@@ -902,6 +938,7 @@ def main():
     spray = material_values(preset, "spray", (0.9, 0.98, 1.0, 0.8), 0.12, 0.8, 0.15)
     foam = material_values(preset, "foam", (0.95, 0.94, 0.82, 1.0), 0.55, 1.0, 0.0)
     bubble = material_values(preset, "bubble", (1.0, 0.78, 0.34, 0.78), 0.15, 0.78, 0.15)
+    surface_detail = surface_detail_values(preset)
     water_mat = make_water_material("LSFS Water Glass", water)
     floor_mat = make_principled_material("LSFS Dark Floor",
                                          floor["color"],
@@ -919,7 +956,7 @@ def main():
     for frame in spec["frames"]:
         remove_frame_assets()
         configure_camera(camera, frame, preset)
-        add_water_mesh(frame, water_mat)
+        add_water_mesh(frame, water_mat, surface_detail)
         add_secondary_particles(frame,
                                 particle_mats,
                                 int(spec.get("max_secondary_particles", 512)),
@@ -1101,6 +1138,7 @@ def main(argv=None):
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
             "water_material": spec["water_material"],
+            "water_surface_detail": spec["water_surface_detail"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,
