@@ -186,7 +186,8 @@ The missing work is not one feature. It is a pipeline:
 | S138 | S136 public gallery visual triage | Review the S136 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s136 public gallery` |
 | S139 | Low-angle impact close-up framing | Move the camera lower and closer to the contact band so the upper source is mostly cropped while spray/ripple readability remains gated | Done in `style: add low angle impact closeup framing` |
 | S140 | S139 gallery refresh/publish | Package and publish the S139 review artifacts for external inspection before the next visual triage | Done in `docs: publish s139 cinematic gallery` |
-| S141 | S139 public gallery visual triage | Review the S139 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S141 | S139 public gallery visual triage | Review the S139 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s139 public gallery` |
+| S142 | Impact-timed review window | Let the Blender bridge render a later cache window so the shot starts closer to visible impact without changing the simulation | Planned |
 
 ## Decision Gates
 
@@ -524,16 +525,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S141.
+Continue with S142.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s139-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-impact-timed-review-window.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s139_low_angle_impact_closeup\gallery\gallery_manifest.json --publish build\shots\s139_low_angle_impact_closeup\gallery\publish_manifest_s140.json --out docs\reports\cinematic_visual_review_s141.md --decision "Select the next visible shot adjustment from the S139 public gallery evidence." --next "S142 should implement the selected visual adjustment with a checked-in preset or scene change plus a 36-frame Blender comparison gate."
+python tools\run_cinematic_shot.py --preset dam_break_low_angle_impact_timed --out build\shots\s142_impact_timed_window --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s139_low_angle_impact_closeup\review\review_manifest.json --report docs\reports\cinematic_impact_timed_window_s142.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in S141 visual triage report that records public gallery checks, numeric gates, visual findings, and the next concrete shot adjustment.
+The next success condition is a checked-in S142 Blender gate report that renders a later source-cache window, starts closer to visible impact, and preserves visual/focus/secondary-depth/ripple/temporal/camera/secondary-framing gates.
