@@ -558,6 +558,40 @@ def evaluate_visual_qa(config, visual_qa):
     }
 
 
+def evaluate_secondary_framing_qa(config, framing):
+    gate = config.get("secondary_framing_qa")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_mean_inside_ratio": (("mean_inside_ratio",), gate.get("min_mean_inside_ratio"), ">="),
+        "min_frame_inside_ratio": (("min_inside_ratio",), gate.get("min_frame_inside_ratio"), ">="),
+        "min_mean_screen_y": (("mean_screen_y",), gate.get("min_mean_screen_y"), ">="),
+        "max_mean_screen_y": (("mean_screen_y",), gate.get("max_mean_screen_y"), "<="),
+    }
+    passed = True
+    for name, (path, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = nested_metric(framing, path)
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def render_report(summary, root):
     config = summary.get("config", {})
     metrics = summary.get("metrics", {})
@@ -612,6 +646,8 @@ def render_report(summary, root):
         f"- Secondary soft pass: `{metrics.get('secondary_soft_pass', {})}`",
         f"- Secondary streak pass: `{metrics.get('secondary_streak_pass', {})}`",
         f"- Secondary streak counts: `{metrics.get('secondary_streak_counts', {})}`",
+        f"- Secondary framing summary: `{metrics.get('secondary_framing', {})}`",
+        f"- Secondary framing gate: `{metrics.get('secondary_framing_gate', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
@@ -656,7 +692,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S75 should add numeric active-secondary framing QA so future camera/material changes cannot silently lose the visible spray band.",
+        "S76 should add a visible surface/contact foam pass that connects secondary particles back to the water body.",
         "",
     ])
     return "\n".join(lines)
@@ -934,6 +970,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                           renderer.get("min_nonblank_ratio"),
                                           0.05),
         "visual_qa": section(renderer, "visual_qa"),
+        "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
                                          reconstruction.get("smooth_iterations"),
@@ -1243,6 +1280,11 @@ def run_pipeline(args):
             summary["metrics"]["secondary_soft_pass"] = render_summary.get("secondary_soft_pass", {})
             summary["metrics"]["secondary_streak_pass"] = render_summary.get("secondary_streak_pass", {})
             summary["metrics"]["secondary_streak_counts"] = render_summary.get("secondary_streak_counts", {})
+            summary["metrics"]["secondary_framing"] = render_summary.get("secondary_framing", {})
+            summary["metrics"]["secondary_framing_gate"] = evaluate_secondary_framing_qa(
+                config, summary["metrics"]["secondary_framing"])
+            if summary["metrics"]["secondary_framing_gate"].get("enabled") and not summary["metrics"]["secondary_framing_gate"].get("passed"):
+                fail(f"secondary framing QA gate failed: {summary['metrics']['secondary_framing_gate']}")
             summary["metrics"]["visual_qa"] = render_summary.get("visual_qa", {})
             summary["metrics"]["visual_qa_gate"] = evaluate_visual_qa(
                 config, summary["metrics"]["visual_qa"])

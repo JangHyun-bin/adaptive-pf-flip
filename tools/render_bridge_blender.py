@@ -135,6 +135,41 @@ def vec3(value, fallback=(0.0, 0.0, 0.0)):
     return [fallback[0], fallback[1], fallback[2]]
 
 
+def v_add(a, b):
+    return [a[i] + b[i] for i in range(3)]
+
+
+def v_sub(a, b):
+    return [a[i] - b[i] for i in range(3)]
+
+
+def v_dot(a, b):
+    return sum(a[i] * b[i] for i in range(3))
+
+
+def v_cross(a, b):
+    return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+
+
+def v_len(a):
+    return math.sqrt(max(0.0, v_dot(a, a)))
+
+
+def v_norm(a, fallback=(0.0, 0.0, 1.0)):
+    length = v_len(a)
+    if length <= 1e-12:
+        return [fallback[0], fallback[1], fallback[2]]
+    return [a[i] / length for i in range(3)]
+
+
+def to_blender_coords(point):
+    return [as_float(point[0]), -as_float(point[2]), as_float(point[1])]
+
+
 def resolve_file(base_dir, path):
     if not isinstance(path, str) or not path:
         return None
@@ -375,6 +410,109 @@ def summarize_secondary_streak_counts(frames):
         "min_total": min(totals),
         "max_total": max(totals),
         "mean_total": sum(totals) / float(len(totals)),
+    }
+
+
+def secondary_framing_qa_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "secondary_framing_qa")
+    channels = preset_section(cfg, "channels")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "spray": bool(channels.get("spray", True)),
+            "foam": bool(channels.get("foam", True)),
+        },
+        "min_mean_inside_ratio": cfg.get("min_mean_inside_ratio"),
+        "min_frame_inside_ratio": cfg.get("min_frame_inside_ratio"),
+        "min_mean_screen_y": cfg.get("min_mean_screen_y"),
+        "max_mean_screen_y": cfg.get("max_mean_screen_y"),
+    }
+
+
+def project_camera_point(point, camera, width, height):
+    position = to_blender_coords(vec3(camera.get("position"), (0.0, 0.0, 1.0)))
+    target = to_blender_coords(vec3(camera.get("target"), (0.0, 0.0, 0.0)))
+    up = to_blender_coords(vec3(camera.get("up"), (0.0, 1.0, 0.0)))
+    forward = v_norm(v_sub(target, position), (0.0, 0.0, -1.0))
+    right = v_norm(v_cross(forward, up), (1.0, 0.0, 0.0))
+    true_up = v_norm(v_cross(right, forward), (0.0, 0.0, 1.0))
+    rel = v_sub(to_blender_coords(point), position)
+    depth = v_dot(rel, forward)
+    if depth <= max(1e-6, as_float(camera.get("near_clip"), 0.05)):
+        return None
+    vfov = math.radians(max(1e-6, as_float(camera.get("vertical_fov_degrees"), 45.0)))
+    aspect = max(1e-6, float(width) / float(max(1, height)))
+    half_y = math.tan(vfov * 0.5)
+    half_x = half_y * aspect
+    x = v_dot(rel, right) / (depth * half_x)
+    y = v_dot(rel, true_up) / (depth * half_y)
+    return {
+        "x": (x + 1.0) * 0.5,
+        "y": (y + 1.0) * 0.5,
+        "depth": depth,
+    }
+
+
+def secondary_framing_for_frame(frame, width, height, framing_qa):
+    channels = framing_qa.get("channels") if isinstance(framing_qa.get("channels"), dict) else {}
+    enabled_channels = {name for name, enabled in channels.items() if enabled}
+    if not enabled_channels:
+        return {"active": 0, "inside": 0, "inside_ratio": 0.0}
+    active = 0
+    inside = 0
+    ys = []
+    with open(frame["particles_csv"], encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            channel = secondary_render_channel(row)
+            if channel not in enabled_channels:
+                continue
+            active += 1
+            projected = project_camera_point(
+                [row.get("x", 0.0), row.get("y", 0.0), row.get("z", 0.0)],
+                frame["camera"],
+                width,
+                height)
+            if not projected:
+                continue
+            x = projected["x"]
+            y = projected["y"]
+            if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
+                inside += 1
+                ys.append(y)
+    if active <= 0:
+        return {"active": 0, "inside": 0, "inside_ratio": 0.0}
+    metrics = {
+        "active": active,
+        "inside": inside,
+        "inside_ratio": inside / float(active),
+    }
+    if ys:
+        metrics.update({
+            "mean_screen_y": sum(ys) / float(len(ys)),
+            "min_screen_y": min(ys),
+            "max_screen_y": max(ys),
+        })
+    return metrics
+
+
+def summarize_secondary_framing(frames, width, height, framing_qa):
+    if not framing_qa.get("enabled", False) or not frames:
+        return {"enabled": False}
+    frame_metrics = [secondary_framing_for_frame(frame, width, height, framing_qa) for frame in frames]
+    ratios = [as_float(item.get("inside_ratio"), 0.0) for item in frame_metrics]
+    ys = [as_float(item.get("mean_screen_y"), 0.0) for item in frame_metrics if item.get("inside", 0) > 0]
+    return {
+        "enabled": True,
+        "channels": framing_qa.get("channels", {}),
+        "frame_count": len(frame_metrics),
+        "first": frame_metrics[0],
+        "last": frame_metrics[-1],
+        "min_inside_ratio": min(ratios),
+        "mean_inside_ratio": sum(ratios) / float(len(ratios)),
+        "max_inside_ratio": max(ratios),
+        "mean_screen_y": sum(ys) / float(len(ys)) if ys else None,
+        "min_mean_screen_y": min(ys) if ys else None,
+        "max_mean_screen_y": max(ys) if ys else None,
     }
 
 
@@ -679,6 +817,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     channel_radius_scales = secondary_channel_radius_summary(render_preset)
     secondary_soft_pass = secondary_soft_pass_summary(render_preset)
     secondary_streak_pass = secondary_streak_pass_summary(render_preset)
+    secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
     frames = []
@@ -736,6 +875,8 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "secondary_soft_pass": secondary_soft_pass,
         "secondary_streak_pass": secondary_streak_pass,
         "secondary_streak_counts": summarize_secondary_streak_counts(frames),
+        "secondary_framing_qa": secondary_framing_qa,
+        "secondary_framing": summarize_secondary_framing(frames, width, height, secondary_framing_qa),
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
@@ -1727,6 +1868,8 @@ def main(argv=None):
             "secondary_soft_pass": spec["secondary_soft_pass"],
             "secondary_streak_pass": spec["secondary_streak_pass"],
             "secondary_streak_counts": spec["secondary_streak_counts"],
+            "secondary_framing_qa": spec["secondary_framing_qa"],
+            "secondary_framing": spec["secondary_framing"],
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
             "camera_path_metrics": spec["camera_path_metrics"],

@@ -120,6 +120,7 @@ The missing work is not one feature. It is a pipeline:
 | S72 | Secondary velocity streak pass | Add velocity-aligned spray/foam streak quads from secondary particle velocities for stronger motion readability | Done in `feat: add secondary velocity streak pass` |
 | S73 | Secondary streak tuning | Tune spray streak length/width/intensity and report actual streak counts per frame | Done in `style: tune secondary velocity streaks` |
 | S74 | Impact framing gate | Add inherited impact-framing preset and gate so the active secondary band stays visible longer | Done in `feat: add impact framing gate` |
+| S75 | Active secondary framing QA | Project spray/foam particles into camera space and gate inside-frame ratio plus vertical placement | Done in `test: add active secondary framing qa` |
 
 ## Decision Gates
 
@@ -457,16 +458,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S75.
+Continue with S76.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-active-secondary-framing-qa.md`
+`docs/superpowers/plans/2026-06-18-surface-foam-contact-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_impact_framing --out build\shots\s75_active_secondary_framing_qa --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s75.md --compare-review-manifest build\shots\s74_impact_framing\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_impact_framing --out build\shots\s76_surface_foam_contact --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s76.md --compare-review-manifest build\shots\s75_active_secondary_framing_qa\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a numeric framing QA metric for secondary visibility and screen placement, so future camera/material changes cannot silently lose the active spray band.
+The next success condition is a visible surface/contact foam pass that connects the secondary particles back to the water body instead of leaving them as a detached band.

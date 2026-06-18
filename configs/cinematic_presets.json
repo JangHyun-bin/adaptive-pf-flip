@@ -523,6 +523,19 @@
     "dam_break_impact_framing": {
       "extends": "dam_break_contact_closeup",
       "description": "Impact-focused framing for keeping the active secondary spray band in view.",
+      "renderer": {
+        "secondary_framing_qa": {
+          "enabled": true,
+          "channels": {
+            "spray": true,
+            "foam": true
+          },
+          "min_mean_inside_ratio": 0.98,
+          "min_frame_inside_ratio": 0.95,
+          "min_mean_screen_y": 0.45,
+          "max_mean_screen_y": 0.75
+        }
+      },
       "camera": {
         "position": [12.8, 11.2, 38.0],
         "target": [14.0, 8.6, 11.0],
