@@ -404,6 +404,15 @@ def camera_motion_summary(render_preset):
     }
 
 
+def water_material_summary(render_preset):
+    water = preset_section(preset_section(render_preset, "materials"), "water")
+    return {
+        "depth_strength": as_float(water.get("depth_strength"), 0.0),
+        "rim_strength": as_float(water.get("rim_strength"), 0.0),
+        "rim_width": as_float(water.get("rim_width"), 0.0),
+    }
+
+
 def pick_water_mesh(frame, water_index, out_index, out_count):
     if water_index:
         water_frame = select_resampled(water_index["frames"], out_index, out_count)
@@ -489,6 +498,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
+        "water_material": water_material_summary(render_preset),
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "water_reconstruction": sequence.get("water_reconstruction", {}),
@@ -568,10 +578,26 @@ def scalar_value(value, fallback):
         return fallback
 
 
+def clamp01(value):
+    return max(0.0, min(1.0, float(value)))
+
+
+def blend_color(a, b, t):
+    t = clamp01(t)
+    return tuple(float(a[i]) * (1.0 - t) + float(b[i]) * t for i in range(4))
+
+
 def material_values(preset, name, color, roughness, alpha, transmission):
     cfg = preset_section(preset_section(preset, "materials"), name)
     return {
         "color": vector_value(cfg.get("base_color"), color, 4),
+        "depth_color": vector_value(cfg.get("depth_color"), color, 4),
+        "depth_strength": clamp01(scalar_value(cfg.get("depth_strength"), 0.0)),
+        "rim_color": vector_value(cfg.get("rim_color"), (0.82, 0.96, 1.0, 0.8), 4),
+        "rim_strength": max(0.0, scalar_value(cfg.get("rim_strength"), 0.0)),
+        "rim_width": clamp01(scalar_value(cfg.get("rim_width"), 0.0)),
+        "specular": max(0.0, scalar_value(cfg.get("specular"), 0.5)),
+        "coat_weight": max(0.0, scalar_value(cfg.get("coat_weight"), 0.0)),
         "roughness": scalar_value(cfg.get("roughness"), roughness),
         "alpha": scalar_value(cfg.get("alpha"), alpha),
         "transmission": scalar_value(cfg.get("transmission"), transmission),
@@ -591,6 +617,35 @@ def make_principled_material(name, color, roughness=0.2, alpha=1.0, transmission
         set_input(bsdf, ("Metallic",), 0.0)
     mat.blend_method = "BLEND"
     mat.use_screen_refraction = True
+    return mat
+
+
+def make_water_material(name, values):
+    body_color = blend_color(values["color"], values["depth_color"], values["depth_strength"])
+    mat = make_principled_material(name,
+                                   body_color,
+                                   roughness=values["roughness"],
+                                   alpha=values["alpha"],
+                                   transmission=values["transmission"])
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        return mat
+    set_input(bsdf, ("Specular IOR Level", "Specular"), values["specular"])
+    set_input(bsdf, ("Coat Weight", "Coat"), values["coat_weight"])
+    if values["rim_strength"] > 0.0:
+        try:
+            layer = mat.node_tree.nodes.new(type="ShaderNodeLayerWeight")
+            ramp = mat.node_tree.nodes.new(type="ShaderNodeValToRGB")
+            ramp.color_ramp.elements[0].position = 0.0
+            ramp.color_ramp.elements[0].color = values["rim_color"]
+            ramp.color_ramp.elements[1].position = max(0.02, values["rim_width"])
+            ramp.color_ramp.elements[1].color = body_color
+            mat.node_tree.links.new(layer.outputs["Facing"], ramp.inputs["Fac"])
+            mat.node_tree.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+            set_input(bsdf, ("Emission Color",), values["rim_color"])
+            set_input(bsdf, ("Emission Strength",), values["rim_strength"] * 0.08)
+        except Exception:
+            set_input(bsdf, ("Base Color",), body_color)
     return mat
 
 
@@ -774,11 +829,7 @@ def main():
     spray = material_values(preset, "spray", (0.9, 0.98, 1.0, 0.8), 0.12, 0.8, 0.15)
     foam = material_values(preset, "foam", (0.95, 0.94, 0.82, 1.0), 0.55, 1.0, 0.0)
     bubble = material_values(preset, "bubble", (1.0, 0.78, 0.34, 0.78), 0.15, 0.78, 0.15)
-    water_mat = make_principled_material("LSFS Water Glass",
-                                         water["color"],
-                                         roughness=water["roughness"],
-                                         alpha=water["alpha"],
-                                         transmission=water["transmission"])
+    water_mat = make_water_material("LSFS Water Glass", water)
     floor_mat = make_principled_material("LSFS Dark Floor",
                                          floor["color"],
                                          roughness=floor["roughness"],
@@ -975,6 +1026,7 @@ def main(argv=None):
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],
             "camera_motion": spec["camera_motion"],
+            "water_material": spec["water_material"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,

@@ -159,6 +159,8 @@ def render_report(summary, root):
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
         f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
+        f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
+        f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         "",
         "## Stage Timings",
         "",
@@ -183,7 +185,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S50 should improve water material response with depth tint, rim highlights, and preset sweeps; later physics work should replace demo secondary seeding with physical spray generation.",
+        "S51 should package review artifacts with a contact sheet, GIF, and compact report bundle; later physics work should replace demo secondary seeding with physical spray generation.",
         "",
     ])
     return "\n".join(lines)
@@ -650,6 +652,7 @@ def run_pipeline(args):
         if render_summary_path and os.path.isfile(render_summary_path):
             render_summary = read_json(render_summary_path)
             summary["metrics"]["camera_motion"] = render_summary.get("camera_motion", {})
+            summary["metrics"]["water_material"] = render_summary.get("water_material", {})
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out
