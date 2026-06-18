@@ -326,7 +326,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S54 should raise visual detail through higher-resolution/adaptive surface data and begin replacing demo secondary seeding with physical spray generation.",
+        "S55 should add grid-aware camera framing for high-detail gates, then begin replacing demo secondary seeding with physical spray generation.",
         "",
     ])
     return "\n".join(lines)

@@ -140,6 +140,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S51** | **Presentation artifact pack** - cinematic shot runs now emit a review contact sheet, keyframe thumbnails, and `review_manifest.json` alongside GIFs, reports, and `shot_summary.json`. | done |
 | **S52** | **Visual gate v2** - `dam_break_cinematic` has a larger 36-frame 960x540 Blender gate with GIF, review pack, timings, material metrics, and a checked-in report. | done |
 | **S53** | **Implicit tetra water surface** - water reconstruction can now export an opt-in implicit tetra OBJ surface, and `dam_break_cinematic` uses it to reduce voxel stair stepping in review gates. | done |
+| **S54** | **High-detail surface gate** - a 20x24x17 falling-water close-up gate exercises tetra reconstruction at higher mesh density, with timing and framing limits recorded. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -239,6 +240,7 @@ python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shot
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s51_review_pack --frames 24 --width 1280 --height 720 --review-frames 6 --report docs/reports/cinematic_gate_s51.md
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s52_visual_gate_v2 --frames 36 --sim-steps 36 --width 960 --height 540 --renderer blender --samples 10 --review-frames 8 --report docs/reports/cinematic_gate_s52.md --timeout-seconds 600
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s53_surface_tetra --frames 24 --sim-steps 24 --width 640 --height 360 --renderer blender --samples 8 --review-frames 6 --report docs/reports/cinematic_gate_s53.md --timeout-seconds 600
+python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s54_high_detail_surface --nx 20 --ny 24 --nz 17 --frames 24 --sim-steps 24 --width 960 --height 540 --renderer blender --samples 10 --review-frames 6 --report docs/reports/cinematic_gate_s54.md --timeout-seconds 900
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0

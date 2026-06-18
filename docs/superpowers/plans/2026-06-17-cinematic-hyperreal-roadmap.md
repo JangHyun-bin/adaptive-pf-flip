@@ -99,6 +99,7 @@ The missing work is not one feature. It is a pipeline:
 | S51 | Presentation artifact pack | Emit GIF/contact sheet/report bundle for fast visual review and sharing | Done in `feat: package cinematic review artifacts` |
 | S52 | Visual gate v2 | Run a larger dynamic shot through the improved surface/render stack | Done in `test: add cinematic visual gate v2` |
 | S53 | Implicit tetra water surface | Reduce voxel stair stepping with an opt-in implicit tetra OBJ reconstruction path | Done in `feat: add implicit tetra water surfaces` |
+| S54 | High-detail surface gate | Run a higher-density tetra surface close-up and record timing/framing limits | Done in `test: add high detail cinematic surface gate` |
 
 ## Decision Gates
 
