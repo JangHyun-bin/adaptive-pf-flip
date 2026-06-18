@@ -167,7 +167,7 @@ def required_artifact_status(gallery):
     return len(required), len(present)
 
 
-def markdown(gallery, gallery_path, publish, publish_path, shot, shot_path, findings, decision, root):
+def markdown(gallery, gallery_path, publish, publish_path, shot, shot_path, findings, decision, next_text, root):
     required_count, present_count = required_artifact_status(gallery)
     lines = [
         "# Cinematic Visual Review Triage",
@@ -246,7 +246,7 @@ def markdown(gallery, gallery_path, publish, publish_path, shot, shot_path, find
         "",
         "## Next",
         "",
-        "S124 should implement the selected composition/look-dev adjustment and run a warm-cache Blender gate against the current S119 baseline.",
+        next_text,
         "",
     ])
     return "\n".join(lines)
@@ -261,10 +261,14 @@ def main(argv=None):
     parser.add_argument(
         "--decision",
         default=(
-            "Select S124 composition/look-dev pass: move the camera toward the contact band, reduce the tank/back-wall read, "
-            "and tune secondary integration without weakening existing visual gates."
+            "Select the next visible shot adjustment from the current gallery evidence."
         ),
         help="Decision text for the next milestone",
+    )
+    parser.add_argument(
+        "--next",
+        default="Implement the selected next milestone with a checked-in command, report, and comparison gate.",
+        help="Next milestone text to include in the report",
     )
     args = parser.parse_args(argv)
 
@@ -290,7 +294,8 @@ def main(argv=None):
     out = os.path.abspath(args.out)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8", newline="\n") as f:
-        f.write(markdown(gallery, gallery_path, publish, publish_path, shot, shot_path, args.finding, args.decision, root))
+        f.write(markdown(gallery, gallery_path, publish, publish_path, shot, shot_path,
+                         args.finding, args.decision, args.next, root))
     print(out)
 
 

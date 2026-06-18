@@ -25,6 +25,13 @@ python tools\summarize_cinematic_gallery_review.py build\shots\s130_environment_
 - Current S130 visual strengths and remaining issues are listed.
 - The next visible shot-shape adjustment is selected as a concrete S133 milestone.
 
+## Result
+
+- Report: `docs/reports/cinematic_visual_review_s132.md`
+- Public gallery checked: `https://italiano-anaheim-empty-colored.trycloudflare.com`
+- Local/public `index.html` and `assets/shot.gif` checks passed.
+- Decision: S133 should break the upper falling source into staggered rounded lobes with less continuous vertical side-wall structure.
+
 ## Verification
 
 ```powershell

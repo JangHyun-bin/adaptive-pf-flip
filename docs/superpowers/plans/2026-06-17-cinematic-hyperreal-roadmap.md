@@ -177,7 +177,8 @@ The missing work is not one feature. It is a pipeline:
 | S129 | Public gallery visual triage | Review the S127 public gallery and choose the next concrete scene/render improvement from visible evidence | Done in `docs: triage s127 public gallery` |
 | S130 | Environment/depth-context pass | Reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene | Done in `style: add environment depth context preset` |
 | S131 | S130 gallery refresh/publish | Package and publish the S130 review artifacts for external inspection before the next shot-shape adjustment | Done in `docs: publish s130 cinematic gallery` |
-| S132 | S130 public gallery visual triage | Review the S130 public gallery and choose the next concrete visible shot-shape adjustment from current evidence | Planned |
+| S132 | S130 public gallery visual triage | Review the S130 public gallery and choose the next concrete visible shot-shape adjustment from current evidence | Done in `docs: triage s130 public gallery` |
+| S133 | Falling-source silhouette breakup pass | Break the upper falling-water mass into staggered rounded lobes with less continuous vertical side-wall structure | Planned |
 
 ## Decision Gates
 
@@ -515,16 +516,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S132.
+Continue with S133.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s130-public-gallery-visual-triage.md`
+`docs/superpowers/plans/2026-06-18-falling-source-silhouette-breakup-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s130_environment_depth_context\gallery\gallery_manifest.json --publish build\shots\s130_environment_depth_context\gallery\publish_manifest_s131.json --out docs\reports\cinematic_visual_review_s132.md
+python tools\run_cinematic_shot.py --preset dam_break_falling_source_silhouette_breakup --out build\shots\s133_falling_source_silhouette_breakup --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s130_environment_depth_context\review\review_manifest.json --report docs\reports\cinematic_falling_source_silhouette_breakup_s133.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in visual triage report that records the S130 public gallery state and selects the next concrete shot-shape adjustment.
+The next success condition is a checked-in S133 visual gate report with less continuous upper-source side-wall structure and preserved S130 review/QA gates.
