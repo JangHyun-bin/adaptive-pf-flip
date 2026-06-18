@@ -414,6 +414,26 @@ TEST_CASE("sparse 3D secondary spray emission honors interface diagnostic gate")
   CHECK(passed.secondary_spray_emitted_bubbles_last == 1);
 }
 
+TEST_CASE("sparse 3D secondary spray emission includes impact candidates") {
+  SparseSim3DTP sim(12, 18, 12, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 40;
+  sim.initLargeWaterEvent();
+  sim.secondary_spray_emission = true;
+  sim.secondary_spray_particles_per_step = 24;
+  sim.secondary_spray_impact_candidates = true;
+  sim.secondary_spray_impact_region_fraction = 0.65;
+  sim.secondary_spray_impact_downward_speed_min = 0.75;
+
+  sim.step();
+
+  CHECK(sim.secondary_spray_candidates_last > 0);
+  CHECK(sim.secondary_spray_impact_candidates_last > 0);
+  CHECK(sim.secondary_spray_effective_requested_last == 24);
+  CHECK(sim.secondary_spray_emitted_droplets_last == 22);
+  CHECK(sim.secondary_spray_emitted_bubbles_last == 2);
+}
+
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   SparseSim3DTP full(12, 12, 8, 1.0);
   full.initTwoPhaseDamBreak();

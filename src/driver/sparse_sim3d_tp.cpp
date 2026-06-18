@@ -168,6 +168,7 @@ void resetEscapedParticleBranching(SparseSim3DTP& sim) {
   sim.secondary_spray_interface_gate_passed_last = 0;
   sim.secondary_spray_interface_cells_last = 0;
   sim.secondary_spray_candidates_last = 0;
+  sim.secondary_spray_impact_candidates_last = 0;
   sim.secondary_spray_emitted_droplets_last = 0;
   sim.secondary_spray_emitted_bubbles_last = 0;
   sim.secondary_spray_interface_grad_max_last = 0.0;
@@ -292,7 +293,10 @@ void emitSecondarySpray(SparseSim3DTP& sim) {
     sim.interface_diagnostics_last.curvature_abs_max,
     sim.secondary_spray_min_interface_cells,
     sim.secondary_spray_min_interface_grad_max,
-    sim.secondary_spray_min_interface_curvature_abs_max};
+    sim.secondary_spray_min_interface_curvature_abs_max,
+    sim.secondary_spray_impact_candidates,
+    sim.secondary_spray_impact_region_fraction,
+    sim.secondary_spray_impact_downward_speed_min};
   const SecondarySprayEmissionStats3D stats =
     emitSecondarySpraySeeds3D(sim.particles,
                               sim.escaped_droplets,
@@ -307,6 +311,7 @@ void emitSecondarySpray(SparseSim3DTP& sim) {
   sim.secondary_spray_interface_gate_passed_last = stats.interface_gate_passed;
   sim.secondary_spray_interface_cells_last = stats.interface_cells;
   sim.secondary_spray_candidates_last = stats.candidate_liquid_particles;
+  sim.secondary_spray_impact_candidates_last = stats.impact_candidate_liquid_particles;
   sim.secondary_spray_emitted_droplets_last = stats.emitted_droplets;
   sim.secondary_spray_emitted_bubbles_last = stats.emitted_bubbles;
   sim.secondary_spray_interface_grad_max_last = stats.interface_grad_max;
@@ -434,8 +439,8 @@ void SparseSim3DTP::initLargeWaterEvent() {
   resetSceneState(*this);
   const int sheetX0 = std::max(1, grid.nx / 8);
   const int sheetX1 = std::min(grid.nx - 1, std::max(sheetX0 + 3, grid.nx * 7 / 8));
-  const int sheetY0 = std::max(2, grid.ny * 12 / 20);
-  const int sheetY1 = std::min(grid.ny - 1, std::max(sheetY0 + 3, grid.ny * 18 / 20));
+  const int sheetY0 = std::max(2, grid.ny * 8 / 20);
+  const int sheetY1 = std::min(grid.ny - 1, std::max(sheetY0 + 3, grid.ny * 15 / 20));
   const int sheetZ0 = std::max(1, grid.nz * 3 / 10);
   const int sheetZ1 = std::min(grid.nz - 1, std::max(sheetZ0 + 2, grid.nz * 7 / 10));
   const int poolX0 = std::max(1, grid.nx / 7);
@@ -460,9 +465,9 @@ void SparseSim3DTP::initLargeWaterEvent() {
         Vec3 velocity{0.0, 0.0, 0.0};
         if (fallingSheet) {
           velocity = {
-            0.075 * ((static_cast<double>(i) + 0.5) - cx),
-            -10.5,
-            0.045 * ((static_cast<double>(k) + 0.5) - cz)
+            0.12 * ((static_cast<double>(i) + 0.5) - cx),
+            -13.5,
+            0.07 * ((static_cast<double>(k) + 0.5) - cz)
           };
         }
         seedCell(particles, i, j, k, grid.dx, liquid ? 0 : 1, velocity);

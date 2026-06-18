@@ -330,6 +330,9 @@ int main(int argc, char** argv) {
       sim.secondary_spray_min_interface_cells = 1;
       sim.secondary_spray_min_interface_grad_max = 1e-5;
       sim.secondary_spray_min_interface_curvature_abs_max = 0.0;
+      sim.secondary_spray_impact_candidates = true;
+      sim.secondary_spray_impact_region_fraction = 0.65;
+      sim.secondary_spray_impact_downward_speed_min = 0.75;
       sim.secondary_particle_lifecycle = true;
       sim.secondary_velocity_damping = 0.99;
       sim.secondary_droplet_lifetime_steps = 12;
@@ -392,6 +395,8 @@ int main(int argc, char** argv) {
                 sim.secondary_spray_effective_requested_last);
     std::printf("secondary_spray_interface_cells_last=%d\n",
                 sim.secondary_spray_interface_cells_last);
+    std::printf("secondary_spray_impact_candidates_last=%d\n",
+                sim.secondary_spray_impact_candidates_last);
     std::printf("secondary_spray_interface_grad_max_last=%.17g\n",
                 sim.secondary_spray_interface_grad_max_last);
     std::printf("secondary_spray_interface_curvature_abs_max_last=%.17g\n",

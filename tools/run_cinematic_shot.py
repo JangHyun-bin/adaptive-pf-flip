@@ -198,6 +198,7 @@ def format_secondary_interface_gate(metrics):
         f"passed={metrics.get('secondary_spray_interface_gate_passed_last')} "
         f"effective_requested={metrics.get('secondary_spray_effective_requested_last', 'n/a')} "
         f"interface_cells={metrics.get('secondary_spray_interface_cells_last', 'n/a')} "
+        f"impact_candidates={metrics.get('secondary_spray_impact_candidates_last', 'n/a')} "
         f"grad_max={metrics.get('secondary_spray_interface_grad_max_last', 'n/a')} "
         f"curvature_abs_max={metrics.get('secondary_spray_interface_curvature_abs_max_last', 'n/a')}"
     )
@@ -449,7 +450,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S60 should increase contact-driven splash breakup and spray visibility for the large water-event scene.",
+        "S61 should add contact foam/spray channel emphasis and more surface detail to reduce the smooth slab look.",
         "",
     ])
     return "\n".join(lines)
@@ -980,6 +981,10 @@ def run_pipeline(args):
                         f"physical secondary interface gate effective request below acceptance min "
                         f"{acceptance_min}: effective={effective_requested}"
                     )
+                if "secondary_spray_impact_candidates_last" in export_metrics:
+                    impact_candidates = int(export_metrics.get("secondary_spray_impact_candidates_last", 0) or 0)
+                    if impact_candidates <= 0:
+                        fail("physical secondary impact candidate count is zero")
         render_summary_path = summary["artifacts"].get("render_summary")
         if render_summary_path and os.path.isfile(render_summary_path):
             render_summary = read_json(render_summary_path)

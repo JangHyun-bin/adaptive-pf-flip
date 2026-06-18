@@ -126,7 +126,7 @@
         "cg_iters": null,
         "physics_preset": false,
         "secondary_demo_particles": 0,
-        "secondary_physical_particles": 96
+        "secondary_physical_particles": 192
       },
       "shot": {
         "frames": 24,
@@ -140,8 +140,8 @@
         "preferred": "auto",
         "engine": "eevee",
         "samples": 32,
-        "max_secondary_particles": 768,
-        "secondary_radius_scale": 2.4,
+        "max_secondary_particles": 1536,
+        "secondary_radius_scale": 3.0,
         "min_nonblank_ratio": 0.05,
         "min_occupancy": 0.005
       },

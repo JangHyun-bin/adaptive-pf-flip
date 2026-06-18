@@ -67,6 +67,9 @@ struct SecondarySprayEmissionConfig3D {
   int min_interface_cells = 1;
   double min_interface_grad_max = 1e-5;
   double min_interface_curvature_abs_max = 0.0;
+  bool impact_splash_candidates = false;
+  double impact_region_fraction = 0.55;
+  double impact_downward_speed_min = 1.0;
 };
 
 struct SecondarySprayEmissionStats3D {
@@ -78,6 +81,7 @@ struct SecondarySprayEmissionStats3D {
   int interface_gate_passed = 1;
   int interface_cells = 0;
   int candidate_liquid_particles = 0;
+  int impact_candidate_liquid_particles = 0;
   int emitted_droplets = 0;
   int emitted_bubbles = 0;
   double interface_grad_max = 0.0;
@@ -159,6 +163,10 @@ inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
   if (!bounds.valid) return stats;
 
   const double surfaceY = bounds.min.y + 0.68 * (bounds.max.y - bounds.min.y);
+  const double impactY =
+    bounds.min.y +
+    std::max(0.0, std::min(1.0, config.impact_region_fraction)) *
+      (bounds.max.y - bounds.min.y);
   const double cx = 0.5 * (bounds.min.x + bounds.max.x);
   const double cz = 0.5 * (bounds.min.z + bounds.max.z);
   std::vector<SecondarySprayCandidate3D> candidates;
@@ -173,10 +181,19 @@ inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
     const Vec3& v = primary.vel[i];
     const double hspeed = std::sqrt(v.x * v.x + v.z * v.z);
     const double upward = std::max(0.0, v.y);
+    const double downward = std::max(0.0, -v.y);
     const double nearSurface = std::max(0.0, p.y - surfaceY);
+    const bool impactCandidate =
+      config.impact_splash_candidates &&
+      p.y <= impactY &&
+      downward >= config.impact_downward_speed_min;
     const double lateral = std::sqrt((p.x - cx) * (p.x - cx) + (p.z - cz) * (p.z - cz));
-    const double score = nearSurface * 4.0 + upward * 2.0 + hspeed * 0.25 + lateral * 0.03;
-    if (p.y >= surfaceY || upward > 0.02 || hspeed > 0.25) {
+    const double impactDepth = std::max(0.0, impactY - p.y);
+    const double score = nearSurface * 4.0 + upward * 2.0 +
+      hspeed * 0.25 + lateral * 0.03 +
+      (impactCandidate ? downward * 2.5 + impactDepth * 0.8 : 0.0);
+    if (p.y >= surfaceY || upward > 0.02 || hspeed > 0.25 || impactCandidate) {
+      if (impactCandidate) ++stats.impact_candidate_liquid_particles;
       candidates.push_back(SecondarySprayCandidate3D{p, v, score});
     }
   }

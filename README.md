@@ -146,6 +146,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S57** | **Sim-side secondary spray gate** - sparse cinematic physical secondary emission now runs inside the sparse 3D two-phase sim step, with lifecycle volume accounting and shot-report acceptance thresholds. | done |
 | **S58** | **Interface-conditioned secondary spray gate** - physical sparse secondary emission now requires measured interface diagnostics, reports gate pass/cells/gradient/curvature, and has a larger 30-frame Blender gate. | done |
 | **S59** | **Large water-event scene** - `dam_break_cinematic` now uses a wider falling sheet over a shallow impact pool, with a 36-frame 1280x720 Blender gate and larger interface/volume metrics. | done |
+| **S60** | **Contact splash visibility gate** - large water-event timing now produces earlier pool contact, impact-driven spray candidates, 192 physical secondaries, and a 36-frame Blender contact/splash report. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -252,6 +253,7 @@ python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shot
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s57_secondary_lifecycle_gate --nx 20 --ny 24 --nz 17 --frames 24 --sim-steps 24 --width 960 --height 540 --renderer blender --samples 10 --review-frames 6 --report docs/reports/cinematic_gate_s57.md --timeout-seconds 900
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s58_interface_secondary_gate --nx 24 --ny 30 --nz 20 --frames 30 --sim-steps 30 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s58.md --timeout-seconds 1200
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s59_large_water_event --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s59.md --timeout-seconds 1500
+python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s60_contact_splash --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s60.md --timeout-seconds 1500
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0
