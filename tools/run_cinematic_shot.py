@@ -2002,7 +2002,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S107 should refresh the compact cinematic benchmark summary with S106 included so runtime, grid size, framing, focus, and secondary-depth deltas can guide the next large-grid step.",
+        "S108 should turn the S107 stage timings into a concrete cache/export/validation/conversion optimization target before running another large render.",
         "",
     ])
     return "\n".join(lines)
