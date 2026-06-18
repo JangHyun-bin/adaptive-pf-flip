@@ -139,6 +139,7 @@ The missing work is not one feature. It is a pipeline:
 | S91 | Ripple readability diagnostics | Add edge/highlight diagnostic sheets for contact-region ripple readability review | Done in `test: add ripple readability diagnostics` |
 | S92 | Ripple diagnostic comparison | Compare ripple readability diagnostic sheets side by side across nearby cinematic gates | Done in `test: add ripple diagnostic comparison` |
 | S93 | Contact foam/ripple integration | Soften and narrow contact foam so surface breakup reads less like separate overlay layers | Done in `style: tune contact foam ripple integration` |
+| S94 | Water surface breakup/noise tuning | Increase water surface detail strength/depth for stronger contact-region breakup while preserving diagnostic and temporal gates | Done in `style: tune water surface breakup noise` |
 
 ## Decision Gates
 
@@ -476,16 +477,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S94.
+Continue with S95.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-surface-breakup-noise-tuning.md`
+`docs/superpowers/plans/2026-06-18-spray-foam-depth-layering.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_foam_ripple_integrated --out build\shots\s94_water_surface_breakup_noise_tuning --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s94.md --compare-review-manifest build\shots\s93_contact_foam_ripple_integration\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_surface_breakup_noise_tuned --out build\shots\s95_spray_foam_depth_layering --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s95.md --compare-review-manifest build\shots\s94_water_surface_breakup_noise_tuning\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is stronger water surface breakup detail in the contact region without over-brightening the shot or breaking diagnostic and temporal gates.
+The next success condition is more natural spray/foam depth layering in the contact volume without breaking diagnostic, temporal, or secondary framing gates.

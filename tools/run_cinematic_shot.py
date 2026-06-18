@@ -1528,7 +1528,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S94 should tune water surface breakup/detail in the contact region while preserving diagnostic and temporal gates.",
+        "S95 should tune spray/foam depth layering so secondaries sit more naturally in the contact volume while preserving diagnostic, temporal, and secondary framing gates.",
         "",
     ])
     return "\n".join(lines)

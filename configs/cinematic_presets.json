@@ -940,6 +940,22 @@
           "min_edge_nonzero_ratio": 0.02
         }
       }
+    },
+    "dam_break_water_surface_breakup_noise_tuned": {
+      "extends": "dam_break_contact_foam_ripple_integrated",
+      "description": "Contact foam/ripple integration with stronger water surface breakup detail.",
+      "renderer": {
+        "water_surface_detail": {
+          "enabled": true,
+          "strength": 0.058,
+          "scale": 2.25,
+          "depth": 5
+        },
+        "ripple_readability_review": {
+          "min_edge_mean": 8.0,
+          "min_edge_nonzero_ratio": 0.025
+        }
+      }
     }
   }
 }
