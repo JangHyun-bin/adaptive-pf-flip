@@ -165,6 +165,7 @@ The missing work is not one feature. It is a pipeline:
 | S117 | GIF assembly reuse | Add opt-in GIF assembly reuse and expose GIF reuse status in shot reports | Done in `perf: reuse fresh cinematic gif` |
 | S118 | Blender quality warm-cache return | Re-run the large-grid Blender quality gate with full warm-cache controls enabled | Done in `test: return to blender quality warm cache` |
 | S119 | Blender quality baseline comparison | Compare the current warm-cache Blender quality output against the S106 large-grid baseline | Done in `test: compare blender quality baseline` |
+| S120 | Cinematic artifact inspection package | Validate and link the current GIF, contact sheet, and comparison sheets for quick visual inspection | Done in `tools: package cinematic artifacts` |
 
 ## Decision Gates
 
@@ -502,16 +503,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S120.
+Continue with S121.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-blender-artifact-inspection-package.md`
+`docs/superpowers/plans/2026-06-18-cinematic-static-gallery.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s119_blender_quality_baseline_comparison --out docs\reports\cinematic_artifact_package_s120.md
+python tools\build_cinematic_gallery.py build\shots\s119_blender_quality_baseline_comparison --package docs\reports\cinematic_artifact_package_s120.md --out build\shots\s119_blender_quality_baseline_comparison\gallery
 ```
 
-The next success condition is a compact inspection package linking the current GIF, contact sheet, and comparison sheets for quick review or sharing.
+The next success condition is a browser-ready static gallery that exposes the GIF, contact sheet, comparison sheets, and key metrics for local review or cftunnel sharing.

@@ -2247,7 +2247,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S120 should package the current Blender comparison artifacts for quick visual inspection and sharing.",
+        "S121 should turn the current artifact package into a browser-ready static gallery for review or cftunnel sharing.",
         "",
     ])
     return "\n".join(lines)

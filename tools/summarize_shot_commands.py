@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S120 should package the current Blender comparison artifacts for quick visual inspection and sharing.",
+        "S121 should turn the current artifact package into a browser-ready static gallery for review or cftunnel sharing.",
         "",
     ])
     return "\n".join(lines)
