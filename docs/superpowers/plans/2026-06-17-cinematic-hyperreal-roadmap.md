@@ -156,6 +156,7 @@ The missing work is not one feature. It is a pipeline:
 | S108 | Cinematic stage profile | Turn the S107 benchmark table into render/non-render cost splits and rank large-grid stage bottlenecks | Done in `tools: profile cinematic stage costs` |
 | S109 | Converted sequence reuse | Add opt-in SHA256 fingerprint reuse for converted sequence assets and expose reuse status in shot reports | Done in `perf: reuse fresh converted render cache` |
 | S110 | Render-cache validation reuse | Add opt-in SHA256 validation stamps and expose validation reuse status in shot reports | Done in `perf: reuse fresh render cache validation` |
+| S111 | Water reconstruction reuse | Add opt-in SHA256 water reconstruction reuse and expose water mesh reuse status in shot reports | Done in `perf: reuse fresh water reconstruction` |
 
 ## Decision Gates
 
@@ -493,16 +494,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S111.
+Continue with S112.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-reconstruction-reuse.md`
+`docs/superpowers/plans/2026-06-18-export-cache-reuse.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s111_water_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-validation --reuse-water-mesh --reuse-converted --no-build --timeout-seconds 120
+python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s112_export_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --no-build --timeout-seconds 120
 ```
 
-The next success condition is a conservative water reconstruction freshness check that can skip `reconstruct_water` on repeated review runs only when manifest contents and reconstruction options are unchanged.
+The next success condition is a conservative export-cache freshness check that can skip the C++ cache exporter on repeated review runs only when the requested export command and cache files are unchanged.

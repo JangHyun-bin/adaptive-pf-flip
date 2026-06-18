@@ -7,10 +7,12 @@ water_reconstruction.json index.
 
 Usage:
   python tools/reconstruct_water.py <manifest.json|sequence.json|frame.jsonl> <out_dir> --frames 8
+  python tools/reconstruct_water.py <manifest.json> <out_dir> --frames 8 --reuse-if-fresh
 """
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -65,6 +67,35 @@ def relpath(path, base_dir):
     return os.path.relpath(path, base_dir).replace(os.sep, "/")
 
 
+def write_json(path, payload):
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_fingerprint(role, path, **extra):
+    abs_path = os.path.abspath(path)
+    payload = {
+        "role": role,
+        "path": abs_path,
+        "bytes": os.path.getsize(abs_path),
+        "sha256": sha256_file(abs_path),
+    }
+    payload.update(extra)
+    return payload
+
+
 def as_float(value, fallback=0.0):
     try:
         return float(value)
@@ -106,7 +137,7 @@ def read_phase_csv(path):
     return cells
 
 
-def normalize_frame(source, header, cells):
+def normalize_frame(source, header, cells, fingerprint_paths=None):
     dims = header.get("dims", [1, 1, 1])
     return {
         "source": source,
@@ -115,6 +146,7 @@ def normalize_frame(source, header, cells):
         "dims": [as_int(dims[0], 1), as_int(dims[1], 1), as_int(dims[2], 1)],
         "dx": max(1e-12, as_float(header.get("dx"), 1.0)),
         "phase_cells": cells,
+        "fingerprint_paths": [os.path.abspath(path) for path in (fingerprint_paths or [])],
     }
 
 
@@ -123,7 +155,7 @@ def load_jsonl_frame(path, display_path=None):
     header = section(records, "header")
     if header is None:
         fail(f"{path}: missing header")
-    return normalize_frame(display_path or path, header, sections(records, "phase_cell"))
+    return normalize_frame(display_path or path, header, sections(records, "phase_cell"), [path])
 
 
 def load_manifest(path):
@@ -159,7 +191,8 @@ def load_sequence(path):
         header = camera_payload.get("header", {})
         frames.append(normalize_frame(entry.get("source_cache", phase_path),
                                       header,
-                                      read_phase_csv(phase_path)))
+                                      read_phase_csv(phase_path),
+                                      [camera_path, phase_path]))
     if not frames:
         fail(f"{path}: sequence contains no frames")
     return frames
@@ -176,6 +209,71 @@ def load_source(path):
     if data.get("converter") == "lsfs_render_cache_converter":
         return load_sequence(path)
     fail(f"{path}: expected manifest, sequence.json, or JSONL frame")
+
+
+def reconstruction_options(frame_count, threshold, smooth_iterations, smooth_alpha,
+                           write_normals, surface_mode, implicit_iso, implicit_blur_iterations):
+    return {
+        "frame_count": int(frame_count),
+        "threshold": float(threshold),
+        "smooth_iterations": int(smooth_iterations),
+        "smooth_alpha": float(smooth_alpha),
+        "write_normals": bool(write_normals),
+        "surface_mode": surface_mode,
+        "implicit_iso": float(implicit_iso),
+        "implicit_blur_iterations": int(implicit_blur_iterations),
+    }
+
+
+def reconstruction_fingerprint(src, frames, options):
+    entries = [file_fingerprint("reconstructor", __file__)]
+    seen = {os.path.abspath(__file__)}
+
+    def add(role, path, **extra):
+        abs_path = os.path.abspath(path)
+        if abs_path in seen:
+            return
+        seen.add(abs_path)
+        entries.append(file_fingerprint(role, abs_path, **extra))
+
+    if os.path.isfile(src):
+        add("source", src)
+    for index, frame in enumerate(frames):
+        for path in frame.get("fingerprint_paths", []):
+            add("frame_input", path, frame=index)
+    return {
+        "version": 1,
+        "src": os.path.abspath(src) if os.path.exists(src) else src,
+        "options": options,
+        "files": entries,
+    }
+
+
+def output_asset_exists(out_dir, value):
+    if not isinstance(value, str) or not value:
+        return False
+    path = value if os.path.isabs(value) else os.path.join(out_dir, value)
+    return os.path.isfile(path)
+
+
+def load_reusable_reconstruction(out_dir, expected_fingerprint):
+    summary_path = os.path.join(out_dir, "water_reconstruction.json")
+    if not os.path.isfile(summary_path):
+        return None
+    try:
+        summary = read_json(summary_path)
+    except ReconstructionError:
+        return None
+    if summary.get("reconstruction_fingerprint") != expected_fingerprint:
+        return None
+    frames = summary.get("frames")
+    if not isinstance(frames, list) or summary.get("frame_count") != len(frames):
+        return None
+    for frame in frames:
+        if not isinstance(frame, dict) or not output_asset_exists(out_dir, frame.get("mesh")):
+            return None
+    summary["_runtime_reused"] = True
+    return summary
 
 
 def occupied_voxels(frame, threshold):
@@ -498,9 +596,24 @@ def select_source_frame(frames, out_index, out_count):
 
 def reconstruct(src, out_dir, frame_count, threshold,
                 smooth_iterations=0, smooth_alpha=0.18, write_normals=False,
-                surface_mode="voxel", implicit_iso=0.45, implicit_blur_iterations=0):
+                surface_mode="voxel", implicit_iso=0.45, implicit_blur_iterations=0,
+                reuse_if_fresh=False):
     frames = load_source(src)
     out_dir = os.path.abspath(out_dir)
+    options = reconstruction_options(frame_count,
+                                     threshold,
+                                     smooth_iterations,
+                                     smooth_alpha,
+                                     write_normals,
+                                     surface_mode,
+                                     implicit_iso,
+                                     implicit_blur_iterations)
+    fingerprint = reconstruction_fingerprint(src, frames, options)
+    if reuse_if_fresh:
+        summary = load_reusable_reconstruction(out_dir, fingerprint)
+        if summary:
+            return os.path.join(out_dir, "water_reconstruction.json"), summary
+
     mesh_dir = os.path.join(out_dir, "meshes")
     os.makedirs(mesh_dir, exist_ok=True)
 
@@ -543,12 +656,12 @@ def reconstruct(src, out_dir, frame_count, threshold,
         "smooth_alpha": smooth_alpha,
         "write_normals": write_normals,
         "frame_count": len(output_frames),
+        "reconstruction_fingerprint": fingerprint,
+        "reconstruction_reused": False,
         "frames": output_frames,
     }
     summary_path = os.path.join(out_dir, "water_reconstruction.json")
-    with open(summary_path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(summary, f, indent=2, sort_keys=True)
-        f.write("\n")
+    write_json(summary_path, summary)
     return summary_path, summary
 
 
@@ -571,6 +684,8 @@ def parse_args(argv):
                         help="implicit tetra isosurface threshold")
     parser.add_argument("--implicit-blur-iterations", type=int, default=0,
                         help="scalar-grid blur iterations for implicit tetra mode")
+    parser.add_argument("--reuse-if-fresh", action="store_true",
+                        help="reuse water_reconstruction.json if its input fingerprint still matches")
     args = parser.parse_args(argv)
     if args.frames <= 0:
         parser.error("frames must be positive")
@@ -599,7 +714,8 @@ def main(argv=None):
                                             write_normals=args.write_normals,
                                             surface_mode=args.surface_mode,
                                             implicit_iso=args.implicit_iso,
-                                            implicit_blur_iterations=args.implicit_blur_iterations)
+                                            implicit_blur_iterations=args.implicit_blur_iterations,
+                                            reuse_if_fresh=args.reuse_if_fresh)
     except ReconstructionError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
         return 1
@@ -607,7 +723,9 @@ def main(argv=None):
     print(f"representation={summary['representation']}")
     print(f"surface_mode={summary['surface_mode']}")
     print(f"summary={summary_path}")
-    print("status=ok")
+    reused = bool(summary.pop("_runtime_reused", False))
+    print(f"reused={'true' if reused else 'false'}")
+    print("status=reused" if reused else "status=ok")
     return 0
 
 

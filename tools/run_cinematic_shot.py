@@ -1921,6 +1921,7 @@ def render_report(summary, root):
         f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
         f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
+        f"- Water reconstruction reused: `{metrics.get('water_reconstruction_reused', 'n/a')}`",
         f"- Surface mode: `{metrics.get('surface_mode', 'n/a')}`",
         f"- Implicit blur iterations: `{metrics.get('implicit_blur_iterations', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
@@ -2004,7 +2005,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S111 should add a conservative water reconstruction freshness check so repeated review runs can skip reconstruct_water only when manifest contents and reconstruction options are unchanged.",
+        "S112 should add a conservative export-cache freshness check so repeated review runs can skip the C++ cache exporter only when the requested export command and cache files are unchanged.",
         "",
     ])
     return "\n".join(lines)
@@ -2134,6 +2135,8 @@ def parse_args(argv):
                         help="let convert_render_cache.py reuse sequence.json when inputs are unchanged")
     parser.add_argument("--reuse-validation", action="store_true",
                         help="reuse a validation stamp when manifest and cache frame contents are unchanged")
+    parser.add_argument("--reuse-water-mesh", action="store_true",
+                        help="let reconstruct_water.py reuse water meshes when inputs and options are unchanged")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -2478,7 +2481,10 @@ def run_pipeline(args):
         ]
         if config["write_normals"]:
             reconstruct_cmd.append("--write-normals")
-        pipeline.run("reconstruct_water", reconstruct_cmd)
+        if args.reuse_water_mesh:
+            reconstruct_cmd.append("--reuse-if-fresh")
+        reconstruct_result, _reconstruct_item = pipeline.run("reconstruct_water", reconstruct_cmd)
+        summary["reconstruction_metrics"] = parse_key_value_stdout(reconstruct_result.stdout)
         require_file(water_index, "water reconstruction index")
 
         convert_cmd = [
@@ -2560,6 +2566,7 @@ def run_pipeline(args):
             "validation_reused": bool(summary.get("validation_metrics", {}).get("reused", False)),
             "converted_frame_count": sequence.get("frame_count"),
             "water_mesh_frame_count": water.get("frame_count"),
+            "water_reconstruction_reused": bool(summary.get("reconstruction_metrics", {}).get("reused", False)),
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
