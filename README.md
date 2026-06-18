@@ -213,6 +213,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S124** | **Contact-band composition pass** - `dam_break_contact_band_composition` lowers the large-grid camera target toward the contact band, preserves S119 comparison/review gates, and records a warm-cache Blender gate in `cinematic_contact_band_composition_s124.md`. | done |
 | **S125** | **Contact-volume integration pass** - `dam_break_contact_volume_integrated` adds lower contact-volume haze plus softer spray/foam/water scattering material settings, preserves S124 review gates, and records a warm-cache Blender gate in `cinematic_contact_volume_integrated_s125.md`. | done |
 | **S126** | **Scene de-tank composition pass** - `dam_break_scene_detank_composition` adds a contact mist curtain pass and softer world/floor contrast, preserves S125 review gates, and records a warm-cache Blender gate in `cinematic_scene_detank_composition_s126.md`. | done |
+| **S127** | **Non-boxed falling-water scene pass** - `dam_break_nonboxed_falling_water` selects `nonboxed-water-event`, a rounded/tapered sparse 3D falling source that reduces the rectangular upper-water silhouette while preserving S126 review gates. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

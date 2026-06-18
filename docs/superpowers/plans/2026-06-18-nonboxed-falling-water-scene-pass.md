@@ -25,6 +25,28 @@ python tools\run_cinematic_shot.py --preset dam_break_nonboxed_falling_water --o
 python tools\summarize_shot_commands.py build\shots\s127_nonboxed_falling_water\shot_summary.json --out docs\reports\cinematic_nonboxed_falling_water_s127.md
 ```
 
+## Result
+
+S127 passed and produced `build/shots/s127_nonboxed_falling_water/shot.gif` plus S126 comparison review sheets.
+
+Key metrics from the full 36-frame Blender gate:
+
+- visual QA gate: pass
+- focus review gate: pass
+- secondary framing gate: pass
+- secondary depth gate: pass
+- ripple readability gate: pass
+- temporal highlight gate: pass
+- selected scene: `nonboxed-water-event`
+- visual mean luminance: `90.66`
+- visual mean contrast: `232.22`
+- secondary framing min/mean inside ratio: `1.0` / `1.0`
+- secondary depth crop ratio mean: `1.0`
+- ripple edge mean: `25.76`
+- warm-cache rerun command time: `4.81s`
+
+Visual inspection of the S127 contact and comparison sheets confirms that the upper water silhouette is less rectangular than S126, with a rounded/tapered falling source and more varied lower edge. The scene still has a stylized contained-water look, but this is the first pass where the main visible issue moved from a rectangular source block toward broader scene/render art direction.
+
 ## Acceptance Gate
 
 - Visual QA gate passes.
@@ -41,6 +63,13 @@ python tools\summarize_shot_commands.py build\shots\s127_nonboxed_falling_water\
 ```powershell
 python -m json.tool configs\cinematic_presets.json
 python -m py_compile tools\render_bridge_blender.py tools\run_cinematic_shot.py tools\summarize_shot_commands.py tools\build_cinematic_gallery.py tools\package_cinematic_artifacts.py
+cmake --build build --config Release --target unit_tests export_render_cache3d
+.\build\Release\unit_tests.exe --test-case="sparse 3D nonboxed water event uses rounded falling source"
+python tools\summarize_shot_commands.py build\shots\s127_nonboxed_falling_water\shot_summary.json --out docs\reports\cinematic_nonboxed_falling_water_s127.md
 git diff --check
 ctest --test-dir build -C Release --output-on-failure
 ```
+
+## Next
+
+S128 should package and publish the S127 gallery so the current non-boxed scene can be reviewed externally.

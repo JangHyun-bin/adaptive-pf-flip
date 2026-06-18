@@ -34,6 +34,15 @@ double meanYType(const Particles3DTP& particles, unsigned char type) {
   return count ? sum / count : 0.0;
 }
 
+size_t highLiquidCount(const SparseSim3DTP& sim) {
+  size_t count = 0;
+  const double minY = sim.grid.ny * 0.4;
+  for (size_t i = 0; i < sim.particles.size(); ++i) {
+    if (sim.particles.type[i] == 0 && sim.particles.pos[i].y > minY) ++count;
+  }
+  return count;
+}
+
 bool finiteParticles(const Particles3DTP& particles) {
   for (size_t i = 0; i < particles.size(); ++i) {
     const auto& p = particles.pos[i];
@@ -178,6 +187,37 @@ TEST_CASE("sparse 3D large water event has wide source and impact pool") {
   CHECK(finiteParticles(sim.particles));
   CHECK(sim.interface_diagnostics_last.finite == 1);
   CHECK(sim.interface_diagnostics_last.interface_cells > 0);
+}
+
+TEST_CASE("sparse 3D nonboxed water event uses rounded falling source") {
+  SparseSim3DTP rectangular(12, 18, 12, 1.0);
+  rectangular.initLargeWaterEvent();
+
+  SparseSim3DTP sim(12, 18, 12, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 40;
+  sim.initNonBoxedLargeWaterEvent();
+
+  const size_t n0 = sim.particles.size();
+  const size_t highLiquid = highLiquidCount(sim);
+  const size_t rectangularHighLiquid = highLiquidCount(rectangular);
+  const double y0 = meanYType(sim.particles, 0);
+
+  REQUIRE(n0 > 0);
+  CHECK(countType(sim.particles, 0) > 0);
+  CHECK(highLiquid > 0);
+  CHECK(highLiquid < rectangularHighLiquid);
+  CHECK(highLiquid > rectangularHighLiquid / 3);
+  CHECK(volumeType(sim.particles, 0) > 0.0);
+
+  for (int step = 0; step < 4; ++step) {
+    sim.step();
+  }
+
+  CHECK(sim.particles.size() == n0);
+  CHECK(finiteParticles(sim.particles));
+  CHECK(meanYType(sim.particles, 0) < y0);
+  CHECK(sim.interface_diagnostics_last.finite == 1);
 }
 
 TEST_CASE("sparse 3D two-phase adaptive timestep reports effective dt") {

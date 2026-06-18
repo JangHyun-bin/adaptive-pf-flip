@@ -172,7 +172,8 @@ The missing work is not one feature. It is a pipeline:
 | S124 | Contact-band composition pass | Lower the large-grid camera target toward the contact band while preserving S119 comparison and review gates | Done in `style: add contact band composition preset` |
 | S125 | Contact-volume integration pass | Add lower contact-volume haze plus softer spray/foam/water scattering material settings while preserving S124 review gates | Done in `style: add contact volume integration preset` |
 | S126 | Scene de-tank composition pass | Add a contact mist curtain pass and softer world/floor contrast while preserving S125 review gates | Done in `style: add scene detank composition pass` |
-| S127 | Non-boxed falling-water scene pass | Change the falling-water scene/source shape so the top water silhouette no longer reads as a rectangular tank wall | Planned |
+| S127 | Non-boxed falling-water scene pass | Change the falling-water scene/source shape so the top water silhouette no longer reads as a rectangular tank wall | Done in `feat: add nonboxed falling water scene` |
+| S128 | S127 gallery refresh/publish | Package and publish the S127 review artifacts so the current non-boxed scene can be inspected externally | Planned |
 
 ## Decision Gates
 
@@ -510,16 +511,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S127.
+Continue with S128.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-nonboxed-falling-water-scene-pass.md`
+`docs/superpowers/plans/2026-06-18-s127-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_nonboxed_falling_water --out build\shots\s127_nonboxed_falling_water --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s126_scene_detank_composition\review\review_manifest.json --no-build --timeout-seconds 1800
+python tools\build_cinematic_gallery.py build\shots\s127_nonboxed_falling_water --out build\shots\s127_nonboxed_falling_water\gallery --report docs\reports\cinematic_static_gallery_s128.md
 ```
 
-The next success condition is a falling-water scene/source-shape change that visibly reduces the rectangular top-water silhouette without relaxing the S126 visual, focus, secondary-depth, ripple, temporal, or secondary framing gates.
+The next success condition is an updated package/gallery/publish artifact set for S127, with local and public HTTP verification for `index.html` and `assets/shot.gif`.

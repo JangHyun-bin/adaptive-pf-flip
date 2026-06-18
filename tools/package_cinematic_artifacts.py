@@ -233,7 +233,7 @@ def markdown(summary, summary_path, shot_dir, rows, out_path, root):
         "",
         "## Next",
         "",
-        "S127 should add a non-boxed falling-water scene/source-shape pass so the top water silhouette stops reading as a rectangular tank wall.",
+        "S128 should package and publish the S127 gallery so the current non-boxed scene can be reviewed externally.",
         "",
     ])
     return "\n".join(lines)

@@ -1416,6 +1416,13 @@
         }
       }
     },
+    "dam_break_nonboxed_falling_water": {
+      "extends": "dam_break_scene_detank_composition",
+      "description": "Scene-shape pass using a rounded/tapered falling-water source instead of a rectangular sheet.",
+      "simulation": {
+        "scene": "nonboxed-water-event"
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

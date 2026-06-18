@@ -481,6 +481,65 @@ void SparseSim3DTP::initLargeWaterEvent() {
   resetVolumeCorrectionStats(*this);
 }
 
+void SparseSim3DTP::initNonBoxedLargeWaterEvent() {
+  resetSceneState(*this);
+  const int sheetX0 = std::max(1, grid.nx / 8);
+  const int sheetX1 = std::min(grid.nx - 1, std::max(sheetX0 + 3, grid.nx * 7 / 8));
+  const int sheetY0 = std::max(2, grid.ny * 8 / 20);
+  const int sheetY1 = std::min(grid.ny - 1, std::max(sheetY0 + 3, grid.ny * 15 / 20));
+  const int sheetZ0 = std::max(1, grid.nz * 3 / 10);
+  const int sheetZ1 = std::min(grid.nz - 1, std::max(sheetZ0 + 2, grid.nz * 7 / 10));
+  const int poolX0 = std::max(1, grid.nx / 7);
+  const int poolX1 = std::min(grid.nx - 1, std::max(poolX0 + 4, grid.nx * 6 / 7));
+  const int poolY1 = std::min(grid.ny - 1, std::max(3, grid.ny / 6));
+  const int poolZ0 = std::max(1, grid.nz / 6);
+  const int poolZ1 = std::min(grid.nz - 1, std::max(poolZ0 + 4, grid.nz * 5 / 6));
+  const double cx = 0.5 * static_cast<double>(sheetX0 + sheetX1);
+  const double cz = 0.5 * static_cast<double>(sheetZ0 + sheetZ1);
+  const double rx = std::max(1.0, 0.5 * static_cast<double>(sheetX1 - sheetX0));
+  const double rz = std::max(1.0, 0.5 * static_cast<double>(sheetZ1 - sheetZ0));
+  constexpr double pi = 3.14159265358979323846;
+  for (int k = 1; k < grid.nz - 1; ++k) {
+    for (int j = 1; j < grid.ny - 1; ++j) {
+      for (int i = 1; i < grid.nx - 1; ++i) {
+        const double x = static_cast<double>(i) + 0.5;
+        const double y = static_cast<double>(j) + 0.5;
+        const double z = static_cast<double>(k) + 0.5;
+        const double sx = (x - cx) / rx;
+        const double sz = (z - cz) / rz;
+        const double edge = sx * sx + sz * sz;
+        const double yWave = 1.4 * std::sin((x - cx) * 0.55 + (z - cz) * 0.7);
+        const double lower =
+          static_cast<double>(sheetY0) + 0.7 * std::max(0.0, edge - 0.35) + 0.35 * yWave;
+        const double upper =
+          static_cast<double>(sheetY1) - 0.8 * std::max(0.0, edge - 0.25) + 0.25 * yWave;
+        const bool fallingSheet =
+          edge < 1.0 &&
+          y >= lower &&
+          y < upper &&
+          i >= sheetX0 && i < sheetX1 &&
+          k >= sheetZ0 && k < sheetZ1;
+        const bool impactPool =
+          i >= poolX0 && i < poolX1 &&
+          j < poolY1 &&
+          k >= poolZ0 && k < poolZ1;
+        const bool liquid = fallingSheet || impactPool;
+        Vec3 velocity{0.0, 0.0, 0.0};
+        if (fallingSheet) {
+          velocity = {
+            0.16 * (x - cx),
+            -13.8 - 0.35 * std::sin((x - cx) * pi / std::max(1.0, rx)),
+            0.11 * (z - cz)
+          };
+        }
+        seedCell(particles, i, j, k, grid.dx, liquid ? 0 : 1, velocity);
+      }
+    }
+  }
+  applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
+}
+
 void SparseSim3DTP::initRayleighTaylor() {
   resetSceneState(*this);
   int mid = grid.ny / 2;

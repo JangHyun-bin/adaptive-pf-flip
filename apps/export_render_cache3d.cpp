@@ -45,7 +45,7 @@ const char* argString(int argc, char** argv, const char* key, const char* fallba
 void usage() {
   std::fprintf(stderr,
                "usage: export_render_cache3d [--kind sparse|mr] "
-               "[--scene bubble|dam-break|falling-water|large-water-event] "
+               "[--scene bubble|dam-break|falling-water|large-water-event|nonboxed-water-event] "
                "[--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
                "[--out-prefix NAME] [--manifest PATH] [--physics-preset] "
@@ -72,7 +72,14 @@ bool sceneIsLargeWaterEvent(const char* scene) {
          std::strcmp(scene, "wide-falling-water") == 0;
 }
 
+bool sceneIsNonBoxedWaterEvent(const char* scene) {
+  return std::strcmp(scene, "nonboxed-water-event") == 0 ||
+         std::strcmp(scene, "nonboxed-falling-water") == 0 ||
+         std::strcmp(scene, "organic-falling-water") == 0;
+}
+
 const char* canonicalScene(const char* scene) {
+  if (sceneIsNonBoxedWaterEvent(scene)) return "nonboxed-water-event";
   if (sceneIsLargeWaterEvent(scene)) return "large-water-event";
   if (sceneIsFallingWater(scene)) return "falling-water";
   return sceneIsDamBreak(scene) ? "dam-break" : "bubble";
@@ -285,7 +292,9 @@ int main(int argc, char** argv) {
   const bool damBreakScene = sceneIsDamBreak(scene);
   const bool fallingWaterScene = sceneIsFallingWater(scene);
   const bool largeWaterEventScene = sceneIsLargeWaterEvent(scene);
-  const bool validScene = bubbleScene || damBreakScene || fallingWaterScene || largeWaterEventScene;
+  const bool nonBoxedWaterEventScene = sceneIsNonBoxedWaterEvent(scene);
+  const bool validScene = bubbleScene || damBreakScene || fallingWaterScene ||
+                          largeWaterEventScene || nonBoxedWaterEventScene;
   int nx = argInt(argc, argv, "--nx", 12);
   int ny = argInt(argc, argv, "--ny", 18);
   int nz = argInt(argc, argv, "--nz", 12);
@@ -341,7 +350,9 @@ int main(int argc, char** argv) {
     }
     sim.dt = dt;
     sim.cg_iters = cgIters;
-    if (largeWaterEventScene) {
+    if (nonBoxedWaterEventScene) {
+      sim.initNonBoxedLargeWaterEvent();
+    } else if (largeWaterEventScene) {
       sim.initLargeWaterEvent();
     } else if (fallingWaterScene) {
       sim.initFallingWaterColumn();
