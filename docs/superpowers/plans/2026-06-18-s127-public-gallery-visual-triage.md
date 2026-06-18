@@ -25,6 +25,13 @@ python tools\summarize_cinematic_gallery_review.py build\shots\s127_nonboxed_fal
 - Current S127 visual strengths and remaining issues are listed.
 - The next visible improvement is selected as a concrete S130 milestone.
 
+## Result
+
+- Report: `docs/reports/cinematic_visual_review_s129.md`
+- Public gallery checked: `https://fields-diary-motivated-record.trycloudflare.com`
+- Local/public `index.html` and `assets/shot.gif` checks passed.
+- Decision: S130 should reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene.
+
 ## Verification
 
 ```powershell

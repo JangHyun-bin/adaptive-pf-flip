@@ -2250,7 +2250,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S129 should review the S127 public gallery and choose the next concrete visible improvement from current evidence.",
+        "S130 should reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene.",
         "",
     ])
     return "\n".join(lines)

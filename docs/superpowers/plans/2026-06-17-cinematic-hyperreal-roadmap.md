@@ -174,7 +174,8 @@ The missing work is not one feature. It is a pipeline:
 | S126 | Scene de-tank composition pass | Add a contact mist curtain pass and softer world/floor contrast while preserving S125 review gates | Done in `style: add scene detank composition pass` |
 | S127 | Non-boxed falling-water scene pass | Change the falling-water scene/source shape so the top water silhouette no longer reads as a rectangular tank wall | Done in `feat: add nonboxed falling water scene` |
 | S128 | S127 gallery refresh/publish | Package and publish the S127 review artifacts so the current non-boxed scene can be inspected externally | Done in `docs: publish s127 cinematic gallery` |
-| S129 | Public gallery visual triage | Review the S127 public gallery and choose the next concrete scene/render improvement from visible evidence | Planned |
+| S129 | Public gallery visual triage | Review the S127 public gallery and choose the next concrete scene/render improvement from visible evidence | Done in `docs: triage s127 public gallery` |
+| S130 | Environment/depth-context pass | Reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene | Planned |
 
 ## Decision Gates
 
@@ -512,16 +513,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S129.
+Continue with S130.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s127-public-gallery-visual-triage.md`
+`docs/superpowers/plans/2026-06-18-environment-depth-context-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s127_nonboxed_falling_water\gallery\gallery_manifest.json --publish build\shots\s127_nonboxed_falling_water\gallery\publish_manifest_s128.json --out docs\reports\cinematic_visual_review_s129.md
+python tools\run_cinematic_shot.py --preset dam_break_environment_depth_context --out build\shots\s130_environment_depth_context --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s127_nonboxed_falling_water\review\review_manifest.json --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in visual triage report that records the current public S127 gallery state and selects the next concrete visible improvement.
+The next success condition is a checked-in S130 visual gate report showing reduced visible enclosure bands and preserved S127 review/QA gates.

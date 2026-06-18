@@ -215,6 +215,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S126** | **Scene de-tank composition pass** - `dam_break_scene_detank_composition` adds a contact mist curtain pass and softer world/floor contrast, preserves S125 review gates, and records a warm-cache Blender gate in `cinematic_scene_detank_composition_s126.md`. | done |
 | **S127** | **Non-boxed falling-water scene pass** - `dam_break_nonboxed_falling_water` selects `nonboxed-water-event`, a rounded/tapered sparse 3D falling source that reduces the rectangular upper-water silhouette while preserving S126 review gates. | done |
 | **S128** | **S127 gallery refresh/publish** - packages the S127 GIF/review sheets into a static gallery, publishes it through Cloudflare quick tunnel, and verifies local/public `index.html` plus `assets/shot.gif`. | done |
+| **S129** | **Public gallery visual triage** - reviews the S127 public gallery, records local/public asset checks, and selects S130 environment/depth-context as the next visible improvement. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
