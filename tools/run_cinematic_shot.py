@@ -1957,6 +1957,7 @@ def render_report(summary, root):
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
         f"- Secondary volume last: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('last'))}`",
+        f"- Secondary acceptance QA: `{config.get('secondary_acceptance_qa', {})}`",
         f"- Secondary acceptance min: `{metrics.get('secondary_acceptance_min', 'n/a')}`",
         f"- Secondary foam acceptance min: `{metrics.get('secondary_foam_acceptance_min', 'n/a')}`",
         f"- Secondary interface gate: `{format_secondary_interface_gate(summary.get('export_metrics', {}))}`",
@@ -2001,7 +2002,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S104 should run a larger-grid cinematic benchmark that keeps the S103 render/review stack passing while exposing runtime and visual cost beyond the current 28 x 34 x 22 gate.",
+        "S105 should add a compact cinematic benchmark summary table for recent gates so runtime, grid size, and key QA metrics can be compared without re-opening each full report.",
         "",
     ])
     return "\n".join(lines)
@@ -2282,6 +2283,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "temporal_highlight_qa": section(renderer, "temporal_highlight_qa"),
         "temporal_diff_review": section(renderer, "temporal_diff_review"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
+        "secondary_acceptance_qa": section(renderer, "secondary_acceptance_qa"),
         "focus_review": section(renderer, "focus_review"),
         "secondary_depth_review": section(renderer, "secondary_depth_review"),
         "ripple_readability_review": section(renderer, "ripple_readability_review"),
@@ -2548,13 +2550,22 @@ def run_pipeline(args):
             "shot_gif_bytes": os.path.getsize(gif_path),
         }
         if config["secondary_physical_particles"] > 0:
-            acceptance_min = max(1, int(config["secondary_physical_particles"] * 0.5))
+            secondary_acceptance = config.get("secondary_acceptance_qa")
+            if not isinstance(secondary_acceptance, dict):
+                secondary_acceptance = {}
+            total_fraction = float(secondary_acceptance.get("min_total_fraction", 0.5) or 0.5)
+            foam_fraction = float(secondary_acceptance.get("min_foam_fraction", 0.08) or 0.08)
+            acceptance_min = max(1, int(config["secondary_physical_particles"] * total_fraction))
+            if secondary_acceptance.get("min_total_count") is not None:
+                acceptance_min = max(1, int(secondary_acceptance.get("min_total_count")))
             summary["metrics"]["secondary_acceptance_min"] = acceptance_min
             first_total = secondary_total_count(secondary_channels.get("first", {}))
             last_total = secondary_total_count(secondary_channels.get("last", {}))
             if first_total < acceptance_min or last_total < acceptance_min:
                 fail(f"physical secondary channel count below acceptance min {acceptance_min}: first={first_total} last={last_total}")
-            foam_acceptance_min = max(1, int(config["secondary_physical_particles"] * 0.08))
+            foam_acceptance_min = max(1, int(config["secondary_physical_particles"] * foam_fraction))
+            if secondary_acceptance.get("min_foam_count") is not None:
+                foam_acceptance_min = max(1, int(secondary_acceptance.get("min_foam_count")))
             summary["metrics"]["secondary_foam_acceptance_min"] = foam_acceptance_min
             first_foam = secondary_channel_count(secondary_channels.get("first", {}), "foam")
             last_foam = secondary_channel_count(secondary_channels.get("last", {}), "foam")

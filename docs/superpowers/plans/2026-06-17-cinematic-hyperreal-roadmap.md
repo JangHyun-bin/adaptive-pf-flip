@@ -149,6 +149,7 @@ The missing work is not one feature. It is a pipeline:
 | S101 | Water depth diagnostic decision | Keep the S100 lower water-body crop as the water-depth diagnostic and move on to a real volume/scattering render pass | Done in `docs: record water depth diagnostic decision` |
 | S102 | Water volume scattering pass | Add opt-in internal attenuation sheets so the main water body gains subtle volume/scattering cues while preserving the S100 diagnostic gates | Done in `feat: add water volume scattering pass` |
 | S103 | Secondary render integration review | Extend the S102 water volume baseline with bubble-inclusive secondary depth review and comparison | Done in `test: add secondary render integration review` |
+| S104 | Large-grid cinematic benchmark | Run the S103 render/review stack on a `32 x 40 x 26` grid with larger-grid camera and secondary acceptance gates | Done in `test: add large grid cinematic benchmark` |
 
 ## Decision Gates
 
@@ -486,16 +487,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S104.
+Continue with S105.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-large-grid-cinematic-benchmark.md`
+`docs/superpowers/plans/2026-06-18-cinematic-benchmark-summary.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_secondary_render_integration_review --out build\shots\s104_large_grid_cinematic_benchmark --nx 32 --ny 40 --nz 26 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s104.md --compare-review-manifest build\shots\s103_secondary_render_integration_review\review\review_manifest.json --timeout-seconds 1800
+python tools\summarize_cinematic_gates.py build\shots\s100_water_depth_focus_comparison\shot_summary.json build\shots\s102_water_volume_scattering\shot_summary.json build\shots\s103_secondary_render_integration_review\shot_summary.json build\shots\s104_large_grid_cinematic_benchmark\shot_summary.json --out docs\reports\cinematic_benchmark_summary_s105.md
 ```
 
-The next success condition is a larger-grid cinematic benchmark that keeps the S103 render/review stack passing while exposing the runtime and visual cost of moving beyond the current `28 x 34 x 22` gate.
+The next success condition is a compact benchmark summary table for recent cinematic gates so render quality, runtime, grid size, and key QA metrics can be compared without re-opening each full report.

@@ -1138,6 +1138,34 @@
           }
         }
       }
+    },
+    "dam_break_large_grid_cinematic_benchmark": {
+      "extends": "dam_break_secondary_render_integration_review",
+      "description": "Larger-grid benchmark for the S103 secondary render integration stack.",
+      "simulation": {
+        "nx": 32,
+        "ny": 40,
+        "nz": 26
+      },
+      "renderer": {
+        "secondary_acceptance_qa": {
+          "min_total_fraction": 0.5,
+          "min_foam_fraction": 0.04
+        },
+        "secondary_framing_qa": {
+          "min_mean_inside_ratio": 0.85,
+          "min_frame_inside_ratio": 0.1
+        }
+      },
+      "camera": {
+        "auto_frame": {
+          "max_scale": 1.2,
+          "fov_pad_degrees": 4.0
+        },
+        "stability": {
+          "max_vertical_fov_degrees": 46.0
+        }
+      }
     }
   }
 }
