@@ -418,7 +418,7 @@ def markdown_report(summary, shot_dir, out_dir, index_path, manifest_path, rows,
         "",
         "## Next",
         "",
-        "S122 should expose the static gallery through a short-lived cftunnel and verify the HTML plus copied assets over HTTP.",
+        "S123 should capture a visual review triage report from the published gallery and choose the next look-dev adjustment.",
         "",
     ])
     return "\n".join(lines)

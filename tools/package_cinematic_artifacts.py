@@ -233,7 +233,7 @@ def markdown(summary, summary_path, shot_dir, rows, out_path, root):
         "",
         "## Next",
         "",
-        "S122 should expose the current static gallery through a short-lived cftunnel and verify the copied assets over HTTP.",
+        "S123 should capture a visual review triage report from the published gallery and choose the next look-dev adjustment.",
         "",
     ])
     return "\n".join(lines)

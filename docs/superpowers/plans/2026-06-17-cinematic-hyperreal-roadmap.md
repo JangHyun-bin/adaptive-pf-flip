@@ -167,6 +167,7 @@ The missing work is not one feature. It is a pipeline:
 | S119 | Blender quality baseline comparison | Compare the current warm-cache Blender quality output against the S106 large-grid baseline | Done in `test: compare blender quality baseline` |
 | S120 | Cinematic artifact inspection package | Validate and link the current GIF, contact sheet, and comparison sheets for quick visual inspection | Done in `tools: package cinematic artifacts` |
 | S121 | Cinematic static gallery | Copy the current review assets into a self-contained browser gallery with manifest and report | Done in `tools: build cinematic gallery` |
+| S122 | Cinematic gallery cftunnel publisher | Serve the static gallery locally, open an optional Cloudflare quick tunnel, and verify HTML/GIF assets over HTTP | Done in `tools: publish cinematic gallery` |
 
 ## Decision Gates
 
@@ -504,16 +505,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S122.
+Continue with S123.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-gallery-cftunnel.md`
+`docs/superpowers/plans/2026-06-18-cinematic-visual-review-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\publish_cinematic_gallery.py build\shots\s119_blender_quality_baseline_comparison\gallery --port 8899 --cftunnel
+python tools\summarize_cinematic_gallery_review.py build\shots\s119_blender_quality_baseline_comparison\gallery\gallery_manifest.json --publish build\shots\s119_blender_quality_baseline_comparison\gallery\publish_manifest_s122.json --out docs\reports\cinematic_visual_review_s123.md
 ```
 
-The next success condition is a short-lived public tunnel URL that serves the gallery HTML and verifies copied assets with HTTP 200 responses.
+The next success condition is a compact visual review triage report that records what still looks non-cinematic and chooses the next look-dev adjustment.
