@@ -2002,7 +2002,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S108 should turn the S107 stage timings into a concrete cache/export/validation/conversion optimization target before running another large render.",
+        "S109 should add a conservative converted-sequence freshness check so repeated review runs can skip convert_render_cache without weakening validation or changing render artifacts.",
         "",
     ])
     return "\n".join(lines)
