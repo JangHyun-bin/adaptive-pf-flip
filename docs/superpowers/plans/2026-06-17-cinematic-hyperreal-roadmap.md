@@ -126,6 +126,7 @@ The missing work is not one feature. It is a pipeline:
 | S78 | Contact foam material fade | Add radial shader falloff to flow-aligned contact foam so strokes blend into the water surface | Done in `feat: add contact foam material fade` |
 | S79 | Water-surface glint flow | Add subtle directional surface glint strokes so the main water body carries visible flow cues | Done in `feat: add water surface glint flow` |
 | S80 | Water reflection continuity | Add longer camera-stable water reflection ribbons over S79 glints to reduce the flat-slab read of the main water body | Done in `feat: add water reflection continuity pass` |
+| S81 | Water highlight temporal QA | Gate frame-to-frame luminance and highlight-mask deltas to catch flicker in glint/reflection layers | Done in `test: add water highlight temporal qa` |
 
 ## Decision Gates
 
@@ -463,16 +464,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S81.
+Continue with S82.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-highlight-temporal-review.md`
+`docs/superpowers/plans/2026-06-18-water-highlight-temporal-diff-sheet.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_reflection_continuity --out build\shots\s81_water_highlight_temporal_review --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s81.md --compare-review-manifest build\shots\s80_water_reflection_continuity\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_highlight_temporal_review --out build\shots\s82_water_highlight_temporal_diff_sheet --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s82.md --compare-review-manifest build\shots\s81_water_highlight_temporal_review\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a temporal highlight review that can catch excessive flicker or static banding in the new water glint/reflection layers.
+The next success condition is a temporal difference contact sheet that makes highlight movement and shimmer visually inspectable alongside the scalar temporal QA.

@@ -672,6 +672,22 @@
           "transmission": 0.0
         }
       }
+    },
+    "dam_break_water_highlight_temporal_review": {
+      "extends": "dam_break_water_reflection_continuity",
+      "description": "Water reflection continuity with temporal highlight/shimmer QA.",
+      "renderer": {
+        "temporal_highlight_qa": {
+          "enabled": true,
+          "sample_width": 320,
+          "highlight_threshold": 220,
+          "min_pair_count": 24,
+          "min_mean_delta": 0.25,
+          "max_mean_delta": 14.0,
+          "max_peak_delta": 190.0,
+          "max_highlight_change_ratio": 0.006
+        }
+      }
     }
   }
 }

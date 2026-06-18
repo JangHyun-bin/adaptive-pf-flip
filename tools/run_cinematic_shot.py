@@ -279,6 +279,66 @@ def select_keyframes(frame_dir, count):
     return selected
 
 
+def summarize_values(values):
+    if not values:
+        return {"min": 0.0, "mean": 0.0, "max": 0.0}
+    return {
+        "min": min(values),
+        "mean": sum(values) / float(len(values)),
+        "max": max(values),
+    }
+
+
+def summarize_temporal_highlights(frame_dir, qa_config):
+    try:
+        from PIL import Image, ImageChops, ImageStat
+    except ImportError:
+        fail("Pillow is required to create the temporal highlight review")
+
+    paths = [
+        os.path.join(frame_dir, name)
+        for name in sorted(os.listdir(frame_dir))
+        if name.startswith("frame_") and name.lower().endswith(".png")
+    ]
+    target_width = int(qa_config.get("sample_width", 320) or 320)
+    highlight_threshold = int(qa_config.get("highlight_threshold", 220) or 220)
+    mean_delta = []
+    peak_delta = []
+    highlight_change_ratio = []
+    highlight_ratio = []
+    prev = None
+    prev_highlight = None
+    for path in paths:
+        with Image.open(path) as source:
+            img = source.convert("L")
+            if target_width > 0 and img.width > target_width:
+                target_height = max(1, int(round(img.height * (target_width / float(img.width)))))
+                resampling = getattr(Image, "Resampling", Image)
+                resample_filter = getattr(resampling, "BILINEAR", getattr(Image, "BICUBIC", 3))
+                img = img.resize((target_width, target_height), resample_filter)
+        highlight = img.point(lambda value: 255 if value >= highlight_threshold else 0)
+        pixels = max(1, img.width * img.height)
+        highlight_ratio.append(ImageStat.Stat(highlight).sum[0] / float(255 * pixels))
+        if prev is not None:
+            diff = ImageChops.difference(prev, img)
+            mean_delta.append(ImageStat.Stat(diff).mean[0])
+            peak_delta.append(diff.getextrema()[1])
+            highlight_diff = ImageChops.difference(prev_highlight, highlight)
+            highlight_change_ratio.append(ImageStat.Stat(highlight_diff).sum[0] / float(255 * pixels))
+        prev = img
+        prev_highlight = highlight
+    return {
+        "frame_count": len(paths),
+        "pair_count": max(0, len(paths) - 1),
+        "sample_width": target_width,
+        "highlight_threshold": highlight_threshold,
+        "mean_delta": summarize_values(mean_delta),
+        "peak_delta": summarize_values(peak_delta),
+        "highlight_change_ratio": summarize_values(highlight_change_ratio),
+        "highlight_ratio": summarize_values(highlight_ratio),
+    }
+
+
 def create_review_pack(summary, root, frame_dir, review_frame_count):
     try:
         from PIL import Image, ImageDraw
@@ -558,6 +618,41 @@ def evaluate_visual_qa(config, visual_qa):
     }
 
 
+def evaluate_temporal_highlight_qa(config, temporal):
+    gate = config.get("temporal_highlight_qa")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_pair_count": (("pair_count",), gate.get("min_pair_count"), ">="),
+        "min_mean_delta": (("mean_delta", "mean"), gate.get("min_mean_delta"), ">="),
+        "max_mean_delta": (("mean_delta", "max"), gate.get("max_mean_delta"), "<="),
+        "max_peak_delta": (("peak_delta", "max"), gate.get("max_peak_delta"), "<="),
+        "max_highlight_change_ratio": (("highlight_change_ratio", "max"), gate.get("max_highlight_change_ratio"), "<="),
+    }
+    passed = True
+    for name, (path, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = nested_metric(temporal, path)
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def evaluate_secondary_framing_qa(config, framing):
     gate = config.get("secondary_framing_qa")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
@@ -639,6 +734,8 @@ def render_report(summary, root):
         f"- Camera stability: `{metrics.get('camera_stability', {})}`",
         f"- Visual QA summary: `{metrics.get('visual_qa', {})}`",
         f"- Visual QA gate: `{metrics.get('visual_qa_gate', {})}`",
+        f"- Temporal highlight summary: `{metrics.get('temporal_highlight', {})}`",
+        f"- Temporal highlight gate: `{metrics.get('temporal_highlight_gate', {})}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
@@ -696,7 +793,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S81 should add a temporal review or shimmer gate so water highlights can be checked for flicker across the camera move.",
+        "S82 should add a temporal difference review sheet so water highlight motion can be inspected visually, not only through scalar metrics.",
         "",
     ])
     return "\n".join(lines)
@@ -974,6 +1071,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                           renderer.get("min_nonblank_ratio"),
                                           0.05),
         "visual_qa": section(renderer, "visual_qa"),
+        "temporal_highlight_qa": section(renderer, "temporal_highlight_qa"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
@@ -1298,6 +1396,16 @@ def run_pipeline(args):
                 config, summary["metrics"]["visual_qa"])
             if summary["metrics"]["visual_qa_gate"].get("enabled") and not summary["metrics"]["visual_qa_gate"].get("passed"):
                 fail(f"visual QA gate failed: {summary['metrics']['visual_qa_gate']}")
+            temporal_cfg = config.get("temporal_highlight_qa", {})
+            if isinstance(temporal_cfg, dict) and temporal_cfg.get("enabled", False):
+                summary["metrics"]["temporal_highlight"] = summarize_temporal_highlights(
+                    frame_dir, temporal_cfg)
+                summary["metrics"]["temporal_highlight_gate"] = evaluate_temporal_highlight_qa(
+                    config, summary["metrics"]["temporal_highlight"])
+                if summary["metrics"]["temporal_highlight_gate"].get("enabled") and not summary["metrics"]["temporal_highlight_gate"].get("passed"):
+                    fail(f"temporal highlight QA gate failed: {summary['metrics']['temporal_highlight_gate']}")
+            else:
+                summary["metrics"]["temporal_highlight_gate"] = {"enabled": False}
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out
