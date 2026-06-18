@@ -529,6 +529,21 @@ def secondary_channel_radius_summary(render_preset):
     }
 
 
+def secondary_soft_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "secondary_soft_pass")
+    channels = preset_section(cfg, "channels")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "spray": as_float(channels.get("spray"), 0.0),
+            "foam": as_float(channels.get("foam"), 0.0),
+        },
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.35),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.5),
+        "max_radius": as_float(cfg.get("max_radius"), 1.0),
+    }
+
+
 def pick_water_mesh(frame, water_index, out_index, out_count):
     if water_index:
         water_frame = select_resampled(water_index["frames"], out_index, out_count)
@@ -613,6 +628,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "max_secondary_particles": max_secondary_particles,
         "secondary_radius_scale": secondary_radius_scale,
         "secondary_channel_radius_scales": secondary_channel_radius_summary(render_preset),
+        "secondary_soft_pass": secondary_soft_pass_summary(render_preset),
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
@@ -774,6 +790,21 @@ def make_water_material(name, values):
         except Exception:
             set_input(bsdf, ("Base Color",), body_color)
     return mat
+
+
+def scaled_particle_values(values, alpha_scale=1.0, emission_scale=1.0):
+    out = dict(values)
+    color = list(out["color"])
+    color[3] = clamp01(color[3] * max(0.0, alpha_scale))
+    out["color"] = tuple(color)
+    emission = list(out["emission_color"])
+    emission[3] = clamp01(emission[3] * max(0.0, alpha_scale))
+    out["emission_color"] = tuple(emission)
+    out["alpha"] = clamp01(out["alpha"] * max(0.0, alpha_scale))
+    out["emission_strength"] = max(0.0, out["emission_strength"] * max(0.0, emission_scale))
+    out["roughness"] = min(1.0, max(out["roughness"], 0.65))
+    out["transmission"] = 0.0
+    return out
 
 
 def surface_detail_values(preset):
@@ -976,6 +1007,52 @@ def add_secondary_particles(frame, materials, max_count, radius_scale, channel_s
     return count
 
 
+def secondary_soft_pass_values(spec):
+    cfg = spec.get("secondary_soft_pass") or {}
+    channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "spray": max(0.0, scalar_value(channels.get("spray"), 0.0)),
+            "foam": max(0.0, scalar_value(channels.get("foam"), 0.0)),
+        },
+        "max_radius": max(0.01, scalar_value(cfg.get("max_radius"), 1.0)),
+    }
+
+
+def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_scales, soft_pass):
+    if not soft_pass.get("enabled", False):
+        return 0
+    path = frame.get("particles_csv")
+    if not path or not os.path.isfile(path) or max_count <= 0:
+        return 0
+    count = 0
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if count >= max_count:
+                break
+            channel = secondary_channel(row)
+            soft_scale = float(soft_pass.get("channels", {}).get(channel, 0.0) or 0.0)
+            if soft_scale <= 0.0 or f"{channel}_soft" not in materials:
+                continue
+            pos = (float(row.get("x", 0.0)), float(row.get("y", 0.0)), float(row.get("z", 0.0)))
+            volume = max(0.05, float(row.get("volume", 1.0)))
+            base_radius = min(0.14, max(0.035, 0.035 * math.sqrt(volume)))
+            channel_scale = channel_radius_scale(channel, channel_scales)
+            core_radius = min(0.55, max(0.02, base_radius * max(0.01, radius_scale) * channel_scale))
+            radius = min(float(soft_pass.get("max_radius", 1.0)), max(core_radius, core_radius * soft_scale))
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=12,
+                                                 ring_count=6,
+                                                 radius=radius,
+                                                 location=to_blender(pos))
+            sphere = bpy.context.object
+            sphere.name = "LSFS Secondary Soft"
+            sphere["lsfs_frame_asset"] = True
+            sphere.data.materials.append(materials[f"{channel}_soft"])
+            count += 1
+    return count
+
+
 def main():
     spec = read_spec()
     preset = spec.get("render_preset") or {}
@@ -996,11 +1073,20 @@ def main():
                                          roughness=floor["roughness"],
                                          alpha=floor["alpha"],
                                          transmission=floor["transmission"])
+    soft_pass = secondary_soft_pass_values(spec)
+    spray_soft = scaled_particle_values(spray,
+                                        spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
+                                        spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
+    foam_soft = scaled_particle_values(foam,
+                                       spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
+                                       spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
     particle_mats = {
         "droplet": make_principled_material("LSFS Droplet", droplet["color"], droplet["roughness"], droplet["alpha"], droplet["transmission"], droplet["emission_color"], droplet["emission_strength"]),
         "spray": make_principled_material("LSFS Spray", spray["color"], spray["roughness"], spray["alpha"], spray["transmission"], spray["emission_color"], spray["emission_strength"]),
         "foam": make_principled_material("LSFS Foam", foam["color"], foam["roughness"], foam["alpha"], foam["transmission"], foam["emission_color"], foam["emission_strength"]),
         "bubble": make_principled_material("LSFS Bubble", bubble["color"], bubble["roughness"], bubble["alpha"], bubble["transmission"], bubble["emission_color"], bubble["emission_strength"]),
+        "spray_soft": make_principled_material("LSFS Spray Mist", spray_soft["color"], spray_soft["roughness"], spray_soft["alpha"], spray_soft["transmission"], spray_soft["emission_color"], spray_soft["emission_strength"]),
+        "foam_soft": make_principled_material("LSFS Foam Soft", foam_soft["color"], foam_soft["roughness"], foam_soft["alpha"], foam_soft["transmission"], foam_soft["emission_color"], foam_soft["emission_strength"]),
     }
     channel_scales = spec.get("secondary_channel_radius_scales") or {}
     if spec.get("frames"):
@@ -1014,6 +1100,12 @@ def main():
                                 int(spec.get("max_secondary_particles", 512)),
                                 float(spec.get("secondary_radius_scale", 1.0)),
                                 channel_scales)
+        add_secondary_soft_pass(frame,
+                                particle_mats,
+                                int(spec.get("max_secondary_particles", 512)),
+                                float(spec.get("secondary_radius_scale", 1.0)),
+                                channel_scales,
+                                soft_pass)
         bpy.context.scene.frame_set(int(frame["index"]))
         bpy.context.scene.render.filepath = frame["output_png"]
         bpy.ops.render.render(write_still=True)
@@ -1218,6 +1310,7 @@ def main(argv=None):
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],
             "secondary_channel_radius_scales": spec["secondary_channel_radius_scales"],
+            "secondary_soft_pass": spec["secondary_soft_pass"],
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
             "camera_path_metrics": spec["camera_path_metrics"],

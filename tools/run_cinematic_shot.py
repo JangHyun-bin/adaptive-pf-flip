@@ -609,6 +609,7 @@ def render_report(summary, root):
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
         f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
+        f"- Secondary soft pass: `{metrics.get('secondary_soft_pass', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
@@ -653,7 +654,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S66 should add a volumetric spray/foam render pass or stronger secondary shading so the physically seeded contact particles read as mist and foam instead of isolated spheres.",
+        "S67 should reduce the secondary soft-pass render cost with instancing, caps, or cheaper sprite-style geometry while preserving the S66 visual QA gates.",
         "",
     ])
     return "\n".join(lines)
@@ -1216,6 +1217,7 @@ def run_pipeline(args):
             summary["metrics"]["water_material"] = render_summary.get("water_material", {})
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
+            summary["metrics"]["secondary_soft_pass"] = render_summary.get("secondary_soft_pass", {})
             summary["metrics"]["visual_qa"] = render_summary.get("visual_qa", {})
             summary["metrics"]["visual_qa_gate"] = evaluate_visual_qa(
                 config, summary["metrics"]["visual_qa"])

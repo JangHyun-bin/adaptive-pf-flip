@@ -163,6 +163,16 @@
           "min_mean_luminance": 70.0,
           "max_mean_luminance": 120.0,
           "min_mean_bright_ratio": 0.0005
+        },
+        "secondary_soft_pass": {
+          "enabled": true,
+          "channels": {
+            "spray": 2.35,
+            "foam": 2.0
+          },
+          "alpha_scale": 0.32,
+          "emission_scale": 0.6,
+          "max_radius": 1.05
         }
       },
       "reconstruction": {
@@ -337,6 +347,16 @@
           "min_mean_luminance": 70.0,
           "max_mean_luminance": 120.0,
           "min_mean_bright_ratio": 0.0005
+        },
+        "secondary_soft_pass": {
+          "enabled": true,
+          "channels": {
+            "spray": 2.35,
+            "foam": 2.0
+          },
+          "alpha_scale": 0.32,
+          "emission_scale": 0.6,
+          "max_radius": 1.05
         }
       },
       "reconstruction": {
