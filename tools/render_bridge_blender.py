@@ -815,6 +815,22 @@ def water_surface_glint_pass_summary(render_preset):
     }
 
 
+def water_reflection_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_reflection_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "count": as_int(cfg.get("count"), 0),
+        "region_min": vec3(cfg.get("region_min"), (1.0, 4.7, 3.0)),
+        "region_max": vec3(cfg.get("region_max"), (27.0, 8.0, 19.0)),
+        "length": as_float(cfg.get("length"), 3.8),
+        "width": as_float(cfg.get("width"), 0.075),
+        "flow_dir": vec3(cfg.get("flow_dir"), (1.0, 0.0, 0.14)),
+        "drift_per_frame": as_float(cfg.get("drift_per_frame"), 0.035),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.18),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.32),
+    }
+
+
 def estimate_surface_contact_foam_counts(path, contact_pass):
     count = 0
     if not contact_pass.get("enabled", False):
@@ -885,6 +901,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     secondary_streak_pass = secondary_streak_pass_summary(render_preset)
     surface_contact_foam_pass = surface_contact_foam_pass_summary(render_preset)
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
+    water_reflection_pass = water_reflection_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
@@ -950,6 +967,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "surface_contact_foam_pass": surface_contact_foam_pass,
         "surface_contact_foam_counts": summarize_surface_contact_foam_counts(frames),
         "water_surface_glint_pass": water_surface_glint_pass,
+        "water_reflection_pass": water_reflection_pass,
         "secondary_framing_qa": secondary_framing_qa,
         "secondary_framing": summarize_secondary_framing(frames, width, height, secondary_framing_qa),
         "render_preset_name": render_preset_name,
@@ -1412,46 +1430,40 @@ def water_surface_glint_pass_values(spec):
     }
 
 
+def water_reflection_pass_values(spec):
+    cfg = spec.get("water_reflection_pass") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "count": max(0, int(scalar_value(cfg.get("count"), 0))),
+        "region_min": vector_value(cfg.get("region_min"), (1.0, 4.7, 3.0), 3),
+        "region_max": vector_value(cfg.get("region_max"), (27.0, 8.0, 19.0), 3),
+        "length": max(0.01, scalar_value(cfg.get("length"), 3.8)),
+        "width": max(0.001, scalar_value(cfg.get("width"), 0.075)),
+        "flow_dir": vector_value(cfg.get("flow_dir"), (1.0, 0.0, 0.14), 3),
+        "drift_per_frame": scalar_value(cfg.get("drift_per_frame"), 0.035),
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.18)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.32)),
+    }
+
+
 def hash01(index, salt):
     value = math.sin(index * 12.9898 + salt * 78.233) * 43758.5453
     return value - math.floor(value)
 
 
-def add_water_surface_glint_pass(frame, material, glint_pass):
-    if not glint_pass.get("enabled", False):
-        return 0
-    count = int(glint_pass.get("count", 0))
-    if count <= 0:
-        return 0
-    region_min = glint_pass.get("region_min", (1.0, 4.8, 3.0))
-    region_max = glint_pass.get("region_max", (27.0, 8.2, 19.0))
-    flow = glint_pass.get("flow_dir", (1.0, 0.0, 0.18))
+def flow_strip_axes(flow):
     flow_xz = Vector((float(flow[0]), -float(flow[2]), 0.0))
     if flow_xz.length <= 1e-8:
         flow_xz = Vector((1.0, 0.0, 0.0))
     direction = flow_xz.normalized()
     side = Vector((-direction.y, direction.x, 0.0))
-    length = float(glint_pass.get("length", 1.35))
-    width = float(glint_pass.get("width", 0.035))
-    drift = float(glint_pass.get("drift_per_frame", 0.08)) * int(frame.get("index", 0))
-    strokes = []
-    for index in range(count):
-        tx = (hash01(index, 1.0) + drift * 0.07) % 1.0
-        ty = hash01(index, 2.0)
-        tz = (hash01(index, 3.0) + drift * 0.11) % 1.0
-        x = float(region_min[0]) + (float(region_max[0]) - float(region_min[0])) * tx
-        y = float(region_min[1]) + (float(region_max[1]) - float(region_min[1])) * ty
-        z = float(region_min[2]) + (float(region_max[2]) - float(region_min[2])) * tz
-        scale = 0.55 + hash01(index, 4.0) * 0.75
-        strokes.append((to_blender((x, y, z)), direction, side, length * scale, width))
-    add_water_surface_glint_mesh("LSFS Water Surface Glints", strokes, material)
-    return len(strokes)
+    return direction, side
 
 
-def add_water_surface_glint_mesh(name, strokes, material):
+def add_flow_strip_mesh(name, strips, material):
     verts = []
     faces = []
-    for center, direction, side, length, width in strokes:
+    for center, direction, side, length, width in strips:
         center_vec = Vector(center)
         half_len = max(0.001, float(length)) * 0.5
         half_width = max(0.001, float(width)) * 0.5
@@ -1473,6 +1485,60 @@ def add_water_surface_glint_mesh(name, strokes, material):
     obj["lsfs_frame_asset"] = True
     obj.data.materials.append(material)
     return obj
+
+
+def add_water_surface_glint_pass(frame, material, glint_pass):
+    if not glint_pass.get("enabled", False):
+        return 0
+    count = int(glint_pass.get("count", 0))
+    if count <= 0:
+        return 0
+    region_min = glint_pass.get("region_min", (1.0, 4.8, 3.0))
+    region_max = glint_pass.get("region_max", (27.0, 8.2, 19.0))
+    flow = glint_pass.get("flow_dir", (1.0, 0.0, 0.18))
+    direction, side = flow_strip_axes(flow)
+    length = float(glint_pass.get("length", 1.35))
+    width = float(glint_pass.get("width", 0.035))
+    drift = float(glint_pass.get("drift_per_frame", 0.08)) * int(frame.get("index", 0))
+    strokes = []
+    for index in range(count):
+        tx = (hash01(index, 1.0) + drift * 0.07) % 1.0
+        ty = hash01(index, 2.0)
+        tz = (hash01(index, 3.0) + drift * 0.11) % 1.0
+        x = float(region_min[0]) + (float(region_max[0]) - float(region_min[0])) * tx
+        y = float(region_min[1]) + (float(region_max[1]) - float(region_min[1])) * ty
+        z = float(region_min[2]) + (float(region_max[2]) - float(region_min[2])) * tz
+        scale = 0.55 + hash01(index, 4.0) * 0.75
+        strokes.append((to_blender((x, y, z)), direction, side, length * scale, width))
+    add_flow_strip_mesh("LSFS Water Surface Glints", strokes, material)
+    return len(strokes)
+
+
+def add_water_reflection_pass(frame, material, reflection_pass):
+    if not reflection_pass.get("enabled", False):
+        return 0
+    count = int(reflection_pass.get("count", 0))
+    if count <= 0:
+        return 0
+    region_min = reflection_pass.get("region_min", (1.0, 4.7, 3.0))
+    region_max = reflection_pass.get("region_max", (27.0, 8.0, 19.0))
+    direction, side = flow_strip_axes(reflection_pass.get("flow_dir", (1.0, 0.0, 0.14)))
+    length = float(reflection_pass.get("length", 3.8))
+    width = float(reflection_pass.get("width", 0.075))
+    drift = float(reflection_pass.get("drift_per_frame", 0.035)) * int(frame.get("index", 0))
+    strips = []
+    for index in range(count):
+        tx = (hash01(index, 11.0) + drift * 0.025) % 1.0
+        ty = 0.35 + hash01(index, 12.0) * 0.65
+        tz = (hash01(index, 13.0) + drift * 0.055) % 1.0
+        x = float(region_min[0]) + (float(region_max[0]) - float(region_min[0])) * tx
+        y = float(region_min[1]) + (float(region_max[1]) - float(region_min[1])) * ty
+        z = float(region_min[2]) + (float(region_max[2]) - float(region_min[2])) * tz
+        strip_length = length * (0.65 + hash01(index, 14.0) * 0.8)
+        strip_width = width * (0.7 + hash01(index, 15.0) * 0.7)
+        strips.append((to_blender((x, y, z)), direction, side, strip_length, strip_width))
+    add_flow_strip_mesh("LSFS Water Reflection Ribbons", strips, material)
+    return len(strips)
 
 
 def add_surface_contact_foam_pass(frame, material, contact_pass):
@@ -1866,6 +1932,7 @@ def main():
     add_lights(preset)
     water = material_values(preset, "water", (0.18, 0.66, 1.0, 0.52), 0.03, 0.52, 0.35)
     water_glint = material_values(preset, "water_glint", (0.82, 0.96, 1.0, 0.32), 0.08, 0.32, 0.0)
+    water_reflection = material_values(preset, "water_reflection", (0.62, 0.86, 1.0, 0.24), 0.06, 0.24, 0.0)
     floor = material_values(preset, "floor", (0.015, 0.018, 0.024, 1.0), 0.7, 1.0, 0.0)
     droplet = material_values(preset, "droplet", (0.72, 0.95, 1.0, 0.85), 0.05, 0.85, 0.25)
     spray = material_values(preset, "spray", (0.9, 0.98, 1.0, 0.8), 0.12, 0.8, 0.15)
@@ -1882,9 +1949,13 @@ def main():
     streak_pass = secondary_streak_pass_values(spec)
     contact_foam_pass = surface_contact_foam_pass_values(spec)
     glint_pass = water_surface_glint_pass_values(spec)
+    reflection_pass = water_reflection_pass_values(spec)
     water_glint = scaled_overlay_values(water_glint,
                                         glint_pass.get("alpha_scale", 0.22),
                                         glint_pass.get("emission_scale", 0.45))
+    water_reflection = scaled_overlay_values(water_reflection,
+                                             reflection_pass.get("alpha_scale", 0.18),
+                                             reflection_pass.get("emission_scale", 0.32))
     spray_soft = scaled_particle_values(spray,
                                         spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
                                         spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
@@ -1913,6 +1984,7 @@ def main():
         "foam_streak": make_principled_material("LSFS Foam Streak", foam_streak["color"], foam_streak["roughness"], foam_streak["alpha"], foam_streak["transmission"], foam_streak["emission_color"], foam_streak["emission_strength"]),
         "foam_contact": make_principled_material("LSFS Surface Contact Foam", foam_contact["color"], foam_contact["roughness"], foam_contact["alpha"], foam_contact["transmission"], foam_contact["emission_color"], foam_contact["emission_strength"]),
         "water_glint": make_principled_material("LSFS Water Surface Glint", water_glint["color"], water_glint["roughness"], water_glint["alpha"], water_glint["transmission"], water_glint["emission_color"], water_glint["emission_strength"]),
+        "water_reflection": make_principled_material("LSFS Water Reflection Ribbons", water_reflection["color"], water_reflection["roughness"], water_reflection["alpha"], water_reflection["transmission"], water_reflection["emission_color"], water_reflection["emission_strength"]),
     }
     if soft_pass.get("material_falloff") == "radial_shader":
         particle_mats["spray_soft_falloff"] = [make_radial_soft_material("LSFS Spray Mist Radial", spray_soft)]
@@ -1926,6 +1998,9 @@ def main():
         remove_frame_assets()
         configure_camera(camera, frame, preset)
         add_water_mesh(frame, water_mat, surface_detail)
+        add_water_reflection_pass(frame,
+                                  particle_mats["water_reflection"],
+                                  reflection_pass)
         add_water_surface_glint_pass(frame,
                                      particle_mats["water_glint"],
                                      glint_pass)
@@ -2159,6 +2234,7 @@ def main(argv=None):
             "surface_contact_foam_pass": spec["surface_contact_foam_pass"],
             "surface_contact_foam_counts": spec["surface_contact_foam_counts"],
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
+            "water_reflection_pass": spec["water_reflection_pass"],
             "secondary_framing_qa": spec["secondary_framing_qa"],
             "secondary_framing": spec["secondary_framing"],
             "camera_motion": spec["camera_motion"],

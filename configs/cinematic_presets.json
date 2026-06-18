@@ -644,6 +644,34 @@
           "transmission": 0.0
         }
       }
+    },
+    "dam_break_water_reflection_continuity": {
+      "extends": "dam_break_water_glint_flow",
+      "description": "Water glint flow with longer, camera-stable reflection ribbons.",
+      "renderer": {
+        "water_reflection_pass": {
+          "enabled": true,
+          "count": 24,
+          "region_min": [1.0, 5.0, 3.4],
+          "region_max": [27.2, 8.2, 18.9],
+          "length": 5.2,
+          "width": 0.12,
+          "flow_dir": [1.0, 0.0, 0.14],
+          "drift_per_frame": 0.035,
+          "alpha_scale": 0.34,
+          "emission_scale": 0.72
+        }
+      },
+      "materials": {
+        "water_reflection": {
+          "base_color": [0.62, 0.88, 1.0, 1.0],
+          "emission_color": [0.56, 0.84, 1.0, 1.0],
+          "emission_strength": 0.38,
+          "roughness": 0.05,
+          "alpha": 1.0,
+          "transmission": 0.0
+        }
+      }
     }
   }
 }

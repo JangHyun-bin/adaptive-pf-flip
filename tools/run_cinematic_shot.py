@@ -643,6 +643,7 @@ def render_report(summary, root):
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
         f"- Water surface glint pass: `{metrics.get('water_surface_glint_pass', {})}`",
+        f"- Water reflection pass: `{metrics.get('water_reflection_pass', {})}`",
         f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
         f"- Secondary soft pass: `{metrics.get('secondary_soft_pass', {})}`",
         f"- Secondary streak pass: `{metrics.get('secondary_streak_pass', {})}`",
@@ -695,7 +696,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S80 should add water reflection-continuity cues so the main water body reads less like a flat slab under the moving camera.",
+        "S81 should add a temporal review or shimmer gate so water highlights can be checked for flicker across the camera move.",
         "",
     ])
     return "\n".join(lines)
@@ -1280,6 +1281,7 @@ def run_pipeline(args):
             summary["metrics"]["water_material"] = render_summary.get("water_material", {})
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
             summary["metrics"]["water_surface_glint_pass"] = render_summary.get("water_surface_glint_pass", {})
+            summary["metrics"]["water_reflection_pass"] = render_summary.get("water_reflection_pass", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
             summary["metrics"]["secondary_soft_pass"] = render_summary.get("secondary_soft_pass", {})
             summary["metrics"]["secondary_streak_pass"] = render_summary.get("secondary_streak_pass", {})
