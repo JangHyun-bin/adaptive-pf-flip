@@ -313,6 +313,14 @@ int main(int argc, char** argv) {
   if (sparseKind) {
     SparseSim3DTP sim(nx, ny, nz, 1.0);
     if (physicsPreset) applyFullPhysicsPreset3D(sim);
+    if (secondaryPhysicalParticles > 0) {
+      sim.secondary_spray_emission = true;
+      sim.secondary_spray_particles_per_step = secondaryPhysicalParticles;
+      sim.secondary_particle_lifecycle = true;
+      sim.secondary_velocity_damping = 0.99;
+      sim.secondary_droplet_lifetime_steps = 12;
+      sim.secondary_bubble_lifetime_steps = 24;
+    }
     sim.dt = dt;
     sim.cg_iters = cgIters;
     if (fallingWaterScene) {
@@ -331,9 +339,7 @@ int main(int argc, char** argv) {
       if (s % every == 0 || s == steps - 1) {
         const int frameIndex = frameCount;
         const std::string path = framePath(prefix, frameIndex);
-        if (secondaryPhysicalParticles > 0) {
-          seedPhysicalSpraySecondaries(sim, frameIndex, secondaryPhysicalParticles);
-        } else {
+        if (secondaryPhysicalParticles <= 0) {
           seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
         }
         writeSparseRenderCache3D(sim, path, frameIndex, simTime, camera);
@@ -355,6 +361,13 @@ int main(int argc, char** argv) {
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
     std::printf("secondary_demo_particles=%d\n", secondaryDemoParticles);
     std::printf("secondary_physical_particles=%d\n", secondaryPhysicalParticles);
+    std::printf("secondary_spray_emission=%s\n", sim.secondary_spray_emission ? "true" : "false");
+    std::printf("secondary_spray_emitted_droplets_total=%d\n", sim.secondary_spray_emitted_droplets_total);
+    std::printf("secondary_spray_emitted_bubbles_total=%d\n", sim.secondary_spray_emitted_bubbles_total);
+    std::printf("secondary_spray_emitted_droplet_volume_total=%.17g\n",
+                sim.secondary_spray_emitted_droplet_volume_total);
+    std::printf("secondary_spray_emitted_bubble_volume_total=%.17g\n",
+                sim.secondary_spray_emitted_bubble_volume_total);
   } else {
     MRSim3DTP sim(nx, ny, nz, 1.0);
     if (physicsPreset) applyFullPhysicsPreset3D(sim);

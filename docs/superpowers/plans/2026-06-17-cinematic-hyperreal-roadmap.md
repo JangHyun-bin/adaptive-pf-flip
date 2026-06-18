@@ -102,6 +102,7 @@ The missing work is not one feature. It is a pipeline:
 | S54 | High-detail surface gate | Run a higher-density tetra surface close-up and record timing/framing limits | Done in `test: add high detail cinematic surface gate` |
 | S55 | Grid-aware cinematic framing | Scale preset camera target/distance from reference grid dims for high-detail gates | Done in `feat: add grid-aware cinematic framing` |
 | S56 | Physically conditioned secondary seed | Replace demo secondary rings with liquid-candidate spray seeds in cinematic cache export | Done in `feat: add physical secondary spray seeds` |
+| S57 | Sim-side secondary spray gate | Emit physical spray seeds inside sparse 3D TP sim steps with lifecycle volume accounting and shot acceptance thresholds | Done in `feat: add sim-side secondary spray gate` |
 
 ## Decision Gates
 
@@ -439,16 +440,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S47.
+Continue with S58.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-falling-water-preset.md`
+`docs/superpowers/plans/2026-06-18-interface-conditioned-secondary-spray.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_cinematic --out build\shots\s47_falling_water --frames 24 --width 1280 --height 720
+python tools\run_cinematic_shot.py --preset dam_break_cinematic --out build\shots\s58_interface_secondary_gate --nx 24 --ny 30 --nz 20 --frames 30 --sim-steps 30 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s58.md --timeout-seconds 1200
 ```
 
-The next success condition is a more dynamic cinematic shot setup than the current bubble tank, with falling-water or dam-break-style cache generation and a visible motion review artifact.
+The next success condition is a larger falling-water shot where secondary emission thresholds are driven by measured interface/curvature diagnostics rather than only particle height and velocity heuristics.

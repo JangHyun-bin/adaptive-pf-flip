@@ -147,6 +147,21 @@ def format_secondary_channels(channels):
     return " ".join(f"{key.replace('_count', '')}={channels.get(key, 0)}" for key in keys)
 
 
+def format_secondary_volumes(volumes):
+    if not isinstance(volumes, dict) or not volumes:
+        return "n/a"
+    droplet = float(volumes.get("secondary_droplet_volume", 0.0))
+    bubble = float(volumes.get("secondary_bubble_volume", 0.0))
+    total = droplet + bubble
+    return f"droplet={droplet:.6g} bubble={bubble:.6g} total={total:.6g}"
+
+
+def secondary_total_count(channels):
+    if not isinstance(channels, dict):
+        return 0
+    return int(channels.get("total_count", 0) or 0)
+
+
 def manifest_frame_path(manifest_path, frame_entry):
     path = frame_entry.get("path", "")
     if os.path.isabs(path):
@@ -165,6 +180,18 @@ def secondary_channel_metrics(manifest_path, manifest):
         "last": read_jsonl_section(last_path, "secondary_channels"),
     }
     return out
+
+
+def secondary_volume_metrics(manifest_path, manifest):
+    frames = manifest.get("frames", [])
+    if not frames:
+        return {}
+    first_path = manifest_frame_path(manifest_path, frames[0])
+    last_path = manifest_frame_path(manifest_path, frames[-1])
+    return {
+        "first": read_jsonl_section(first_path, "water_volume"),
+        "last": read_jsonl_section(last_path, "water_volume"),
+    }
 
 
 def frame_number_from_path(path):
@@ -341,6 +368,9 @@ def render_report(summary, root):
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
+        f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
+        f"- Secondary volume last: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('last'))}`",
+        f"- Secondary acceptance min: `{metrics.get('secondary_acceptance_min', 'n/a')}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         "",
         "## Stage Timings",
@@ -375,7 +405,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S57 should promote secondary spray emission from a render-facing seed into a sim-side lifecycle gate with volume accounting and acceptance thresholds.",
+        "S58 should couple physical spray emission thresholds to interface/curvature diagnostics and add a larger visual acceptance gate.",
         "",
     ])
     return "\n".join(lines)
@@ -872,6 +902,8 @@ def run_pipeline(args):
         manifest = read_json(manifest_path)
         sequence = read_json(sequence_path)
         water = read_json(water_index)
+        secondary_channels = secondary_channel_metrics(manifest_path, manifest)
+        secondary_volumes = secondary_volume_metrics(manifest_path, manifest)
         summary["metrics"] = {
             "cache_frame_count": len(manifest.get("frames", [])),
             "converted_frame_count": sequence.get("frame_count"),
@@ -879,9 +911,17 @@ def run_pipeline(args):
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
-            "secondary_channels": secondary_channel_metrics(manifest_path, manifest),
+            "secondary_channels": secondary_channels,
+            "secondary_volumes": secondary_volumes,
             "shot_gif_bytes": os.path.getsize(gif_path),
         }
+        if config["secondary_physical_particles"] > 0:
+            acceptance_min = max(1, int(config["secondary_physical_particles"] * 0.5))
+            summary["metrics"]["secondary_acceptance_min"] = acceptance_min
+            first_total = secondary_total_count(secondary_channels.get("first", {}))
+            last_total = secondary_total_count(secondary_channels.get("last", {}))
+            if first_total < acceptance_min or last_total < acceptance_min:
+                fail(f"physical secondary channel count below acceptance min {acceptance_min}: first={first_total} last={last_total}")
         render_summary_path = summary["artifacts"].get("render_summary")
         if render_summary_path and os.path.isfile(render_summary_path):
             render_summary = read_json(render_summary_path)

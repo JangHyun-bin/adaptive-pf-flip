@@ -162,6 +162,17 @@ void resetEscapedParticleBranching(SparseSim3DTP& sim) {
   sim.secondary_bubble_volume_expired_total = 0.0;
   sim.secondary_droplet_volume_reabsorbed_to_primary_total = 0.0;
   sim.secondary_bubble_volume_reabsorbed_to_primary_total = 0.0;
+  sim.secondary_spray_emission_step_index = 0;
+  sim.secondary_spray_emission_stats_last = SecondarySprayEmissionStats3D();
+  sim.secondary_spray_candidates_last = 0;
+  sim.secondary_spray_emitted_droplets_last = 0;
+  sim.secondary_spray_emitted_bubbles_last = 0;
+  sim.secondary_spray_emitted_droplets_total = 0;
+  sim.secondary_spray_emitted_bubbles_total = 0;
+  sim.secondary_spray_emitted_droplet_volume_last = 0.0;
+  sim.secondary_spray_emitted_bubble_volume_last = 0.0;
+  sim.secondary_spray_emitted_droplet_volume_total = 0.0;
+  sim.secondary_spray_emitted_bubble_volume_total = 0.0;
 }
 
 void updateSecondaryCurrentVolumes(SparseSim3DTP& sim) {
@@ -260,6 +271,44 @@ void advanceSecondaryLifecycle(SparseSim3DTP& sim, double stepDt) {
     stats.reabsorbed_droplet_volume_to_primary;
   sim.secondary_bubble_volume_reabsorbed_to_primary_total +=
     stats.reabsorbed_bubble_volume_to_primary;
+}
+
+void emitSecondarySpray(SparseSim3DTP& sim) {
+  const SecondarySprayEmissionConfig3D config{
+    sim.secondary_spray_emission,
+    sim.secondary_spray_particles_per_step,
+    sim.secondary_spray_droplet_fraction,
+    sim.secondary_spray_droplet_volume,
+    sim.secondary_spray_bubble_volume,
+    sim.Vp};
+  const SecondarySprayEmissionStats3D stats =
+    emitSecondarySpraySeeds3D(sim.particles,
+                              sim.escaped_droplets,
+                              sim.escaped_bubbles,
+                              sim.escaped_droplet_ages,
+                              sim.escaped_bubble_ages,
+                              config,
+                              sim.secondary_spray_emission_step_index);
+  ++sim.secondary_spray_emission_step_index;
+  sim.secondary_spray_emission_stats_last = stats;
+  sim.secondary_spray_candidates_last = stats.candidate_liquid_particles;
+  sim.secondary_spray_emitted_droplets_last = stats.emitted_droplets;
+  sim.secondary_spray_emitted_bubbles_last = stats.emitted_bubbles;
+  sim.secondary_spray_emitted_droplet_volume_last = stats.emitted_droplet_volume;
+  sim.secondary_spray_emitted_bubble_volume_last = stats.emitted_bubble_volume;
+  sim.secondary_spray_emitted_droplets_total += stats.emitted_droplets;
+  sim.secondary_spray_emitted_bubbles_total += stats.emitted_bubbles;
+  sim.secondary_spray_emitted_droplet_volume_total += stats.emitted_droplet_volume;
+  sim.secondary_spray_emitted_bubble_volume_total += stats.emitted_bubble_volume;
+  sim.escaped_droplets_added_last += stats.emitted_droplets;
+  sim.escaped_bubbles_added_last += stats.emitted_bubbles;
+  sim.escaped_droplet_volume_added_last += stats.emitted_droplet_volume;
+  sim.escaped_bubble_volume_added_last += stats.emitted_bubble_volume;
+  sim.escaped_droplets_added_total += stats.emitted_droplets;
+  sim.escaped_bubbles_added_total += stats.emitted_bubbles;
+  sim.escaped_droplet_volume_added_total += stats.emitted_droplet_volume;
+  sim.escaped_bubble_volume_added_total += stats.emitted_bubble_volume;
+  updateSecondaryCurrentVolumes(sim);
 }
 
 void resetTimestepStats(SparseSim3DTP& sim) {
@@ -508,4 +557,5 @@ void SparseSim3DTP::step() {
                 escaped_particle_branching ? &escapeBuffer : nullptr);
   storeParticleBoundaryStats(*this, escapeStats);
   storeEscapedParticles(*this, escapeBuffer);
+  emitSecondarySpray(*this);
 }

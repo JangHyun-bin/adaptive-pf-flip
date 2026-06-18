@@ -296,6 +296,49 @@ TEST_CASE("sparse 3D secondary lifecycle can reabsorb droplets into primary part
   CHECK(volumeType(sim.particles, 0) == doctest::Approx(liquidVolume0 + 2.0));
 }
 
+TEST_CASE("sparse 3D secondary spray emission is sim-side volume accounted") {
+  SparseSim3DTP sim(8, 12, 8, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 24;
+  sim.initFallingWaterColumn();
+  sim.secondary_spray_emission = true;
+  sim.secondary_spray_particles_per_step = 12;
+  sim.secondary_particle_lifecycle = true;
+  sim.secondary_velocity_damping = 1.0;
+
+  sim.step();
+
+  CHECK(sim.secondary_spray_emission_stats_last.enabled == 1);
+  CHECK(sim.secondary_spray_emission_stats_last.finite == 1);
+  CHECK(sim.secondary_spray_candidates_last > 0);
+  CHECK(sim.secondary_spray_emitted_droplets_last == 11);
+  CHECK(sim.secondary_spray_emitted_bubbles_last == 1);
+  CHECK(sim.escaped_droplets.size() == 11);
+  CHECK(sim.escaped_bubbles.size() == 1);
+  CHECK(sim.secondary_spray_emitted_droplet_volume_total ==
+        doctest::Approx(11.0 * sim.secondary_spray_droplet_volume * sim.Vp));
+  CHECK(sim.secondary_spray_emitted_bubble_volume_total ==
+        doctest::Approx(sim.secondary_spray_bubble_volume * sim.Vp));
+  CHECK(sim.escaped_droplet_volume_added_total ==
+        doctest::Approx(sim.secondary_spray_emitted_droplet_volume_total));
+  CHECK(sim.secondary_droplet_volume_current_last ==
+        doctest::Approx(sim.secondary_spray_emitted_droplet_volume_total));
+
+  sim.step();
+
+  CHECK(sim.secondary_spray_emitted_droplets_total == 22);
+  CHECK(sim.secondary_spray_emitted_bubbles_total == 2);
+  CHECK(sim.secondary_droplets_advected_total >= 11);
+  CHECK(sim.secondary_droplet_volume_current_last +
+        sim.secondary_droplet_volume_reabsorbed_total +
+        sim.secondary_droplet_volume_expired_total ==
+        doctest::Approx(sim.secondary_spray_emitted_droplet_volume_total));
+  CHECK(sim.secondary_bubble_volume_current_last +
+        sim.secondary_bubble_volume_reabsorbed_total +
+        sim.secondary_bubble_volume_expired_total ==
+        doctest::Approx(sim.secondary_spray_emitted_bubble_volume_total));
+}
+
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {
   SparseSim3DTP full(12, 12, 8, 1.0);
   full.initTwoPhaseDamBreak();

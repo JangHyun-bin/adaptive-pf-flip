@@ -53,6 +53,158 @@ struct SecondaryParticleLifecycleStats3D {
   double reabsorbed_bubble_volume_to_primary = 0.0;
 };
 
+struct SecondarySprayEmissionConfig3D {
+  bool enabled = false;
+  int requested_particles = 0;
+  double droplet_fraction = 0.9;
+  double droplet_volume = 0.55;
+  double bubble_volume = 0.45;
+  double particle_volume_scale = 1.0;
+};
+
+struct SecondarySprayEmissionStats3D {
+  int enabled = 0;
+  int finite = 1;
+  int candidate_liquid_particles = 0;
+  int emitted_droplets = 0;
+  int emitted_bubbles = 0;
+  double emitted_droplet_volume = 0.0;
+  double emitted_bubble_volume = 0.0;
+};
+
+struct SecondarySprayCandidate3D {
+  Vec3 pos{0.0, 0.0, 0.0};
+  Vec3 vel{0.0, 0.0, 0.0};
+  double score = 0.0;
+};
+
+struct SecondaryParticleBounds3D {
+  Vec3 min{0.0, 0.0, 0.0};
+  Vec3 max{0.0, 0.0, 0.0};
+  bool valid = false;
+};
+
+inline bool finiteSecondaryParticle3D(const Particles3DTP& ps, size_t p);
+
+inline void includeSecondaryParticleBounds3D(SecondaryParticleBounds3D& bounds,
+                                             const Vec3& p) {
+  if (!bounds.valid) {
+    bounds.min = p;
+    bounds.max = p;
+    bounds.valid = true;
+    return;
+  }
+  bounds.min.x = std::min(bounds.min.x, p.x);
+  bounds.min.y = std::min(bounds.min.y, p.y);
+  bounds.min.z = std::min(bounds.min.z, p.z);
+  bounds.max.x = std::max(bounds.max.x, p.x);
+  bounds.max.y = std::max(bounds.max.y, p.y);
+  bounds.max.z = std::max(bounds.max.z, p.z);
+}
+
+inline SecondaryParticleBounds3D liquidParticleBounds3D(const Particles3DTP& particles) {
+  SecondaryParticleBounds3D bounds;
+  for (size_t i = 0; i < particles.size(); ++i) {
+    if (particles.type[i] == 0) includeSecondaryParticleBounds3D(bounds, particles.pos[i]);
+  }
+  return bounds;
+}
+
+inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
+    const Particles3DTP& primary,
+    Particles3DTP& droplets,
+    Particles3DTP& bubbles,
+    std::vector<int>& dropletAges,
+    std::vector<int>& bubbleAges,
+    const SecondarySprayEmissionConfig3D& config,
+    int frameIndex) {
+  SecondarySprayEmissionStats3D stats;
+  stats.enabled = config.enabled ? 1 : 0;
+  if (!config.enabled || config.requested_particles <= 0) return stats;
+
+  const SecondaryParticleBounds3D bounds = liquidParticleBounds3D(primary);
+  if (!bounds.valid) return stats;
+
+  const double surfaceY = bounds.min.y + 0.68 * (bounds.max.y - bounds.min.y);
+  const double cx = 0.5 * (bounds.min.x + bounds.max.x);
+  const double cz = 0.5 * (bounds.min.z + bounds.max.z);
+  std::vector<SecondarySprayCandidate3D> candidates;
+  candidates.reserve(primary.size());
+  for (size_t i = 0; i < primary.size(); ++i) {
+    if (primary.type[i] != 0) continue;
+    if (!finiteSecondaryParticle3D(primary, i)) {
+      stats.finite = 0;
+      continue;
+    }
+    const Vec3& p = primary.pos[i];
+    const Vec3& v = primary.vel[i];
+    const double hspeed = std::sqrt(v.x * v.x + v.z * v.z);
+    const double upward = std::max(0.0, v.y);
+    const double nearSurface = std::max(0.0, p.y - surfaceY);
+    const double lateral = std::sqrt((p.x - cx) * (p.x - cx) + (p.z - cz) * (p.z - cz));
+    const double score = nearSurface * 4.0 + upward * 2.0 + hspeed * 0.25 + lateral * 0.03;
+    if (p.y >= surfaceY || upward > 0.02 || hspeed > 0.25) {
+      candidates.push_back(SecondarySprayCandidate3D{p, v, score});
+    }
+  }
+  if (candidates.empty()) {
+    for (size_t i = 0; i < primary.size(); ++i) {
+      if (primary.type[i] != 0 || !finiteSecondaryParticle3D(primary, i)) continue;
+      candidates.push_back(SecondarySprayCandidate3D{
+        primary.pos[i], primary.vel[i], primary.pos[i].y});
+    }
+  }
+  stats.candidate_liquid_particles = static_cast<int>(candidates.size());
+  if (candidates.empty()) return stats;
+
+  std::sort(candidates.begin(), candidates.end(),
+            [](const SecondarySprayCandidate3D& a, const SecondarySprayCandidate3D& b) {
+              return a.score > b.score;
+            });
+  const int requested = std::max(0, config.requested_particles);
+  const double dropletFraction = std::max(0.0, std::min(1.0, config.droplet_fraction));
+  const int dropletCount = std::max(0, std::min(requested,
+    static_cast<int>(std::floor(static_cast<double>(requested) * dropletFraction + 0.5))));
+  const int bubbleCount = std::max(0, requested - dropletCount);
+  const size_t window = std::min(candidates.size(), static_cast<size_t>(std::max(1, requested * 3)));
+  for (int n = 0; n < dropletCount; ++n) {
+    const size_t idx = (static_cast<size_t>(n) * 37u + static_cast<size_t>(frameIndex) * 11u) % window;
+    const SecondarySprayCandidate3D& c = candidates[idx];
+    const double dx = c.pos.x - cx;
+    const double dz = c.pos.z - cz;
+    const double len = std::sqrt(dx * dx + dz * dz);
+    const double ox = len > 1e-8 ? dx / len : 0.0;
+    const double oz = len > 1e-8 ? dz / len : 0.0;
+    const double lift = 0.18 + 0.035 * static_cast<double>((n + frameIndex) % 5);
+    const Vec3 pos{
+      c.pos.x + 0.035 * ox,
+      c.pos.y + 0.04 + 0.01 * static_cast<double>(n % 3),
+      c.pos.z + 0.035 * oz
+    };
+    const Vec3 vel{
+      c.vel.x + 0.16 * ox,
+      c.vel.y + lift,
+      c.vel.z + 0.16 * oz
+    };
+    const double speed = vel.length();
+    const int age = speed > 1.0 ? 0 : (n % 4 == 0 ? 5 : 2);
+    droplets.add(pos, vel, 0, config.droplet_volume);
+    dropletAges.push_back(age);
+    ++stats.emitted_droplets;
+    stats.emitted_droplet_volume += config.droplet_volume * config.particle_volume_scale;
+  }
+  for (int n = 0; n < bubbleCount; ++n) {
+    const size_t idx = (static_cast<size_t>(n) * 53u + static_cast<size_t>(frameIndex) * 7u) % window;
+    const SecondarySprayCandidate3D& c = candidates[idx];
+    const Vec3 pos{c.pos.x, std::max(bounds.min.y + 0.25, c.pos.y - 0.12), c.pos.z};
+    bubbles.add(pos, Vec3{0.0, 0.16, 0.0}, 1, config.bubble_volume);
+    bubbleAges.push_back(0);
+    ++stats.emitted_bubbles;
+    stats.emitted_bubble_volume += config.bubble_volume * config.particle_volume_scale;
+  }
+  return stats;
+}
+
 inline bool finiteSecondaryParticle3D(const Particles3DTP& ps, size_t p) {
   return std::isfinite(ps.pos[p].x) &&
          std::isfinite(ps.pos[p].y) &&
