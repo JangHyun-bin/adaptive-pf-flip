@@ -211,6 +211,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S122** | **Cinematic gallery cftunnel publisher** - `tools/publish_cinematic_gallery.py` serves the static gallery, optionally opens a Cloudflare quick tunnel, verifies HTML/GIF assets, and records run-specific manifests under `build/`. | done |
 | **S123** | **Cinematic visual review triage** - `tools/summarize_cinematic_gallery_review.py` records gallery/publish coverage, numeric render gates, visual findings, and selects S124 contact-band composition look-dev. | done |
 | **S124** | **Contact-band composition pass** - `dam_break_contact_band_composition` lowers the large-grid camera target toward the contact band, preserves S119 comparison/review gates, and records a warm-cache Blender gate in `cinematic_contact_band_composition_s124.md`. | done |
+| **S125** | **Contact-volume integration pass** - `dam_break_contact_volume_integrated` adds lower contact-volume haze plus softer spray/foam/water scattering material settings, preserves S124 review gates, and records a warm-cache Blender gate in `cinematic_contact_volume_integrated_s125.md`. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

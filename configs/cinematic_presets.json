@@ -1275,6 +1275,62 @@
         }
       }
     },
+    "dam_break_contact_volume_integrated": {
+      "extends": "dam_break_contact_band_composition",
+      "description": "Contact-band composition with a lower contact-volume haze, softened secondary mist, and denser water-body scattering integration.",
+      "renderer": {
+        "water_volume_scattering_pass": {
+          "enabled": true,
+          "layers": 8,
+          "region_min": [3.6, 1.45, 4.0],
+          "region_max": [28.4, 6.65, 20.7],
+          "inset": 0.3,
+          "alpha_scale": 0.18,
+          "emission_scale": 0.36
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 2.15,
+            "foam": 1.85
+          },
+          "alpha_scale": 0.24,
+          "emission_scale": 0.7,
+          "max_radius": 1.02,
+          "falloff": [0.9, 0.34, 0.11, 0.0]
+        },
+        "surface_contact_foam_pass": {
+          "radius_x": 1.5,
+          "radius_z": 0.2,
+          "alpha_scale": 0.32,
+          "emission_scale": 0.38
+        },
+        "water_impact_ripple_pass": {
+          "alpha_scale": 0.42,
+          "emission_scale": 0.76
+        }
+      },
+      "materials": {
+        "water_volume_scatter": {
+          "base_color": [0.29, 0.64, 0.94, 0.13],
+          "emission_color": [0.28, 0.58, 0.9, 1.0],
+          "emission_strength": 0.08,
+          "roughness": 0.9,
+          "alpha": 0.13,
+          "transmission": 0.0
+        },
+        "spray": {
+          "base_color": [0.8, 0.94, 1.0, 0.78],
+          "emission_color": [0.82, 0.95, 1.0, 1.0],
+          "emission_strength": 0.055,
+          "alpha": 0.78
+        },
+        "foam": {
+          "base_color": [0.97, 0.98, 0.9, 0.94],
+          "emission_strength": 0.085,
+          "alpha": 0.94
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

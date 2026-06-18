@@ -2247,7 +2247,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S125 should add a contact-volume integration preset that softens the remaining boxed/tank read.",
+        "S126 should add a scene/background/camera composition pass that reduces the remaining boxed/tank read without relaxing the current gates.",
         "",
     ])
     return "\n".join(lines)
