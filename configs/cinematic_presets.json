@@ -762,6 +762,31 @@
           "transmission": 0.0
         }
       }
+    },
+    "dam_break_water_impact_ripple_tuned": {
+      "extends": "dam_break_water_impact_ripple_cues",
+      "description": "Impact ripple cues with lower spray weighting and softer material strength.",
+      "renderer": {
+        "water_impact_ripple_pass": {
+          "channels": {
+            "foam": 1.0,
+            "spray": 0.18
+          },
+          "max_count": 72,
+          "arc_fraction": 0.52,
+          "radius": 0.44,
+          "radius_step": 0.26,
+          "width": 0.045,
+          "alpha_scale": 0.36,
+          "emission_scale": 0.62
+        }
+      },
+      "materials": {
+        "water_ripple": {
+          "emission_strength": 0.34,
+          "roughness": 0.1
+        }
+      }
     }
   }
 }

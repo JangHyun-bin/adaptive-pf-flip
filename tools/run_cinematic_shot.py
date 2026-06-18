@@ -920,7 +920,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S85 should tune impact ripple density and material strength against contact-area readability, foam/spray visibility, and temporal highlight QA.",
+        "S86 should add soft material falloff to impact ripple arcs so the contact-region breakup blends into the water surface.",
         "",
     ])
     return "\n".join(lines)

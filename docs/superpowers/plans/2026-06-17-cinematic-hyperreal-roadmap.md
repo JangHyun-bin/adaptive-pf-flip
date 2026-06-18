@@ -130,6 +130,7 @@ The missing work is not one feature. It is a pipeline:
 | S82 | Water highlight temporal diff sheet | Emit frame-difference review artifacts so highlight movement can be visually inspected | Done in `test: add water highlight temporal diff sheet` |
 | S83 | Water highlight motion tuning | Increase glint/reflection drift and coverage while preserving temporal highlight QA | Done in `style: tune water highlight motion` |
 | S84 | Water impact ripple cues | Add foam/spray-driven impact-region ripple arcs so the splash contact area reads as broken water surface | Done in `feat: add water impact ripple cues` |
+| S85 | Water impact ripple tuning | Lower ripple density and soften material strength so contact breakup remains readable without overpowering foam/spray | Done in `style: tune water impact ripple cues` |
 
 ## Decision Gates
 
@@ -467,16 +468,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S85.
+Continue with S86.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-impact-ripple-tuning.md`
+`docs/superpowers/plans/2026-06-18-water-impact-ripple-material-fade.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_impact_ripple_cues --out build\shots\s85_water_impact_ripple_tuning --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s85.md --compare-review-manifest build\shots\s84_water_surface_impact_ripple_cues\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_impact_ripple_tuned --out build\shots\s86_water_impact_ripple_material_fade --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s86.md --compare-review-manifest build\shots\s85_water_impact_ripple_tuning\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is tuned ripple density/material strength that keeps the contact region readable without overpowering foam, spray, and temporal highlight QA.
+The next success condition is softer impact ripple edges that blend into the water surface while preserving contact-area readability and temporal highlight QA.
