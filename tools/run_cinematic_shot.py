@@ -654,7 +654,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S70 should tune mist falloff more aggressively to reduce visible circular sprite edges without losing visual QA or the S67/S68 render-cost range.",
+        "S71 should replace ring-only mist falloff with texture/material-node style radial falloff so sprite edges soften more smoothly without losing visual QA or render-cost targets.",
         "",
     ])
     return "\n".join(lines)
