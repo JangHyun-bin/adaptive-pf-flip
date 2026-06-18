@@ -1047,6 +1047,7 @@ def image_stats(path):
         hist = gray.histogram()
         total = max(1, gray.width * gray.height)
         nonblack = sum(hist[3:])
+        mean_luminance = sum(index * count for index, count in enumerate(hist)) / float(total)
         extrema = gray.getextrema()
         return {
             "path": path,
@@ -1055,8 +1056,36 @@ def image_stats(path):
             "width": gray.width,
             "height": gray.height,
             "nonblank_ratio": nonblack / total,
+            "mean_luminance": mean_luminance,
+            "bright_ratio": sum(hist[140:]) / total,
+            "highlight_ratio": sum(hist[180:]) / total,
+            "dark_ratio": sum(hist[:8]) / total,
             "contrast": extrema[1] - extrema[0],
         }
+
+
+def stat_summary(values):
+    values = [float(item) for item in values if item is not None]
+    if not values:
+        return {"min": None, "mean": None, "max": None}
+    return {
+        "min": min(values),
+        "mean": sum(values) / float(len(values)),
+        "max": max(values),
+    }
+
+
+def visual_qa_summary(stats):
+    return {
+        "frame_count": len(stats),
+        "nonblank_ratio": stat_summary(item.get("nonblank_ratio") for item in stats),
+        "contrast": stat_summary(item.get("contrast") for item in stats),
+        "mean_luminance": stat_summary(item.get("mean_luminance") for item in stats),
+        "bright_ratio": stat_summary(item.get("bright_ratio") for item in stats),
+        "highlight_ratio": stat_summary(item.get("highlight_ratio") for item in stats),
+        "dark_ratio": stat_summary(item.get("dark_ratio") for item in stats),
+        "png_bytes": stat_summary(item.get("bytes") for item in stats),
+    }
 
 
 def validate_rendered_frames(spec, min_nonblank_ratio):
@@ -1230,6 +1259,7 @@ def main(argv=None):
         summary["rendered_frames"] = rendered_stats
         summary["min_nonblank_ratio"] = min(item.get("nonblank_ratio", 1.0) or 1.0 for item in rendered_stats)
         summary["min_contrast"] = min(item.get("contrast", 1) or 1 for item in rendered_stats)
+        summary["visual_qa"] = visual_qa_summary(rendered_stats)
         write_json(summary_path, summary)
         print(f"status=ok renderer=blender frames={len(rendered_stats)} summary={summary_path}")
         return 0

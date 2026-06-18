@@ -110,6 +110,7 @@ The missing work is not one feature. It is a pipeline:
 | S62 | Secondary render size pass | Add channel-specific secondary radii and spray/foam emission controls for stronger contact readability | Done in `feat: add secondary render size pass` |
 | S63 | Contact close-up camera gate | Add `dam_break_contact_closeup` as a closer inspection preset with a 36-frame Blender visual gate | Done in `feat: add contact closeup camera gate` |
 | S64 | Contact camera stability review | Report camera path stability gates and emit a wide/close review comparison sheet | Done in `feat: add contact camera stability review` |
+| S65 | Cinematic visual QA metrics | Summarize frame luminance, contrast, bright-pixel ratios, and preset-driven visual QA gates | Done in `feat: add cinematic visual qa metrics` |
 
 ## Decision Gates
 
@@ -447,16 +448,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S65.
+Continue with S66.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-visual-qa-metrics.md`
+`docs/superpowers/plans/2026-06-18-volumetric-spray-foam-render-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s65_visual_qa_metrics --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s65.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s66_volumetric_spray_foam --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s66.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is screen-space visual QA in the shot summary: frame luminance/contrast ranges, water image coverage, and secondary-readability proxy metrics with thresholds that can fail a visually empty gate before manual review.
+The next success condition is a volumetric or sprite-based spray/foam render pass that makes the physical secondary channels read more like mist and foam while preserving S65 visual QA gates.

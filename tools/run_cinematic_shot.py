@@ -514,6 +514,50 @@ def evaluate_camera_stability(config, camera_path):
     }
 
 
+def nested_metric(metrics, path):
+    value = metrics
+    for key in path:
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    return value
+
+
+def evaluate_visual_qa(config, visual_qa):
+    gate = config.get("visual_qa")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_nonblank_ratio": (("nonblank_ratio", "min"), gate.get("min_nonblank_ratio"), ">="),
+        "min_contrast": (("contrast", "min"), gate.get("min_contrast"), ">="),
+        "min_mean_luminance": (("mean_luminance", "mean"), gate.get("min_mean_luminance"), ">="),
+        "max_mean_luminance": (("mean_luminance", "mean"), gate.get("max_mean_luminance"), "<="),
+        "min_mean_bright_ratio": (("bright_ratio", "mean"), gate.get("min_mean_bright_ratio"), ">="),
+    }
+    passed = True
+    for name, (path, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = nested_metric(visual_qa, path)
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def render_report(summary, root):
     config = summary.get("config", {})
     metrics = summary.get("metrics", {})
@@ -559,6 +603,8 @@ def render_report(summary, root):
         f"- Camera frame scale: `{metrics.get('camera_framing', {}).get('max_scale', 1.0)}`",
         f"- Camera path metrics: `{metrics.get('camera_path', {})}`",
         f"- Camera stability: `{metrics.get('camera_stability', {})}`",
+        f"- Visual QA summary: `{metrics.get('visual_qa', {})}`",
+        f"- Visual QA gate: `{metrics.get('visual_qa_gate', {})}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
@@ -607,7 +653,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S65 should add screen-space visual QA metrics so empty, low-contrast, or weakly readable cinematic gates can fail before manual review.",
+        "S66 should add a volumetric spray/foam render pass or stronger secondary shading so the physically seeded contact particles read as mist and foam instead of isolated spheres.",
         "",
     ])
     return "\n".join(lines)
@@ -863,6 +909,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "min_nonblank_ratio": first_value(args.min_nonblank_ratio,
                                           renderer.get("min_nonblank_ratio"),
                                           0.05),
+        "visual_qa": section(renderer, "visual_qa"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
                                          reconstruction.get("smooth_iterations"),
@@ -1169,6 +1216,11 @@ def run_pipeline(args):
             summary["metrics"]["water_material"] = render_summary.get("water_material", {})
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
+            summary["metrics"]["visual_qa"] = render_summary.get("visual_qa", {})
+            summary["metrics"]["visual_qa_gate"] = evaluate_visual_qa(
+                config, summary["metrics"]["visual_qa"])
+            if summary["metrics"]["visual_qa_gate"].get("enabled") and not summary["metrics"]["visual_qa_gate"].get("passed"):
+                fail(f"visual QA gate failed: {summary['metrics']['visual_qa_gate']}")
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out
