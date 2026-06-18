@@ -2002,7 +2002,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S105 should add a compact cinematic benchmark summary table for recent gates so runtime, grid size, and key QA metrics can be compared without re-opening each full report.",
+        "S107 should refresh the compact cinematic benchmark summary with S106 included so runtime, grid size, framing, focus, and secondary-depth deltas can guide the next large-grid step.",
         "",
     ])
     return "\n".join(lines)
