@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S128 should package and publish the S127 gallery so the current non-boxed scene can be reviewed externally.",
+        "S129 should review the S127 public gallery and choose the next concrete visible improvement from current evidence.",
         "",
     ])
     return "\n".join(lines)

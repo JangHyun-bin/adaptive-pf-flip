@@ -173,7 +173,8 @@ The missing work is not one feature. It is a pipeline:
 | S125 | Contact-volume integration pass | Add lower contact-volume haze plus softer spray/foam/water scattering material settings while preserving S124 review gates | Done in `style: add contact volume integration preset` |
 | S126 | Scene de-tank composition pass | Add a contact mist curtain pass and softer world/floor contrast while preserving S125 review gates | Done in `style: add scene detank composition pass` |
 | S127 | Non-boxed falling-water scene pass | Change the falling-water scene/source shape so the top water silhouette no longer reads as a rectangular tank wall | Done in `feat: add nonboxed falling water scene` |
-| S128 | S127 gallery refresh/publish | Package and publish the S127 review artifacts so the current non-boxed scene can be inspected externally | Planned |
+| S128 | S127 gallery refresh/publish | Package and publish the S127 review artifacts so the current non-boxed scene can be inspected externally | Done in `docs: publish s127 cinematic gallery` |
+| S129 | Public gallery visual triage | Review the S127 public gallery and choose the next concrete scene/render improvement from visible evidence | Planned |
 
 ## Decision Gates
 
@@ -511,16 +512,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S128.
+Continue with S129.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s127-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s127-public-gallery-visual-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\build_cinematic_gallery.py build\shots\s127_nonboxed_falling_water --out build\shots\s127_nonboxed_falling_water\gallery --report docs\reports\cinematic_static_gallery_s128.md
+python tools\summarize_cinematic_gallery_review.py build\shots\s127_nonboxed_falling_water\gallery\gallery_manifest.json --publish build\shots\s127_nonboxed_falling_water\gallery\publish_manifest_s128.json --out docs\reports\cinematic_visual_review_s129.md
 ```
 
-The next success condition is an updated package/gallery/publish artifact set for S127, with local and public HTTP verification for `index.html` and `assets/shot.gif`.
+The next success condition is a checked-in visual triage report that records the current public S127 gallery state and selects the next concrete visible improvement.
