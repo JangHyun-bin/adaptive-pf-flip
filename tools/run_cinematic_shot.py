@@ -1900,7 +1900,7 @@ def render_report(summary, root):
         "## Artifacts",
         "",
     ]
-    for key in ("manifest", "sequence", "water_reconstruction", "render_summary",
+    for key in ("manifest", "validation_stamp", "sequence", "water_reconstruction", "render_summary",
                 "render_frame_dir", "gif", "contact_sheet", "review_manifest",
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
@@ -1917,6 +1917,7 @@ def render_report(summary, root):
         "## Metrics",
         "",
         f"- Cache frames: `{metrics.get('cache_frame_count', 'n/a')}`",
+        f"- Render cache validation reused: `{metrics.get('validation_reused', 'n/a')}`",
         f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
         f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
@@ -2003,7 +2004,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S110 should add a conservative validation freshness stamp so repeated review runs can skip validate_render_cache only when manifest and cache frame contents are unchanged.",
+        "S111 should add a conservative water reconstruction freshness check so repeated review runs can skip reconstruct_water only when manifest contents and reconstruction options are unchanged.",
         "",
     ])
     return "\n".join(lines)
@@ -2131,6 +2132,8 @@ def parse_args(argv):
                         help="previous review_manifest.json to include in a wide/close comparison sheet")
     parser.add_argument("--reuse-converted", action="store_true",
                         help="let convert_render_cache.py reuse sequence.json when inputs are unchanged")
+    parser.add_argument("--reuse-validation", action="store_true",
+                        help="reuse a validation stamp when manifest and cache frame contents are unchanged")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -2379,6 +2382,7 @@ def run_pipeline(args):
 
     manifest_path = os.path.join(cache_dir, "manifest.json")
     cache_prefix = os.path.join(cache_dir, "render_cache")
+    validation_stamp = os.path.join(cache_dir, "validation_stamp.json")
     water_index = os.path.join(water_dir, "water_reconstruction.json")
     sequence_path = os.path.join(converted_dir, "sequence.json")
     gif_path = os.path.join(out_dir, "shot.gif")
@@ -2398,6 +2402,7 @@ def run_pipeline(args):
         "render_preset": render_preset_name,
         "artifacts": {
             "manifest": manifest_path,
+            "validation_stamp": validation_stamp,
             "sequence": sequence_path,
             "water_reconstruction": water_index,
             "gif": gif_path,
@@ -2446,12 +2451,17 @@ def run_pipeline(args):
         summary["export_metrics"] = parse_key_value_stdout(export_result.stdout)
         require_file(manifest_path, "render cache manifest")
 
-        pipeline.run("validate_render_cache", [
+        validate_cmd = [
             sys.executable,
             tool_path(root, "validate_render_cache.py"),
             manifest_path,
             "--require-cinematic",
-        ])
+            "--stamp", validation_stamp,
+        ]
+        if args.reuse_validation:
+            validate_cmd.append("--reuse-if-fresh")
+        validate_result, _validate_item = pipeline.run("validate_render_cache", validate_cmd)
+        summary["validation_metrics"] = parse_key_value_stdout(validate_result.stdout)
 
         reconstruct_cmd = [
             sys.executable,
@@ -2547,6 +2557,7 @@ def run_pipeline(args):
         secondary_volumes = secondary_volume_metrics(manifest_path, manifest)
         summary["metrics"] = {
             "cache_frame_count": len(manifest.get("frames", [])),
+            "validation_reused": bool(summary.get("validation_metrics", {}).get("reused", False)),
             "converted_frame_count": sequence.get("frame_count"),
             "water_mesh_frame_count": water.get("frame_count"),
             "surface_mode": water.get("surface_mode", "voxel"),

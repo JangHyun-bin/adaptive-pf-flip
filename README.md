@@ -196,6 +196,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S107** | **Large-grid benchmark summary refresh** - `cinematic_benchmark_summary_s107.md` includes S106 plus framing-min and stage-timing columns so the next large-grid work is selected from measured quality/runtime deltas. | done |
 | **S108** | **Cinematic stage profile** - `tools/profile_cinematic_stages.py` turns the S107 table into render vs non-render cost splits and ranks large-grid bottlenecks before the next optimization. | done |
 | **S109** | **Converted sequence reuse** - `convert_render_cache.py --reuse-if-fresh` and runner `--reuse-converted` skip fresh conversions with SHA256 input fingerprints while preserving default behavior. | done |
+| **S110** | **Render-cache validation reuse** - `validate_render_cache.py --stamp --reuse-if-fresh` and runner `--reuse-validation` skip fresh validation with SHA256 input fingerprints while preserving default behavior. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -351,6 +352,7 @@ python tools/run_cinematic_shot.py --preset dam_break_large_grid_render_quality_
 python tools/summarize_cinematic_gates.py build/shots/s100_water_depth_focus_comparison/shot_summary.json build/shots/s102_water_volume_scattering/shot_summary.json build/shots/s103_secondary_render_integration_review/shot_summary.json build/shots/s104_large_grid_cinematic_benchmark/shot_summary.json build/shots/s106_large_grid_render_quality_followup/shot_summary.json --out docs/reports/cinematic_benchmark_summary_s107.md
 python tools/profile_cinematic_stages.py docs/reports/cinematic_benchmark_summary_s107.md --out docs/reports/cinematic_stage_profile_s108.md
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/s109_runner_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-converted --no-build --timeout-seconds 120
+python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/s110_runner_validation_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-converted --reuse-validation --no-build --timeout-seconds 120
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0

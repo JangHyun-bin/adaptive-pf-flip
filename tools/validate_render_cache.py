@@ -7,10 +7,12 @@ bad manifest ordering, and large water-volume drift.
 
 Usage:
   python tools/validate_render_cache.py <manifest.json|cache.jsonl|cache-dir|glob> [options]
+  python tools/validate_render_cache.py <manifest.json> --stamp build/cache_validation.json --reuse-if-fresh
 """
 
 import argparse
 import glob
+import hashlib
 import json
 import math
 import os
@@ -119,6 +121,66 @@ def resolve_frame_path(base_dir, path):
     if os.path.isfile(base_candidate):
         return base_candidate
     return path
+
+
+def write_json(path, payload):
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_fingerprint(role, path, **extra):
+    abs_path = os.path.abspath(path)
+    payload = {
+        "role": role,
+        "path": abs_path,
+        "bytes": os.path.getsize(abs_path),
+        "sha256": sha256_file(abs_path),
+    }
+    payload.update(extra)
+    return payload
+
+
+def validation_fingerprint(src, manifest, files, args):
+    entries = [file_fingerprint("validator", __file__)]
+    if manifest:
+        entries.append(file_fingerprint("manifest", manifest["path"]))
+    for index, path in enumerate(files):
+        entries.append(file_fingerprint("cache_frame", path, index=index))
+    return {
+        "version": 1,
+        "src": os.path.abspath(src) if os.path.exists(src) else src,
+        "require_cinematic": bool(args.require_cinematic),
+        "allow_empty_secondary": bool(args.allow_empty_secondary),
+        "max_volume_drift": float(args.max_volume_drift),
+        "files": entries,
+    }
+
+
+def load_reusable_stamp(path, expected_fingerprint):
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            stamp = json.load(f)
+    except json.JSONDecodeError:
+        return None
+    if stamp.get("status") != "ok":
+        return None
+    if stamp.get("validation_fingerprint") != expected_fingerprint:
+        return None
+    return stamp
 
 
 def load_manifest(path, require_cinematic=False):
@@ -710,15 +772,33 @@ def main(argv):
                         help="accepted for scripts; secondary particle sections may already be empty")
     parser.add_argument("--require-cinematic", action="store_true",
                         help="require cache_schema_version 2 cinematic metadata")
+    parser.add_argument("--stamp",
+                        help="write a validation freshness stamp for successful validation")
+    parser.add_argument("--reuse-if-fresh", action="store_true",
+                        help="reuse --stamp when its input fingerprint still matches")
     parser.add_argument("--verbose", action="store_true", help="print one summary line per frame")
     args = parser.parse_args(argv)
 
     if args.max_volume_drift < 0.0 or not math.isfinite(args.max_volume_drift):
         print("max-volume-drift must be finite and non-negative", file=sys.stderr)
         return 2
+    if args.reuse_if_fresh and not args.stamp:
+        print("reuse-if-fresh requires --stamp", file=sys.stderr)
+        return 2
 
     try:
         manifest, files = discover_inputs(args.src, require_cinematic=args.require_cinematic)
+        fingerprint = validation_fingerprint(args.src, manifest, files, args)
+        stamp = load_reusable_stamp(args.stamp, fingerprint) if args.reuse_if_fresh else None
+        if stamp:
+            summary = stamp.get("summary", {})
+            print(f"frames={summary.get('frames', 0)}")
+            print(f"particles={summary.get('particles', 0)}")
+            print(f"phase_cells={summary.get('phase_cells', 0)}")
+            print(f"max_volume_drift={summary.get('max_volume_drift', 0.0):.17g}")
+            print("reused=true")
+            print("status=reused")
+            return 0
         results, max_drift = validate_sequence(files,
                                                manifest,
                                                args.max_volume_drift,
@@ -733,10 +813,25 @@ def main(argv):
                 f"frame={result['frame']} path={result['path']} particles={result['particles']} "
                 f"phase_cells={result['phase_cells']} water_like_volume={result['water_like_volume']:.17g}"
             )
-    print(f"frames={len(results)}")
-    print(f"particles={sum(r['particles'] for r in results)}")
-    print(f"phase_cells={sum(r['phase_cells'] for r in results)}")
+    summary = {
+        "frames": len(results),
+        "particles": sum(r["particles"] for r in results),
+        "phase_cells": sum(r["phase_cells"] for r in results),
+        "max_volume_drift": max_drift,
+    }
+    if args.stamp:
+        write_json(args.stamp, {
+            "validator": "lsfs_render_cache_validator",
+            "version": 1,
+            "status": "ok",
+            "validation_fingerprint": fingerprint,
+            "summary": summary,
+        })
+    print(f"frames={summary['frames']}")
+    print(f"particles={summary['particles']}")
+    print(f"phase_cells={summary['phase_cells']}")
     print(f"max_volume_drift={max_drift:.17g}")
+    print("reused=false")
     print("status=ok")
     return 0
 

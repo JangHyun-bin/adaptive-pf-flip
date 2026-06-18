@@ -155,6 +155,7 @@ The missing work is not one feature. It is a pipeline:
 | S107 | Large-grid benchmark summary refresh | Include S106 in the compact benchmark table and expose framing-min plus validate/reconstruct/convert timing columns | Done in `tools: refresh large grid benchmark summary` |
 | S108 | Cinematic stage profile | Turn the S107 benchmark table into render/non-render cost splits and rank large-grid stage bottlenecks | Done in `tools: profile cinematic stage costs` |
 | S109 | Converted sequence reuse | Add opt-in SHA256 fingerprint reuse for converted sequence assets and expose reuse status in shot reports | Done in `perf: reuse fresh converted render cache` |
+| S110 | Render-cache validation reuse | Add opt-in SHA256 validation stamps and expose validation reuse status in shot reports | Done in `perf: reuse fresh render cache validation` |
 
 ## Decision Gates
 
@@ -492,16 +493,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S110.
+Continue with S111.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-render-cache-validation-reuse.md`
+`docs/superpowers/plans/2026-06-18-water-reconstruction-reuse.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s110_validation_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-converted --reuse-validation --no-build --timeout-seconds 120
+python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s111_water_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-validation --reuse-water-mesh --reuse-converted --no-build --timeout-seconds 120
 ```
 
-The next success condition is a conservative validation freshness stamp that can skip `validate_render_cache` on repeated review runs only when manifest and cache frame contents are unchanged.
+The next success condition is a conservative water reconstruction freshness check that can skip `reconstruct_water` on repeated review runs only when manifest contents and reconstruction options are unchanged.
