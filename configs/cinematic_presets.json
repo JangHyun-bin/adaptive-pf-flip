@@ -145,6 +145,9 @@
         "min_occupancy": 0.005
       },
       "reconstruction": {
+        "surface_mode": "tetra",
+        "implicit_iso": 0.45,
+        "implicit_blur_iterations": 1,
         "smooth_iterations": 3,
         "smooth_alpha": 0.16,
         "write_normals": true

@@ -291,6 +291,8 @@ def render_report(summary, root):
         f"- Cache frames: `{metrics.get('cache_frame_count', 'n/a')}`",
         f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
+        f"- Surface mode: `{metrics.get('surface_mode', 'n/a')}`",
+        f"- Implicit blur iterations: `{metrics.get('implicit_blur_iterations', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
         f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
@@ -309,18 +311,22 @@ def render_report(summary, root):
     scene_note = "- The current exporter scene is bubble-tank style; use `--scene falling-water` or `dam_break_cinematic` for a more dynamic falling/collapsing water body."
     if scene in ("dam-break", "dambreak", "falling-water", "falling"):
         scene_note = "- The dynamic water-motion scene is now selected, but it is still reconstructed from coarse sparse phase cells rather than a production liquid surface."
+    surface_mode = metrics.get("surface_mode", "voxel")
+    surface_note = "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky."
+    if surface_mode == "tetra":
+        surface_note = "- The current gate uses implicit tetra water surfaces, but detail is still limited by coarse sparse phase-cell resolution."
     lines.extend([
         "",
         "## Known Limitations",
         "",
-        "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky.",
+        surface_note,
         scene_note,
         "- Opt-in secondary demo particles make spray/foam/bubble channels visible, but they are not yet a physical spray-generation model.",
         "- This is an opt-in cinematic gate; it is intentionally not part of default `ctest`.",
         "",
         "## Next Recommended Milestone",
         "",
-        "S53 should replace the coarse voxel-derived water surface with a smoother reconstruction path before the next photoreal material pass.",
+        "S54 should raise visual detail through higher-resolution/adaptive surface data and begin replacing demo secondary seeding with physical spray generation.",
         "",
     ])
     return "\n".join(lines)
@@ -416,6 +422,12 @@ def parse_args(argv):
                         help="water mesh smoothing blend factor")
     parser.add_argument("--write-normals", action="store_true",
                         help="force OBJ normal output for reconstructed water meshes")
+    parser.add_argument("--surface-mode", choices=("voxel", "tetra"),
+                        help="water surface extraction mode")
+    parser.add_argument("--implicit-iso", type=float,
+                        help="implicit tetra isosurface threshold")
+    parser.add_argument("--implicit-blur-iterations", type=int,
+                        help="scalar-grid blur iterations for implicit tetra reconstruction")
     parser.add_argument("--fps", type=float, help="output GIF frame rate")
     parser.add_argument("--samples", type=int, help="Blender render samples")
     parser.add_argument("--blender", help="explicit Blender executable path")
@@ -445,6 +457,11 @@ def parse_args(argv):
     if args.smooth_alpha is not None and (
             args.smooth_alpha < 0.0 or args.smooth_alpha > 1.0 or not math.isfinite(args.smooth_alpha)):
         parser.error("smooth-alpha must be finite in [0, 1]")
+    if args.implicit_iso is not None and (
+            args.implicit_iso <= 0.0 or args.implicit_iso >= 1.0 or not math.isfinite(args.implicit_iso)):
+        parser.error("implicit-iso must be finite in (0, 1)")
+    if args.implicit_blur_iterations is not None and args.implicit_blur_iterations < 0:
+        parser.error("implicit-blur-iterations must be non-negative")
     if args.fps is not None and (args.fps <= 0.0 or not math.isfinite(args.fps)):
         parser.error("fps must be finite and positive")
     if args.samples is not None and args.samples <= 0:
@@ -561,6 +578,15 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                     reconstruction.get("smooth_alpha"),
                                     0.18),
         "write_normals": bool(args.write_normals or reconstruction.get("write_normals", False)),
+        "surface_mode": first_value(args.surface_mode,
+                                    reconstruction.get("surface_mode"),
+                                    "voxel"),
+        "implicit_iso": first_value(args.implicit_iso,
+                                    reconstruction.get("implicit_iso"),
+                                    0.45),
+        "implicit_blur_iterations": first_value(args.implicit_blur_iterations,
+                                                reconstruction.get("implicit_blur_iterations"),
+                                                0),
         "review_pack": not args.no_review_pack,
         "review_frames": args.review_frames,
     }
@@ -711,6 +737,9 @@ def run_pipeline(args):
             "--threshold", str(args.threshold),
             "--smooth-iterations", str(config["smooth_iterations"]),
             "--smooth-alpha", str(config["smooth_alpha"]),
+            "--surface-mode", str(config["surface_mode"]),
+            "--implicit-iso", str(config["implicit_iso"]),
+            "--implicit-blur-iterations", str(config["implicit_blur_iterations"]),
         ]
         if config["write_normals"]:
             reconstruct_cmd.append("--write-normals")
@@ -789,6 +818,9 @@ def run_pipeline(args):
             "cache_frame_count": len(manifest.get("frames", [])),
             "converted_frame_count": sequence.get("frame_count"),
             "water_mesh_frame_count": water.get("frame_count"),
+            "surface_mode": water.get("surface_mode", "voxel"),
+            "implicit_iso": water.get("implicit_iso"),
+            "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
             "shot_gif_bytes": os.path.getsize(gif_path),
         }
         render_summary_path = summary["artifacts"].get("render_summary")

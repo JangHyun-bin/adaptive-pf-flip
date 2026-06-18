@@ -208,6 +208,28 @@ FACE_DEFS = [
 ]
 
 
+CUBE_VERTEX_OFFSETS = [
+    (0, 0, 0),
+    (1, 0, 0),
+    (1, 1, 0),
+    (0, 1, 0),
+    (0, 0, 1),
+    (1, 0, 1),
+    (1, 1, 1),
+    (0, 1, 1),
+]
+
+
+TETRA_DEFS = [
+    (0, 5, 1, 6),
+    (0, 1, 2, 6),
+    (0, 2, 3, 6),
+    (0, 3, 7, 6),
+    (0, 7, 4, 6),
+    (0, 4, 5, 6),
+]
+
+
 def build_surface_mesh(frame, occupied):
     dx = frame["dx"]
     vertices = []
@@ -232,6 +254,143 @@ def build_surface_mesh(frame, occupied):
             face = [add_vertex((i + cx, j + cy, k + cz)) for cx, cy, cz in corners]
             faces.append(face)
 
+    return vertices, faces
+
+
+def dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def occupied_center(frame, occupied):
+    dx = frame["dx"]
+    inv_count = 1.0 / max(1, len(occupied))
+    return (
+        sum((i + 0.5) * dx for i, _, _ in occupied) * inv_count,
+        sum((j + 0.5) * dx for _, j, _ in occupied) * inv_count,
+        sum((k + 0.5) * dx for _, _, k in occupied) * inv_count,
+    )
+
+
+def occupancy_scalar(point, occupied):
+    i, j, k = point
+    total = 0
+    for dz in (-1, 0):
+        for dy in (-1, 0):
+            for dx_i in (-1, 0):
+                if (i + dx_i, j + dy, k + dz) in occupied:
+                    total += 1
+    return total / 8.0
+
+
+def build_scalar_grid(occupied, blur_iterations):
+    min_i = min(i for i, _, _ in occupied) - 1
+    min_j = min(j for _, j, _ in occupied) - 1
+    min_k = min(k for _, _, k in occupied) - 1
+    max_i = max(i for i, _, _ in occupied) + 2
+    max_j = max(j for _, j, _ in occupied) + 2
+    max_k = max(k for _, _, k in occupied) + 2
+    points = [
+        (i, j, k)
+        for k in range(min_k, max_k + 1)
+        for j in range(min_j, max_j + 1)
+        for i in range(min_i, max_i + 1)
+    ]
+    values = {point: occupancy_scalar(point, occupied) for point in points}
+    neighbor_offsets = [
+        (-1, 0, 0), (1, 0, 0),
+        (0, -1, 0), (0, 1, 0),
+        (0, 0, -1), (0, 0, 1),
+    ]
+    for _ in range(max(0, blur_iterations)):
+        updated = {}
+        for point in points:
+            i, j, k = point
+            neighbor_avg = sum(
+                values.get((i + di, j + dj, k + dk), 0.0)
+                for di, dj, dk in neighbor_offsets
+            ) / len(neighbor_offsets)
+            updated[point] = values[point] * 0.55 + neighbor_avg * 0.45
+        values = updated
+    bounds = (min_i, min_j, min_k, max_i, max_j, max_k)
+    return values, bounds
+
+
+def build_implicit_tetra_mesh(frame, occupied, iso, blur_iterations):
+    dx = frame["dx"]
+    iso = min(0.95, max(0.05, iso))
+    scalar_grid, bounds = build_scalar_grid(occupied, blur_iterations)
+    min_i, min_j, min_k, max_i, max_j, max_k = bounds
+    center = occupied_center(frame, occupied)
+    vertices = []
+    faces = []
+    edge_index = {}
+
+    def add_edge_vertex(a, b, va, vb):
+        key = (a, b) if a <= b else (b, a)
+        if key in edge_index:
+            return edge_index[key]
+        denom = vb - va
+        t = 0.5 if abs(denom) <= 1e-12 else (iso - va) / denom
+        t = min(1.0, max(0.0, t))
+        x = (a[0] + (b[0] - a[0]) * t) * dx
+        y = (a[1] + (b[1] - a[1]) * t) * dx
+        z = (a[2] + (b[2] - a[2]) * t) * dx
+        vertices.append((x, y, z))
+        edge_index[key] = len(vertices)
+        return len(vertices)
+
+    def add_oriented_face(face):
+        if len(set(face)) < 3:
+            return
+        p0 = vertices[face[0] - 1]
+        p1 = vertices[face[1] - 1]
+        p2 = vertices[face[2] - 1]
+        normal = cross(vec_sub(p1, p0), vec_sub(p2, p0))
+        centroid = (
+            (p0[0] + p1[0] + p2[0]) / 3.0,
+            (p0[1] + p1[1] + p2[1]) / 3.0,
+            (p0[2] + p1[2] + p2[2]) / 3.0,
+        )
+        if dot(normal, vec_sub(centroid, center)) < 0.0:
+            face = list(reversed(face))
+        faces.append(face)
+
+    def edge_for(cube_points, cube_values, a, b):
+        return add_edge_vertex(cube_points[a], cube_points[b], cube_values[a], cube_values[b])
+
+    for k in range(min_k, max_k):
+        for j in range(min_j, max_j):
+            for i in range(min_i, max_i):
+                cube_points = [(i + di, j + dj, k + dk) for di, dj, dk in CUBE_VERTEX_OFFSETS]
+                cube_values = [scalar_grid.get(point, 0.0) for point in cube_points]
+                if min(cube_values) >= iso or max(cube_values) < iso:
+                    continue
+                for tet in TETRA_DEFS:
+                    tet_values = [cube_values[index] for index in tet]
+                    inside = [local for local, value in enumerate(tet_values) if value >= iso]
+                    outside = [local for local, value in enumerate(tet_values) if value < iso]
+                    if not inside or not outside:
+                        continue
+                    if len(inside) == 1:
+                        a = inside[0]
+                        add_oriented_face([edge_for(cube_points, cube_values, tet[a], tet[b])
+                                           for b in outside])
+                    elif len(inside) == 3:
+                        a = outside[0]
+                        add_oriented_face([edge_for(cube_points, cube_values, tet[a], tet[b])
+                                           for b in inside])
+                    elif len(inside) == 2:
+                        a, b = inside
+                        c, d = outside
+                        p_ac = edge_for(cube_points, cube_values, tet[a], tet[c])
+                        p_ad = edge_for(cube_points, cube_values, tet[a], tet[d])
+                        p_bc = edge_for(cube_points, cube_values, tet[b], tet[c])
+                        p_bd = edge_for(cube_points, cube_values, tet[b], tet[d])
+                        add_oriented_face([p_ac, p_ad, p_bd])
+                        add_oriented_face([p_ac, p_bd, p_bc])
+
+    if not vertices or not faces:
+        fail("implicit tetra reconstruction produced an empty mesh")
     return vertices, faces
 
 
@@ -338,7 +497,8 @@ def select_source_frame(frames, out_index, out_count):
 
 
 def reconstruct(src, out_dir, frame_count, threshold,
-                smooth_iterations=0, smooth_alpha=0.18, write_normals=False):
+                smooth_iterations=0, smooth_alpha=0.18, write_normals=False,
+                surface_mode="voxel", implicit_iso=0.45, implicit_blur_iterations=0):
     frames = load_source(src)
     out_dir = os.path.abspath(out_dir)
     mesh_dir = os.path.join(out_dir, "meshes")
@@ -351,7 +511,10 @@ def reconstruct(src, out_dir, frame_count, threshold,
         if not occupied:
             fail(f"{frame['source']}: no occupied water cells at threshold {threshold}")
         mesh_path = os.path.join(mesh_dir, f"frame_{out_index:04d}_water.obj")
-        vertices, faces = build_surface_mesh(frame, occupied)
+        if surface_mode == "tetra":
+            vertices, faces = build_implicit_tetra_mesh(frame, occupied, implicit_iso, implicit_blur_iterations)
+        else:
+            vertices, faces = build_surface_mesh(frame, occupied)
         vertices = smooth_vertices(vertices, faces, smooth_iterations, smooth_alpha)
         vertex_count, face_count, normal_count = write_obj(mesh_path, frame, vertices, faces, write_normals)
         output_frames.append({
@@ -361,6 +524,7 @@ def reconstruct(src, out_dir, frame_count, threshold,
             "source_cache": frame["source"],
             "mesh": relpath(mesh_path, out_dir),
             "occupied_cell_count": len(occupied),
+            "surface_mode": surface_mode,
             "vertex_count": vertex_count,
             "face_count": face_count,
             "normal_count": normal_count,
@@ -372,6 +536,9 @@ def reconstruct(src, out_dir, frame_count, threshold,
         "representation": "obj_mesh",
         "source": src,
         "threshold": threshold,
+        "surface_mode": surface_mode,
+        "implicit_iso": implicit_iso,
+        "implicit_blur_iterations": implicit_blur_iterations,
         "smooth_iterations": smooth_iterations,
         "smooth_alpha": smooth_alpha,
         "write_normals": write_normals,
@@ -398,6 +565,12 @@ def parse_args(argv):
                         help="smoothing blend factor per iteration")
     parser.add_argument("--write-normals", action="store_true",
                         help="write one OBJ vertex normal per vertex")
+    parser.add_argument("--surface-mode", choices=("voxel", "tetra"), default="voxel",
+                        help="surface extraction mode")
+    parser.add_argument("--implicit-iso", type=float, default=0.45,
+                        help="implicit tetra isosurface threshold")
+    parser.add_argument("--implicit-blur-iterations", type=int, default=0,
+                        help="scalar-grid blur iterations for implicit tetra mode")
     args = parser.parse_args(argv)
     if args.frames <= 0:
         parser.error("frames must be positive")
@@ -407,6 +580,10 @@ def parse_args(argv):
         parser.error("smooth-iterations must be non-negative")
     if args.smooth_alpha < 0.0 or args.smooth_alpha > 1.0 or not math.isfinite(args.smooth_alpha):
         parser.error("smooth-alpha must be finite in [0, 1]")
+    if args.implicit_iso <= 0.0 or args.implicit_iso >= 1.0 or not math.isfinite(args.implicit_iso):
+        parser.error("implicit-iso must be finite in (0, 1)")
+    if args.implicit_blur_iterations < 0:
+        parser.error("implicit-blur-iterations must be non-negative")
     return args
 
 
@@ -419,12 +596,16 @@ def main(argv=None):
                                             args.threshold,
                                             smooth_iterations=args.smooth_iterations,
                                             smooth_alpha=args.smooth_alpha,
-                                            write_normals=args.write_normals)
+                                            write_normals=args.write_normals,
+                                            surface_mode=args.surface_mode,
+                                            implicit_iso=args.implicit_iso,
+                                            implicit_blur_iterations=args.implicit_blur_iterations)
     except ReconstructionError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
         return 1
     print(f"frames={summary['frame_count']}")
     print(f"representation={summary['representation']}")
+    print(f"surface_mode={summary['surface_mode']}")
     print(f"summary={summary_path}")
     print("status=ok")
     return 0
