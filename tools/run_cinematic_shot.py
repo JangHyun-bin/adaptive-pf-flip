@@ -1528,7 +1528,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S95 should tune spray/foam depth layering so secondaries sit more naturally in the contact volume while preserving diagnostic, temporal, and secondary framing gates.",
+        "S96 should add a dedicated contact-volume depth/layering diagnostic so future spray/foam tuning is gated by more than full-frame brightness and framing checks.",
         "",
     ])
     return "\n".join(lines)

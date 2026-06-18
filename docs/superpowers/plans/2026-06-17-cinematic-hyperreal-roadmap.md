@@ -140,6 +140,7 @@ The missing work is not one feature. It is a pipeline:
 | S92 | Ripple diagnostic comparison | Compare ripple readability diagnostic sheets side by side across nearby cinematic gates | Done in `test: add ripple diagnostic comparison` |
 | S93 | Contact foam/ripple integration | Soften and narrow contact foam so surface breakup reads less like separate overlay layers | Done in `style: tune contact foam ripple integration` |
 | S94 | Water surface breakup/noise tuning | Increase water surface detail strength/depth for stronger contact-region breakup while preserving diagnostic and temporal gates | Done in `style: tune water surface breakup noise` |
+| S95 | Spray/foam depth layering | Reduce spray/foam radius, soft-pass brightness, and foam streak intensity so secondaries sit more naturally in the contact volume | Done in `style: tune spray foam depth layering` |
 
 ## Decision Gates
 
@@ -477,16 +478,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S95.
+Continue with S96.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-spray-foam-depth-layering.md`
+`docs/superpowers/plans/2026-06-18-secondary-depth-review-metric.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_surface_breakup_noise_tuned --out build\shots\s95_spray_foam_depth_layering --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s95.md --compare-review-manifest build\shots\s94_water_surface_breakup_noise_tuning\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_spray_foam_depth_layered --out build\shots\s96_secondary_depth_review_metric --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s96.md --compare-review-manifest build\shots\s95_spray_foam_depth_layering\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is more natural spray/foam depth layering in the contact volume without breaking diagnostic, temporal, or secondary framing gates.
+The next success condition is a dedicated contact-volume depth/layering diagnostic so future spray/foam tuning is gated by more than full-frame brightness and framing checks.

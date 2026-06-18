@@ -956,6 +956,46 @@
           "min_edge_nonzero_ratio": 0.025
         }
       }
+    },
+    "dam_break_spray_foam_depth_layered": {
+      "extends": "dam_break_water_surface_breakup_noise_tuned",
+      "description": "Water breakup tuning with spray/foam softened into the contact volume.",
+      "renderer": {
+        "secondary_channel_radius_scales": {
+          "droplet": 1.0,
+          "spray": 1.18,
+          "foam": 1.65,
+          "bubble": 1.15
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 2.0,
+            "foam": 1.65
+          },
+          "alpha_scale": 0.18,
+          "emission_scale": 0.72,
+          "max_radius": 0.86,
+          "falloff": [1.0, 0.28, 0.07, 0.0]
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 0.92,
+            "foam": 0.24
+          },
+          "length_scale": 0.052,
+          "max_length": 1.15,
+          "width_scale": 0.42,
+          "alpha_scale": 0.18,
+          "emission_scale": 0.94
+        },
+        "surface_contact_foam_pass": {
+          "radius_x": 1.42,
+          "radius_z": 0.17,
+          "vertical_offset": -1.92,
+          "alpha_scale": 0.3,
+          "emission_scale": 0.36
+        }
+      }
     }
   }
 }
