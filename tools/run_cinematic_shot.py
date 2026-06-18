@@ -840,6 +840,112 @@ def create_review_comparison(summary, root, current_review_manifest, compare_man
     }
 
 
+def load_focus_review_source(path, root):
+    manifest_path = os.path.abspath(path)
+    if not os.path.isfile(manifest_path):
+        fail(f"focus comparison review manifest not found: {manifest_path}")
+    manifest = read_json(manifest_path)
+    if manifest.get("schema") != "lsfs_cinematic_review_pack":
+        fail(f"{manifest_path}: expected lsfs_cinematic_review_pack schema")
+    focus_sheet = resolve_review_artifact(manifest_path, root, manifest.get("focus_sheet"))
+    if not focus_sheet or not os.path.isfile(focus_sheet):
+        return None
+    focus_manifest = resolve_review_artifact(manifest_path, root, manifest.get("focus_review_manifest"))
+    return {
+        "manifest": manifest_path,
+        "focus_sheet": focus_sheet,
+        "focus_review_manifest": focus_manifest if focus_manifest and os.path.isfile(focus_manifest) else None,
+        "shot_preset": manifest.get("shot_preset", "unknown"),
+        "render_preset": manifest.get("render_preset", "unknown"),
+        "selected_renderer": manifest.get("selected_renderer", "unknown"),
+        "frame_count": manifest.get("frame_count", "n/a"),
+    }
+
+
+def create_focus_review_comparison(summary, root, current_review_manifest, compare_manifests):
+    if not compare_manifests:
+        return None
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the cinematic focus review comparison")
+
+    sources = []
+    for path in compare_manifests:
+        source = load_focus_review_source(path, root)
+        if source:
+            sources.append(source)
+    current = load_focus_review_source(current_review_manifest, root)
+    if current:
+        sources.append(current)
+    if len(sources) < 2:
+        return None
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    os.makedirs(review_dir, exist_ok=True)
+    max_panel_w = 640
+    label_h = 40
+    pad = 14
+    panels = []
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+    for source in sources:
+        with Image.open(source["focus_sheet"]) as img:
+            panel = img.convert("RGB")
+            if panel.width > max_panel_w:
+                scale = max_panel_w / float(panel.width)
+                panel = panel.resize((max_panel_w, max(1, int(round(panel.height * scale)))), resample_filter)
+        panels.append((source, panel))
+
+    columns = min(2, len(panels))
+    rows = int(math.ceil(len(panels) / float(columns)))
+    panel_w = max(panel.width for _source, panel in panels)
+    panel_h = max(panel.height for _source, panel in panels)
+    sheet_w = pad + columns * (panel_w + pad)
+    sheet_h = pad + rows * (label_h + panel_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, (source, panel) in enumerate(panels):
+        col = index % columns
+        row = index // columns
+        x = pad + col * (panel_w + pad)
+        y = pad + row * (label_h + panel_h + pad)
+        label = f"{source['shot_preset']} / focus / frames={source['frame_count']}"
+        draw.text((x + 6, y + 8), label, fill=(224, 234, 240))
+        panel_x = x + (panel_w - panel.width) // 2
+        sheet.paste(panel, (panel_x, y + label_h))
+
+    focus_comparison_sheet = os.path.join(review_dir, "focus_comparison_sheet.png")
+    focus_comparison_manifest = os.path.join(review_dir, "focus_comparison_manifest.json")
+    sheet.save(focus_comparison_sheet)
+    manifest = {
+        "schema": "lsfs_cinematic_focus_review_comparison",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "focus_comparison_sheet": rel_path(focus_comparison_sheet, root),
+        "sources": [
+            {
+                "manifest": rel_path(item["manifest"], root),
+                "focus_sheet": rel_path(item["focus_sheet"], root),
+                "focus_review_manifest": rel_path(item["focus_review_manifest"], root),
+                "shot_preset": item["shot_preset"],
+                "render_preset": item["render_preset"],
+                "selected_renderer": item["selected_renderer"],
+                "frame_count": item["frame_count"],
+            }
+            for item in sources
+        ],
+    }
+    write_json(focus_comparison_manifest, manifest)
+    return {
+        "focus_comparison_sheet": focus_comparison_sheet,
+        "focus_comparison_manifest": focus_comparison_manifest,
+        "focus_comparison_source_count": len(sources),
+    }
+
+
 def evaluate_camera_stability(config, camera_path):
     gate = config.get("camera_stability")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
@@ -1050,6 +1156,7 @@ def render_report(summary, root):
                 "render_frame_dir", "gif", "contact_sheet", "review_manifest",
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
+                "focus_comparison_sheet", "focus_comparison_manifest",
                 "review_dir"):
             if key in artifacts:
                 lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
@@ -1098,6 +1205,7 @@ def render_report(summary, root):
         f"- Secondary interface gate: `{format_secondary_interface_gate(summary.get('export_metrics', {}))}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         f"- Review comparison sources: `{metrics.get('comparison_source_count', 'n/a')}`",
+        f"- Focus comparison sources: `{metrics.get('focus_comparison_source_count', 'n/a')}`",
         f"- Temporal diff review pairs: `{metrics.get('temporal_diff_pair_count', 'n/a')}`",
         "",
         "## Stage Timings",
@@ -1134,7 +1242,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S88 should use the focus-review evidence to tune the contact camera, ripple placement, or focus-comparison artifacts.",
+        "S89 should use the focus-comparison evidence to tune the contact camera or impact ripple placement.",
         "",
     ])
     return "\n".join(lines)
@@ -1778,6 +1886,12 @@ def run_pipeline(args):
                 summary["artifacts"]["comparison_sheet"] = comparison["comparison_sheet"]
                 summary["artifacts"]["comparison_manifest"] = comparison["comparison_manifest"]
                 summary["metrics"]["comparison_source_count"] = comparison["comparison_source_count"]
+            focus_comparison = create_focus_review_comparison(
+                summary, root, review["review_manifest"], config["compare_review_manifests"])
+            if focus_comparison:
+                summary["artifacts"]["focus_comparison_sheet"] = focus_comparison["focus_comparison_sheet"]
+                summary["artifacts"]["focus_comparison_manifest"] = focus_comparison["focus_comparison_manifest"]
+                summary["metrics"]["focus_comparison_source_count"] = focus_comparison["focus_comparison_source_count"]
             temporal_diff = create_temporal_diff_review(
                 summary, root, frame_dir, config.get("temporal_diff_review", {}))
             if temporal_diff:
