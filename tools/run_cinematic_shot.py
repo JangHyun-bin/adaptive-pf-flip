@@ -2105,7 +2105,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S113 should add a compact warm-cache command-stage report that shows reuse flags and command timings from a shot summary.",
+        "S114 should add a conservative render-frame freshness check that can skip preview/Blender rendering when the sequence, renderer options, and existing frame outputs are unchanged.",
         "",
     ])
     return "\n".join(lines)

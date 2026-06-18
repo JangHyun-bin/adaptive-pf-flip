@@ -158,6 +158,7 @@ The missing work is not one feature. It is a pipeline:
 | S110 | Render-cache validation reuse | Add opt-in SHA256 validation stamps and expose validation reuse status in shot reports | Done in `perf: reuse fresh render cache validation` |
 | S111 | Water reconstruction reuse | Add opt-in SHA256 water reconstruction reuse and expose water mesh reuse status in shot reports | Done in `perf: reuse fresh water reconstruction` |
 | S112 | Export cache reuse | Add opt-in exporter-command cache reuse and preserve export metrics for downstream gates | Done in `perf: reuse fresh export cache` |
+| S113 | Warm-cache stage summary | Summarize shot command timings and reuse flags from `shot_summary.json` | Done in `tools: summarize warm cache commands` |
 
 ## Decision Gates
 
@@ -495,16 +496,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S113.
+Continue with S114.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-warm-cache-stage-summary.md`
+`docs/superpowers/plans/2026-06-18-render-frame-reuse.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_shot_commands.py build\s112_export_reuse_probe\shot_summary.json --out docs\reports\cinematic_warm_cache_summary_s113.md
+python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s114_render_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 120
 ```
 
-The next success condition is a compact warm-cache command-stage report that shows reuse flags and command timings from a shot summary.
+The next success condition is a conservative render-frame freshness check that can skip preview/Blender rendering when the sequence, renderer options, and existing frame outputs are unchanged.
