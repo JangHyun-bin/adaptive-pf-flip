@@ -279,6 +279,172 @@
         "exposure": 0.05,
         "gamma": 1.0
       }
+    },
+    "dam_break_contact_closeup": {
+      "description": "Close contact-region look for inspecting foam, spray, and surface breakup in the large water-event scene.",
+      "simulation": {
+        "kind": "sparse",
+        "scene": "large-water-event",
+        "nx": 16,
+        "ny": 20,
+        "nz": 14,
+        "dt": 0.02,
+        "cg_iters": null,
+        "physics_preset": false,
+        "secondary_demo_particles": 0,
+        "secondary_physical_particles": 192
+      },
+      "shot": {
+        "frames": 24,
+        "sim_steps": 24,
+        "cache_every": 1,
+        "width": 1280,
+        "height": 720,
+        "fps": 12.0
+      },
+      "renderer": {
+        "preferred": "auto",
+        "engine": "eevee",
+        "samples": 32,
+        "max_secondary_particles": 1536,
+        "secondary_radius_scale": 3.0,
+        "secondary_channel_radius_scales": {
+          "droplet": 1.0,
+          "spray": 1.35,
+          "foam": 1.85,
+          "bubble": 1.15
+        },
+        "min_nonblank_ratio": 0.05,
+        "min_occupancy": 0.005,
+        "water_surface_detail": {
+          "enabled": true,
+          "strength": 0.045,
+          "scale": 2.8,
+          "depth": 4
+        }
+      },
+      "reconstruction": {
+        "surface_mode": "tetra",
+        "implicit_iso": 0.45,
+        "implicit_blur_iterations": 1,
+        "smooth_iterations": 3,
+        "smooth_alpha": 0.16,
+        "write_normals": true
+      },
+      "camera": {
+        "position": [13.0, 9.5, 31.0],
+        "target": [14.0, 6.2, 11.0],
+        "up": [0.0, 1.0, 0.0],
+        "focal_length_mm": 62.0,
+        "vertical_fov_degrees": 36.0,
+        "near_clip": 0.05,
+        "far_clip": 150.0,
+        "auto_frame": {
+          "enabled": true,
+          "reference_dims": [28.0, 34.0, 22.0],
+          "reference_center": [14.0, 17.0, 11.0],
+          "strength": 1.0,
+          "min_scale": 1.0,
+          "max_scale": 1.0,
+          "target_offset_scale": 1.0,
+          "fov_pad_degrees": 0.0
+        },
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [12.4, 9.2, 33.0],
+              "target": [14.0, 6.9, 11.0],
+              "vertical_fov_degrees": 38.0
+            },
+            {
+              "t": 0.55,
+              "position": [13.4, 8.6, 30.5],
+              "target": [14.0, 6.0, 11.0],
+              "vertical_fov_degrees": 35.0
+            },
+            {
+              "t": 1.0,
+              "position": [14.2, 8.2, 28.5],
+              "target": [14.0, 5.4, 11.0],
+              "vertical_fov_degrees": 33.0
+            }
+          ]
+        }
+      },
+      "lighting": {
+        "world_color": [0.02, 0.023, 0.026],
+        "key_area": {
+          "location": [-5.0, -14.0, 22.0],
+          "energy": 920.0,
+          "size": 11.0
+        },
+        "sun": {
+          "rotation_degrees": [50.0, 0.0, -26.0],
+          "energy": 1.05
+        },
+        "floor": {
+          "enabled": true,
+          "scale": 1.6
+        }
+      },
+      "materials": {
+        "water": {
+          "base_color": [0.12, 0.55, 0.95, 0.56],
+          "depth_color": [0.018, 0.13, 0.34, 0.72],
+          "depth_strength": 0.42,
+          "rim_color": [0.72, 0.96, 1.0, 0.9],
+          "rim_strength": 0.42,
+          "rim_width": 0.34,
+          "specular": 0.82,
+          "coat_weight": 0.28,
+          "roughness": 0.035,
+          "alpha": 0.56,
+          "transmission": 0.38
+        },
+        "floor": {
+          "base_color": [0.018, 0.017, 0.015, 1.0],
+          "roughness": 0.8,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "droplet": {
+          "base_color": [0.72, 0.94, 1.0, 0.9],
+          "roughness": 0.06,
+          "alpha": 0.9,
+          "transmission": 0.2
+        },
+        "spray": {
+          "base_color": [0.88, 0.97, 1.0, 0.82],
+          "emission_color": [0.88, 0.97, 1.0, 1.0],
+          "emission_strength": 0.08,
+          "roughness": 0.14,
+          "alpha": 0.82,
+          "transmission": 0.12
+        },
+        "foam": {
+          "base_color": [1.0, 0.98, 0.88, 1.0],
+          "emission_color": [1.0, 0.96, 0.72, 1.0],
+          "emission_strength": 0.12,
+          "roughness": 0.72,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [1.0, 0.72, 0.28, 0.76],
+          "roughness": 0.2,
+          "alpha": 0.76,
+          "transmission": 0.12
+        }
+      },
+      "tone_mapping": {
+        "view_transform": "Filmic",
+        "look": "Medium High Contrast",
+        "exposure": 0.05,
+        "gamma": 1.0
+      }
     }
   }
 }

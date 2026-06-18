@@ -460,7 +460,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S63 should add a closer contact-camera preset or crop gate so the foam/spray and surface breakup are easier to inspect.",
+        "S64 should add contact-camera stability checks and a wide/close review comparison so close-up foam/spray stays readable without the camera sinking into the water body.",
         "",
     ])
     return "\n".join(lines)
