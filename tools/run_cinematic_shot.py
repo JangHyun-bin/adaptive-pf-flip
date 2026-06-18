@@ -2000,7 +2000,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S101 should tune the water-depth comparison crop or lighting only if the S100 focus comparison shows weak water-body separation.",
+        "S102 should add an opt-in water volume scattering or attenuation pass so the main water body reads less like a flat transparent slab while preserving the S100 diagnostic gates.",
         "",
     ])
     return "\n".join(lines)

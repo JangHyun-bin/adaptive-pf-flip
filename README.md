@@ -187,6 +187,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S98** | **Secondary depth comparison sheet** - cinematic review packs now compare secondary depth diagnostic sheets side by side across neighboring gates. | done |
 | **S99** | **Water volume/depth cue tuning** - `dam_break_water_volume_depth_cued` strengthens water-body depth/rim cues while preserving visual, temporal, ripple, secondary depth, and comparison gates. | done |
 | **S100** | **Water depth focus comparison** - `dam_break_water_depth_focus_comparison` moves the focus review to a lower water-body crop so depth/rim cues can be compared against S99 without relying only on full-frame contact sheets. | done |
+| **S101** | **Water depth diagnostic decision** - S100's lower water-body crop is kept as the water-depth diagnostic, so the next work can move to a real volume/scattering render pass. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
