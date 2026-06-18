@@ -202,6 +202,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S113** | **Warm-cache stage summary** - `tools/summarize_shot_commands.py` reports command timings and reuse flags from a cinematic `shot_summary.json`. | done |
 | **S114** | **Render frame reuse** - runner `--reuse-render-frames` skips fresh preview/Blender frame rendering when renderer command, inputs, and existing PNG outputs are unchanged. | done |
 | **S115** | **Large-grid warm-cache preview benchmark** - `dam_break_large_grid_warm_cache_preview` verifies the full warm-cache path on a larger-grid preview run and records the remaining fingerprint overhead. | done |
+| **S116** | **Warm-cache fingerprint cost reduction** - `reconstruct_water.py --reuse-if-fresh` now checks manifest/sequence fingerprints before phase-cell parsing, reducing large-grid warm reconstruction reuse from `11.92s` to `466ms`. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -363,6 +364,7 @@ python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/s112_ex
 python tools/summarize_shot_commands.py build/s112_export_reuse_probe/shot_summary.json --out docs/reports/cinematic_warm_cache_summary_s113.md
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/s114_render_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 120
 python tools/run_cinematic_shot.py --preset dam_break_large_grid_warm_cache_preview --out build/shots/s115_large_grid_warm_cache_preview --frames 36 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 900
+python tools/run_cinematic_shot.py --preset dam_break_large_grid_warm_cache_preview --out build/shots/s116_fingerprint_cost_probe --frames 36 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 900
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0

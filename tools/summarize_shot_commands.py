@@ -95,7 +95,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S116 should reduce warm-cache fingerprint overhead, especially water reconstruction asset hashing on larger grids.",
+        "S117 should add warm-cache GIF assembly reuse because the remaining repeated-preview work is now mostly assembling an unchanged frame sequence.",
         "",
     ])
     return "\n".join(lines)

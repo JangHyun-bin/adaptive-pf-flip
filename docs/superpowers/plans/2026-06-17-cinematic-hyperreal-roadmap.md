@@ -161,6 +161,7 @@ The missing work is not one feature. It is a pipeline:
 | S113 | Warm-cache stage summary | Summarize shot command timings and reuse flags from `shot_summary.json` | Done in `tools: summarize warm cache commands` |
 | S114 | Render frame reuse | Add opt-in render-frame reuse for preview/Blender outputs and expose render reuse status in shot reports | Done in `perf: reuse fresh render frames` |
 | S115 | Large-grid warm-cache preview benchmark | Measure the full opt-in warm-cache path on a larger-grid preview run | Done in `test: benchmark large grid warm cache preview` |
+| S116 | Warm-cache fingerprint cost reduction | Move water reconstruction reuse detection before phase-cell loading and reduce large-grid warm-cache reconstruction check time | Done in `perf: reduce warm cache fingerprint overhead` |
 
 ## Decision Gates
 
@@ -498,16 +499,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S116.
+Continue with S117.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-warm-cache-fingerprint-cost-reduction.md`
+`docs/superpowers/plans/2026-06-18-gif-assembly-reuse.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_large_grid_warm_cache_preview --out build\shots\s116_fingerprint_cost_probe --frames 36 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 900
+python tools\run_cinematic_shot.py --preset dam_break_large_grid_warm_cache_preview --out build\shots\s117_gif_reuse_probe --frames 36 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 900
 ```
 
-The next success condition is reducing the large-grid warm-cache water reconstruction reuse check, currently `11.92s`, without weakening freshness guarantees.
+The next success condition is adding conservative GIF assembly reuse so repeated preview review runs skip rebuilding an unchanged GIF.

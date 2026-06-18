@@ -249,6 +249,50 @@ def reconstruction_fingerprint(src, frames, options):
     }
 
 
+def fast_reconstruction_fingerprint(src, options):
+    src_abs = os.path.abspath(src)
+    if not os.path.isfile(src_abs):
+        fail(f"{src}: input not found")
+    entries = [file_fingerprint("reconstructor", __file__)]
+    seen = {os.path.abspath(__file__)}
+
+    def add(role, path, **extra):
+        abs_path = os.path.abspath(path)
+        if abs_path in seen:
+            return
+        if not os.path.isfile(abs_path):
+            fail(f"{src}: missing fingerprint input {path!r}")
+        seen.add(abs_path)
+        entries.append(file_fingerprint(role, abs_path, **extra))
+
+    add("source", src_abs)
+
+    if src_abs.lower().endswith(".jsonl"):
+        add("frame_input", src_abs, frame=0)
+    else:
+        data = read_json(src_abs)
+        base_dir = os.path.dirname(src_abs)
+        if data.get("lsfs_cache3d_manifest_version") == 1:
+            for index, entry in enumerate(data.get("frames", [])):
+                frame_path = resolve_path(base_dir, entry.get("path", ""))
+                add("frame_input", frame_path, frame=index)
+        elif data.get("converter") == "lsfs_render_cache_converter":
+            for index, entry in enumerate(data.get("frames", [])):
+                camera_path = resolve_path(base_dir, entry.get("camera", ""))
+                phase_path = resolve_path(base_dir, entry.get("phase_cells", ""))
+                add("frame_input", camera_path, frame=index)
+                add("frame_input", phase_path, frame=index)
+        else:
+            fail(f"{src}: expected manifest, sequence.json, or JSONL frame")
+
+    return {
+        "version": 1,
+        "src": src_abs,
+        "options": options,
+        "files": entries,
+    }
+
+
 def output_asset_exists(out_dir, value):
     if not isinstance(value, str) or not value:
         return False
@@ -598,7 +642,6 @@ def reconstruct(src, out_dir, frame_count, threshold,
                 smooth_iterations=0, smooth_alpha=0.18, write_normals=False,
                 surface_mode="voxel", implicit_iso=0.45, implicit_blur_iterations=0,
                 reuse_if_fresh=False):
-    frames = load_source(src)
     out_dir = os.path.abspath(out_dir)
     options = reconstruction_options(frame_count,
                                      threshold,
@@ -608,12 +651,13 @@ def reconstruct(src, out_dir, frame_count, threshold,
                                      surface_mode,
                                      implicit_iso,
                                      implicit_blur_iterations)
-    fingerprint = reconstruction_fingerprint(src, frames, options)
+    fingerprint = fast_reconstruction_fingerprint(src, options)
     if reuse_if_fresh:
         summary = load_reusable_reconstruction(out_dir, fingerprint)
         if summary:
             return os.path.join(out_dir, "water_reconstruction.json"), summary
 
+    frames = load_source(src)
     mesh_dir = os.path.join(out_dir, "meshes")
     os.makedirs(mesh_dir, exist_ok=True)
 

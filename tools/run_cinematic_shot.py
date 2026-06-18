@@ -2217,7 +2217,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S116 should reduce large-grid warm-cache fingerprint overhead, especially water reconstruction asset hashing, without weakening freshness guarantees.",
+        "S117 should add conservative GIF assembly reuse so repeated preview review runs skip rebuilding an unchanged GIF.",
         "",
     ])
     return "\n".join(lines)
