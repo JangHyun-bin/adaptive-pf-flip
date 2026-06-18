@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -75,6 +76,26 @@ def write_text(path, text):
 def read_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_fingerprint(role, path, **extra):
+    abs_path = os.path.abspath(path)
+    payload = {
+        "role": role,
+        "path": abs_path,
+        "bytes": os.path.getsize(abs_path),
+        "sha256": sha256_file(abs_path),
+    }
+    payload.update(extra)
+    return payload
 
 
 def read_jsonl_section(path, section):
@@ -189,6 +210,84 @@ def parse_key_value_stdout(text):
             pass
         metrics[key] = value
     return metrics
+
+
+def key_value_stdout(metrics, status):
+    lines = []
+    for key in sorted(metrics):
+        if key in ("status", "wrote"):
+            continue
+        value = metrics[key]
+        if isinstance(value, bool):
+            value = "true" if value else "false"
+        lines.append(f"{key}={value}")
+    lines.append(f"status={status}")
+    return "\n".join(lines) + "\n"
+
+
+def manifest_cache_assets_exist(manifest_path):
+    if not os.path.isfile(manifest_path):
+        return False
+    try:
+        manifest = read_json(manifest_path)
+    except (OSError, json.JSONDecodeError):
+        return False
+    if manifest.get("lsfs_cache3d_manifest_version") != 1:
+        return False
+    frames = manifest.get("frames")
+    if not isinstance(frames, list) or not frames:
+        return False
+    if manifest.get("frame_count") != len(frames):
+        return False
+    base_dir = os.path.dirname(os.path.abspath(manifest_path))
+    for frame in frames:
+        if not isinstance(frame, dict):
+            return False
+        frame_path = frame.get("path")
+        if not isinstance(frame_path, str) or not frame_path:
+            return False
+        resolved = frame_path if os.path.isabs(frame_path) else os.path.join(base_dir, frame_path)
+        if not os.path.isfile(resolved):
+            return False
+        expected_bytes = frame.get("bytes")
+        if isinstance(expected_bytes, int) and expected_bytes > 0 and os.path.getsize(resolved) != expected_bytes:
+            return False
+    return True
+
+
+def export_cache_fingerprint(exporter, export_cmd):
+    return {
+        "version": 1,
+        "exporter": file_fingerprint("exporter", exporter),
+        "command": command_for_summary(export_cmd),
+    }
+
+
+def load_reusable_export_cache(stamp_path, expected_fingerprint, manifest_path):
+    if not os.path.isfile(stamp_path):
+        return None
+    try:
+        stamp = read_json(stamp_path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if stamp.get("status") != "ok":
+        return None
+    if stamp.get("export_fingerprint") != expected_fingerprint:
+        return None
+    if not manifest_cache_assets_exist(manifest_path):
+        return None
+    return stamp
+
+
+def write_export_cache_stamp(path, fingerprint, manifest_path, export_metrics):
+    write_json(path, {
+        "runner": "lsfs_cinematic_export_cache_stamp",
+        "version": 1,
+        "status": "ok",
+        "manifest": manifest_path,
+        "export_fingerprint": fingerprint,
+        "export_metrics": export_metrics,
+    })
 
 
 def format_secondary_interface_gate(metrics):
@@ -1900,7 +1999,7 @@ def render_report(summary, root):
         "## Artifacts",
         "",
     ]
-    for key in ("manifest", "validation_stamp", "sequence", "water_reconstruction", "render_summary",
+    for key in ("manifest", "export_stamp", "validation_stamp", "sequence", "water_reconstruction", "render_summary",
                 "render_frame_dir", "gif", "contact_sheet", "review_manifest",
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
@@ -1917,6 +2016,7 @@ def render_report(summary, root):
         "## Metrics",
         "",
         f"- Cache frames: `{metrics.get('cache_frame_count', 'n/a')}`",
+        f"- Export cache reused: `{metrics.get('export_cache_reused', 'n/a')}`",
         f"- Render cache validation reused: `{metrics.get('validation_reused', 'n/a')}`",
         f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
         f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
@@ -2005,7 +2105,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S112 should add a conservative export-cache freshness check so repeated review runs can skip the C++ cache exporter only when the requested export command and cache files are unchanged.",
+        "S113 should add a compact warm-cache command-stage report that shows reuse flags and command timings from a shot summary.",
         "",
     ])
     return "\n".join(lines)
@@ -2018,6 +2118,27 @@ class Pipeline:
         self.logs_dir = os.path.join(self.out_dir, "logs")
         self.commands = []
         os.makedirs(self.logs_dir, exist_ok=True)
+
+    def record(self, label, command, stdout="", stderr="", returncode=0, elapsed_ms=0.0):
+        index = len(self.commands) + 1
+        safe_label = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in label)
+        stdout_path = os.path.join(self.logs_dir, f"{index:02d}_{safe_label}.stdout.log")
+        stderr_path = os.path.join(self.logs_dir, f"{index:02d}_{safe_label}.stderr.log")
+        with open(stdout_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(stdout)
+        with open(stderr_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(stderr)
+        item = {
+            "label": label,
+            "command": command_for_summary(command),
+            "returncode": returncode,
+            "elapsed_ms": elapsed_ms,
+            "stdout_log": stdout_path,
+            "stderr_log": stderr_path,
+            "reused": True,
+        }
+        self.commands.append(item)
+        return subprocess.CompletedProcess(command, returncode, stdout, stderr), item
 
     def run(self, label, command, allow_failure=False):
         index = len(self.commands) + 1
@@ -2131,6 +2252,8 @@ def parse_args(argv):
                         help="skip contact sheet and review manifest generation")
     parser.add_argument("--compare-review-manifest", action="append", default=[],
                         help="previous review_manifest.json to include in a wide/close comparison sheet")
+    parser.add_argument("--reuse-export-cache", action="store_true",
+                        help="reuse an existing exported cache when the export command and cache files are unchanged")
     parser.add_argument("--reuse-converted", action="store_true",
                         help="let convert_render_cache.py reuse sequence.json when inputs are unchanged")
     parser.add_argument("--reuse-validation", action="store_true",
@@ -2385,6 +2508,7 @@ def run_pipeline(args):
 
     manifest_path = os.path.join(cache_dir, "manifest.json")
     cache_prefix = os.path.join(cache_dir, "render_cache")
+    export_stamp = os.path.join(cache_dir, "export_stamp.json")
     validation_stamp = os.path.join(cache_dir, "validation_stamp.json")
     water_index = os.path.join(water_dir, "water_reconstruction.json")
     sequence_path = os.path.join(converted_dir, "sequence.json")
@@ -2405,6 +2529,7 @@ def run_pipeline(args):
         "render_preset": render_preset_name,
         "artifacts": {
             "manifest": manifest_path,
+            "export_stamp": export_stamp,
             "validation_stamp": validation_stamp,
             "sequence": sequence_path,
             "water_reconstruction": water_index,
@@ -2450,8 +2575,27 @@ def run_pipeline(args):
             export_cmd.extend(["--secondary-demo-particles", str(config["secondary_demo_particles"])])
         if config["secondary_physical_particles"] > 0:
             export_cmd.extend(["--secondary-physical-particles", str(config["secondary_physical_particles"])])
-        export_result, _export_item = pipeline.run("export_render_cache", export_cmd)
-        summary["export_metrics"] = parse_key_value_stdout(export_result.stdout)
+        export_fingerprint = export_cache_fingerprint(exporter, export_cmd)
+        export_stamp_payload = (
+            load_reusable_export_cache(export_stamp, export_fingerprint, manifest_path)
+            if args.reuse_export_cache else None
+        )
+        if export_stamp_payload:
+            export_metrics = dict(export_stamp_payload.get("export_metrics", {}))
+            export_metrics["reused"] = True
+            export_result, _export_item = pipeline.record(
+                "export_render_cache",
+                export_cmd,
+                stdout=key_value_stdout(export_metrics, "reused"))
+            _ = export_result
+            summary["export_metrics"] = export_metrics
+        else:
+            export_result, _export_item = pipeline.run("export_render_cache", export_cmd)
+            export_metrics = parse_key_value_stdout(export_result.stdout)
+            export_metrics.pop("status", None)
+            export_metrics["reused"] = False
+            summary["export_metrics"] = export_metrics
+            write_export_cache_stamp(export_stamp, export_fingerprint, manifest_path, export_metrics)
         require_file(manifest_path, "render cache manifest")
 
         validate_cmd = [
@@ -2563,6 +2707,7 @@ def run_pipeline(args):
         secondary_volumes = secondary_volume_metrics(manifest_path, manifest)
         summary["metrics"] = {
             "cache_frame_count": len(manifest.get("frames", [])),
+            "export_cache_reused": bool(summary.get("export_metrics", {}).get("reused", False)),
             "validation_reused": bool(summary.get("validation_metrics", {}).get("reused", False)),
             "converted_frame_count": sequence.get("frame_count"),
             "water_mesh_frame_count": water.get("frame_count"),

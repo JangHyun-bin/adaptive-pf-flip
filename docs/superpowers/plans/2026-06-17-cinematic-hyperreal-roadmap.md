@@ -157,6 +157,7 @@ The missing work is not one feature. It is a pipeline:
 | S109 | Converted sequence reuse | Add opt-in SHA256 fingerprint reuse for converted sequence assets and expose reuse status in shot reports | Done in `perf: reuse fresh converted render cache` |
 | S110 | Render-cache validation reuse | Add opt-in SHA256 validation stamps and expose validation reuse status in shot reports | Done in `perf: reuse fresh render cache validation` |
 | S111 | Water reconstruction reuse | Add opt-in SHA256 water reconstruction reuse and expose water mesh reuse status in shot reports | Done in `perf: reuse fresh water reconstruction` |
+| S112 | Export cache reuse | Add opt-in exporter-command cache reuse and preserve export metrics for downstream gates | Done in `perf: reuse fresh export cache` |
 
 ## Decision Gates
 
@@ -494,16 +495,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S112.
+Continue with S113.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-export-cache-reuse.md`
+`docs/superpowers/plans/2026-06-18-warm-cache-stage-summary.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s112_export_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --no-build --timeout-seconds 120
+python tools\summarize_shot_commands.py build\s112_export_reuse_probe\shot_summary.json --out docs\reports\cinematic_warm_cache_summary_s113.md
 ```
 
-The next success condition is a conservative export-cache freshness check that can skip the C++ cache exporter on repeated review runs only when the requested export command and cache files are unchanged.
+The next success condition is a compact warm-cache command-stage report that shows reuse flags and command timings from a shot summary.
