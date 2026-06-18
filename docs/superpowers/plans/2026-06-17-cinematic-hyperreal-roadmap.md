@@ -182,7 +182,8 @@ The missing work is not one feature. It is a pipeline:
 | S134 | S133 gallery refresh/publish | Package and publish the S133 review artifacts for external inspection | Done in `docs: publish s133 cinematic gallery` |
 | S135 | S133 public gallery visual triage | Review the S133 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s133 public gallery` |
 | S136 | Offscreen-source impact framing pass | Reframe the S133 scene so the source is mostly out of frame and attention stays on water entering frame and impacting the pool | Done in `style: add offscreen source impact framing` |
-| S137 | S136 gallery refresh/publish | Package and publish the S136 review artifacts for external inspection before the next visual triage | Planned |
+| S137 | S136 gallery refresh/publish | Package and publish the S136 review artifacts for external inspection before the next visual triage | Done in `docs: publish s136 cinematic gallery` |
+| S138 | S136 public gallery visual triage | Review the S136 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -520,18 +521,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S137.
+Continue with S138.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s136-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s136-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s136_offscreen_source_impact_framing --out docs\reports\cinematic_artifact_package_s137.md
-python tools\build_cinematic_gallery.py build\shots\s136_offscreen_source_impact_framing --package docs\reports\cinematic_artifact_package_s137.md --out build\shots\s136_offscreen_source_impact_framing\gallery --report docs\reports\cinematic_static_gallery_s137.md
-python tools\publish_cinematic_gallery.py build\shots\s136_offscreen_source_impact_framing\gallery --port 8800 --cftunnel --manifest build\shots\s136_offscreen_source_impact_framing\gallery\publish_manifest_s137.json --report docs\reports\cinematic_gallery_publish_s137.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s136_offscreen_source_impact_framing\gallery\gallery_manifest.json --publish build\shots\s136_offscreen_source_impact_framing\gallery\publish_manifest_s137.json --out docs\reports\cinematic_visual_review_s138.md --decision "Select the next visible shot adjustment from the S136 public gallery evidence." --next "S139 should implement the selected visual adjustment with a checked-in preset or scene change plus a 36-frame Blender comparison gate."
 ```
 
-The next success condition is a checked-in S137 package/gallery/publish report with local and public `index.html` plus `assets/shot.gif` verification.
+The next success condition is a checked-in S138 visual triage report that records public gallery checks, numeric gates, visual findings, and the next concrete shot adjustment.

@@ -223,6 +223,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S134** | **S133 gallery refresh/publish** - packages and publishes the S133 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://abstract-shareware-hawaiian-healthy.trycloudflare.com`. | done |
 | **S135** | **S133 public gallery visual triage** - reviews the S133 public gallery and selects S136 offscreen-source impact framing as the next visible adjustment. | done |
 | **S136** | **Offscreen-source impact framing pass** - `dam_break_offscreen_source_impact_framing` crops the source-breakup water toward the top edge, centers impact/spray/ripple readability, and preserves S133 Blender review gates. | done |
+| **S137** | **S136 gallery refresh/publish** - packages and publishes the S136 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://mighty-eligibility-described-tops.trycloudflare.com`. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

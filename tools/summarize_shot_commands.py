@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S137 should package and publish the S136 review artifacts through the static gallery/CFTunnel flow.",
+        "Package and publish the shot artifacts, then review the public gallery to select the next visible cinematic adjustment.",
         "",
     ])
     return "\n".join(lines)

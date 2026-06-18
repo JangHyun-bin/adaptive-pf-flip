@@ -233,7 +233,7 @@ def markdown(summary, summary_path, shot_dir, rows, out_path, root):
         "",
         "## Next",
         "",
-        "S136 should implement the offscreen-source impact framing pass and run a 36-frame Blender comparison against S133.",
+        "Review the published gallery and select the next visible cinematic adjustment from current artifact evidence.",
         "",
     ])
     return "\n".join(lines)

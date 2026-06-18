@@ -2250,7 +2250,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S136 should implement the offscreen-source impact framing pass and run a 36-frame Blender comparison against S133.",
+        "Package and publish the shot artifacts, then review the public gallery to select the next visible cinematic adjustment.",
         "",
     ])
     return "\n".join(lines)
