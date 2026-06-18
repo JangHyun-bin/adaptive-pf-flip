@@ -603,6 +603,19 @@
           "emission_scale": 0.68
         }
       }
+    },
+    "dam_break_contact_foam_fade": {
+      "extends": "dam_break_contact_foam_flow",
+      "description": "Flow-aligned contact foam with radial material fade into the water surface.",
+      "renderer": {
+        "surface_contact_foam_pass": {
+          "radius_x": 1.42,
+          "radius_z": 0.24,
+          "material_falloff": "radial_shader",
+          "alpha_scale": 0.42,
+          "emission_scale": 0.52
+        }
+      }
     }
   }
 }

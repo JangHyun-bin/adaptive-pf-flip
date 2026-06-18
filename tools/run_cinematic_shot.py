@@ -694,7 +694,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S78 should soften contact foam integration so flow strokes fade into the water surface instead of reading as separate bright marks.",
+        "S79 should add water-surface glint or flow cues so the main water body carries more of the cinematic motion.",
         "",
     ])
     return "\n".join(lines)

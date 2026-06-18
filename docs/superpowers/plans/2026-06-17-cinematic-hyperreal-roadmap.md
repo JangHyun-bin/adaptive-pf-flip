@@ -123,6 +123,7 @@ The missing work is not one feature. It is a pipeline:
 | S75 | Active secondary framing QA | Project spray/foam particles into camera space and gate inside-frame ratio plus vertical placement | Done in `test: add active secondary framing qa` |
 | S76 | Surface contact foam pass | Render flattened foam patches near the water surface to connect secondary foam back to the water body | Done in `feat: add surface contact foam pass` |
 | S77 | Contact foam flow lines | Use an inherited preset with flow-aligned surface foam strokes for less static contact foam | Done in `feat: add contact foam flow lines` |
+| S78 | Contact foam material fade | Add radial shader falloff to flow-aligned contact foam so strokes blend into the water surface | Done in `feat: add contact foam material fade` |
 
 ## Decision Gates
 
@@ -460,16 +461,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S78.
+Continue with S79.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-contact-foam-material-fade.md`
+`docs/superpowers/plans/2026-06-18-water-surface-glint-flow.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_foam_flow --out build\shots\s78_contact_foam_material_fade --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s78.md --compare-review-manifest build\shots\s77_contact_foam_flow_lines\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_foam_fade --out build\shots\s79_water_surface_glint_flow --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s79.md --compare-review-manifest build\shots\s78_contact_foam_material_fade\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is softer contact foam integration: strokes should fade into the water surface instead of reading as separate bright marks.
+The next success condition is a water-surface material pass that gives the body itself directional glints/flow cues so the shot is not carried only by secondary particles.

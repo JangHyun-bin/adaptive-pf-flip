@@ -793,6 +793,7 @@ def surface_contact_foam_pass_summary(render_preset):
         "vertical_offset": as_float(cfg.get("vertical_offset"), -1.2),
         "flow_aligned": bool(cfg.get("flow_aligned", False)),
         "flow_center": vec3(cfg.get("flow_center"), (14.0, 0.0, 11.0)),
+        "material_falloff": str(cfg.get("material_falloff", "solid")),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.32),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.35),
     }
@@ -1360,6 +1361,7 @@ def surface_contact_foam_pass_values(spec):
         "vertical_offset": scalar_value(cfg.get("vertical_offset"), -1.2),
         "flow_aligned": bool(cfg.get("flow_aligned", False)),
         "flow_center": vector_value(cfg.get("flow_center"), (14.0, 0.0, 11.0), 3),
+        "material_falloff": str(cfg.get("material_falloff", "solid")),
     }
 
 
@@ -1411,6 +1413,7 @@ def add_surface_contact_foam_pass(frame, material, contact_pass):
 
 def add_surface_contact_foam_mesh(name, patches, material, segments=14):
     verts = []
+    vert_uvs = []
     faces = []
     segments = max(6, int(segments))
     for center, direction, radius_x, radius_z in patches:
@@ -1422,15 +1425,23 @@ def add_surface_contact_foam_mesh(name, patches, material, segments=14):
         axis_z = Vector((-axis_x.y, axis_x.x, 0.0))
         base = len(verts)
         verts.append(tuple(center_vec))
+        vert_uvs.append((0.5, 0.5))
         for seg in range(segments):
             theta = 2.0 * math.pi * seg / float(segments)
             p = center_vec + axis_x * (math.cos(theta) * radius_x) + axis_z * (math.sin(theta) * radius_z)
             verts.append(tuple(p))
+            vert_uvs.append((0.5 + math.cos(theta) * 0.5, 0.5 + math.sin(theta) * 0.5))
         for seg in range(segments):
             faces.append((base, base + 1 + seg, base + 1 + ((seg + 1) % segments)))
     mesh = bpy.data.meshes.new(name + " Mesh")
     mesh.from_pydata(verts, [], faces)
     mesh.update()
+    if vert_uvs:
+        uv_layer = mesh.uv_layers.new(name="ContactFoamFalloffUV")
+        for poly in mesh.polygons:
+            for loop_index in poly.loop_indices:
+                vertex_index = mesh.loops[loop_index].vertex_index
+                uv_layer.data[loop_index].uv = vert_uvs[vertex_index]
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj["lsfs_frame_asset"] = True
@@ -1790,6 +1801,8 @@ def main():
     if soft_pass.get("material_falloff") == "radial_shader":
         particle_mats["spray_soft_falloff"] = [make_radial_soft_material("LSFS Spray Mist Radial", spray_soft)]
         particle_mats["foam_soft_falloff"] = [make_radial_soft_material("LSFS Foam Soft Radial", foam_soft)]
+    if contact_foam_pass.get("material_falloff") == "radial_shader":
+        particle_mats["foam_contact"] = make_radial_soft_material("LSFS Surface Contact Foam Radial", foam_contact)
     channel_scales = spec.get("secondary_channel_radius_scales") or {}
     if spec.get("frames"):
         add_floor(spec["frames"][0], floor_mat, preset)
