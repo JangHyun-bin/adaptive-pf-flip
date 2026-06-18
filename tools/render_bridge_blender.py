@@ -65,6 +65,35 @@ def resolve_config_path(path):
     return os.path.join(repo_root(), path)
 
 
+def deep_merge(base, override):
+    out = dict(base)
+    for key, value in override.items():
+        if key == "extends":
+            continue
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
+def resolve_preset(presets, preset_name, stack=None):
+    stack = stack or []
+    if preset_name in stack:
+        chain = " -> ".join(stack + [preset_name])
+        fail(f"preset extends cycle: {chain}")
+    preset = presets.get(preset_name)
+    if not isinstance(preset, dict):
+        fail(f"unknown render preset {preset_name!r}")
+    parent_name = preset.get("extends")
+    if parent_name is None:
+        return {key: value for key, value in preset.items() if key != "extends"}
+    if not isinstance(parent_name, str) or not parent_name:
+        fail(f"render preset {preset_name!r} has invalid extends value")
+    parent = resolve_preset(presets, parent_name, stack + [preset_name])
+    return deep_merge(parent, preset)
+
+
 def load_render_preset(config_path, preset_name):
     if not preset_name:
         return None, None
@@ -77,10 +106,7 @@ def load_render_preset(config_path, preset_name):
     presets = data.get("presets")
     if not isinstance(presets, dict):
         fail(f"{resolved}: presets must be an object")
-    preset = presets.get(preset_name)
-    if not isinstance(preset, dict):
-        fail(f"{resolved}: unknown render preset {preset_name!r}")
-    return resolved, preset
+    return resolved, resolve_preset(presets, preset_name)
 
 
 def write_json(path, payload):

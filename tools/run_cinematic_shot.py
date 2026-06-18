@@ -656,7 +656,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S74 should improve impact composition and timing so the active collision/spray region stays in frame before further particle micro-tuning.",
+        "S75 should add numeric active-secondary framing QA so future camera/material changes cannot silently lose the visible spray band.",
         "",
     ])
     return "\n".join(lines)
@@ -848,12 +848,33 @@ def load_preset_config(path):
     fail(f"{resolved}: preset config not found")
 
 
-def preset_object(presets, name, label):
+def deep_merge(base, override):
+    out = dict(base)
+    for key, value in override.items():
+        if key == "extends":
+            continue
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
+def preset_object(presets, name, label, stack=None):
+    stack = stack or []
+    if name in stack:
+        chain = " -> ".join(stack + [name])
+        fail(f"{label} preset extends cycle: {chain}")
     value = presets.get(name)
     if not isinstance(value, dict):
         known = ", ".join(sorted(presets))
         fail(f"unknown {label} preset {name!r}; known presets: {known}")
-    return value
+    parent_name = value.get("extends")
+    if parent_name is None:
+        return {key: item for key, item in value.items() if key != "extends"}
+    if not isinstance(parent_name, str) or not parent_name:
+        fail(f"{label} preset {name!r} has invalid extends value")
+    return deep_merge(preset_object(presets, parent_name, label, stack + [name]), value)
 
 
 def section(preset, name):

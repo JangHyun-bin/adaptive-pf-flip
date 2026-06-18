@@ -119,6 +119,7 @@ The missing work is not one feature. It is a pipeline:
 | S71 | Secondary mist texture falloff | Add UV-driven radial shader alpha falloff for mist billboards while preserving QA and render cost | Done in `feat: add secondary mist texture falloff` |
 | S72 | Secondary velocity streak pass | Add velocity-aligned spray/foam streak quads from secondary particle velocities for stronger motion readability | Done in `feat: add secondary velocity streak pass` |
 | S73 | Secondary streak tuning | Tune spray streak length/width/intensity and report actual streak counts per frame | Done in `style: tune secondary velocity streaks` |
+| S74 | Impact framing gate | Add inherited impact-framing preset and gate so the active secondary band stays visible longer | Done in `feat: add impact framing gate` |
 
 ## Decision Gates
 
@@ -456,16 +457,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S74.
+Continue with S75.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-impact-framing-gate.md`
+`docs/superpowers/plans/2026-06-18-active-secondary-framing-qa.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s74_impact_framing --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s74.md --compare-review-manifest build\shots\s73_secondary_streak_tuning\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_impact_framing --out build\shots\s75_active_secondary_framing_qa --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s75.md --compare-review-manifest build\shots\s74_impact_framing\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is better impact composition: keep the active collision/spray region in frame for more of the shot before doing more particle micro-tuning.
+The next success condition is a numeric framing QA metric for secondary visibility and screen placement, so future camera/material changes cannot silently lose the active spray band.

@@ -519,6 +519,45 @@
         "exposure": 0.05,
         "gamma": 1.0
       }
+    },
+    "dam_break_impact_framing": {
+      "extends": "dam_break_contact_closeup",
+      "description": "Impact-focused framing for keeping the active secondary spray band in view.",
+      "camera": {
+        "position": [12.8, 11.2, 38.0],
+        "target": [14.0, 8.6, 11.0],
+        "vertical_fov_degrees": 44.0,
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [12.2, 11.2, 38.5],
+              "target": [14.0, 8.9, 11.0],
+              "vertical_fov_degrees": 44.0
+            },
+            {
+              "t": 0.55,
+              "position": [13.0, 10.8, 37.5],
+              "target": [14.0, 8.4, 11.0],
+              "vertical_fov_degrees": 42.0
+            },
+            {
+              "t": 1.0,
+              "position": [13.8, 10.4, 36.5],
+              "target": [14.0, 8.0, 11.0],
+              "vertical_fov_degrees": 40.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 10.0,
+          "min_target_distance": 24.0,
+          "max_vertical_fov_degrees": 44.0
+        }
+      }
     }
   }
 }
