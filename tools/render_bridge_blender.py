@@ -779,6 +779,53 @@ def secondary_streak_pass_summary(render_preset):
     }
 
 
+def surface_contact_foam_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "surface_contact_foam_pass")
+    channels = preset_section(cfg, "channels")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "foam": as_float(channels.get("foam"), 0.0),
+        },
+        "max_count": as_int(cfg.get("max_count"), 256),
+        "radius_x": as_float(cfg.get("radius_x"), 0.7),
+        "radius_z": as_float(cfg.get("radius_z"), 0.22),
+        "vertical_offset": as_float(cfg.get("vertical_offset"), -1.2),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.32),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.35),
+    }
+
+
+def estimate_surface_contact_foam_counts(path, contact_pass):
+    count = 0
+    if not contact_pass.get("enabled", False):
+        return {"foam": 0, "total": 0}
+    foam_scale = as_float(contact_pass.get("channels", {}).get("foam"), 0.0)
+    max_count = max(0, as_int(contact_pass.get("max_count"), 256))
+    if foam_scale <= 0.0 or max_count <= 0:
+        return {"foam": 0, "total": 0}
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if count >= max_count:
+                break
+            if secondary_render_channel(row) == "foam":
+                count += 1
+    return {"foam": count, "total": count}
+
+
+def summarize_surface_contact_foam_counts(frames):
+    if not frames:
+        return {}
+    totals = [as_int(frame.get("surface_contact_foam_counts", {}).get("total"), 0) for frame in frames]
+    return {
+        "first": frames[0].get("surface_contact_foam_counts", {}),
+        "last": frames[-1].get("surface_contact_foam_counts", {}),
+        "min_total": min(totals),
+        "max_total": max(totals),
+        "mean_total": sum(totals) / float(len(totals)),
+    }
+
+
 def pick_water_mesh(frame, water_index, out_index, out_count):
     if water_index:
         water_frame = select_resampled(water_index["frames"], out_index, out_count)
@@ -817,6 +864,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     channel_radius_scales = secondary_channel_radius_summary(render_preset)
     secondary_soft_pass = secondary_soft_pass_summary(render_preset)
     secondary_streak_pass = secondary_streak_pass_summary(render_preset)
+    surface_contact_foam_pass = surface_contact_foam_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
@@ -835,6 +883,9 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             frame["particles_csv"],
             max_secondary_particles,
             secondary_streak_pass)
+        surface_contact_foam_counts = estimate_surface_contact_foam_counts(
+            frame["particles_csv"],
+            surface_contact_foam_pass)
         header = {
             "dims": frame.get("header", {}).get("dims", sequence["sequence"].get("dims", [1, 1, 1])),
             "dx": as_float(frame.get("header", {}).get("dx"), as_float(sequence["sequence"].get("dx"), 1.0)),
@@ -855,6 +906,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             "particle_count": frame.get("particle_count", 0),
             "secondary_counts": secondary_counts,
             "secondary_streak_counts": secondary_streak_counts,
+            "surface_contact_foam_counts": surface_contact_foam_counts,
             "output_png": os.path.abspath(os.path.join(render_dir, f"frame_{out_index:04d}.png")),
         })
 
@@ -875,6 +927,8 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "secondary_soft_pass": secondary_soft_pass,
         "secondary_streak_pass": secondary_streak_pass,
         "secondary_streak_counts": summarize_secondary_streak_counts(frames),
+        "surface_contact_foam_pass": surface_contact_foam_pass,
+        "surface_contact_foam_counts": summarize_surface_contact_foam_counts(frames),
         "secondary_framing_qa": secondary_framing_qa,
         "secondary_framing": summarize_secondary_framing(frames, width, height, secondary_framing_qa),
         "render_preset_name": render_preset_name,
@@ -1290,6 +1344,78 @@ def secondary_streak_pass_values(spec):
     }
 
 
+def surface_contact_foam_pass_values(spec):
+    cfg = spec.get("surface_contact_foam_pass") or {}
+    channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "foam": max(0.0, scalar_value(channels.get("foam"), 0.0)),
+        },
+        "max_count": max(0, int(scalar_value(cfg.get("max_count"), 256))),
+        "radius_x": max(0.01, scalar_value(cfg.get("radius_x"), 0.7)),
+        "radius_z": max(0.01, scalar_value(cfg.get("radius_z"), 0.22)),
+        "vertical_offset": scalar_value(cfg.get("vertical_offset"), -1.2),
+    }
+
+
+def add_surface_contact_foam_pass(frame, material, contact_pass):
+    if not contact_pass.get("enabled", False):
+        return 0
+    foam_scale = float(contact_pass.get("channels", {}).get("foam", 0.0) or 0.0)
+    max_count = int(contact_pass.get("max_count", 0))
+    path = frame.get("particles_csv")
+    if foam_scale <= 0.0 or max_count <= 0 or not path or not os.path.isfile(path):
+        return 0
+    patches = []
+    vertical_offset = float(contact_pass.get("vertical_offset", -1.2))
+    radius_x = float(contact_pass.get("radius_x", 0.7))
+    radius_z = float(contact_pass.get("radius_z", 0.22))
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if len(patches) >= max_count:
+                break
+            if secondary_channel(row) != "foam":
+                continue
+            volume = max(0.05, float(row.get("volume", 1.0)))
+            scale = max(0.45, min(1.35, math.sqrt(volume) * 0.55)) * foam_scale
+            pos = (
+                float(row.get("x", 0.0)),
+                float(row.get("y", 0.0)) + vertical_offset,
+                float(row.get("z", 0.0)),
+            )
+            patches.append((to_blender(pos), radius_x * scale, radius_z * scale))
+    if patches:
+        add_surface_contact_foam_mesh("LSFS Surface Contact Foam", patches, material)
+    return len(patches)
+
+
+def add_surface_contact_foam_mesh(name, patches, material, segments=14):
+    verts = []
+    faces = []
+    segments = max(6, int(segments))
+    axis_x = Vector((1.0, 0.0, 0.0))
+    axis_z = Vector((0.0, -1.0, 0.0))
+    for center, radius_x, radius_z in patches:
+        center_vec = Vector(center)
+        base = len(verts)
+        verts.append(tuple(center_vec))
+        for seg in range(segments):
+            theta = 2.0 * math.pi * seg / float(segments)
+            p = center_vec + axis_x * (math.cos(theta) * radius_x) + axis_z * (math.sin(theta) * radius_z)
+            verts.append(tuple(p))
+        for seg in range(segments):
+            faces.append((base, base + 1 + seg, base + 1 + ((seg + 1) % segments)))
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return obj
+
+
 def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_scales, soft_pass):
     if not soft_pass.get("enabled", False):
         return 0
@@ -1610,6 +1736,7 @@ def main():
                                          transmission=floor["transmission"])
     soft_pass = secondary_soft_pass_values(spec)
     streak_pass = secondary_streak_pass_values(spec)
+    contact_foam_pass = surface_contact_foam_pass_values(spec)
     spray_soft = scaled_particle_values(spray,
                                         spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
                                         spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
@@ -1622,6 +1749,9 @@ def main():
     foam_streak = scaled_particle_values(foam,
                                          spec.get("secondary_streak_pass", {}).get("alpha_scale", 0.22),
                                          spec.get("secondary_streak_pass", {}).get("emission_scale", 0.9))
+    foam_contact = scaled_particle_values(foam,
+                                          spec.get("surface_contact_foam_pass", {}).get("alpha_scale", 0.32),
+                                          spec.get("surface_contact_foam_pass", {}).get("emission_scale", 0.35))
     particle_mats = {
         "droplet": make_principled_material("LSFS Droplet", droplet["color"], droplet["roughness"], droplet["alpha"], droplet["transmission"], droplet["emission_color"], droplet["emission_strength"]),
         "spray": make_principled_material("LSFS Spray", spray["color"], spray["roughness"], spray["alpha"], spray["transmission"], spray["emission_color"], spray["emission_strength"]),
@@ -1633,6 +1763,7 @@ def main():
         "foam_soft_falloff": make_particle_falloff_materials("LSFS Foam Soft Falloff", foam_soft, soft_pass.get("falloff", [1.0])),
         "spray_streak": make_principled_material("LSFS Spray Streak", spray_streak["color"], spray_streak["roughness"], spray_streak["alpha"], spray_streak["transmission"], spray_streak["emission_color"], spray_streak["emission_strength"]),
         "foam_streak": make_principled_material("LSFS Foam Streak", foam_streak["color"], foam_streak["roughness"], foam_streak["alpha"], foam_streak["transmission"], foam_streak["emission_color"], foam_streak["emission_strength"]),
+        "foam_contact": make_principled_material("LSFS Surface Contact Foam", foam_contact["color"], foam_contact["roughness"], foam_contact["alpha"], foam_contact["transmission"], foam_contact["emission_color"], foam_contact["emission_strength"]),
     }
     if soft_pass.get("material_falloff") == "radial_shader":
         particle_mats["spray_soft_falloff"] = [make_radial_soft_material("LSFS Spray Mist Radial", spray_soft)]
@@ -1644,6 +1775,9 @@ def main():
         remove_frame_assets()
         configure_camera(camera, frame, preset)
         add_water_mesh(frame, water_mat, surface_detail)
+        add_surface_contact_foam_pass(frame,
+                                      particle_mats["foam_contact"],
+                                      contact_foam_pass)
         add_secondary_particles(frame,
                                 particle_mats,
                                 int(spec.get("max_secondary_particles", 512)),
@@ -1868,6 +2002,8 @@ def main(argv=None):
             "secondary_soft_pass": spec["secondary_soft_pass"],
             "secondary_streak_pass": spec["secondary_streak_pass"],
             "secondary_streak_counts": spec["secondary_streak_counts"],
+            "surface_contact_foam_pass": spec["surface_contact_foam_pass"],
+            "surface_contact_foam_counts": spec["surface_contact_foam_counts"],
             "secondary_framing_qa": spec["secondary_framing_qa"],
             "secondary_framing": spec["secondary_framing"],
             "camera_motion": spec["camera_motion"],
@@ -1885,6 +2021,7 @@ def main(argv=None):
                 "water_mesh_face_count": frame["water_mesh_face_count"],
                 "secondary_counts": frame["secondary_counts"],
                 "secondary_streak_counts": frame["secondary_streak_counts"],
+                "surface_contact_foam_counts": frame["surface_contact_foam_counts"],
             } for frame in spec["frames"]],
         }
         summary_path = os.path.abspath(os.path.join(args.out_dir, "bridge_summary.json"))

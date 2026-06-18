@@ -646,6 +646,8 @@ def render_report(summary, root):
         f"- Secondary soft pass: `{metrics.get('secondary_soft_pass', {})}`",
         f"- Secondary streak pass: `{metrics.get('secondary_streak_pass', {})}`",
         f"- Secondary streak counts: `{metrics.get('secondary_streak_counts', {})}`",
+        f"- Surface contact foam pass: `{metrics.get('surface_contact_foam_pass', {})}`",
+        f"- Surface contact foam counts: `{metrics.get('surface_contact_foam_counts', {})}`",
         f"- Secondary framing summary: `{metrics.get('secondary_framing', {})}`",
         f"- Secondary framing gate: `{metrics.get('secondary_framing_gate', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
@@ -692,7 +694,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S76 should add a visible surface/contact foam pass that connects secondary particles back to the water body.",
+        "S77 should make contact foam read as moving with the impact flow rather than only static horizontal patches.",
         "",
     ])
     return "\n".join(lines)
@@ -1280,6 +1282,8 @@ def run_pipeline(args):
             summary["metrics"]["secondary_soft_pass"] = render_summary.get("secondary_soft_pass", {})
             summary["metrics"]["secondary_streak_pass"] = render_summary.get("secondary_streak_pass", {})
             summary["metrics"]["secondary_streak_counts"] = render_summary.get("secondary_streak_counts", {})
+            summary["metrics"]["surface_contact_foam_pass"] = render_summary.get("surface_contact_foam_pass", {})
+            summary["metrics"]["surface_contact_foam_counts"] = render_summary.get("surface_contact_foam_counts", {})
             summary["metrics"]["secondary_framing"] = render_summary.get("secondary_framing", {})
             summary["metrics"]["secondary_framing_gate"] = evaluate_secondary_framing_qa(
                 config, summary["metrics"]["secondary_framing"])

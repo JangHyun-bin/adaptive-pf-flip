@@ -534,6 +534,18 @@
           "min_frame_inside_ratio": 0.95,
           "min_mean_screen_y": 0.45,
           "max_mean_screen_y": 0.75
+        },
+        "surface_contact_foam_pass": {
+          "enabled": true,
+          "channels": {
+            "foam": 1.0
+          },
+          "max_count": 256,
+          "radius_x": 1.15,
+          "radius_z": 0.36,
+          "vertical_offset": -1.85,
+          "alpha_scale": 0.52,
+          "emission_scale": 0.7
         }
       },
       "camera": {
