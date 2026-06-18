@@ -170,10 +170,10 @@
             "spray": 2.35,
             "foam": 2.0
           },
-          "alpha_scale": 0.32,
-          "emission_scale": 0.6,
+          "alpha_scale": 0.24,
+          "emission_scale": 0.75,
           "max_radius": 1.05,
-          "geometry": "batched_spheres"
+          "geometry": "billboard_disks"
         }
       },
       "reconstruction": {
@@ -355,10 +355,10 @@
             "spray": 2.35,
             "foam": 2.0
           },
-          "alpha_scale": 0.32,
-          "emission_scale": 0.6,
+          "alpha_scale": 0.24,
+          "emission_scale": 0.75,
           "max_radius": 1.05,
-          "geometry": "batched_spheres"
+          "geometry": "billboard_disks"
         }
       },
       "reconstruction": {

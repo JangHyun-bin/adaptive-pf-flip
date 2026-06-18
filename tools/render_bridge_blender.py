@@ -1018,6 +1018,7 @@ def secondary_soft_pass_values(spec):
             "foam": max(0.0, scalar_value(channels.get("foam"), 0.0)),
         },
         "max_radius": max(0.01, scalar_value(cfg.get("max_radius"), 1.0)),
+        "geometry": str(cfg.get("geometry", "batched_spheres")),
     }
 
 
@@ -1047,12 +1048,67 @@ def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_s
             count += 1
     for channel, particles in by_channel.items():
         if particles:
-            add_sphere_cloud_mesh(f"LSFS {channel.title()} Soft Cloud",
-                                  particles,
-                                  materials[f"{channel}_soft"],
-                                  segments=8,
-                                  rings=4)
+            if soft_pass.get("geometry") == "billboard_disks":
+                add_billboard_cloud_mesh(f"LSFS {channel.title()} Mist Disks",
+                                         particles,
+                                         materials[f"{channel}_soft"],
+                                         frame,
+                                         segments=10)
+            else:
+                add_sphere_cloud_mesh(f"LSFS {channel.title()} Soft Cloud",
+                                      particles,
+                                      materials[f"{channel}_soft"],
+                                      segments=8,
+                                      rings=4)
     return count
+
+
+def safe_normalized(vec, fallback):
+    try:
+        if vec.length > 1e-8:
+            return vec.normalized()
+    except Exception:
+        pass
+    return Vector(fallback)
+
+
+def billboard_axes(frame, center):
+    cam = frame.get("camera", {})
+    camera_pos = Vector(to_blender(cam.get("position", [0.0, 0.0, 1.0])))
+    forward = safe_normalized(camera_pos - Vector(center), (0.0, 0.0, 1.0))
+    world_up = Vector((0.0, 0.0, 1.0))
+    right = forward.cross(world_up)
+    if right.length <= 1e-8:
+        right = forward.cross(Vector((0.0, 1.0, 0.0)))
+    right = safe_normalized(right, (1.0, 0.0, 0.0))
+    up = safe_normalized(right.cross(forward), (0.0, 0.0, 1.0))
+    return right, up
+
+
+def add_billboard_cloud_mesh(name, particles, material, frame, segments=10):
+    verts = []
+    faces = []
+    segments = max(5, int(segments))
+    for center, radius in particles:
+        base = len(verts)
+        center_vec = Vector(center)
+        radius = max(0.001, float(radius))
+        right, up = billboard_axes(frame, center)
+        verts.append(tuple(center_vec))
+        for seg in range(segments):
+            theta = 2.0 * math.pi * seg / float(segments)
+            p = center_vec + right * (math.cos(theta) * radius) + up * (math.sin(theta) * radius)
+            verts.append(tuple(p))
+        for seg in range(segments):
+            faces.append((base, base + 1 + seg, base + 1 + ((seg + 1) % segments)))
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return obj
 
 
 def add_sphere_cloud_mesh(name, particles, material, segments=8, rings=4):

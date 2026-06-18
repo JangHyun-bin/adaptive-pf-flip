@@ -113,6 +113,7 @@ The missing work is not one feature. It is a pipeline:
 | S65 | Cinematic visual QA metrics | Summarize frame luminance, contrast, bright-pixel ratios, and preset-driven visual QA gates | Done in `feat: add cinematic visual qa metrics` |
 | S66 | Volumetric spray/foam render pass | Add a soft halo pass for spray/foam secondaries while preserving visual QA gates | Done in `feat: add volumetric spray foam render pass` |
 | S67 | Secondary soft-pass performance | Batch spray/foam halo geometry into channel meshes to cut Blender render cost while preserving QA | Done in `perf: batch secondary soft pass geometry` |
+| S68 | Secondary mist billboard quality | Use camera-facing billboard disks for spray/foam soft pass while preserving S67 cost and QA | Done in `feat: add secondary mist billboard pass` |
 
 ## Decision Gates
 
@@ -450,16 +451,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S68.
+Continue with S69.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-mist-billboard-quality.md`
+`docs/superpowers/plans/2026-06-18-secondary-mist-alpha-falloff.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s68_secondary_mist_quality --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s68.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s69_secondary_mist_falloff --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s69.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is improving spray/foam naturalness beyond soft spheres, preferably with camera-facing billboard or flattened mist geometry, while preserving S67 render cost and S65 visual QA gates.
+The next success condition is softening the visible circular billboard edges with radial alpha/falloff or texture-driven sprite shading while preserving S68 render cost and visual QA gates.

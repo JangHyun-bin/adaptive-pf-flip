@@ -654,7 +654,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S68 should improve spray/foam naturalness beyond soft spheres, preferably with camera-facing billboard or flattened mist geometry, while preserving S67 render cost and visual QA gates.",
+        "S69 should soften visible circular mist billboard edges with radial alpha/falloff or texture-driven sprite shading while preserving S68 render cost and visual QA gates.",
         "",
     ])
     return "\n".join(lines)
