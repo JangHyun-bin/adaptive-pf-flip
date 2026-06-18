@@ -2001,7 +2001,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S103 should add a secondary render integration review that checks spray/foam/bubble layers against the S102 water volume scattering baseline without weakening the cinematic gates.",
+        "S104 should run a larger-grid cinematic benchmark that keeps the S103 render/review stack passing while exposing runtime and visual cost beyond the current 28 x 34 x 22 gate.",
         "",
     ])
     return "\n".join(lines)

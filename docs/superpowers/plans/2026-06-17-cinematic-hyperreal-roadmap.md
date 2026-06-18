@@ -148,6 +148,7 @@ The missing work is not one feature. It is a pipeline:
 | S100 | Water depth focus comparison | Move focus review to a lower water-body crop so water depth/rim cues can be compared against S99 without relying only on full-frame contact sheets | Done in `test: add water depth focus comparison` |
 | S101 | Water depth diagnostic decision | Keep the S100 lower water-body crop as the water-depth diagnostic and move on to a real volume/scattering render pass | Done in `docs: record water depth diagnostic decision` |
 | S102 | Water volume scattering pass | Add opt-in internal attenuation sheets so the main water body gains subtle volume/scattering cues while preserving the S100 diagnostic gates | Done in `feat: add water volume scattering pass` |
+| S103 | Secondary render integration review | Extend the S102 water volume baseline with bubble-inclusive secondary depth review and comparison | Done in `test: add secondary render integration review` |
 
 ## Decision Gates
 
@@ -485,16 +486,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S103.
+Continue with S104.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-render-integration-review.md`
+`docs/superpowers/plans/2026-06-18-large-grid-cinematic-benchmark.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_volume_scattering --out build\shots\s103_secondary_render_integration_review --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s103.md --compare-review-manifest build\shots\s102_water_volume_scattering\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_secondary_render_integration_review --out build\shots\s104_large_grid_cinematic_benchmark --nx 32 --ny 40 --nz 26 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s104.md --compare-review-manifest build\shots\s103_secondary_render_integration_review\review\review_manifest.json --timeout-seconds 1800
 ```
 
-The next success condition is a secondary render integration review that checks spray/foam/bubble layers against the S102 water volume scattering baseline without weakening visual, focus, temporal, ripple, secondary depth, and comparison gates.
+The next success condition is a larger-grid cinematic benchmark that keeps the S103 render/review stack passing while exposing the runtime and visual cost of moving beyond the current `28 x 34 x 22` gate.

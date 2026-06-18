@@ -1125,6 +1125,19 @@
           "transmission": 0.0
         }
       }
+    },
+    "dam_break_secondary_render_integration_review": {
+      "extends": "dam_break_water_volume_scattering",
+      "description": "Water volume scattering preset with bubble-inclusive secondary render integration review.",
+      "renderer": {
+        "secondary_depth_review": {
+          "channels": {
+            "spray": true,
+            "foam": true,
+            "bubble": true
+          }
+        }
+      }
     }
   }
 }
