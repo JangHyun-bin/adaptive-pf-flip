@@ -920,6 +920,26 @@
           "max_highlight_ratio": 0.01
         }
       }
+    },
+    "dam_break_contact_foam_ripple_integrated": {
+      "extends": "dam_break_ripple_readability_diagnostics",
+      "description": "Ripple diagnostics with softer, narrower contact foam integrated into the water surface.",
+      "renderer": {
+        "surface_contact_foam_pass": {
+          "radius_x": 1.32,
+          "radius_z": 0.2,
+          "alpha_scale": 0.34,
+          "emission_scale": 0.42
+        },
+        "water_impact_ripple_pass": {
+          "alpha_scale": 0.44,
+          "emission_scale": 0.82
+        },
+        "ripple_readability_review": {
+          "min_edge_mean": 7.5,
+          "min_edge_nonzero_ratio": 0.02
+        }
+      }
     }
   }
 }

@@ -1528,7 +1528,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S93 should tune contact foam and ripple integration while preserving diagnostic and temporal gates.",
+        "S94 should tune water surface breakup/detail in the contact region while preserving diagnostic and temporal gates.",
         "",
     ])
     return "\n".join(lines)
