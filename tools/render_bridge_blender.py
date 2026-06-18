@@ -305,6 +305,13 @@ def count_secondary_particles(path):
     return counts
 
 
+def preset_section(data, name):
+    if not isinstance(data, dict):
+        return {}
+    value = data.get(name, {})
+    return value if isinstance(value, dict) else {}
+
+
 def normalize_camera(camera):
     return {
         "position": vec3(camera.get("position"), (0.0, 0.0, 1.0)),
@@ -316,6 +323,84 @@ def normalize_camera(camera):
             45.0),
         "near_clip": as_float(camera.get("near_clip"), 0.05),
         "far_clip": as_float(camera.get("far_clip"), 500.0),
+    }
+
+
+def lerp(a, b, t):
+    return a + (b - a) * t
+
+
+def lerp_vec(a, b, t):
+    return [lerp(as_float(a[i]), as_float(b[i]), t) for i in range(3)]
+
+
+def smoothstep(t):
+    return t * t * (3.0 - 2.0 * t)
+
+
+def sorted_camera_keys(path):
+    keys = [item for item in path if isinstance(item, dict)]
+    if not keys:
+        return []
+    return sorted(keys, key=lambda item: as_float(item.get("t"), 0.0))
+
+
+def interpolate_camera_keys(keys, t, fallback):
+    if not keys:
+        return fallback
+    if len(keys) == 1 or t <= as_float(keys[0].get("t"), 0.0):
+        return {**fallback, **keys[0]}
+    if t >= as_float(keys[-1].get("t"), 1.0):
+        return {**fallback, **keys[-1]}
+    lo = keys[0]
+    hi = keys[-1]
+    for i in range(1, len(keys)):
+        candidate = keys[i]
+        if t <= as_float(candidate.get("t"), 1.0):
+            lo = keys[i - 1]
+            hi = candidate
+            break
+    t0 = as_float(lo.get("t"), 0.0)
+    t1 = as_float(hi.get("t"), 1.0)
+    local = 0.0 if t1 <= t0 else (t - t0) / (t1 - t0)
+    out = dict(fallback)
+    for key in ("position", "target", "up"):
+        out[key] = lerp_vec(vec3(lo.get(key), out[key]), vec3(hi.get(key), out[key]), local)
+    for key in ("focal_length_mm", "vertical_fov_degrees", "near_clip", "far_clip"):
+        out[key] = lerp(as_float(lo.get(key), out[key]), as_float(hi.get(key), out[key]), local)
+    return out
+
+
+def apply_camera_preset(base_camera, render_preset, out_index, out_count):
+    cam = normalize_camera(base_camera)
+    preset_camera = preset_section(render_preset, "camera")
+    motion = preset_section(preset_camera, "motion")
+    for key, value in preset_camera.items():
+        if key != "motion":
+            cam[key] = value
+    cam = normalize_camera(cam)
+    cam["preset_applied"] = True
+    cam["motion_enabled"] = False
+    if motion.get("enabled", False):
+        path = sorted_camera_keys(motion.get("path", []))
+        if path:
+            raw_t = 0.0 if out_count <= 1 else out_index / max(1, out_count - 1)
+            eased_t = smoothstep(raw_t) if motion.get("easing", "linear") == "smoothstep" else raw_t
+            cam = normalize_camera(interpolate_camera_keys(path, eased_t, cam))
+            cam["preset_applied"] = True
+            cam["motion_enabled"] = True
+            cam["motion_t"] = raw_t
+            cam["motion_eased_t"] = eased_t
+    return cam
+
+
+def camera_motion_summary(render_preset):
+    motion = preset_section(preset_section(render_preset, "camera"), "motion")
+    path = sorted_camera_keys(motion.get("path", []))
+    return {
+        "enabled": bool(motion.get("enabled", False) and path),
+        "key_count": len(path),
+        "easing": motion.get("easing", "linear"),
     }
 
 
@@ -372,7 +457,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             "frame": frame["frame"],
             "time": frame["time"],
             "source_cache": frame.get("source_cache"),
-            "camera": normalize_camera(frame["camera"]),
+            "camera": apply_camera_preset(frame["camera"], render_preset, out_index, frame_count),
             "cinematic": frame.get("cinematic") or {},
             "header": {
                 "dims": frame.get("header", {}).get("dims", sequence["sequence"].get("dims", [1, 1, 1])),
@@ -403,6 +488,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "secondary_radius_scale": secondary_radius_scale,
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
+        "camera_motion": camera_motion_summary(render_preset),
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "water_reconstruction": sequence.get("water_reconstruction", {}),
@@ -562,8 +648,11 @@ def look_at(obj, target):
 
 def configure_camera(camera, frame, preset):
     cam = dict(frame["camera"])
-    preset_camera = preset_section(preset, "camera")
-    cam.update(preset_camera)
+    if not cam.get("preset_applied"):
+        preset_camera = preset_section(preset, "camera")
+        for key, value in preset_camera.items():
+            if key != "motion":
+                cam[key] = value
     camera.location = to_blender(cam["position"])
     target = to_blender(cam["target"])
     look_at(camera, target)
@@ -885,6 +974,7 @@ def main(argv=None):
             "engine": spec["engine"],
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],
+            "camera_motion": spec["camera_motion"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,

@@ -158,6 +158,7 @@ def render_report(summary, root):
         f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
+        f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
         "",
         "## Stage Timings",
         "",
@@ -182,7 +183,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S49 should add camera motion and shot continuity checks; later physics work should replace demo secondary seeding with physical spray generation.",
+        "S50 should improve water material response with depth tint, rim highlights, and preset sweeps; later physics work should replace demo secondary seeding with physical spray generation.",
         "",
     ])
     return "\n".join(lines)
@@ -645,6 +646,10 @@ def run_pipeline(args):
             "water_mesh_frame_count": water.get("frame_count"),
             "shot_gif_bytes": os.path.getsize(gif_path),
         }
+        render_summary_path = summary["artifacts"].get("render_summary")
+        if render_summary_path and os.path.isfile(render_summary_path):
+            render_summary = read_json(render_summary_path)
+            summary["metrics"]["camera_motion"] = render_summary.get("camera_motion", {})
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out

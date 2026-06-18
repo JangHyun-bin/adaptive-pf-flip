@@ -149,7 +149,31 @@
         "focal_length_mm": 38.0,
         "vertical_fov_degrees": 54.0,
         "near_clip": 0.05,
-        "far_clip": 150.0
+        "far_clip": 150.0,
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [9.0, 12.0, 52.0],
+              "target": [8.0, 8.8, 7.0],
+              "vertical_fov_degrees": 55.0
+            },
+            {
+              "t": 0.55,
+              "position": [10.4, 11.0, 49.0],
+              "target": [8.0, 7.7, 7.0],
+              "vertical_fov_degrees": 51.0
+            },
+            {
+              "t": 1.0,
+              "position": [11.6, 10.4, 45.0],
+              "target": [8.0, 6.7, 7.0],
+              "vertical_fov_degrees": 47.0
+            }
+          ]
+        }
       },
       "lighting": {
         "world_color": [0.02, 0.023, 0.026],

@@ -135,6 +135,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S46** | **Smooth cinematic water meshes** - water reconstruction can now export opt-in smoothed OBJ vertices and vertex normals, with cinematic presets enabling smoother Blender shading by default. | done |
 | **S47** | **Dynamic falling-water cinematic preset** - the render-cache exporter and shot runner now accept scene selection, and `dam_break_cinematic` drives a sparse 3D two-phase falling-water scene instead of the bubble tank. | done |
 | **S48** | **Visible cinematic secondary particles** - the render-cache exporter can seed opt-in demo secondary droplets/bubbles per frame, and Blender rendering can scale those channels so spray, foam, droplets, and bubbles are visible in cinematic gates. | done |
+| **S49** | **Cinematic camera motion** - Blender scene specs now precompute preset camera paths with smooth interpolation, dry-run summaries report motion status, and `dam_break_cinematic` uses a moving camera path. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -229,6 +230,7 @@ python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s46_smooth --frames 24 --width 1280 --height 720
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s47_dam_break --frames 24 --width 1280 --height 720 --report docs/reports/cinematic_gate_s47.md
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s48_secondary --frames 24 --width 1280 --height 720 --report docs/reports/cinematic_gate_s48.md
+python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s49_camera_motion --frames 24 --width 1280 --height 720 --report docs/reports/cinematic_gate_s49.md
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0
