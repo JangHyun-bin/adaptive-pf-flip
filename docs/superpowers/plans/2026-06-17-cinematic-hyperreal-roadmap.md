@@ -104,6 +104,7 @@ The missing work is not one feature. It is a pipeline:
 | S56 | Physically conditioned secondary seed | Replace demo secondary rings with liquid-candidate spray seeds in cinematic cache export | Done in `feat: add physical secondary spray seeds` |
 | S57 | Sim-side secondary spray gate | Emit physical spray seeds inside sparse 3D TP sim steps with lifecycle volume accounting and shot acceptance thresholds | Done in `feat: add sim-side secondary spray gate` |
 | S58 | Interface-conditioned secondary spray gate | Require measured interface diagnostics for physical sparse spray emission and record a larger visual gate | Done in `feat: add interface conditioned secondary gate` |
+| S59 | Large water-event scene | Replace compact falling block with a wider falling sheet and impact pool cinematic scene | Done in `feat: add large water event scene` |
 
 ## Decision Gates
 
@@ -441,16 +442,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S59.
+Continue with S60.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-large-water-event-scene.md`
+`docs/superpowers/plans/2026-06-18-contact-splash-secondary-visibility.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_cinematic --out build\shots\s59_large_water_event --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s59.md --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_cinematic --out build\shots\s60_contact_splash --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s60.md --timeout-seconds 1500
 ```
 
-The next success condition is a falling-water scene with a wider source, stronger contact event, or obstacle/collision setup so the visual reads as a larger water event rather than a compact suspended block.
+The next success condition is a large water-event shot where contact with the pool produces more visible spray/splash breakup instead of only smooth sheet and pool surfaces.

@@ -44,7 +44,8 @@ const char* argString(int argc, char** argv, const char* key, const char* fallba
 
 void usage() {
   std::fprintf(stderr,
-               "usage: export_render_cache3d [--kind sparse|mr] [--scene bubble|dam-break|falling-water] "
+               "usage: export_render_cache3d [--kind sparse|mr] "
+               "[--scene bubble|dam-break|falling-water|large-water-event] "
                "[--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
                "[--out-prefix NAME] [--manifest PATH] [--physics-preset] "
@@ -65,7 +66,14 @@ bool sceneIsFallingWater(const char* scene) {
          std::strcmp(scene, "falling") == 0;
 }
 
+bool sceneIsLargeWaterEvent(const char* scene) {
+  return std::strcmp(scene, "large-water-event") == 0 ||
+         std::strcmp(scene, "water-event") == 0 ||
+         std::strcmp(scene, "wide-falling-water") == 0;
+}
+
 const char* canonicalScene(const char* scene) {
+  if (sceneIsLargeWaterEvent(scene)) return "large-water-event";
   if (sceneIsFallingWater(scene)) return "falling-water";
   return sceneIsDamBreak(scene) ? "dam-break" : "bubble";
 }
@@ -276,6 +284,8 @@ int main(int argc, char** argv) {
   const bool bubbleScene = sceneIsBubble(scene);
   const bool damBreakScene = sceneIsDamBreak(scene);
   const bool fallingWaterScene = sceneIsFallingWater(scene);
+  const bool largeWaterEventScene = sceneIsLargeWaterEvent(scene);
+  const bool validScene = bubbleScene || damBreakScene || fallingWaterScene || largeWaterEventScene;
   int nx = argInt(argc, argv, "--nx", 12);
   int ny = argInt(argc, argv, "--ny", 18);
   int nz = argInt(argc, argv, "--nz", 12);
@@ -292,7 +302,7 @@ int main(int argc, char** argv) {
   const int secondaryPhysicalParticles = argInt(argc, argv, "--secondary-physical-particles", 0);
 
   if ((!sparseKind && !mrKind) ||
-      (!bubbleScene && !damBreakScene && !fallingWaterScene) ||
+      !validScene ||
       nx < 4 || ny < 4 || nz < 4 ||
       steps <= 0 || every <= 0 ||
       dt <= 0.0 || cgIters < 0 ||
@@ -327,7 +337,9 @@ int main(int argc, char** argv) {
     }
     sim.dt = dt;
     sim.cg_iters = cgIters;
-    if (fallingWaterScene) {
+    if (largeWaterEventScene) {
+      sim.initLargeWaterEvent();
+    } else if (fallingWaterScene) {
       sim.initFallingWaterColumn();
     } else if (damBreakScene) {
       sim.initTwoPhaseDamBreak();

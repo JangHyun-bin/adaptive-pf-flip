@@ -115,10 +115,10 @@
       }
     },
     "dam_break_cinematic": {
-      "description": "Wider high-energy water-body look for the falling-water/dam-break scene.",
+      "description": "Wider high-energy water-body look for the large falling-water event scene.",
       "simulation": {
         "kind": "sparse",
-        "scene": "falling-water",
+        "scene": "large-water-event",
         "nx": 16,
         "ny": 20,
         "nz": 14,
@@ -167,9 +167,9 @@
           "reference_center": [8.0, 10.0, 7.0],
           "strength": 1.0,
           "min_scale": 1.0,
-          "max_scale": 1.65,
+          "max_scale": 2.1,
           "target_offset_scale": 1.0,
-          "fov_pad_degrees": 1.5
+          "fov_pad_degrees": 2.0
         },
         "motion": {
           "enabled": true,

@@ -430,6 +430,49 @@ void SparseSim3DTP::initFallingWaterColumn() {
   resetVolumeCorrectionStats(*this);
 }
 
+void SparseSim3DTP::initLargeWaterEvent() {
+  resetSceneState(*this);
+  const int sheetX0 = std::max(1, grid.nx / 8);
+  const int sheetX1 = std::min(grid.nx - 1, std::max(sheetX0 + 3, grid.nx * 7 / 8));
+  const int sheetY0 = std::max(2, grid.ny * 12 / 20);
+  const int sheetY1 = std::min(grid.ny - 1, std::max(sheetY0 + 3, grid.ny * 18 / 20));
+  const int sheetZ0 = std::max(1, grid.nz * 3 / 10);
+  const int sheetZ1 = std::min(grid.nz - 1, std::max(sheetZ0 + 2, grid.nz * 7 / 10));
+  const int poolX0 = std::max(1, grid.nx / 7);
+  const int poolX1 = std::min(grid.nx - 1, std::max(poolX0 + 4, grid.nx * 6 / 7));
+  const int poolY1 = std::min(grid.ny - 1, std::max(3, grid.ny / 6));
+  const int poolZ0 = std::max(1, grid.nz / 6);
+  const int poolZ1 = std::min(grid.nz - 1, std::max(poolZ0 + 4, grid.nz * 5 / 6));
+  const double cx = 0.5 * static_cast<double>(sheetX0 + sheetX1);
+  const double cz = 0.5 * static_cast<double>(sheetZ0 + sheetZ1);
+  for (int k = 1; k < grid.nz - 1; ++k) {
+    for (int j = 1; j < grid.ny - 1; ++j) {
+      for (int i = 1; i < grid.nx - 1; ++i) {
+        const bool fallingSheet =
+          i >= sheetX0 && i < sheetX1 &&
+          j >= sheetY0 && j < sheetY1 &&
+          k >= sheetZ0 && k < sheetZ1;
+        const bool impactPool =
+          i >= poolX0 && i < poolX1 &&
+          j < poolY1 &&
+          k >= poolZ0 && k < poolZ1;
+        const bool liquid = fallingSheet || impactPool;
+        Vec3 velocity{0.0, 0.0, 0.0};
+        if (fallingSheet) {
+          velocity = {
+            0.075 * ((static_cast<double>(i) + 0.5) - cx),
+            -10.5,
+            0.045 * ((static_cast<double>(k) + 0.5) - cz)
+          };
+        }
+        seedCell(particles, i, j, k, grid.dx, liquid ? 0 : 1, velocity);
+      }
+    }
+  }
+  applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
+}
+
 void SparseSim3DTP::initRayleighTaylor() {
   resetSceneState(*this);
   int mid = grid.ny / 2;

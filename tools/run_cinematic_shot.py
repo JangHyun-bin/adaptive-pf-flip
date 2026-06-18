@@ -427,6 +427,8 @@ def render_report(summary, root):
     scene_note = "- The current exporter scene is bubble-tank style; use `--scene falling-water` or `dam_break_cinematic` for a more dynamic falling/collapsing water body."
     if scene in ("dam-break", "dambreak", "falling-water", "falling"):
         scene_note = "- The dynamic water-motion scene is now selected, but it is still reconstructed from coarse sparse phase cells rather than a production liquid surface."
+    elif scene in ("large-water-event", "water-event", "wide-falling-water"):
+        scene_note = "- The larger water-event scene is selected, with a wider falling sheet and lower impact pool, but it is still reconstructed from coarse sparse phase cells."
     surface_mode = metrics.get("surface_mode", "voxel")
     surface_note = "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky."
     if surface_mode == "tetra":
@@ -447,7 +449,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S59 should improve the falling-water scene complexity and surface detail so the shot reads as a larger water event instead of a compact falling block.",
+        "S60 should increase contact-driven splash breakup and spray visibility for the large water-event scene.",
         "",
     ])
     return "\n".join(lines)
@@ -519,7 +521,10 @@ def parse_args(argv):
     parser.add_argument("--height", type=lambda v: parse_positive_int(v, "height"))
     parser.add_argument("--renderer", choices=("auto", "preview", "blender"))
     parser.add_argument("--kind", choices=("sparse", "mr"), help="override preset simulation kind")
-    parser.add_argument("--scene", choices=("bubble", "dam-break", "dambreak", "falling-water", "falling"),
+    parser.add_argument("--scene",
+                        choices=("bubble", "dam-break", "dambreak",
+                                 "falling-water", "falling",
+                                 "large-water-event", "water-event", "wide-falling-water"),
                         help="override preset simulation scene")
     parser.add_argument("--nx", type=lambda v: parse_positive_int(v, "nx"))
     parser.add_argument("--ny", type=lambda v: parse_positive_int(v, "ny"))

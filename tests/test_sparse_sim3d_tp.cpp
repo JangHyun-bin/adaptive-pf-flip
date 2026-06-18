@@ -150,6 +150,36 @@ TEST_CASE("sparse 3D falling-water scene starts suspended and falls") {
   CHECK(meanYType(sim.particles, 0) < y0 - 0.2);
 }
 
+TEST_CASE("sparse 3D large water event has wide source and impact pool") {
+  SparseSim3DTP compact(12, 18, 12, 1.0);
+  compact.initFallingWaterColumn();
+
+  SparseSim3DTP sim(12, 18, 12, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 40;
+  sim.initLargeWaterEvent();
+
+  const size_t n0 = sim.particles.size();
+  const size_t liquid0 = countType(sim.particles, 0);
+  const size_t gas0 = countType(sim.particles, 1);
+  const double y0 = meanYType(sim.particles, 0);
+
+  REQUIRE(n0 > 0);
+  CHECK(liquid0 > countType(compact.particles, 0));
+  CHECK(gas0 > 0);
+  CHECK(y0 > 0.0);
+  CHECK(volumeType(sim.particles, 0) > volumeType(compact.particles, 0));
+
+  for (int step = 0; step < 4; ++step) {
+    sim.step();
+  }
+
+  CHECK(sim.particles.size() == n0);
+  CHECK(finiteParticles(sim.particles));
+  CHECK(sim.interface_diagnostics_last.finite == 1);
+  CHECK(sim.interface_diagnostics_last.interface_cells > 0);
+}
+
 TEST_CASE("sparse 3D two-phase adaptive timestep reports effective dt") {
   SparseSim3DTP sim(8, 12, 8, 1.0);
   sim.dt = 0.2;
