@@ -416,6 +416,7 @@ def render_report(summary, root):
         f"- Water depth strength: `{metrics.get('water_material', {}).get('depth_strength', 0.0)}`",
         f"- Water rim strength: `{metrics.get('water_material', {}).get('rim_strength', 0.0)}`",
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
+        f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
@@ -459,7 +460,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S62 should make foam/spray visually stronger on screen, likely with larger channel-specific render sizing or a closer contact camera pass.",
+        "S63 should add a closer contact-camera preset or crop gate so the foam/spray and surface breakup are easier to inspect.",
         "",
     ])
     return "\n".join(lines)
@@ -1011,6 +1012,7 @@ def run_pipeline(args):
             summary["metrics"]["camera_framing"] = render_summary.get("camera_framing", {})
             summary["metrics"]["water_material"] = render_summary.get("water_material", {})
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
+            summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out

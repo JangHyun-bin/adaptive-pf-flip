@@ -142,6 +142,12 @@
         "samples": 32,
         "max_secondary_particles": 1536,
         "secondary_radius_scale": 3.0,
+        "secondary_channel_radius_scales": {
+          "droplet": 1.0,
+          "spray": 1.35,
+          "foam": 1.85,
+          "bubble": 1.15
+        },
         "min_nonblank_ratio": 0.05,
         "min_occupancy": 0.005,
         "water_surface_detail": {
@@ -246,12 +252,16 @@
         },
         "spray": {
           "base_color": [0.88, 0.97, 1.0, 0.82],
+          "emission_color": [0.88, 0.97, 1.0, 1.0],
+          "emission_strength": 0.08,
           "roughness": 0.14,
           "alpha": 0.82,
           "transmission": 0.12
         },
         "foam": {
           "base_color": [1.0, 0.98, 0.88, 1.0],
+          "emission_color": [1.0, 0.96, 0.72, 1.0],
+          "emission_strength": 0.12,
           "roughness": 0.72,
           "alpha": 1.0,
           "transmission": 0.0

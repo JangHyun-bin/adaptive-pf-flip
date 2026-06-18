@@ -494,6 +494,16 @@ def water_surface_detail_summary(render_preset):
     }
 
 
+def secondary_channel_radius_summary(render_preset):
+    scales = preset_section(preset_section(render_preset, "renderer"), "secondary_channel_radius_scales")
+    return {
+        "droplet": as_float(scales.get("droplet"), 1.0),
+        "spray": as_float(scales.get("spray"), 1.0),
+        "foam": as_float(scales.get("foam"), 1.0),
+        "bubble": as_float(scales.get("bubble"), 1.0),
+    }
+
+
 def pick_water_mesh(frame, water_index, out_index, out_count):
     if water_index:
         water_frame = select_resampled(water_index["frames"], out_index, out_count)
@@ -577,6 +587,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "samples": samples,
         "max_secondary_particles": max_secondary_particles,
         "secondary_radius_scale": secondary_radius_scale,
+        "secondary_channel_radius_scales": secondary_channel_radius_summary(render_preset),
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
@@ -685,10 +696,13 @@ def material_values(preset, name, color, roughness, alpha, transmission):
         "roughness": scalar_value(cfg.get("roughness"), roughness),
         "alpha": scalar_value(cfg.get("alpha"), alpha),
         "transmission": scalar_value(cfg.get("transmission"), transmission),
+        "emission_color": vector_value(cfg.get("emission_color"), color, 4),
+        "emission_strength": max(0.0, scalar_value(cfg.get("emission_strength"), 0.0)),
     }
 
 
-def make_principled_material(name, color, roughness=0.2, alpha=1.0, transmission=0.0):
+def make_principled_material(name, color, roughness=0.2, alpha=1.0, transmission=0.0,
+                             emission_color=None, emission_strength=0.0):
     mat = bpy.data.materials.new(name)
     mat.diffuse_color = color
     mat.use_nodes = True
@@ -699,6 +713,9 @@ def make_principled_material(name, color, roughness=0.2, alpha=1.0, transmission
         set_input(bsdf, ("Roughness",), roughness)
         set_input(bsdf, ("Transmission Weight", "Transmission"), transmission)
         set_input(bsdf, ("Metallic",), 0.0)
+        if emission_strength > 0.0:
+            set_input(bsdf, ("Emission Color",), emission_color or color)
+            set_input(bsdf, ("Emission Strength",), emission_strength)
     mat.blend_method = "BLEND"
     mat.use_screen_refraction = True
     return mat
@@ -895,7 +912,14 @@ def secondary_channel(row):
     return "bubble" if kind == "secondary_bubble" else "droplet"
 
 
-def add_secondary_particles(frame, materials, max_count, radius_scale):
+def channel_radius_scale(channel, scales):
+    try:
+        return max(0.01, float(scales.get(channel, 1.0)))
+    except Exception:
+        return 1.0
+
+
+def add_secondary_particles(frame, materials, max_count, radius_scale, channel_scales):
     path = frame.get("particles_csv")
     if not path or not os.path.isfile(path) or max_count <= 0:
         return 0
@@ -911,8 +935,9 @@ def add_secondary_particles(frame, materials, max_count, radius_scale):
             pos = (float(row.get("x", 0.0)), float(row.get("y", 0.0)), float(row.get("z", 0.0)))
             volume = max(0.05, float(row.get("volume", 1.0)))
             base_radius = min(0.14, max(0.035, 0.035 * math.sqrt(volume)))
-            radius = min(0.35, max(0.02, base_radius * max(0.01, radius_scale)))
             channel = secondary_channel(row)
+            channel_scale = channel_radius_scale(channel, channel_scales)
+            radius = min(0.55, max(0.02, base_radius * max(0.01, radius_scale) * channel_scale))
             bpy.ops.mesh.primitive_uv_sphere_add(segments=8,
                                                  ring_count=4,
                                                  radius=radius,
@@ -946,11 +971,12 @@ def main():
                                          alpha=floor["alpha"],
                                          transmission=floor["transmission"])
     particle_mats = {
-        "droplet": make_principled_material("LSFS Droplet", droplet["color"], droplet["roughness"], droplet["alpha"], droplet["transmission"]),
-        "spray": make_principled_material("LSFS Spray", spray["color"], spray["roughness"], spray["alpha"], spray["transmission"]),
-        "foam": make_principled_material("LSFS Foam", foam["color"], foam["roughness"], foam["alpha"], foam["transmission"]),
-        "bubble": make_principled_material("LSFS Bubble", bubble["color"], bubble["roughness"], bubble["alpha"], bubble["transmission"]),
+        "droplet": make_principled_material("LSFS Droplet", droplet["color"], droplet["roughness"], droplet["alpha"], droplet["transmission"], droplet["emission_color"], droplet["emission_strength"]),
+        "spray": make_principled_material("LSFS Spray", spray["color"], spray["roughness"], spray["alpha"], spray["transmission"], spray["emission_color"], spray["emission_strength"]),
+        "foam": make_principled_material("LSFS Foam", foam["color"], foam["roughness"], foam["alpha"], foam["transmission"], foam["emission_color"], foam["emission_strength"]),
+        "bubble": make_principled_material("LSFS Bubble", bubble["color"], bubble["roughness"], bubble["alpha"], bubble["transmission"], bubble["emission_color"], bubble["emission_strength"]),
     }
+    channel_scales = spec.get("secondary_channel_radius_scales") or {}
     if spec.get("frames"):
         add_floor(spec["frames"][0], floor_mat, preset)
     for frame in spec["frames"]:
@@ -960,7 +986,8 @@ def main():
         add_secondary_particles(frame,
                                 particle_mats,
                                 int(spec.get("max_secondary_particles", 512)),
-                                float(spec.get("secondary_radius_scale", 1.0)))
+                                float(spec.get("secondary_radius_scale", 1.0)),
+                                channel_scales)
         bpy.context.scene.frame_set(int(frame["index"]))
         bpy.context.scene.render.filepath = frame["output_png"]
         bpy.ops.render.render(write_still=True)
@@ -1135,6 +1162,7 @@ def main(argv=None):
             "engine": spec["engine"],
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],
+            "secondary_channel_radius_scales": spec["secondary_channel_radius_scales"],
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
             "water_material": spec["water_material"],

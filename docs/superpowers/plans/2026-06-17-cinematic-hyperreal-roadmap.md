@@ -107,6 +107,7 @@ The missing work is not one feature. It is a pipeline:
 | S59 | Large water-event scene | Replace compact falling block with a wider falling sheet and impact pool cinematic scene | Done in `feat: add large water event scene` |
 | S60 | Contact splash visibility gate | Start the large sheet lower/faster and include downward-impact spray candidates for stronger contact visuals | Done in `feat: add contact splash secondary gate` |
 | S61 | Contact foam and surface detail gate | Split impact secondaries into spray/foam channels and add opt-in Blender water surface detail | Done in `feat: add contact foam surface detail gate` |
+| S62 | Secondary render size pass | Add channel-specific secondary radii and spray/foam emission controls for stronger contact readability | Done in `feat: add secondary render size pass` |
 
 ## Decision Gates
 
@@ -444,16 +445,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S62.
+Continue with S63.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-render-size-pass.md`
+`docs/superpowers/plans/2026-06-18-contact-camera-closeup-gate.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_cinematic --out build\shots\s62_secondary_size_pass --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s62.md --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s63_contact_closeup --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s63.md --timeout-seconds 1500
 ```
 
-The next success condition is a large water-event shot where foam/spray particles are easier to see in the contact area without relying only on report counts.
+The next success condition is a closer contact-region view where foam/spray and surface breakup are easier to inspect than in the wide establishing shot.
