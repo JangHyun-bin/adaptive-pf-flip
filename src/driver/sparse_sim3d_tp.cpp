@@ -164,9 +164,14 @@ void resetEscapedParticleBranching(SparseSim3DTP& sim) {
   sim.secondary_bubble_volume_reabsorbed_to_primary_total = 0.0;
   sim.secondary_spray_emission_step_index = 0;
   sim.secondary_spray_emission_stats_last = SecondarySprayEmissionStats3D();
+  sim.secondary_spray_effective_requested_last = 0;
+  sim.secondary_spray_interface_gate_passed_last = 0;
+  sim.secondary_spray_interface_cells_last = 0;
   sim.secondary_spray_candidates_last = 0;
   sim.secondary_spray_emitted_droplets_last = 0;
   sim.secondary_spray_emitted_bubbles_last = 0;
+  sim.secondary_spray_interface_grad_max_last = 0.0;
+  sim.secondary_spray_interface_curvature_abs_max_last = 0.0;
   sim.secondary_spray_emitted_droplets_total = 0;
   sim.secondary_spray_emitted_bubbles_total = 0;
   sim.secondary_spray_emitted_droplet_volume_last = 0.0;
@@ -280,7 +285,14 @@ void emitSecondarySpray(SparseSim3DTP& sim) {
     sim.secondary_spray_droplet_fraction,
     sim.secondary_spray_droplet_volume,
     sim.secondary_spray_bubble_volume,
-    sim.Vp};
+    sim.Vp,
+    sim.secondary_spray_interface_gate,
+    sim.interface_diagnostics_last.interface_cells,
+    sim.interface_diagnostics_last.grad_max,
+    sim.interface_diagnostics_last.curvature_abs_max,
+    sim.secondary_spray_min_interface_cells,
+    sim.secondary_spray_min_interface_grad_max,
+    sim.secondary_spray_min_interface_curvature_abs_max};
   const SecondarySprayEmissionStats3D stats =
     emitSecondarySpraySeeds3D(sim.particles,
                               sim.escaped_droplets,
@@ -291,9 +303,14 @@ void emitSecondarySpray(SparseSim3DTP& sim) {
                               sim.secondary_spray_emission_step_index);
   ++sim.secondary_spray_emission_step_index;
   sim.secondary_spray_emission_stats_last = stats;
+  sim.secondary_spray_effective_requested_last = stats.effective_requested_particles;
+  sim.secondary_spray_interface_gate_passed_last = stats.interface_gate_passed;
+  sim.secondary_spray_interface_cells_last = stats.interface_cells;
   sim.secondary_spray_candidates_last = stats.candidate_liquid_particles;
   sim.secondary_spray_emitted_droplets_last = stats.emitted_droplets;
   sim.secondary_spray_emitted_bubbles_last = stats.emitted_bubbles;
+  sim.secondary_spray_interface_grad_max_last = stats.interface_grad_max;
+  sim.secondary_spray_interface_curvature_abs_max_last = stats.interface_curvature_abs_max;
   sim.secondary_spray_emitted_droplet_volume_last = stats.emitted_droplet_volume;
   sim.secondary_spray_emitted_bubble_volume_last = stats.emitted_bubble_volume;
   sim.secondary_spray_emitted_droplets_total += stats.emitted_droplets;

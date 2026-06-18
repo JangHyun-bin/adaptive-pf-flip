@@ -60,14 +60,28 @@ struct SecondarySprayEmissionConfig3D {
   double droplet_volume = 0.55;
   double bubble_volume = 0.45;
   double particle_volume_scale = 1.0;
+  bool interface_gate = false;
+  int interface_cells = 0;
+  double interface_grad_max = 0.0;
+  double interface_curvature_abs_max = 0.0;
+  int min_interface_cells = 1;
+  double min_interface_grad_max = 1e-5;
+  double min_interface_curvature_abs_max = 0.0;
 };
 
 struct SecondarySprayEmissionStats3D {
   int enabled = 0;
   int finite = 1;
+  int requested_particles = 0;
+  int effective_requested_particles = 0;
+  int interface_gate_enabled = 0;
+  int interface_gate_passed = 1;
+  int interface_cells = 0;
   int candidate_liquid_particles = 0;
   int emitted_droplets = 0;
   int emitted_bubbles = 0;
+  double interface_grad_max = 0.0;
+  double interface_curvature_abs_max = 0.0;
   double emitted_droplet_volume = 0.0;
   double emitted_bubble_volume = 0.0;
 };
@@ -120,7 +134,26 @@ inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
     int frameIndex) {
   SecondarySprayEmissionStats3D stats;
   stats.enabled = config.enabled ? 1 : 0;
+  stats.requested_particles = std::max(0, config.requested_particles);
+  stats.interface_gate_enabled = config.interface_gate ? 1 : 0;
+  stats.interface_cells = config.interface_cells;
+  stats.interface_grad_max = config.interface_grad_max;
+  stats.interface_curvature_abs_max = config.interface_curvature_abs_max;
   if (!config.enabled || config.requested_particles <= 0) return stats;
+
+  if (config.interface_gate) {
+    const bool finiteInterface =
+      std::isfinite(config.interface_grad_max) &&
+      std::isfinite(config.interface_curvature_abs_max);
+    const bool pass =
+      finiteInterface &&
+      config.interface_cells >= std::max(0, config.min_interface_cells) &&
+      config.interface_grad_max >= config.min_interface_grad_max &&
+      config.interface_curvature_abs_max >= config.min_interface_curvature_abs_max;
+    stats.interface_gate_passed = pass ? 1 : 0;
+    if (!finiteInterface) stats.finite = 0;
+    if (!pass) return stats;
+  }
 
   const SecondaryParticleBounds3D bounds = liquidParticleBounds3D(primary);
   if (!bounds.valid) return stats;
@@ -162,6 +195,7 @@ inline SecondarySprayEmissionStats3D emitSecondarySpraySeeds3D(
               return a.score > b.score;
             });
   const int requested = std::max(0, config.requested_particles);
+  stats.effective_requested_particles = requested;
   const double dropletFraction = std::max(0.0, std::min(1.0, config.droplet_fraction));
   const int dropletCount = std::max(0, std::min(requested,
     static_cast<int>(std::floor(static_cast<double>(requested) * dropletFraction + 0.5))));

@@ -316,6 +316,10 @@ int main(int argc, char** argv) {
     if (secondaryPhysicalParticles > 0) {
       sim.secondary_spray_emission = true;
       sim.secondary_spray_particles_per_step = secondaryPhysicalParticles;
+      sim.secondary_spray_interface_gate = true;
+      sim.secondary_spray_min_interface_cells = 1;
+      sim.secondary_spray_min_interface_grad_max = 1e-5;
+      sim.secondary_spray_min_interface_curvature_abs_max = 0.0;
       sim.secondary_particle_lifecycle = true;
       sim.secondary_velocity_damping = 0.99;
       sim.secondary_droplet_lifetime_steps = 12;
@@ -368,6 +372,18 @@ int main(int argc, char** argv) {
                 sim.secondary_spray_emitted_droplet_volume_total);
     std::printf("secondary_spray_emitted_bubble_volume_total=%.17g\n",
                 sim.secondary_spray_emitted_bubble_volume_total);
+    std::printf("secondary_spray_interface_gate=%s\n",
+                sim.secondary_spray_interface_gate ? "true" : "false");
+    std::printf("secondary_spray_interface_gate_passed_last=%s\n",
+                sim.secondary_spray_interface_gate_passed_last ? "true" : "false");
+    std::printf("secondary_spray_effective_requested_last=%d\n",
+                sim.secondary_spray_effective_requested_last);
+    std::printf("secondary_spray_interface_cells_last=%d\n",
+                sim.secondary_spray_interface_cells_last);
+    std::printf("secondary_spray_interface_grad_max_last=%.17g\n",
+                sim.secondary_spray_interface_grad_max_last);
+    std::printf("secondary_spray_interface_curvature_abs_max_last=%.17g\n",
+                sim.secondary_spray_interface_curvature_abs_max_last);
   } else {
     MRSim3DTP sim(nx, ny, nz, 1.0);
     if (physicsPreset) applyFullPhysicsPreset3D(sim);

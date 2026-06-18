@@ -311,6 +311,8 @@ TEST_CASE("sparse 3D secondary spray emission is sim-side volume accounted") {
   CHECK(sim.secondary_spray_emission_stats_last.enabled == 1);
   CHECK(sim.secondary_spray_emission_stats_last.finite == 1);
   CHECK(sim.secondary_spray_candidates_last > 0);
+  CHECK(sim.secondary_spray_effective_requested_last == 12);
+  CHECK(sim.secondary_spray_interface_gate_passed_last == 1);
   CHECK(sim.secondary_spray_emitted_droplets_last == 11);
   CHECK(sim.secondary_spray_emitted_bubbles_last == 1);
   CHECK(sim.escaped_droplets.size() == 11);
@@ -337,6 +339,49 @@ TEST_CASE("sparse 3D secondary spray emission is sim-side volume accounted") {
         sim.secondary_bubble_volume_reabsorbed_total +
         sim.secondary_bubble_volume_expired_total ==
         doctest::Approx(sim.secondary_spray_emitted_bubble_volume_total));
+}
+
+TEST_CASE("sparse 3D secondary spray emission honors interface diagnostic gate") {
+  SparseSim3DTP blocked(8, 12, 8, 1.0);
+  blocked.dt = 0.02;
+  blocked.cg_iters = 24;
+  blocked.initFallingWaterColumn();
+  blocked.secondary_spray_emission = true;
+  blocked.secondary_spray_particles_per_step = 12;
+  blocked.secondary_spray_interface_gate = true;
+  blocked.secondary_spray_min_interface_cells = 1000000;
+
+  blocked.step();
+
+  CHECK(blocked.secondary_spray_emission_stats_last.interface_gate_enabled == 1);
+  CHECK(blocked.secondary_spray_interface_gate_passed_last == 0);
+  CHECK(blocked.secondary_spray_effective_requested_last == 0);
+  CHECK(blocked.secondary_spray_emitted_droplets_last == 0);
+  CHECK(blocked.secondary_spray_emitted_bubbles_last == 0);
+  CHECK(blocked.escaped_droplets.size() == 0);
+  CHECK(blocked.escaped_bubbles.size() == 0);
+  CHECK(blocked.secondary_spray_interface_cells_last > 0);
+  CHECK(blocked.secondary_spray_interface_grad_max_last >= 0.0);
+  CHECK(blocked.secondary_spray_interface_curvature_abs_max_last >= 0.0);
+
+  SparseSim3DTP passed(8, 12, 8, 1.0);
+  passed.dt = 0.02;
+  passed.cg_iters = 24;
+  passed.initFallingWaterColumn();
+  passed.secondary_spray_emission = true;
+  passed.secondary_spray_particles_per_step = 12;
+  passed.secondary_spray_interface_gate = true;
+  passed.secondary_spray_min_interface_cells = 1;
+  passed.secondary_spray_min_interface_grad_max = 0.0;
+  passed.secondary_spray_min_interface_curvature_abs_max = 0.0;
+
+  passed.step();
+
+  CHECK(passed.secondary_spray_emission_stats_last.interface_gate_enabled == 1);
+  CHECK(passed.secondary_spray_interface_gate_passed_last == 1);
+  CHECK(passed.secondary_spray_effective_requested_last == 12);
+  CHECK(passed.secondary_spray_emitted_droplets_last == 11);
+  CHECK(passed.secondary_spray_emitted_bubbles_last == 1);
 }
 
 TEST_CASE("sparse 3D two-phase narrow-band air prunes far gas particles") {

@@ -162,6 +162,47 @@ def secondary_total_count(channels):
     return int(channels.get("total_count", 0) or 0)
 
 
+def parse_key_value_stdout(text):
+    metrics = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if value in ("true", "false"):
+            metrics[key] = value == "true"
+            continue
+        try:
+            metrics[key] = int(value)
+            continue
+        except ValueError:
+            pass
+        try:
+            metrics[key] = float(value)
+            continue
+        except ValueError:
+            pass
+        metrics[key] = value
+    return metrics
+
+
+def format_secondary_interface_gate(metrics):
+    if not isinstance(metrics, dict) or "secondary_spray_interface_gate" not in metrics:
+        return "n/a"
+    return (
+        f"enabled={metrics.get('secondary_spray_interface_gate')} "
+        f"passed={metrics.get('secondary_spray_interface_gate_passed_last')} "
+        f"effective_requested={metrics.get('secondary_spray_effective_requested_last', 'n/a')} "
+        f"interface_cells={metrics.get('secondary_spray_interface_cells_last', 'n/a')} "
+        f"grad_max={metrics.get('secondary_spray_interface_grad_max_last', 'n/a')} "
+        f"curvature_abs_max={metrics.get('secondary_spray_interface_curvature_abs_max_last', 'n/a')}"
+    )
+
+
 def manifest_frame_path(manifest_path, frame_entry):
     path = frame_entry.get("path", "")
     if os.path.isabs(path):
@@ -371,6 +412,7 @@ def render_report(summary, root):
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
         f"- Secondary volume last: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('last'))}`",
         f"- Secondary acceptance min: `{metrics.get('secondary_acceptance_min', 'n/a')}`",
+        f"- Secondary interface gate: `{format_secondary_interface_gate(summary.get('export_metrics', {}))}`",
         f"- Review keyframes: `{metrics.get('review_frame_count', 'n/a')}`",
         "",
         "## Stage Timings",
@@ -405,7 +447,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S58 should couple physical spray emission thresholds to interface/curvature diagnostics and add a larger visual acceptance gate.",
+        "S59 should improve the falling-water scene complexity and surface detail so the shot reads as a larger water event instead of a compact falling block.",
         "",
     ])
     return "\n".join(lines)
@@ -806,7 +848,8 @@ def run_pipeline(args):
             export_cmd.extend(["--secondary-demo-particles", str(config["secondary_demo_particles"])])
         if config["secondary_physical_particles"] > 0:
             export_cmd.extend(["--secondary-physical-particles", str(config["secondary_physical_particles"])])
-        pipeline.run("export_render_cache", export_cmd)
+        export_result, _export_item = pipeline.run("export_render_cache", export_cmd)
+        summary["export_metrics"] = parse_key_value_stdout(export_result.stdout)
         require_file(manifest_path, "render cache manifest")
 
         pipeline.run("validate_render_cache", [
@@ -922,6 +965,16 @@ def run_pipeline(args):
             last_total = secondary_total_count(secondary_channels.get("last", {}))
             if first_total < acceptance_min or last_total < acceptance_min:
                 fail(f"physical secondary channel count below acceptance min {acceptance_min}: first={first_total} last={last_total}")
+            export_metrics = summary.get("export_metrics", {})
+            if export_metrics.get("secondary_spray_interface_gate") is True:
+                if export_metrics.get("secondary_spray_interface_gate_passed_last") is not True:
+                    fail("physical secondary interface gate did not pass")
+                effective_requested = int(export_metrics.get("secondary_spray_effective_requested_last", 0) or 0)
+                if effective_requested < acceptance_min:
+                    fail(
+                        f"physical secondary interface gate effective request below acceptance min "
+                        f"{acceptance_min}: effective={effective_requested}"
+                    )
         render_summary_path = summary["artifacts"].get("render_summary")
         if render_summary_path and os.path.isfile(render_summary_path):
             render_summary = read_json(render_summary_path)
