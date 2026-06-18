@@ -320,7 +320,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S52 should run a larger visual gate through the current cinematic stack and compare artifact size, render time, and visible quality against S45-S51.",
+        "S53 should replace the coarse voxel-derived water surface with a smoother reconstruction path before the next photoreal material pass.",
         "",
     ])
     return "\n".join(lines)
