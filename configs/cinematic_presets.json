@@ -1084,6 +1084,22 @@
           "min_mean_bright_ratio": 0.00015
         }
       }
+    },
+    "dam_break_water_depth_focus_comparison": {
+      "extends": "dam_break_water_volume_depth_cued",
+      "description": "Water-depth cue tuning with a lower water-body focus crop for comparison review.",
+      "renderer": {
+        "focus_review": {
+          "crop": [0.02, 0.42, 0.98, 0.95],
+          "thumbnail_width": 420,
+          "min_frame_count": 8,
+          "min_nonblank_ratio": 0.95,
+          "min_contrast": 60.0,
+          "min_mean_luminance": 70.0,
+          "max_mean_luminance": 125.0,
+          "min_mean_bright_ratio": 0.0
+        }
+      }
     }
   }
 }

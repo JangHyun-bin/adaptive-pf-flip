@@ -145,6 +145,7 @@ The missing work is not one feature. It is a pipeline:
 | S97 | Secondary volume-depth material tuning | Lower spray/foam emission and streak brightness while preserving secondary depth, visual, temporal, and ripple gates | Done in `style: tune secondary volume depth material` |
 | S98 | Secondary depth comparison sheet | Compare secondary depth diagnostic sheets side by side across neighboring gates | Done in `test: add secondary depth comparison sheet` |
 | S99 | Water volume/depth cue tuning | Strengthen water-body depth/rim cues while preserving visual, temporal, ripple, secondary depth, and comparison gates | Done in `style: tune water volume depth cues` |
+| S100 | Water depth focus comparison | Move focus review to a lower water-body crop so water depth/rim cues can be compared against S99 without relying only on full-frame contact sheets | Done in `test: add water depth focus comparison` |
 
 ## Decision Gates
 
@@ -482,16 +483,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S100.
+Continue with S101 only if the S100 water-depth focus comparison shows weak water-body separation.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-depth-focus-comparison.md`
+`docs/superpowers/plans/2026-06-18-water-depth-followup.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_volume_depth_cued --out build\shots\s100_water_depth_focus_comparison --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s100.md --compare-review-manifest build\shots\s99_water_volume_depth_cue_tuning\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_depth_focus_comparison --out build\shots\s101_water_depth_followup --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s101.md --compare-review-manifest build\shots\s100_water_depth_focus_comparison\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a water-depth-focused comparison diagnostic so S99-style water-body tuning can be reviewed without relying only on full-frame contact sheets.
+The next success condition is either a documented decision to keep the S100 crop as the water-depth diagnostic, or a narrowly tuned crop/lighting preset that improves water-body separation while preserving visual, focus, temporal, ripple, secondary depth, and comparison gates.

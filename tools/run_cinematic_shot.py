@@ -2000,7 +2000,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S100 should add a water-depth-focused comparison diagnostic so water-body tuning can be reviewed without relying only on full-frame contact sheets.",
+        "S101 should tune the water-depth comparison crop or lighting only if the S100 focus comparison shows weak water-body separation.",
         "",
     ])
     return "\n".join(lines)
