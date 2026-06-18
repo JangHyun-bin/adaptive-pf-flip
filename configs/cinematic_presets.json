@@ -1548,6 +1548,71 @@
         }
       }
     },
+    "dam_break_offscreen_source_impact_framing": {
+      "extends": "dam_break_falling_source_silhouette_breakup",
+      "description": "Impact-focused framing that lets the source-breakup water enter from mostly outside the top of frame.",
+      "renderer": {
+        "focus_review": {
+          "crop": [0.02, 0.28, 0.98, 0.96],
+          "min_nonblank_ratio": 0.95,
+          "min_contrast": 60.0,
+          "min_mean_luminance": 68.0,
+          "max_mean_luminance": 128.0,
+          "min_mean_bright_ratio": 0.0
+        },
+        "secondary_depth_review": {
+          "crop": [0.02, 0.12, 0.98, 0.94],
+          "min_mean_crop_ratio": 0.62
+        },
+        "ripple_readability_review": {
+          "crop": [0.02, 0.22, 0.98, 0.96],
+          "min_edge_mean": 8.0,
+          "min_edge_nonzero_ratio": 0.025
+        },
+        "secondary_framing_qa": {
+          "min_mean_inside_ratio": 0.9,
+          "min_frame_inside_ratio": 0.3,
+          "min_mean_screen_y": 0.3,
+          "max_mean_screen_y": 0.88
+        }
+      },
+      "camera": {
+        "auto_frame": {
+          "max_scale": 1.08,
+          "fov_pad_degrees": 5.0
+        },
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [13.0, 10.8, 35.6],
+              "target": [14.0, 7.2, 11.0],
+              "vertical_fov_degrees": 42.0
+            },
+            {
+              "t": 0.55,
+              "position": [13.9, 10.4, 34.4],
+              "target": [14.0, 6.8, 11.0],
+              "vertical_fov_degrees": 40.0
+            },
+            {
+              "t": 1.0,
+              "position": [14.8, 10.1, 33.2],
+              "target": [14.0, 6.5, 11.0],
+              "vertical_fov_degrees": 38.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 10.0,
+          "min_target_distance": 23.0,
+          "max_vertical_fov_degrees": 52.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

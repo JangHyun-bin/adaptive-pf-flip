@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S136 should implement the offscreen-source impact framing pass and run a 36-frame Blender comparison against S133.",
+        "S137 should package and publish the S136 review artifacts through the static gallery/CFTunnel flow.",
         "",
     ])
     return "\n".join(lines)
