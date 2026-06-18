@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S130 should reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene.",
+        "S131 should package and publish the latest review artifacts for external inspection before the next visible shot-shape adjustment.",
         "",
     ])
     return "\n".join(lines)

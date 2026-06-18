@@ -28,7 +28,7 @@ Reduce the visible side-wall/enclosure bands in the S127 non-boxed falling-water
 ## Candidate Command
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_environment_depth_context --out build\shots\s130_environment_depth_context --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s127_nonboxed_falling_water\review\review_manifest.json --no-build --timeout-seconds 1800
+python tools\run_cinematic_shot.py --preset dam_break_environment_depth_context --out build\shots\s130_environment_depth_context --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s127_nonboxed_falling_water\review\review_manifest.json --report docs\reports\cinematic_environment_depth_context_s130.md --no-build --timeout-seconds 1800
 ```
 
 ## Acceptance Gate
@@ -37,6 +37,16 @@ python tools\run_cinematic_shot.py --preset dam_break_environment_depth_context 
 - All S127 review gates remain passing.
 - `docs/reports/cinematic_environment_depth_context_s130.md` records the preset changes, measured metrics, and visual limitations.
 - The comparison sheet against S127 is generated for direct inspection.
+
+## Result
+
+- Preset: `dam_break_environment_depth_context`
+- Shot output: `build/shots/s130_environment_depth_context`
+- Report: `docs/reports/cinematic_environment_depth_context_s130.md`
+- Status: `ok`
+- Frames: `36`
+- Visual, focus, secondary-depth, ripple, temporal, camera-stability, and secondary-framing gates passed.
+- Visual note: floor/world/mist treatment is softer than S127, but late frames still read as a contained vertical water mass.
 
 ## Verification
 

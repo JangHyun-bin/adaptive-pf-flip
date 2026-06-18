@@ -175,7 +175,8 @@ The missing work is not one feature. It is a pipeline:
 | S127 | Non-boxed falling-water scene pass | Change the falling-water scene/source shape so the top water silhouette no longer reads as a rectangular tank wall | Done in `feat: add nonboxed falling water scene` |
 | S128 | S127 gallery refresh/publish | Package and publish the S127 review artifacts so the current non-boxed scene can be inspected externally | Done in `docs: publish s127 cinematic gallery` |
 | S129 | Public gallery visual triage | Review the S127 public gallery and choose the next concrete scene/render improvement from visible evidence | Done in `docs: triage s127 public gallery` |
-| S130 | Environment/depth-context pass | Reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene | Planned |
+| S130 | Environment/depth-context pass | Reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene | Done in `style: add environment depth context preset` |
+| S131 | S130 gallery refresh/publish | Package and publish the S130 review artifacts for external inspection before the next shot-shape adjustment | Planned |
 
 ## Decision Gates
 
@@ -513,16 +514,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S130.
+Continue with S131.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-environment-depth-context-pass.md`
+`docs/superpowers/plans/2026-06-18-s130-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_environment_depth_context --out build\shots\s130_environment_depth_context --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s127_nonboxed_falling_water\review\review_manifest.json --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s130_environment_depth_context --out docs\reports\cinematic_artifact_package_s131.md
+python tools\build_cinematic_gallery.py build\shots\s130_environment_depth_context --package docs\reports\cinematic_artifact_package_s131.md --out build\shots\s130_environment_depth_context\gallery --report docs\reports\cinematic_static_gallery_s131.md
+python tools\publish_cinematic_gallery.py build\shots\s130_environment_depth_context\gallery --port 8798 --cftunnel --manifest build\shots\s130_environment_depth_context\gallery\publish_manifest_s131.json --report docs\reports\cinematic_gallery_publish_s131.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S130 visual gate report showing reduced visible enclosure bands and preserved S127 review/QA gates.
+The next success condition is a checked-in S130 gallery package/publish report with verified local/public `index.html` and `assets/shot.gif`.

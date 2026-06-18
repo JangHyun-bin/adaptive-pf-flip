@@ -418,7 +418,7 @@ def markdown_report(summary, shot_dir, out_dir, index_path, manifest_path, rows,
         "",
         "## Next",
         "",
-        "S130 should reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene.",
+        "S131 should publish the latest static gallery and verify local/public HTML and GIF access.",
         "",
     ])
     return "\n".join(lines)
