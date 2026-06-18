@@ -289,6 +289,14 @@ def summarize_values(values):
     }
 
 
+def clamp_unit(value, fallback):
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        value = fallback
+    return max(0.0, min(1.0, value))
+
+
 def summarize_temporal_highlights(frame_dir, qa_config):
     try:
         from PIL import Image, ImageChops, ImageStat
@@ -534,6 +542,8 @@ def create_review_pack(summary, root, frame_dir, review_frame_count):
         "report": rel_path(summary.get("artifacts", {}).get("report"), root),
         "shot_summary": rel_path(os.path.join(out_dir, "shot_summary.json"), root),
         "render_frame_dir": rel_path(frame_dir, root),
+        "focus_sheet": rel_path(summary.get("artifacts", {}).get("focus_sheet"), root),
+        "focus_review_manifest": rel_path(summary.get("artifacts", {}).get("focus_review_manifest"), root),
         "metrics": metrics,
         "keyframes": [
             {
@@ -551,6 +561,171 @@ def create_review_pack(summary, root, frame_dir, review_frame_count):
         "review_manifest": manifest_path,
         "review_keyframes": [item["thumbnail"] for item in keyframes],
         "review_frame_count": len(keyframes),
+    }
+
+
+def normalized_crop(crop):
+    if not isinstance(crop, (list, tuple)) or len(crop) != 4:
+        crop = (0.02, 0.34, 0.98, 0.9)
+    left = clamp_unit(crop[0], 0.02)
+    top = clamp_unit(crop[1], 0.34)
+    right = clamp_unit(crop[2], 0.98)
+    bottom = clamp_unit(crop[3], 0.9)
+    if right <= left:
+        left, right = 0.0, 1.0
+    if bottom <= top:
+        top, bottom = 0.0, 1.0
+    return [left, top, right, bottom]
+
+
+def crop_box_for_image(image, crop):
+    left, top, right, bottom = normalized_crop(crop)
+    x0 = max(0, min(image.width - 1, int(round(left * image.width))))
+    y0 = max(0, min(image.height - 1, int(round(top * image.height))))
+    x1 = max(x0 + 1, min(image.width, int(round(right * image.width))))
+    y1 = max(y0 + 1, min(image.height, int(round(bottom * image.height))))
+    return x0, y0, x1, y1
+
+
+def focus_image_stats(image, bright_threshold, nonblank_threshold):
+    from PIL import ImageStat
+
+    gray = image.convert("L")
+    extrema = gray.getextrema()
+    pixels = max(1, gray.width * gray.height)
+    bright = gray.point(lambda value: 255 if value >= bright_threshold else 0)
+    nonblank = gray.point(lambda value: 255 if value > nonblank_threshold else 0)
+    return {
+        "mean_luminance": ImageStat.Stat(gray).mean[0],
+        "contrast": float(extrema[1] - extrema[0]),
+        "bright_ratio": ImageStat.Stat(bright).sum[0] / float(255 * pixels),
+        "nonblank_ratio": ImageStat.Stat(nonblank).sum[0] / float(255 * pixels),
+    }
+
+
+def summarize_focus_stats(frame_stats):
+    return {
+        "mean_luminance": summarize_values([item["mean_luminance"] for item in frame_stats]),
+        "contrast": summarize_values([item["contrast"] for item in frame_stats]),
+        "bright_ratio": summarize_values([item["bright_ratio"] for item in frame_stats]),
+        "nonblank_ratio": summarize_values([item["nonblank_ratio"] for item in frame_stats]),
+    }
+
+
+def create_focus_review(summary, root, frame_dir, focus_config, review_frame_count):
+    if not isinstance(focus_config, dict) or not focus_config.get("enabled", False):
+        return None
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the cinematic focus review")
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    focus_dir = os.path.join(review_dir, "focus_keyframes")
+    os.makedirs(focus_dir, exist_ok=True)
+    selected = select_keyframes(frame_dir, review_frame_count)
+    if not selected:
+        fail("focus review requires at least one key frame")
+
+    crop = normalized_crop(focus_config.get("crop"))
+    bright_threshold = int(focus_config.get("bright_threshold", 220) or 220)
+    nonblank_threshold = int(focus_config.get("nonblank_threshold", 8) or 8)
+    thumb_w = max(160, int(focus_config.get("thumbnail_width", 420) or 420))
+    label_h = 24
+    pad = 12
+    columns = min(4, max(1, int(math.ceil(math.sqrt(len(selected))))))
+    rows = int(math.ceil(len(selected) / float(columns)))
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+
+    focus_frames = []
+    frame_stats = []
+    thumb_h = None
+    for out_index, source in enumerate(selected):
+        with Image.open(source) as img:
+            rgb = img.convert("RGB")
+            box = crop_box_for_image(rgb, crop)
+            crop_img = rgb.crop(box)
+            stats = focus_image_stats(crop_img, bright_threshold, nonblank_threshold)
+            thumb = crop_img
+            if thumb.width > thumb_w:
+                target_h = max(1, int(round(thumb.height * (thumb_w / float(thumb.width)))))
+                thumb = thumb.resize((thumb_w, target_h), resample_filter)
+            elif thumb.width < thumb_w:
+                target_h = max(1, int(round(thumb.height * (thumb_w / float(thumb.width)))))
+                thumb = thumb.resize((thumb_w, target_h), resample_filter)
+            if thumb_h is None:
+                thumb_h = thumb.height
+            focus_name = f"focus_{out_index:02d}_{os.path.basename(source)}"
+            focus_path = os.path.join(focus_dir, focus_name)
+            thumb.save(focus_path)
+
+        frame_no = frame_number_from_path(source)
+        frame_stats.append(stats)
+        focus_frames.append({
+            "source": source,
+            "thumbnail": focus_path,
+            "frame": frame_no,
+            "stats": stats,
+        })
+
+    thumb_h = thumb_h or max(1, int(round(thumb_w * 0.56)))
+    sheet_w = pad + columns * (thumb_w + pad)
+    sheet_h = pad + rows * (thumb_h + label_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, item in enumerate(focus_frames):
+        with Image.open(item["thumbnail"]) as img:
+            cell = img.convert("RGB")
+        if cell.size != (thumb_w, thumb_h):
+            base = Image.new("RGB", (thumb_w, thumb_h), (8, 10, 12))
+            base.paste(cell, ((thumb_w - cell.width) // 2, (thumb_h - cell.height) // 2))
+            cell = base
+        col = index % columns
+        row = index // columns
+        x = pad + col * (thumb_w + pad)
+        y = pad + row * (thumb_h + label_h + pad)
+        sheet.paste(cell, (x, y))
+        label = f"frame {item['frame']:04d}" if item["frame"] is not None else os.path.basename(item["source"])
+        draw.text((x + 6, y + thumb_h + 5), label, fill=(224, 234, 240))
+
+    focus_sheet = os.path.join(review_dir, "focus_sheet.png")
+    manifest_path = os.path.join(review_dir, "focus_review_manifest.json")
+    sheet.save(focus_sheet)
+    metrics = {
+        "enabled": True,
+        "frame_count": len(focus_frames),
+        "crop": crop,
+        "bright_threshold": bright_threshold,
+        "nonblank_threshold": nonblank_threshold,
+        "summary": summarize_focus_stats(frame_stats),
+    }
+    manifest = {
+        "schema": "lsfs_cinematic_focus_review",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "render_preset": summary.get("render_preset"),
+        "selected_renderer": summary.get("selected_renderer"),
+        "focus_sheet": rel_path(focus_sheet, root),
+        "render_frame_dir": rel_path(frame_dir, root),
+        "metrics": metrics,
+        "keyframes": [
+            {
+                "frame": item["frame"],
+                "source": rel_path(item["source"], root),
+                "thumbnail": rel_path(item["thumbnail"], root),
+                "stats": item["stats"],
+            }
+            for item in focus_frames
+        ],
+    }
+    write_json(manifest_path, manifest)
+    return {
+        "focus_sheet": focus_sheet,
+        "focus_review_manifest": manifest_path,
+        "focus_review": metrics,
     }
 
 
@@ -810,6 +985,42 @@ def evaluate_secondary_framing_qa(config, framing):
     }
 
 
+def evaluate_focus_review_qa(config, focus_review):
+    gate = config.get("focus_review")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_frame_count": (("frame_count",), gate.get("min_frame_count"), ">="),
+        "min_nonblank_ratio": (("summary", "nonblank_ratio", "min"), gate.get("min_nonblank_ratio"), ">="),
+        "min_contrast": (("summary", "contrast", "min"), gate.get("min_contrast"), ">="),
+        "min_mean_luminance": (("summary", "mean_luminance", "mean"), gate.get("min_mean_luminance"), ">="),
+        "max_mean_luminance": (("summary", "mean_luminance", "mean"), gate.get("max_mean_luminance"), "<="),
+        "min_mean_bright_ratio": (("summary", "bright_ratio", "mean"), gate.get("min_mean_bright_ratio"), ">="),
+    }
+    passed = True
+    for name, (path, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = nested_metric(focus_review, path)
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def render_report(summary, root):
     config = summary.get("config", {})
     metrics = summary.get("metrics", {})
@@ -838,9 +1049,10 @@ def render_report(summary, root):
     for key in ("manifest", "sequence", "water_reconstruction", "render_summary",
                 "render_frame_dir", "gif", "contact_sheet", "review_manifest",
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
-                "temporal_diff_manifest", "review_dir"):
-        if key in artifacts:
-            lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
+                "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
+                "review_dir"):
+            if key in artifacts:
+                lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
     lines.extend([
         "",
         "## Metrics",
@@ -875,6 +1087,8 @@ def render_report(summary, root):
         f"- Surface contact foam counts: `{metrics.get('surface_contact_foam_counts', {})}`",
         f"- Secondary framing summary: `{metrics.get('secondary_framing', {})}`",
         f"- Secondary framing gate: `{metrics.get('secondary_framing_gate', {})}`",
+        f"- Focus review summary: `{metrics.get('focus_review', {})}`",
+        f"- Focus review gate: `{metrics.get('focus_review_gate', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
@@ -920,7 +1134,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S87 should add a focused contact-region review gate so impact ripple readability can be judged without hiding secondary spray/foam or breaking temporal highlight QA.",
+        "S88 should use the focus-review evidence to tune the contact camera, ripple placement, or focus-comparison artifacts.",
         "",
     ])
     return "\n".join(lines)
@@ -1201,6 +1415,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "temporal_highlight_qa": section(renderer, "temporal_highlight_qa"),
         "temporal_diff_review": section(renderer, "temporal_diff_review"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
+        "focus_review": section(renderer, "focus_review"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
                                          reconstruction.get("smooth_iterations"),
@@ -1539,6 +1754,17 @@ def run_pipeline(args):
         if args.report:
             report_out = os.path.abspath(args.report)
             summary["artifacts"]["report"] = report_out
+        focus_review = create_focus_review(
+            summary, root, frame_dir, config.get("focus_review", {}), config["review_frames"])
+        if focus_review:
+            summary["artifacts"]["focus_sheet"] = focus_review["focus_sheet"]
+            summary["artifacts"]["focus_review_manifest"] = focus_review["focus_review_manifest"]
+            summary["metrics"]["focus_review"] = focus_review["focus_review"]
+            summary["metrics"]["focus_review_gate"] = evaluate_focus_review_qa(
+                config, summary["metrics"]["focus_review"])
+            if (summary["metrics"]["focus_review_gate"].get("enabled")
+                    and not summary["metrics"]["focus_review_gate"].get("passed")):
+                fail(f"focus review QA gate failed: {summary['metrics']['focus_review_gate']}")
         if config["review_pack"]:
             review = create_review_pack(summary, root, frame_dir, config["review_frames"])
             summary["artifacts"]["review_dir"] = review["review_dir"]

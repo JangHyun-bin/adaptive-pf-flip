@@ -804,6 +804,25 @@
           "roughness": 0.08
         }
       }
+    },
+    "dam_break_water_impact_ripple_focus_qa": {
+      "extends": "dam_break_water_impact_ripple_fade",
+      "description": "Impact ripple material fade with a focused contact-region review gate.",
+      "renderer": {
+        "focus_review": {
+          "enabled": true,
+          "crop": [0.02, 0.34, 0.98, 0.9],
+          "thumbnail_width": 420,
+          "bright_threshold": 220,
+          "nonblank_threshold": 8,
+          "min_frame_count": 8,
+          "min_nonblank_ratio": 0.95,
+          "min_contrast": 42.0,
+          "min_mean_luminance": 58.0,
+          "max_mean_luminance": 130.0,
+          "min_mean_bright_ratio": 0.00015
+        }
+      }
     }
   }
 }

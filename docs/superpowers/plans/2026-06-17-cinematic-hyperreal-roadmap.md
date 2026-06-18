@@ -132,6 +132,7 @@ The missing work is not one feature. It is a pipeline:
 | S84 | Water impact ripple cues | Add foam/spray-driven impact-region ripple arcs so the splash contact area reads as broken water surface | Done in `feat: add water impact ripple cues` |
 | S85 | Water impact ripple tuning | Lower ripple density and soften material strength so contact breakup remains readable without overpowering foam/spray | Done in `style: tune water impact ripple cues` |
 | S86 | Water impact ripple material fade | Add UV edge-falloff material to impact ripple arcs so contact breakup blends into the water surface | Done in `feat: add water impact ripple material fade` |
+| S87 | Water impact ripple focus QA | Add a focused contact-region review sheet and gate for ripple readability | Done in `test: add water impact ripple focus qa` |
 
 ## Decision Gates
 
@@ -469,16 +470,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S87.
+Continue with S88.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-water-impact-ripple-focus-qa.md`
+`docs/superpowers/plans/2026-06-18-water-impact-ripple-focus-comparison.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_water_impact_ripple_fade --out build\shots\s87_water_impact_ripple_focus_qa --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s87.md --compare-review-manifest build\shots\s86_water_impact_ripple_material_fade\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_water_impact_ripple_focus_qa --out build\shots\s88_water_impact_ripple_focus_comparison --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s88.md --compare-review-manifest build\shots\s87_water_impact_ripple_focus_qa\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a focused contact-region review gate that makes water impact ripple readability measurable without hiding secondary spray/foam or breaking temporal highlight QA.
+The next success condition is a focus-comparison artifact that can compare contact-region crops across nearby milestones without replacing the full-frame contact sheet.
