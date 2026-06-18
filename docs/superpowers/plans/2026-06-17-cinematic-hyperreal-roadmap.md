@@ -150,6 +150,7 @@ The missing work is not one feature. It is a pipeline:
 | S102 | Water volume scattering pass | Add opt-in internal attenuation sheets so the main water body gains subtle volume/scattering cues while preserving the S100 diagnostic gates | Done in `feat: add water volume scattering pass` |
 | S103 | Secondary render integration review | Extend the S102 water volume baseline with bubble-inclusive secondary depth review and comparison | Done in `test: add secondary render integration review` |
 | S104 | Large-grid cinematic benchmark | Run the S103 render/review stack on a `32 x 40 x 26` grid with larger-grid camera and secondary acceptance gates | Done in `test: add large grid cinematic benchmark` |
+| S105 | Cinematic benchmark summary | Generate a compact table for recent cinematic gates with runtime, grid size, and key QA metrics | Done in `tools: summarize cinematic gate metrics` |
 
 ## Decision Gates
 
@@ -487,16 +488,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S105.
+Continue with S106.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-benchmark-summary.md`
+`docs/superpowers/plans/2026-06-18-large-grid-render-quality-followup.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gates.py build\shots\s100_water_depth_focus_comparison\shot_summary.json build\shots\s102_water_volume_scattering\shot_summary.json build\shots\s103_secondary_render_integration_review\shot_summary.json build\shots\s104_large_grid_cinematic_benchmark\shot_summary.json --out docs\reports\cinematic_benchmark_summary_s105.md
+python tools\run_cinematic_shot.py --preset dam_break_large_grid_cinematic_benchmark --out build\shots\s106_large_grid_render_quality_followup --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s106.md --compare-review-manifest build\shots\s104_large_grid_cinematic_benchmark\review\review_manifest.json --timeout-seconds 1800
 ```
 
-The next success condition is a compact benchmark summary table for recent cinematic gates so render quality, runtime, grid size, and key QA metrics can be compared without re-opening each full report.
+The next success condition is using the S105 summary to make a narrow larger-grid render-quality follow-up, rather than adding another broad visual pass blindly.
