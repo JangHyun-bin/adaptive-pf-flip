@@ -831,6 +831,29 @@ def water_reflection_pass_summary(render_preset):
     }
 
 
+def water_impact_ripple_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_impact_ripple_pass")
+    channels = preset_section(cfg, "channels")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "foam": as_float(channels.get("foam"), 0.0),
+            "spray": as_float(channels.get("spray"), 0.0),
+        },
+        "max_count": as_int(cfg.get("max_count"), 128),
+        "ring_count": as_int(cfg.get("ring_count"), 2),
+        "segments": as_int(cfg.get("segments"), 18),
+        "arc_fraction": as_float(cfg.get("arc_fraction"), 0.62),
+        "radius": as_float(cfg.get("radius"), 0.48),
+        "radius_step": as_float(cfg.get("radius_step"), 0.28),
+        "width": as_float(cfg.get("width"), 0.035),
+        "vertical_offset": as_float(cfg.get("vertical_offset"), -1.78),
+        "flow_center": vec3(cfg.get("flow_center"), (14.0, 0.0, 11.0)),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.26),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.42),
+    }
+
+
 def estimate_surface_contact_foam_counts(path, contact_pass):
     count = 0
     if not contact_pass.get("enabled", False):
@@ -848,6 +871,28 @@ def estimate_surface_contact_foam_counts(path, contact_pass):
     return {"foam": count, "total": count}
 
 
+def estimate_water_impact_ripple_counts(path, ripple_pass):
+    counts = {"foam": 0, "spray": 0, "total": 0}
+    if not ripple_pass.get("enabled", False):
+        return counts
+    channels = ripple_pass.get("channels") if isinstance(ripple_pass.get("channels"), dict) else {}
+    max_count = max(0, as_int(ripple_pass.get("max_count"), 128))
+    if max_count <= 0:
+        return counts
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if counts["total"] >= max_count:
+                break
+            channel = secondary_render_channel(row)
+            if channel not in ("foam", "spray"):
+                continue
+            if as_float(channels.get(channel), 0.0) <= 0.0:
+                continue
+            counts[channel] += 1
+            counts["total"] += 1
+    return counts
+
+
 def summarize_surface_contact_foam_counts(frames):
     if not frames:
         return {}
@@ -855,6 +900,19 @@ def summarize_surface_contact_foam_counts(frames):
     return {
         "first": frames[0].get("surface_contact_foam_counts", {}),
         "last": frames[-1].get("surface_contact_foam_counts", {}),
+        "min_total": min(totals),
+        "max_total": max(totals),
+        "mean_total": sum(totals) / float(len(totals)),
+    }
+
+
+def summarize_water_impact_ripple_counts(frames):
+    if not frames:
+        return {}
+    totals = [as_int(frame.get("water_impact_ripple_counts", {}).get("total"), 0) for frame in frames]
+    return {
+        "first": frames[0].get("water_impact_ripple_counts", {}),
+        "last": frames[-1].get("water_impact_ripple_counts", {}),
         "min_total": min(totals),
         "max_total": max(totals),
         "mean_total": sum(totals) / float(len(totals)),
@@ -902,6 +960,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     surface_contact_foam_pass = surface_contact_foam_pass_summary(render_preset)
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
     water_reflection_pass = water_reflection_pass_summary(render_preset)
+    water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
@@ -923,6 +982,9 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         surface_contact_foam_counts = estimate_surface_contact_foam_counts(
             frame["particles_csv"],
             surface_contact_foam_pass)
+        water_impact_ripple_counts = estimate_water_impact_ripple_counts(
+            frame["particles_csv"],
+            water_impact_ripple_pass)
         header = {
             "dims": frame.get("header", {}).get("dims", sequence["sequence"].get("dims", [1, 1, 1])),
             "dx": as_float(frame.get("header", {}).get("dx"), as_float(sequence["sequence"].get("dx"), 1.0)),
@@ -944,6 +1006,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             "secondary_counts": secondary_counts,
             "secondary_streak_counts": secondary_streak_counts,
             "surface_contact_foam_counts": surface_contact_foam_counts,
+            "water_impact_ripple_counts": water_impact_ripple_counts,
             "output_png": os.path.abspath(os.path.join(render_dir, f"frame_{out_index:04d}.png")),
         })
 
@@ -968,6 +1031,8 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "surface_contact_foam_counts": summarize_surface_contact_foam_counts(frames),
         "water_surface_glint_pass": water_surface_glint_pass,
         "water_reflection_pass": water_reflection_pass,
+        "water_impact_ripple_pass": water_impact_ripple_pass,
+        "water_impact_ripple_counts": summarize_water_impact_ripple_counts(frames),
         "secondary_framing_qa": secondary_framing_qa,
         "secondary_framing": summarize_secondary_framing(frames, width, height, secondary_framing_qa),
         "render_preset_name": render_preset_name,
@@ -1446,6 +1511,29 @@ def water_reflection_pass_values(spec):
     }
 
 
+def water_impact_ripple_pass_values(spec):
+    cfg = spec.get("water_impact_ripple_pass") or {}
+    channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "foam": max(0.0, scalar_value(channels.get("foam"), 0.0)),
+            "spray": max(0.0, scalar_value(channels.get("spray"), 0.0)),
+        },
+        "max_count": max(0, int(scalar_value(cfg.get("max_count"), 128))),
+        "ring_count": max(1, int(scalar_value(cfg.get("ring_count"), 2))),
+        "segments": max(4, int(scalar_value(cfg.get("segments"), 18))),
+        "arc_fraction": min(1.0, max(0.08, scalar_value(cfg.get("arc_fraction"), 0.62))),
+        "radius": max(0.01, scalar_value(cfg.get("radius"), 0.48)),
+        "radius_step": max(0.0, scalar_value(cfg.get("radius_step"), 0.28)),
+        "width": max(0.001, scalar_value(cfg.get("width"), 0.035)),
+        "vertical_offset": scalar_value(cfg.get("vertical_offset"), -1.78),
+        "flow_center": vector_value(cfg.get("flow_center"), (14.0, 0.0, 11.0), 3),
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.26)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.42)),
+    }
+
+
 def hash01(index, salt):
     value = math.sin(index * 12.9898 + salt * 78.233) * 43758.5453
     return value - math.floor(value)
@@ -1539,6 +1627,97 @@ def add_water_reflection_pass(frame, material, reflection_pass):
         strips.append((to_blender((x, y, z)), direction, side, strip_length, strip_width))
     add_flow_strip_mesh("LSFS Water Reflection Ribbons", strips, material)
     return len(strips)
+
+
+def add_water_impact_ripple_pass(frame, material, ripple_pass):
+    if not ripple_pass.get("enabled", False):
+        return 0
+    max_count = int(ripple_pass.get("max_count", 0))
+    if max_count <= 0:
+        return 0
+    path = frame.get("particles_csv")
+    if not path or not os.path.isfile(path):
+        return 0
+    channels = ripple_pass.get("channels", {})
+    vertical_offset = float(ripple_pass.get("vertical_offset", -1.78))
+    flow_center = ripple_pass.get("flow_center", (14.0, 0.0, 11.0))
+    base_radius = float(ripple_pass.get("radius", 0.48))
+    radius_step = float(ripple_pass.get("radius_step", 0.28))
+    width = float(ripple_pass.get("width", 0.035))
+    ring_count = int(ripple_pass.get("ring_count", 2))
+    arc_fraction = float(ripple_pass.get("arc_fraction", 0.62))
+    segments = int(ripple_pass.get("segments", 18))
+    arcs = []
+    count = 0
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if count >= max_count:
+                break
+            channel = secondary_channel(row)
+            channel_scale = float(channels.get(channel, 0.0) or 0.0)
+            if channel not in ("foam", "spray") or channel_scale <= 0.0:
+                continue
+            x = float(row.get("x", 0.0))
+            y = float(row.get("y", 0.0)) + vertical_offset
+            z = float(row.get("z", 0.0))
+            vx = float(row.get("vx", 0.0))
+            vz = float(row.get("vz", 0.0))
+            horizontal_speed = math.sqrt(vx * vx + vz * vz)
+            if horizontal_speed > 1e-5:
+                direction = (vx / horizontal_speed, vz / horizontal_speed)
+            else:
+                dx = x - float(flow_center[0])
+                dz = z - float(flow_center[2])
+                radial = math.sqrt(dx * dx + dz * dz)
+                direction = (dx / radial, dz / radial) if radial > 1e-5 else (1.0, 0.0)
+            axis_x = Vector((float(direction[0]), -float(direction[1]), 0.0))
+            if axis_x.length <= 1e-8:
+                axis_x = Vector((1.0, 0.0, 0.0))
+            axis_x = axis_x.normalized()
+            axis_z = Vector((-axis_x.y, axis_x.x, 0.0))
+            volume = max(0.05, float(row.get("volume", 1.0)))
+            volume_scale = 0.72 + min(0.9, math.sqrt(volume) * 0.12)
+            center = to_blender((x, y, z))
+            for ring in range(ring_count):
+                ring_radius = (base_radius + radius_step * ring) * volume_scale * channel_scale
+                ring_width = width * (1.0 + ring * 0.18)
+                sweep = max(0.2, min(2.0 * math.pi, 2.0 * math.pi * arc_fraction * (1.0 - ring * 0.08)))
+                arcs.append((center, axis_x, axis_z, ring_radius, ring_width, sweep))
+            count += 1
+    if arcs:
+        add_water_impact_ripple_mesh("LSFS Impact Ripple Cues", arcs, material, segments)
+    return count
+
+
+def add_water_impact_ripple_mesh(name, arcs, material, segments):
+    verts = []
+    faces = []
+    segments = max(4, int(segments))
+    for center, axis_x, axis_z, radius, width, sweep in arcs:
+        center_vec = Vector(center)
+        inner = max(0.001, float(radius) - float(width) * 0.5)
+        outer = max(inner + 0.001, float(radius) + float(width) * 0.5)
+        base = len(verts)
+        for seg in range(segments + 1):
+            t = -float(sweep) * 0.5 + float(sweep) * seg / float(segments)
+            c = math.cos(t)
+            s = math.sin(t)
+            verts.append(tuple(center_vec + axis_x * (c * inner) + axis_z * (s * inner)))
+            verts.append(tuple(center_vec + axis_x * (c * outer) + axis_z * (s * outer)))
+        for seg in range(segments):
+            i0 = base + seg * 2
+            i1 = i0 + 1
+            i2 = i0 + 3
+            i3 = i0 + 2
+            faces.append((i0, i1, i2, i3))
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return obj
 
 
 def add_surface_contact_foam_pass(frame, material, contact_pass):
@@ -1933,6 +2112,7 @@ def main():
     water = material_values(preset, "water", (0.18, 0.66, 1.0, 0.52), 0.03, 0.52, 0.35)
     water_glint = material_values(preset, "water_glint", (0.82, 0.96, 1.0, 0.32), 0.08, 0.32, 0.0)
     water_reflection = material_values(preset, "water_reflection", (0.62, 0.86, 1.0, 0.24), 0.06, 0.24, 0.0)
+    water_ripple = material_values(preset, "water_ripple", (0.8, 0.96, 1.0, 0.3), 0.08, 0.3, 0.0)
     floor = material_values(preset, "floor", (0.015, 0.018, 0.024, 1.0), 0.7, 1.0, 0.0)
     droplet = material_values(preset, "droplet", (0.72, 0.95, 1.0, 0.85), 0.05, 0.85, 0.25)
     spray = material_values(preset, "spray", (0.9, 0.98, 1.0, 0.8), 0.12, 0.8, 0.15)
@@ -1950,12 +2130,16 @@ def main():
     contact_foam_pass = surface_contact_foam_pass_values(spec)
     glint_pass = water_surface_glint_pass_values(spec)
     reflection_pass = water_reflection_pass_values(spec)
+    ripple_pass = water_impact_ripple_pass_values(spec)
     water_glint = scaled_overlay_values(water_glint,
                                         glint_pass.get("alpha_scale", 0.22),
                                         glint_pass.get("emission_scale", 0.45))
     water_reflection = scaled_overlay_values(water_reflection,
                                              reflection_pass.get("alpha_scale", 0.18),
                                              reflection_pass.get("emission_scale", 0.32))
+    water_ripple = scaled_overlay_values(water_ripple,
+                                         ripple_pass.get("alpha_scale", 0.26),
+                                         ripple_pass.get("emission_scale", 0.42))
     spray_soft = scaled_particle_values(spray,
                                         spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
                                         spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
@@ -1985,6 +2169,7 @@ def main():
         "foam_contact": make_principled_material("LSFS Surface Contact Foam", foam_contact["color"], foam_contact["roughness"], foam_contact["alpha"], foam_contact["transmission"], foam_contact["emission_color"], foam_contact["emission_strength"]),
         "water_glint": make_principled_material("LSFS Water Surface Glint", water_glint["color"], water_glint["roughness"], water_glint["alpha"], water_glint["transmission"], water_glint["emission_color"], water_glint["emission_strength"]),
         "water_reflection": make_principled_material("LSFS Water Reflection Ribbons", water_reflection["color"], water_reflection["roughness"], water_reflection["alpha"], water_reflection["transmission"], water_reflection["emission_color"], water_reflection["emission_strength"]),
+        "water_ripple": make_principled_material("LSFS Impact Ripple Cues", water_ripple["color"], water_ripple["roughness"], water_ripple["alpha"], water_ripple["transmission"], water_ripple["emission_color"], water_ripple["emission_strength"]),
     }
     if soft_pass.get("material_falloff") == "radial_shader":
         particle_mats["spray_soft_falloff"] = [make_radial_soft_material("LSFS Spray Mist Radial", spray_soft)]
@@ -1998,6 +2183,9 @@ def main():
         remove_frame_assets()
         configure_camera(camera, frame, preset)
         add_water_mesh(frame, water_mat, surface_detail)
+        add_water_impact_ripple_pass(frame,
+                                     particle_mats["water_ripple"],
+                                     ripple_pass)
         add_water_reflection_pass(frame,
                                   particle_mats["water_reflection"],
                                   reflection_pass)
@@ -2235,6 +2423,8 @@ def main(argv=None):
             "surface_contact_foam_counts": spec["surface_contact_foam_counts"],
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
             "water_reflection_pass": spec["water_reflection_pass"],
+            "water_impact_ripple_pass": spec["water_impact_ripple_pass"],
+            "water_impact_ripple_counts": spec["water_impact_ripple_counts"],
             "secondary_framing_qa": spec["secondary_framing_qa"],
             "secondary_framing": spec["secondary_framing"],
             "camera_motion": spec["camera_motion"],
@@ -2253,6 +2443,7 @@ def main(argv=None):
                 "secondary_counts": frame["secondary_counts"],
                 "secondary_streak_counts": frame["secondary_streak_counts"],
                 "surface_contact_foam_counts": frame["surface_contact_foam_counts"],
+                "water_impact_ripple_counts": frame["water_impact_ripple_counts"],
             } for frame in spec["frames"]],
         }
         summary_path = os.path.abspath(os.path.join(args.out_dir, "bridge_summary.json"))

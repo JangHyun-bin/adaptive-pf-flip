@@ -724,6 +724,44 @@
           "max_highlight_change_ratio": 0.0065
         }
       }
+    },
+    "dam_break_water_impact_ripple_cues": {
+      "extends": "dam_break_water_highlight_motion_tuned",
+      "description": "Water highlight motion with localized impact-region ripple and surface-breakup cues.",
+      "renderer": {
+        "water_impact_ripple_pass": {
+          "enabled": true,
+          "channels": {
+            "foam": 1.0,
+            "spray": 0.35
+          },
+          "max_count": 96,
+          "ring_count": 2,
+          "segments": 18,
+          "arc_fraction": 0.58,
+          "radius": 0.48,
+          "radius_step": 0.3,
+          "width": 0.052,
+          "vertical_offset": -1.82,
+          "flow_center": [14.0, 0.0, 11.0],
+          "alpha_scale": 0.42,
+          "emission_scale": 0.78
+        },
+        "temporal_highlight_qa": {
+          "max_mean_delta": 16.0,
+          "max_highlight_change_ratio": 0.007
+        }
+      },
+      "materials": {
+        "water_ripple": {
+          "base_color": [0.82, 0.96, 1.0, 1.0],
+          "emission_color": [0.68, 0.9, 1.0, 1.0],
+          "emission_strength": 0.4,
+          "roughness": 0.08,
+          "alpha": 1.0,
+          "transmission": 0.0
+        }
+      }
     }
   }
 }

@@ -865,6 +865,8 @@ def render_report(summary, root):
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
         f"- Water surface glint pass: `{metrics.get('water_surface_glint_pass', {})}`",
         f"- Water reflection pass: `{metrics.get('water_reflection_pass', {})}`",
+        f"- Water impact ripple pass: `{metrics.get('water_impact_ripple_pass', {})}`",
+        f"- Water impact ripple counts: `{metrics.get('water_impact_ripple_counts', {})}`",
         f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
         f"- Secondary soft pass: `{metrics.get('secondary_soft_pass', {})}`",
         f"- Secondary streak pass: `{metrics.get('secondary_streak_pass', {})}`",
@@ -918,7 +920,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S84 should add localized impact-region ripple or surface-breakup cues tied to the active splash/foam band.",
+        "S85 should tune impact ripple density and material strength against contact-area readability, foam/spray visibility, and temporal highlight QA.",
         "",
     ])
     return "\n".join(lines)
@@ -1506,6 +1508,8 @@ def run_pipeline(args):
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
             summary["metrics"]["water_surface_glint_pass"] = render_summary.get("water_surface_glint_pass", {})
             summary["metrics"]["water_reflection_pass"] = render_summary.get("water_reflection_pass", {})
+            summary["metrics"]["water_impact_ripple_pass"] = render_summary.get("water_impact_ripple_pass", {})
+            summary["metrics"]["water_impact_ripple_counts"] = render_summary.get("water_impact_ripple_counts", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
             summary["metrics"]["secondary_soft_pass"] = render_summary.get("secondary_soft_pass", {})
             summary["metrics"]["secondary_streak_pass"] = render_summary.get("secondary_streak_pass", {})
