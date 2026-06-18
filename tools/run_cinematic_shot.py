@@ -918,7 +918,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S83 should use the temporal review evidence to tune or animate highlight/reflection layers without introducing flicker.",
+        "S84 should add localized impact-region ripple or surface-breakup cues tied to the active splash/foam band.",
         "",
     ])
     return "\n".join(lines)

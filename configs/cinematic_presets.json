@@ -700,6 +700,30 @@
           "amplify": 3.0
         }
       }
+    },
+    "dam_break_water_highlight_motion_tuned": {
+      "extends": "dam_break_water_highlight_temporal_diff_sheet",
+      "description": "Water highlight temporal review with slightly stronger glint and reflection motion.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 52,
+          "length": 1.7,
+          "drift_per_frame": 0.105,
+          "alpha_scale": 0.23,
+          "emission_scale": 0.5
+        },
+        "water_reflection_pass": {
+          "length": 5.6,
+          "width": 0.115,
+          "drift_per_frame": 0.048,
+          "alpha_scale": 0.32,
+          "emission_scale": 0.68
+        },
+        "temporal_highlight_qa": {
+          "max_mean_delta": 15.0,
+          "max_highlight_change_ratio": 0.0065
+        }
+      }
     }
   }
 }
