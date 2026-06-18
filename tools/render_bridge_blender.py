@@ -541,6 +541,7 @@ def secondary_soft_pass_summary(render_preset):
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.35),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.5),
         "max_radius": as_float(cfg.get("max_radius"), 1.0),
+        "geometry": str(cfg.get("geometry", "batched_spheres")),
     }
 
 
@@ -1027,6 +1028,7 @@ def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_s
     if not path or not os.path.isfile(path) or max_count <= 0:
         return 0
     count = 0
+    by_channel = {"spray": [], "foam": []}
     with open(path, encoding="utf-8", newline="") as f:
         for row in csv.DictReader(f):
             if count >= max_count:
@@ -1041,16 +1043,61 @@ def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_s
             channel_scale = channel_radius_scale(channel, channel_scales)
             core_radius = min(0.55, max(0.02, base_radius * max(0.01, radius_scale) * channel_scale))
             radius = min(float(soft_pass.get("max_radius", 1.0)), max(core_radius, core_radius * soft_scale))
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=12,
-                                                 ring_count=6,
-                                                 radius=radius,
-                                                 location=to_blender(pos))
-            sphere = bpy.context.object
-            sphere.name = "LSFS Secondary Soft"
-            sphere["lsfs_frame_asset"] = True
-            sphere.data.materials.append(materials[f"{channel}_soft"])
+            by_channel[channel].append((to_blender(pos), radius))
             count += 1
+    for channel, particles in by_channel.items():
+        if particles:
+            add_sphere_cloud_mesh(f"LSFS {channel.title()} Soft Cloud",
+                                  particles,
+                                  materials[f"{channel}_soft"],
+                                  segments=8,
+                                  rings=4)
     return count
+
+
+def add_sphere_cloud_mesh(name, particles, material, segments=8, rings=4):
+    verts = []
+    faces = []
+    segments = max(4, int(segments))
+    rings = max(3, int(rings))
+    for center, radius in particles:
+        base = len(verts)
+        cx, cy, cz = center
+        radius = max(0.001, float(radius))
+        verts.append((cx, cy, cz + radius))
+        for ring in range(1, rings):
+            phi = math.pi * ring / float(rings)
+            z = math.cos(phi) * radius
+            rr = math.sin(phi) * radius
+            for seg in range(segments):
+                theta = 2.0 * math.pi * seg / float(segments)
+                verts.append((cx + math.cos(theta) * rr, cy + math.sin(theta) * rr, cz + z))
+        bottom = len(verts)
+        verts.append((cx, cy, cz - radius))
+        first_ring = base + 1
+        for seg in range(segments):
+            faces.append((base, first_ring + seg, first_ring + ((seg + 1) % segments)))
+        for ring in range(rings - 2):
+            row0 = base + 1 + ring * segments
+            row1 = row0 + segments
+            for seg in range(segments):
+                faces.append((
+                    row0 + seg,
+                    row0 + ((seg + 1) % segments),
+                    row1 + ((seg + 1) % segments),
+                    row1 + seg,
+                ))
+        last_ring = base + 1 + (rings - 2) * segments
+        for seg in range(segments):
+            faces.append((last_ring + ((seg + 1) % segments), last_ring + seg, bottom))
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return obj
 
 
 def main():

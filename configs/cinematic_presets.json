@@ -172,7 +172,8 @@
           },
           "alpha_scale": 0.32,
           "emission_scale": 0.6,
-          "max_radius": 1.05
+          "max_radius": 1.05,
+          "geometry": "batched_spheres"
         }
       },
       "reconstruction": {
@@ -356,7 +357,8 @@
           },
           "alpha_scale": 0.32,
           "emission_scale": 0.6,
-          "max_radius": 1.05
+          "max_radius": 1.05,
+          "geometry": "batched_spheres"
         }
       },
       "reconstruction": {

@@ -654,7 +654,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S67 should reduce the secondary soft-pass render cost with instancing, caps, or cheaper sprite-style geometry while preserving the S66 visual QA gates.",
+        "S68 should improve spray/foam naturalness beyond soft spheres, preferably with camera-facing billboard or flattened mist geometry, while preserving S67 render cost and visual QA gates.",
         "",
     ])
     return "\n".join(lines)
