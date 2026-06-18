@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S119 should add a side-by-side Blender quality comparison against the previous large-grid baseline.",
+        "S120 should package the current Blender comparison artifacts for quick visual inspection and sharing.",
         "",
     ])
     return "\n".join(lines)

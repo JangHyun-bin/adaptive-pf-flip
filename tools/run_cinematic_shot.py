@@ -2247,7 +2247,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S119 should produce a direct visual comparison package between the S106 baseline and the current warm-cache Blender quality output.",
+        "S120 should package the current Blender comparison artifacts for quick visual inspection and sharing.",
         "",
     ])
     return "\n".join(lines)

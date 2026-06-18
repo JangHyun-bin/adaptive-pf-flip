@@ -164,6 +164,7 @@ The missing work is not one feature. It is a pipeline:
 | S116 | Warm-cache fingerprint cost reduction | Move water reconstruction reuse detection before phase-cell loading and reduce large-grid warm-cache reconstruction check time | Done in `perf: reduce warm cache fingerprint overhead` |
 | S117 | GIF assembly reuse | Add opt-in GIF assembly reuse and expose GIF reuse status in shot reports | Done in `perf: reuse fresh cinematic gif` |
 | S118 | Blender quality warm-cache return | Re-run the large-grid Blender quality gate with full warm-cache controls enabled | Done in `test: return to blender quality warm cache` |
+| S119 | Blender quality baseline comparison | Compare the current warm-cache Blender quality output against the S106 large-grid baseline | Done in `test: compare blender quality baseline` |
 
 ## Decision Gates
 
@@ -501,16 +502,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S119.
+Continue with S120.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-blender-quality-baseline-comparison.md`
+`docs/superpowers/plans/2026-06-18-blender-artifact-inspection-package.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_large_grid_render_quality_followup --out build\shots\s119_blender_quality_baseline_comparison --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s106_large_grid_render_quality_followup\review\review_manifest.json --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s119_blender_quality_baseline_comparison --out docs\reports\cinematic_artifact_package_s120.md
 ```
 
-The next success condition is producing a direct visual comparison package between the S106 baseline and the current warm-cache Blender quality output.
+The next success condition is a compact inspection package linking the current GIF, contact sheet, and comparison sheets for quick review or sharing.
