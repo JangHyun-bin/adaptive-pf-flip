@@ -90,7 +90,14 @@ The missing work is not one feature. It is a pipeline:
 | S42 | External renderer bridge | Blender/USD/OpenVDB bridge selected by measured feasibility | Done in `feat: add external render bridge` |
 | S43 | Shot orchestration runner | Single command emits cache, validation, render frames, and movie | Done in `feat: add cinematic shot pipeline` |
 | S44 | Hyperreal material and lighting pass | Camera, lights, tone mapping, water/spray material presets | Done in `feat: add cinematic render presets` |
-| S45 | Large-scale cinematic gate | End-to-end large shot with CSV, manifest, preview, and render artifacts | `test: add large scale cinematic gate` |
+| S45 | Large-scale cinematic gate | End-to-end large shot with CSV, manifest, preview, and render artifacts | Done in `test: add large scale cinematic gate` |
+| S46 | Smooth water surface pass | Reduce voxel-block look with mesh smoothing, normals, and reconstruction QA | `feat: smooth cinematic water meshes` |
+| S47 | Falling-water/dam-break cache preset | Produce a more visually dynamic water-motion shot than the current bubble tank | `feat: add cinematic falling water preset` |
+| S48 | Visible secondary particle pass | Ensure spray/foam/bubble channels can be seen in cinematic frames | `feat: enhance secondary cinematic render` |
+| S49 | Camera motion and shot grammar | Add camera path interpolation, framing presets, and shot continuity checks | `feat: add cinematic camera motion` |
+| S50 | Water material depth pass | Improve material response with depth tint, edge highlights, and preset sweeps | `feat: improve water material presets` |
+| S51 | Presentation artifact pack | Emit GIF/contact sheet/report bundle for fast visual review and sharing | `feat: package cinematic review artifacts` |
+| S52 | Visual gate v2 | Run a larger dynamic shot through the improved surface/render stack | `test: add cinematic visual gate v2` |
 
 ## Decision Gates
 
@@ -428,16 +435,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S45.
+Continue with S46.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-large-scale-cinematic-gate.md`
+`docs/superpowers/plans/2026-06-18-smooth-cinematic-water-meshes.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\shots\s45_bubble --frames 48 --width 1280 --height 720
+python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\shots\s46_smooth --frames 24 --width 1280 --height 720
 ```
 
-The next success condition is an end-to-end larger cinematic gate with a shot GIF, `shot_summary.json`, render artifact paths, and a short report under `docs/reports/`.
+The next success condition is visibly less blocky water in the Blender frames, backed by a reconstruction smoothing option, mesh-stat checks, and before/after review artifacts.

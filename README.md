@@ -131,6 +131,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S42** | **External renderer bridge** - converted cache bundles with OBJ water meshes can now generate Blender scene specs, dependency reports, and background-rendered PNG frame sequences through a documented bridge. | done |
 | **S43** | **Cinematic shot pipeline** - a single runner can now export cache frames, validate, reconstruct water meshes, convert assets, render preview/Blender frames, assemble a GIF, and write `shot_summary.json`. | done |
 | **S44** | **Cinematic render presets** - named presets now drive shot dimensions, renderer choice, camera, lighting, material, and tone-mapping values for the S43 runner and Blender bridge. | done |
+| **S45** | **Large-scale cinematic gate** - the preset-driven shot runner now produces a 48-frame 1280x720 Blender gate, `shot_summary.json`, GIF, and checked-in report with metrics and limitations. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -220,6 +221,7 @@ python tools/render_bridge_blender.py build/render_cache_convert_mesh/sequence.j
 python tools/render_bridge_blender.py build/render_cache_convert_mesh/sequence.json build/blender_bridge_dry --frames 8 --dry-run
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/bubble_cinematic --frames 24 --width 1280 --height 720
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/dam_break_cinematic --frames 24 --width 1280 --height 720
+python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s45_bubble --frames 48 --width 1280 --height 720 --samples 12 --report docs/reports/cinematic_gate_s45.md
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0

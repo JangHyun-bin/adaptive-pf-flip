@@ -62,6 +62,14 @@ def write_json(path, payload):
         f.write("\n")
 
 
+def write_text(path, text):
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+
+
 def read_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -92,6 +100,84 @@ def find_exporter(build_dir, config):
 
 def command_for_summary(command):
     return [str(item) for item in command]
+
+
+def format_ms(value):
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+    if value >= 1000.0:
+        return f"{value / 1000.0:.2f}s"
+    return f"{value:.1f}ms"
+
+
+def report_path(path, root):
+    if not path:
+        return "n/a"
+    try:
+        return os.path.relpath(path, root).replace(os.sep, "/")
+    except ValueError:
+        return path
+
+
+def render_report(summary, root):
+    config = summary.get("config", {})
+    metrics = summary.get("metrics", {})
+    artifacts = summary.get("artifacts", {})
+    lines = [
+        "# S45 Large-Scale Cinematic Gate",
+        "",
+        "## Summary",
+        "",
+        f"- Status: `{summary.get('status', 'unknown')}`",
+        f"- Shot preset: `{summary.get('shot_preset', config.get('preset', 'unknown'))}`",
+        f"- Render preset: `{summary.get('render_preset', config.get('render_preset', 'unknown'))}`",
+        f"- Selected renderer: `{summary.get('selected_renderer', 'unknown')}`",
+        f"- Frames: `{config.get('frames', 'n/a')}`",
+        f"- Resolution: `{config.get('width', 'n/a')} x {config.get('height', 'n/a')}`",
+        f"- Simulation grid: `{config.get('nx', 'n/a')} x {config.get('ny', 'n/a')} x {config.get('nz', 'n/a')}`",
+        f"- Simulation steps: `{config.get('sim_steps', 'n/a')}`",
+        "",
+        "## Artifacts",
+        "",
+    ]
+    for key in ("manifest", "sequence", "water_reconstruction", "render_summary",
+                "render_frame_dir", "gif"):
+        if key in artifacts:
+            lines.append(f"- {key}: `{report_path(artifacts.get(key), root)}`")
+    lines.extend([
+        "",
+        "## Metrics",
+        "",
+        f"- Cache frames: `{metrics.get('cache_frame_count', 'n/a')}`",
+        f"- Converted frames: `{metrics.get('converted_frame_count', 'n/a')}`",
+        f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
+        f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
+        "",
+        "## Stage Timings",
+        "",
+        "| Stage | Exit | Elapsed |",
+        "| --- | ---: | ---: |",
+    ])
+    for item in summary.get("commands", []):
+        lines.append(
+            f"| `{item.get('label', 'unknown')}` | `{item.get('returncode', 'n/a')}` | {format_ms(item.get('elapsed_ms'))} |")
+    lines.extend([
+        "",
+        "## Known Limitations",
+        "",
+        "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky.",
+        "- The current exporter scene is a bubble-tank style sparse two-phase setup, not a full dam-break or waterfall shot.",
+        "- Secondary spray/foam channels are wired through the cache and renderer path, but this gate may contain little or no visible secondary particle content.",
+        "- This is an opt-in cinematic gate; it is intentionally not part of default `ctest`.",
+        "",
+        "## Next Recommended Milestone",
+        "",
+        "S46 should target visual surface quality: smoother water reconstruction, better mesh normals, and a dam-break or falling-water cache preset that produces more cinematic motion.",
+        "",
+    ])
+    return "\n".join(lines)
 
 
 class Pipeline:
@@ -184,6 +270,7 @@ def parse_args(argv):
                         help="Blender frame nonblank gate")
     parser.add_argument("--timeout-seconds", type=int, default=300,
                         help="Blender subprocess timeout")
+    parser.add_argument("--report", help="optional markdown report path")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -504,10 +591,18 @@ def run_pipeline(args):
             "water_mesh_frame_count": water.get("frame_count"),
             "shot_gif_bytes": os.path.getsize(gif_path),
         }
+        if args.report:
+            report_out = os.path.abspath(args.report)
+            summary["artifacts"]["report"] = report_out
         finish("ok")
+        if args.report:
+            write_text(report_out, render_report(summary, root))
+            write_json(summary_path, summary)
         print(f"status=ok renderer={selected_renderer} frames={config['frames']}")
         print(f"summary={summary_path}")
         print(f"gif={gif_path}")
+        if args.report:
+            print(f"report={report_out}")
         return 0
     except ShotError as exc:
         finish("failed", exc)
