@@ -831,6 +831,19 @@ def water_reflection_pass_summary(render_preset):
     }
 
 
+def water_volume_scattering_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_volume_scattering_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "layers": as_int(cfg.get("layers"), 0),
+        "region_min": vec3(cfg.get("region_min"), (1.0, 4.5, 3.2)),
+        "region_max": vec3(cfg.get("region_max"), (27.0, 7.8, 19.0)),
+        "inset": as_float(cfg.get("inset"), 0.15),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.22),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.18),
+    }
+
+
 def water_impact_ripple_pass_summary(render_preset):
     cfg = preset_section(preset_section(render_preset, "renderer"), "water_impact_ripple_pass")
     channels = preset_section(cfg, "channels")
@@ -961,6 +974,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     surface_contact_foam_pass = surface_contact_foam_pass_summary(render_preset)
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
     water_reflection_pass = water_reflection_pass_summary(render_preset)
+    water_volume_scattering_pass = water_volume_scattering_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
@@ -1032,6 +1046,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "surface_contact_foam_counts": summarize_surface_contact_foam_counts(frames),
         "water_surface_glint_pass": water_surface_glint_pass,
         "water_reflection_pass": water_reflection_pass,
+        "water_volume_scattering_pass": water_volume_scattering_pass,
         "water_impact_ripple_pass": water_impact_ripple_pass,
         "water_impact_ripple_counts": summarize_water_impact_ripple_counts(frames),
         "secondary_framing_qa": secondary_framing_qa,
@@ -1512,6 +1527,19 @@ def water_reflection_pass_values(spec):
     }
 
 
+def water_volume_scattering_pass_values(spec):
+    cfg = spec.get("water_volume_scattering_pass") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "layers": max(0, int(scalar_value(cfg.get("layers"), 0))),
+        "region_min": vector_value(cfg.get("region_min"), (1.0, 4.5, 3.2), 3),
+        "region_max": vector_value(cfg.get("region_max"), (27.0, 7.8, 19.0), 3),
+        "inset": max(0.0, scalar_value(cfg.get("inset"), 0.15)),
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.22)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.18)),
+    }
+
+
 def water_impact_ripple_pass_values(spec):
     cfg = spec.get("water_impact_ripple_pass") or {}
     channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
@@ -1575,6 +1603,53 @@ def add_flow_strip_mesh(name, strips, material):
     obj["lsfs_frame_asset"] = True
     obj.data.materials.append(material)
     return obj
+
+
+def add_water_volume_scattering_pass(frame, material, scattering_pass):
+    if not scattering_pass.get("enabled", False):
+        return 0
+    layers = int(scattering_pass.get("layers", 0))
+    if layers <= 0:
+        return 0
+    region_min = scattering_pass.get("region_min", (1.0, 4.5, 3.2))
+    region_max = scattering_pass.get("region_max", (27.0, 7.8, 19.0))
+    xmin, ymin, zmin = (float(region_min[0]), float(region_min[1]), float(region_min[2]))
+    xmax, ymax, zmax = (float(region_max[0]), float(region_max[1]), float(region_max[2]))
+    if xmax <= xmin or ymax <= ymin or zmax <= zmin:
+        return 0
+    inset = max(0.0, float(scattering_pass.get("inset", 0.15)))
+    max_inset = min((xmax - xmin) * 0.45, (zmax - zmin) * 0.45)
+    inset = min(inset, max_inset)
+    verts = []
+    faces = []
+    for layer in range(layers):
+        t = (layer + 0.5) / float(layers)
+        y = ymin + (ymax - ymin) * t
+        layer_inset = inset * (0.65 + 0.7 * hash01(layer, 31.0))
+        x0 = xmin + layer_inset
+        x1 = xmax - layer_inset
+        z0 = zmin + layer_inset
+        z1 = zmax - layer_inset
+        if x1 <= x0 or z1 <= z0:
+            continue
+        base = len(verts)
+        verts.extend([
+            to_blender((x0, y, z0)),
+            to_blender((x1, y, z0)),
+            to_blender((x1, y, z1)),
+            to_blender((x0, y, z1)),
+        ])
+        faces.append((base, base + 1, base + 2, base + 3))
+    if not faces:
+        return 0
+    mesh = bpy.data.meshes.new("LSFS Water Volume Scattering Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new("LSFS Water Volume Scattering", mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return len(faces)
 
 
 def add_water_surface_glint_pass(frame, material, glint_pass):
@@ -2160,6 +2235,7 @@ def main():
     water = material_values(preset, "water", (0.18, 0.66, 1.0, 0.52), 0.03, 0.52, 0.35)
     water_glint = material_values(preset, "water_glint", (0.82, 0.96, 1.0, 0.32), 0.08, 0.32, 0.0)
     water_reflection = material_values(preset, "water_reflection", (0.62, 0.86, 1.0, 0.24), 0.06, 0.24, 0.0)
+    water_volume_scatter = material_values(preset, "water_volume_scatter", (0.24, 0.58, 0.9, 0.16), 0.82, 0.16, 0.0)
     water_ripple = material_values(preset, "water_ripple", (0.8, 0.96, 1.0, 0.3), 0.08, 0.3, 0.0)
     floor = material_values(preset, "floor", (0.015, 0.018, 0.024, 1.0), 0.7, 1.0, 0.0)
     droplet = material_values(preset, "droplet", (0.72, 0.95, 1.0, 0.85), 0.05, 0.85, 0.25)
@@ -2178,6 +2254,7 @@ def main():
     contact_foam_pass = surface_contact_foam_pass_values(spec)
     glint_pass = water_surface_glint_pass_values(spec)
     reflection_pass = water_reflection_pass_values(spec)
+    scattering_pass = water_volume_scattering_pass_values(spec)
     ripple_pass = water_impact_ripple_pass_values(spec)
     water_glint = scaled_overlay_values(water_glint,
                                         glint_pass.get("alpha_scale", 0.22),
@@ -2185,6 +2262,9 @@ def main():
     water_reflection = scaled_overlay_values(water_reflection,
                                              reflection_pass.get("alpha_scale", 0.18),
                                              reflection_pass.get("emission_scale", 0.32))
+    water_volume_scatter = scaled_overlay_values(water_volume_scatter,
+                                                 scattering_pass.get("alpha_scale", 0.22),
+                                                 scattering_pass.get("emission_scale", 0.18))
     water_ripple = scaled_overlay_values(water_ripple,
                                          ripple_pass.get("alpha_scale", 0.26),
                                          ripple_pass.get("emission_scale", 0.42))
@@ -2217,6 +2297,7 @@ def main():
         "foam_contact": make_principled_material("LSFS Surface Contact Foam", foam_contact["color"], foam_contact["roughness"], foam_contact["alpha"], foam_contact["transmission"], foam_contact["emission_color"], foam_contact["emission_strength"]),
         "water_glint": make_principled_material("LSFS Water Surface Glint", water_glint["color"], water_glint["roughness"], water_glint["alpha"], water_glint["transmission"], water_glint["emission_color"], water_glint["emission_strength"]),
         "water_reflection": make_principled_material("LSFS Water Reflection Ribbons", water_reflection["color"], water_reflection["roughness"], water_reflection["alpha"], water_reflection["transmission"], water_reflection["emission_color"], water_reflection["emission_strength"]),
+        "water_volume_scatter": make_principled_material("LSFS Water Volume Scattering", water_volume_scatter["color"], water_volume_scatter["roughness"], water_volume_scatter["alpha"], water_volume_scatter["transmission"], water_volume_scatter["emission_color"], water_volume_scatter["emission_strength"]),
         "water_ripple": make_principled_material("LSFS Impact Ripple Cues", water_ripple["color"], water_ripple["roughness"], water_ripple["alpha"], water_ripple["transmission"], water_ripple["emission_color"], water_ripple["emission_strength"]),
     }
     if soft_pass.get("material_falloff") == "radial_shader":
@@ -2233,6 +2314,9 @@ def main():
         remove_frame_assets()
         configure_camera(camera, frame, preset)
         add_water_mesh(frame, water_mat, surface_detail)
+        add_water_volume_scattering_pass(frame,
+                                         particle_mats["water_volume_scatter"],
+                                         scattering_pass)
         add_water_impact_ripple_pass(frame,
                                      particle_mats["water_ripple"],
                                      ripple_pass)
@@ -2473,6 +2557,7 @@ def main(argv=None):
             "surface_contact_foam_counts": spec["surface_contact_foam_counts"],
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
             "water_reflection_pass": spec["water_reflection_pass"],
+            "water_volume_scattering_pass": spec["water_volume_scattering_pass"],
             "water_impact_ripple_pass": spec["water_impact_ripple_pass"],
             "water_impact_ripple_counts": spec["water_impact_ripple_counts"],
             "secondary_framing_qa": spec["secondary_framing_qa"],

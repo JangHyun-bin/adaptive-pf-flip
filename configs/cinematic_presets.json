@@ -1100,6 +1100,31 @@
           "min_mean_bright_ratio": 0.0
         }
       }
+    },
+    "dam_break_water_volume_scattering": {
+      "extends": "dam_break_water_depth_focus_comparison",
+      "description": "Water-depth comparison preset with opt-in internal attenuation sheets for volume scattering cues.",
+      "renderer": {
+        "water_volume_scattering_pass": {
+          "enabled": true,
+          "layers": 5,
+          "region_min": [0.8, 4.45, 3.2],
+          "region_max": [27.2, 7.65, 19.0],
+          "inset": 0.24,
+          "alpha_scale": 0.24,
+          "emission_scale": 0.22
+        }
+      },
+      "materials": {
+        "water_volume_scatter": {
+          "base_color": [0.24, 0.58, 0.9, 0.15],
+          "emission_color": [0.22, 0.5, 0.82, 1.0],
+          "emission_strength": 0.045,
+          "roughness": 0.86,
+          "alpha": 0.15,
+          "transmission": 0.0
+        }
+      }
     }
   }
 }

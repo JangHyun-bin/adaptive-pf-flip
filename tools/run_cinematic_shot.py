@@ -1936,6 +1936,7 @@ def render_report(summary, root):
         f"- Water surface detail: `{metrics.get('water_surface_detail', {})}`",
         f"- Water surface glint pass: `{metrics.get('water_surface_glint_pass', {})}`",
         f"- Water reflection pass: `{metrics.get('water_reflection_pass', {})}`",
+        f"- Water volume scattering pass: `{metrics.get('water_volume_scattering_pass', {})}`",
         f"- Water impact ripple pass: `{metrics.get('water_impact_ripple_pass', {})}`",
         f"- Water impact ripple counts: `{metrics.get('water_impact_ripple_counts', {})}`",
         f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
@@ -2000,7 +2001,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S102 should add an opt-in water volume scattering or attenuation pass so the main water body reads less like a flat transparent slab while preserving the S100 diagnostic gates.",
+        "S103 should add a secondary render integration review that checks spray/foam/bubble layers against the S102 water volume scattering baseline without weakening the cinematic gates.",
         "",
     ])
     return "\n".join(lines)
@@ -2591,6 +2592,7 @@ def run_pipeline(args):
             summary["metrics"]["water_surface_detail"] = render_summary.get("water_surface_detail", {})
             summary["metrics"]["water_surface_glint_pass"] = render_summary.get("water_surface_glint_pass", {})
             summary["metrics"]["water_reflection_pass"] = render_summary.get("water_reflection_pass", {})
+            summary["metrics"]["water_volume_scattering_pass"] = render_summary.get("water_volume_scattering_pass", {})
             summary["metrics"]["water_impact_ripple_pass"] = render_summary.get("water_impact_ripple_pass", {})
             summary["metrics"]["water_impact_ripple_counts"] = render_summary.get("water_impact_ripple_counts", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
