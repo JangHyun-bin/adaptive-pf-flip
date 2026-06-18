@@ -532,6 +532,9 @@ def secondary_channel_radius_summary(render_preset):
 def secondary_soft_pass_summary(render_preset):
     cfg = preset_section(preset_section(render_preset, "renderer"), "secondary_soft_pass")
     channels = preset_section(cfg, "channels")
+    falloff = cfg.get("falloff", [1.0, 0.45, 0.16, 0.04])
+    if not isinstance(falloff, list) or not falloff:
+        falloff = [1.0, 0.45, 0.16, 0.04]
     return {
         "enabled": bool(cfg.get("enabled", False)),
         "channels": {
@@ -542,6 +545,7 @@ def secondary_soft_pass_summary(render_preset):
         "emission_scale": as_float(cfg.get("emission_scale"), 0.5),
         "max_radius": as_float(cfg.get("max_radius"), 1.0),
         "geometry": str(cfg.get("geometry", "batched_spheres")),
+        "falloff": [as_float(item, 0.0) for item in falloff],
     }
 
 
@@ -1011,6 +1015,9 @@ def add_secondary_particles(frame, materials, max_count, radius_scale, channel_s
 def secondary_soft_pass_values(spec):
     cfg = spec.get("secondary_soft_pass") or {}
     channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
+    falloff = cfg.get("falloff", [1.0, 0.45, 0.16, 0.04])
+    if not isinstance(falloff, list) or not falloff:
+        falloff = [1.0, 0.45, 0.16, 0.04]
     return {
         "enabled": bool(cfg.get("enabled", False)),
         "channels": {
@@ -1019,6 +1026,7 @@ def secondary_soft_pass_values(spec):
         },
         "max_radius": max(0.01, scalar_value(cfg.get("max_radius"), 1.0)),
         "geometry": str(cfg.get("geometry", "batched_spheres")),
+        "falloff": [max(0.0, scalar_value(item, 0.0)) for item in falloff],
     }
 
 
@@ -1051,9 +1059,10 @@ def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_s
             if soft_pass.get("geometry") == "billboard_disks":
                 add_billboard_cloud_mesh(f"LSFS {channel.title()} Mist Disks",
                                          particles,
-                                         materials[f"{channel}_soft"],
+                                         materials.get(f"{channel}_soft_falloff", [materials[f"{channel}_soft"]]),
                                          frame,
-                                         segments=10)
+                                         segments=12,
+                                         falloff=soft_pass.get("falloff", [1.0, 0.45, 0.16, 0.04]))
             else:
                 add_sphere_cloud_mesh(f"LSFS {channel.title()} Soft Cloud",
                                       particles,
@@ -1085,29 +1094,51 @@ def billboard_axes(frame, center):
     return right, up
 
 
-def add_billboard_cloud_mesh(name, particles, material, frame, segments=10):
+def add_billboard_cloud_mesh(name, particles, materials, frame, segments=10, falloff=None):
     verts = []
     faces = []
+    material_indices = []
     segments = max(5, int(segments))
+    falloff = falloff if isinstance(falloff, list) and falloff else [1.0, 0.45, 0.16, 0.04]
+    ring_count = max(2, len(falloff))
     for center, radius in particles:
         base = len(verts)
         center_vec = Vector(center)
         radius = max(0.001, float(radius))
         right, up = billboard_axes(frame, center)
         verts.append(tuple(center_vec))
+        for ring in range(1, ring_count + 1):
+            r = radius * ring / float(ring_count)
+            for seg in range(segments):
+                theta = 2.0 * math.pi * seg / float(segments)
+                p = center_vec + right * (math.cos(theta) * r) + up * (math.sin(theta) * r)
+                verts.append(tuple(p))
+        first_ring = base + 1
         for seg in range(segments):
-            theta = 2.0 * math.pi * seg / float(segments)
-            p = center_vec + right * (math.cos(theta) * radius) + up * (math.sin(theta) * radius)
-            verts.append(tuple(p))
-        for seg in range(segments):
-            faces.append((base, base + 1 + seg, base + 1 + ((seg + 1) % segments)))
+            faces.append((base, first_ring + seg, first_ring + ((seg + 1) % segments)))
+            material_indices.append(0)
+        for ring in range(1, ring_count):
+            row0 = base + 1 + (ring - 1) * segments
+            row1 = row0 + segments
+            mat_index = min(ring, len(falloff) - 1)
+            for seg in range(segments):
+                faces.append((
+                    row0 + seg,
+                    row0 + ((seg + 1) % segments),
+                    row1 + ((seg + 1) % segments),
+                    row1 + seg,
+                ))
+                material_indices.append(mat_index)
     mesh = bpy.data.meshes.new(name + " Mesh")
     mesh.from_pydata(verts, [], faces)
     mesh.update()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj["lsfs_frame_asset"] = True
-    obj.data.materials.append(material)
+    for material in materials:
+        obj.data.materials.append(material)
+    for index, poly in enumerate(obj.data.polygons):
+        poly.material_index = min(material_indices[index], max(0, len(materials) - 1))
     return obj
 
 
@@ -1156,6 +1187,21 @@ def add_sphere_cloud_mesh(name, particles, material, segments=8, rings=4):
     return obj
 
 
+def make_particle_falloff_materials(prefix, values, falloff):
+    mats = []
+    for index, factor in enumerate(falloff if isinstance(falloff, list) and falloff else [1.0]):
+        scaled = scaled_particle_values(values, factor, factor)
+        mats.append(make_principled_material(
+            f"{prefix} {index}",
+            scaled["color"],
+            scaled["roughness"],
+            scaled["alpha"],
+            scaled["transmission"],
+            scaled["emission_color"],
+            scaled["emission_strength"]))
+    return mats
+
+
 def main():
     spec = read_spec()
     preset = spec.get("render_preset") or {}
@@ -1190,6 +1236,8 @@ def main():
         "bubble": make_principled_material("LSFS Bubble", bubble["color"], bubble["roughness"], bubble["alpha"], bubble["transmission"], bubble["emission_color"], bubble["emission_strength"]),
         "spray_soft": make_principled_material("LSFS Spray Mist", spray_soft["color"], spray_soft["roughness"], spray_soft["alpha"], spray_soft["transmission"], spray_soft["emission_color"], spray_soft["emission_strength"]),
         "foam_soft": make_principled_material("LSFS Foam Soft", foam_soft["color"], foam_soft["roughness"], foam_soft["alpha"], foam_soft["transmission"], foam_soft["emission_color"], foam_soft["emission_strength"]),
+        "spray_soft_falloff": make_particle_falloff_materials("LSFS Spray Mist Falloff", spray_soft, soft_pass.get("falloff", [1.0])),
+        "foam_soft_falloff": make_particle_falloff_materials("LSFS Foam Soft Falloff", foam_soft, soft_pass.get("falloff", [1.0])),
     }
     channel_scales = spec.get("secondary_channel_radius_scales") or {}
     if spec.get("frames"):

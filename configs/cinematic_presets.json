@@ -173,7 +173,8 @@
           "alpha_scale": 0.24,
           "emission_scale": 0.75,
           "max_radius": 1.05,
-          "geometry": "billboard_disks"
+          "geometry": "billboard_disks",
+          "falloff": [1.0, 0.42, 0.16, 0.03]
         }
       },
       "reconstruction": {
@@ -358,7 +359,8 @@
           "alpha_scale": 0.24,
           "emission_scale": 0.75,
           "max_radius": 1.05,
-          "geometry": "billboard_disks"
+          "geometry": "billboard_disks",
+          "falloff": [1.0, 0.42, 0.16, 0.03]
         }
       },
       "reconstruction": {

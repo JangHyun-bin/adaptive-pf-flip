@@ -654,7 +654,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S69 should soften visible circular mist billboard edges with radial alpha/falloff or texture-driven sprite shading while preserving S68 render cost and visual QA gates.",
+        "S70 should tune mist falloff more aggressively to reduce visible circular sprite edges without losing visual QA or the S67/S68 render-cost range.",
         "",
     ])
     return "\n".join(lines)

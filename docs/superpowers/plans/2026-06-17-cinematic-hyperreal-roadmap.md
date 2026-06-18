@@ -114,6 +114,7 @@ The missing work is not one feature. It is a pipeline:
 | S66 | Volumetric spray/foam render pass | Add a soft halo pass for spray/foam secondaries while preserving visual QA gates | Done in `feat: add volumetric spray foam render pass` |
 | S67 | Secondary soft-pass performance | Batch spray/foam halo geometry into channel meshes to cut Blender render cost while preserving QA | Done in `perf: batch secondary soft pass geometry` |
 | S68 | Secondary mist billboard quality | Use camera-facing billboard disks for spray/foam soft pass while preserving S67 cost and QA | Done in `feat: add secondary mist billboard pass` |
+| S69 | Secondary mist alpha falloff | Add concentric radial alpha falloff materials for billboard mist disks while preserving render cost and QA | Done in `feat: add secondary mist alpha falloff` |
 
 ## Decision Gates
 
@@ -451,16 +452,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S69.
+Continue with S70.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-mist-alpha-falloff.md`
+`docs/superpowers/plans/2026-06-18-secondary-mist-falloff-tuning.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s69_secondary_mist_falloff --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s69.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s70_secondary_mist_falloff_tuned --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s70.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is softening the visible circular billboard edges with radial alpha/falloff or texture-driven sprite shading while preserving S68 render cost and visual QA gates.
+The next success condition is a stronger falloff tuning pass that further reduces visible circular sprite edges without losing S65 visual QA or the S67/S68 render-cost range.

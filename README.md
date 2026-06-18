@@ -155,6 +155,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S66** | **Volumetric spray/foam render pass** - Blender rendering can add a soft halo pass for spray/foam channels while preserving visual QA gates. | done |
 | **S67** | **Secondary soft-pass performance** - spray/foam halos are batched into channel meshes, reducing Blender soft-pass render cost while preserving QA. | done |
 | **S68** | **Secondary mist billboard quality** - spray/foam soft pass can use camera-facing billboard disks, improving mist readability without increasing render cost. | done |
+| **S69** | **Secondary mist alpha falloff** - billboard mist disks now use concentric radial alpha falloff materials to soften circular edges while preserving QA. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -270,6 +271,7 @@ python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out buil
 python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out build/shots/s66_volumetric_spray_foam --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s66.md --compare-review-manifest build/shots/s62_secondary_size_pass/review/review_manifest.json --timeout-seconds 1500
 python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out build/shots/s67_secondary_soft_perf --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s67.md --compare-review-manifest build/shots/s62_secondary_size_pass/review/review_manifest.json --timeout-seconds 1500
 python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out build/shots/s68_secondary_mist_quality --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s68.md --compare-review-manifest build/shots/s62_secondary_size_pass/review/review_manifest.json --timeout-seconds 1500
+python tools/run_cinematic_shot.py --preset dam_break_contact_closeup --out build/shots/s69_secondary_mist_falloff --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs/reports/cinematic_gate_s69.md --compare-review-manifest build/shots/s62_secondary_size_pass/review/review_manifest.json --timeout-seconds 1500
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0
