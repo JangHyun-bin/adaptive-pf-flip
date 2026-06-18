@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import csv
 import json
 import math
 import os
@@ -544,6 +545,8 @@ def create_review_pack(summary, root, frame_dir, review_frame_count):
         "render_frame_dir": rel_path(frame_dir, root),
         "focus_sheet": rel_path(summary.get("artifacts", {}).get("focus_sheet"), root),
         "focus_review_manifest": rel_path(summary.get("artifacts", {}).get("focus_review_manifest"), root),
+        "secondary_depth_sheet": rel_path(summary.get("artifacts", {}).get("secondary_depth_sheet"), root),
+        "secondary_depth_manifest": rel_path(summary.get("artifacts", {}).get("secondary_depth_manifest"), root),
         "ripple_readability_sheet": rel_path(summary.get("artifacts", {}).get("ripple_readability_sheet"), root),
         "ripple_readability_manifest": rel_path(summary.get("artifacts", {}).get("ripple_readability_manifest"), root),
         "metrics": metrics,
@@ -587,6 +590,322 @@ def crop_box_for_image(image, crop):
     x1 = max(x0 + 1, min(image.width, int(round(right * image.width))))
     y1 = max(y0 + 1, min(image.height, int(round(bottom * image.height))))
     return x0, y0, x1, y1
+
+
+def scalar_value(value, fallback=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def vec3_value(value, fallback=(0.0, 0.0, 0.0)):
+    if isinstance(value, (list, tuple)) and len(value) == 3:
+        return [scalar_value(value[0]), scalar_value(value[1]), scalar_value(value[2])]
+    return [fallback[0], fallback[1], fallback[2]]
+
+
+def v_sub(a, b):
+    return [a[i] - b[i] for i in range(3)]
+
+
+def v_dot(a, b):
+    return sum(a[i] * b[i] for i in range(3))
+
+
+def v_cross(a, b):
+    return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+
+
+def v_norm(a, fallback=(0.0, 0.0, 1.0)):
+    length = math.sqrt(max(0.0, v_dot(a, a)))
+    if length <= 1e-12:
+        return [fallback[0], fallback[1], fallback[2]]
+    return [a[i] / length for i in range(3)]
+
+
+def to_blender_coords(point):
+    return [scalar_value(point[0]), -scalar_value(point[2]), scalar_value(point[1])]
+
+
+def project_scene_point(point, camera, width, height):
+    position = to_blender_coords(vec3_value(camera.get("position"), (0.0, 0.0, 1.0)))
+    target = to_blender_coords(vec3_value(camera.get("target"), (0.0, 0.0, 0.0)))
+    up = to_blender_coords(vec3_value(camera.get("up"), (0.0, 1.0, 0.0)))
+    forward = v_norm(v_sub(target, position), (0.0, 0.0, -1.0))
+    right = v_norm(v_cross(forward, up), (1.0, 0.0, 0.0))
+    true_up = v_norm(v_cross(right, forward), (0.0, 0.0, 1.0))
+    rel = v_sub(to_blender_coords(point), position)
+    depth = v_dot(rel, forward)
+    if depth <= max(1e-6, scalar_value(camera.get("near_clip"), 0.05)):
+        return None
+    vfov = math.radians(max(1e-6, scalar_value(camera.get("vertical_fov_degrees"), 45.0)))
+    aspect = max(1e-6, float(width) / float(max(1, height)))
+    half_y = math.tan(vfov * 0.5)
+    half_x = half_y * aspect
+    x = v_dot(rel, right) / (depth * half_x)
+    y = v_dot(rel, true_up) / (depth * half_y)
+    return {
+        "x": (x + 1.0) * 0.5,
+        "y": 1.0 - ((y + 1.0) * 0.5),
+        "depth": depth,
+    }
+
+
+def secondary_render_channel(row):
+    channel = (row.get("render_channel") or row.get("channel") or "").strip().lower()
+    if channel in ("droplet", "spray", "foam", "bubble"):
+        return channel
+    kind = (row.get("kind") or "").strip().lower()
+    if kind == "secondary_bubble":
+        return "bubble"
+    if kind == "secondary_droplet":
+        return "droplet"
+    return channel
+
+
+def load_render_scene_spec(summary):
+    render_summary_path = summary.get("artifacts", {}).get("render_summary")
+    if not render_summary_path or not os.path.isfile(render_summary_path):
+        return None, None
+    render_summary = read_json(render_summary_path)
+    spec_path = render_summary.get("scene_spec")
+    if not spec_path:
+        return None, None
+    if not os.path.isabs(spec_path):
+        spec_path = os.path.abspath(os.path.join(os.path.dirname(render_summary_path), spec_path))
+    if not os.path.isfile(spec_path):
+        return None, None
+    return spec_path, read_json(spec_path)
+
+
+def scene_spec_frame_lookup(spec):
+    by_output = {}
+    by_index = {}
+    for frame in spec.get("frames", []):
+        output = frame.get("output_png")
+        if output:
+            by_output[os.path.normcase(os.path.abspath(output))] = frame
+        try:
+            by_index[int(frame.get("index"))] = frame
+        except (TypeError, ValueError):
+            pass
+    return by_output, by_index
+
+
+def summarize_secondary_depth_stats(frame_stats):
+    return {
+        "active_particles": summarize_values([item["active_particles"] for item in frame_stats]),
+        "crop_particles": summarize_values([item["crop_particles"] for item in frame_stats]),
+        "crop_ratio": summarize_values([item["crop_ratio"] for item in frame_stats]),
+        "depth_mean": summarize_values([item["depth_mean"] for item in frame_stats if item["crop_particles"] > 0]),
+        "depth_span": summarize_values([item["depth_span"] for item in frame_stats if item["crop_particles"] > 0]),
+        "normalized_depth_span": summarize_values([
+            item["normalized_depth_span"] for item in frame_stats if item["crop_particles"] > 0
+        ]),
+        "channel_depth_delta": summarize_values([
+            item["channel_depth_delta"] for item in frame_stats if item["crop_particles"] > 0
+        ]),
+    }
+
+
+def create_secondary_depth_review(summary, root, frame_dir, review_config, review_frame_count):
+    if not isinstance(review_config, dict) or not review_config.get("enabled", False):
+        return None
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        fail("Pillow is required to create the secondary depth review")
+
+    spec_path, spec = load_render_scene_spec(summary)
+    if not spec:
+        fail("secondary depth review requires a Blender scene spec")
+    by_output, by_index = scene_spec_frame_lookup(spec)
+    selected = select_keyframes(frame_dir, review_frame_count)
+    if not selected:
+        fail("secondary depth review requires at least one key frame")
+
+    channels_cfg = review_config.get("channels") if isinstance(review_config.get("channels"), dict) else {}
+    enabled_channels = {name for name, enabled in channels_cfg.items() if enabled}
+    if not enabled_channels:
+        enabled_channels = {"spray", "foam"}
+    crop = normalized_crop(review_config.get("crop", (0.02, 0.2, 0.98, 0.9)))
+    thumb_w = max(160, int(review_config.get("thumbnail_width", 420) or 420))
+    label_h = 42
+    pad = 12
+    resampling = getattr(Image, "Resampling", Image)
+    resample_filter = getattr(resampling, "LANCZOS", getattr(Image, "BICUBIC", 3))
+
+    out_dir = summary["out_dir"]
+    review_dir = os.path.join(out_dir, "review")
+    keyframe_dir = os.path.join(review_dir, "secondary_depth_keyframes")
+    os.makedirs(keyframe_dir, exist_ok=True)
+
+    frame_items = []
+    frame_stats = []
+    thumb_h = None
+    channel_colors = {
+        "spray": (120, 226, 255),
+        "foam": (255, 238, 150),
+        "droplet": (160, 220, 255),
+        "bubble": (255, 170, 80),
+    }
+    for out_index, source in enumerate(selected):
+        frame_no = frame_number_from_path(source)
+        spec_frame = by_output.get(os.path.normcase(os.path.abspath(source)))
+        if spec_frame is None and frame_no is not None:
+            spec_frame = by_index.get(frame_no)
+        if spec_frame is None:
+            fail(f"secondary depth review cannot match frame: {source}")
+
+        with Image.open(source) as img:
+            rgb = img.convert("RGB")
+            box = crop_box_for_image(rgb, crop)
+            crop_img = rgb.crop(box)
+            draw = ImageDraw.Draw(crop_img)
+            active = 0
+            crop_particles = 0
+            depths = []
+            channel_depths = {name: [] for name in enabled_channels}
+            points = []
+            particle_path = spec_frame.get("particles_csv")
+            if particle_path and os.path.isfile(particle_path):
+                with open(particle_path, encoding="utf-8", newline="") as f:
+                    for row in csv.DictReader(f):
+                        channel = secondary_render_channel(row)
+                        if channel not in enabled_channels:
+                            continue
+                        active += 1
+                        projected = project_scene_point(
+                            [row.get("x", 0.0), row.get("y", 0.0), row.get("z", 0.0)],
+                            spec_frame.get("camera", {}),
+                            rgb.width,
+                            rgb.height)
+                        if not projected:
+                            continue
+                        x = projected["x"]
+                        y = projected["y"]
+                        if crop[0] <= x <= crop[2] and crop[1] <= y <= crop[3]:
+                            crop_particles += 1
+                            depth = projected["depth"]
+                            depths.append(depth)
+                            channel_depths.setdefault(channel, []).append(depth)
+                            px = int(round((x - crop[0]) / max(1e-6, crop[2] - crop[0]) * crop_img.width))
+                            py = int(round((y - crop[1]) / max(1e-6, crop[3] - crop[1]) * crop_img.height))
+                            points.append((px, py, channel))
+            for px, py, channel in points:
+                color = channel_colors.get(channel, (240, 240, 240))
+                radius = 2 if channel == "spray" else 3
+                draw.ellipse((px - radius, py - radius, px + radius, py + radius), outline=color, fill=color)
+
+            depth_mean = sum(depths) / float(len(depths)) if depths else 0.0
+            depth_span = max(depths) - min(depths) if depths else 0.0
+            normalized_span = depth_span / depth_mean if depth_mean > 1e-6 else 0.0
+            means = [
+                sum(values) / float(len(values))
+                for values in channel_depths.values()
+                if values
+            ]
+            channel_delta = max(means) - min(means) if len(means) >= 2 else 0.0
+            stats = {
+                "active_particles": active,
+                "crop_particles": crop_particles,
+                "crop_ratio": crop_particles / float(max(1, active)),
+                "depth_mean": depth_mean,
+                "depth_span": depth_span,
+                "normalized_depth_span": normalized_span,
+                "channel_depth_delta": channel_delta,
+                "channel_counts": {name: len(channel_depths.get(name, [])) for name in sorted(enabled_channels)},
+            }
+            label = f"n={crop_particles}/{active} span={depth_span:.2f} norm={normalized_span:.2f}"
+            draw.rectangle((5, 5, min(crop_img.width - 1, 5 + len(label) * 7), 24), fill=(8, 10, 12))
+            draw.text((9, 8), label, fill=(232, 240, 245))
+
+            thumb = crop_img
+            target_h = max(1, int(round(thumb.height * (thumb_w / float(thumb.width)))))
+            thumb = thumb.resize((thumb_w, target_h), resample_filter)
+            if thumb_h is None:
+                thumb_h = thumb.height
+            depth_name = f"secondary_depth_{out_index:02d}_{os.path.basename(source)}"
+            depth_path = os.path.join(keyframe_dir, depth_name)
+            thumb.save(depth_path)
+
+        frame_stats.append(stats)
+        frame_items.append({
+            "source": source,
+            "thumbnail": depth_path,
+            "frame": frame_no,
+            "stats": stats,
+        })
+
+    thumb_h = thumb_h or max(1, int(round(thumb_w * 0.56)))
+    columns = min(4, max(1, int(math.ceil(math.sqrt(len(frame_items))))))
+    rows = int(math.ceil(len(frame_items) / float(columns)))
+    sheet_w = pad + columns * (thumb_w + pad)
+    sheet_h = pad + rows * (thumb_h + label_h + pad)
+    sheet = Image.new("RGB", (sheet_w, sheet_h), (14, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for index, item in enumerate(frame_items):
+        with Image.open(item["thumbnail"]) as img:
+            cell = img.convert("RGB")
+        if cell.size != (thumb_w, thumb_h):
+            base = Image.new("RGB", (thumb_w, thumb_h), (8, 10, 12))
+            base.paste(cell, ((thumb_w - cell.width) // 2, (thumb_h - cell.height) // 2))
+            cell = base
+        col = index % columns
+        row = index // columns
+        x = pad + col * (thumb_w + pad)
+        y = pad + row * (thumb_h + label_h + pad)
+        sheet.paste(cell, (x, y))
+        label = f"frame {item['frame']:04d}" if item["frame"] is not None else os.path.basename(item["source"])
+        metric = item["stats"]
+        draw.text((x + 6, y + thumb_h + 5), label, fill=(224, 234, 240))
+        draw.text((x + 6, y + thumb_h + 23),
+                  f"crop={metric['crop_particles']} span={metric['depth_span']:.2f}",
+                  fill=(170, 198, 214))
+
+    sheet_path = os.path.join(review_dir, "secondary_depth_sheet.png")
+    manifest_path = os.path.join(review_dir, "secondary_depth_manifest.json")
+    sheet.save(sheet_path)
+    metrics = {
+        "enabled": True,
+        "frame_count": len(frame_items),
+        "active_frame_count": sum(1 for item in frame_stats if item["crop_particles"] > 0),
+        "crop": crop,
+        "channels": sorted(enabled_channels),
+        "summary": summarize_secondary_depth_stats(frame_stats),
+    }
+    manifest = {
+        "schema": "lsfs_cinematic_secondary_depth_review",
+        "version": 1,
+        "generated_utc": utc_now(),
+        "shot_preset": summary.get("shot_preset"),
+        "render_preset": summary.get("render_preset"),
+        "selected_renderer": summary.get("selected_renderer"),
+        "scene_spec": rel_path(spec_path, root),
+        "secondary_depth_sheet": rel_path(sheet_path, root),
+        "render_frame_dir": rel_path(frame_dir, root),
+        "metrics": metrics,
+        "keyframes": [
+            {
+                "frame": item["frame"],
+                "source": rel_path(item["source"], root),
+                "thumbnail": rel_path(item["thumbnail"], root),
+                "stats": item["stats"],
+            }
+            for item in frame_items
+        ],
+    }
+    write_json(manifest_path, manifest)
+    return {
+        "secondary_depth_sheet": sheet_path,
+        "secondary_depth_manifest": manifest_path,
+        "secondary_depth_review": metrics,
+    }
 
 
 def focus_image_stats(image, bright_threshold, nonblank_threshold):
@@ -1370,6 +1689,46 @@ def evaluate_focus_review_qa(config, focus_review):
     }
 
 
+def evaluate_secondary_depth_review_qa(config, depth_review):
+    gate = config.get("secondary_depth_review")
+    if not isinstance(gate, dict) or not gate.get("enabled", False):
+        return {"enabled": False}
+    checks = []
+    thresholds = {
+        "min_frame_count": (("frame_count",), gate.get("min_frame_count"), ">="),
+        "min_active_frame_count": (("active_frame_count",), gate.get("min_active_frame_count"), ">="),
+        "min_mean_crop_particles": (("summary", "crop_particles", "mean"), gate.get("min_mean_crop_particles"), ">="),
+        "min_mean_crop_ratio": (("summary", "crop_ratio", "mean"), gate.get("min_mean_crop_ratio"), ">="),
+        "min_mean_depth_span": (("summary", "depth_span", "mean"), gate.get("min_mean_depth_span"), ">="),
+        "min_mean_normalized_depth_span": (
+            ("summary", "normalized_depth_span", "mean"),
+            gate.get("min_mean_normalized_depth_span"),
+            ">=",
+        ),
+    }
+    passed = True
+    for name, (path, threshold, op) in thresholds.items():
+        if threshold is None:
+            continue
+        value = nested_metric(depth_review, path)
+        value = float(value or 0.0)
+        threshold = float(threshold)
+        ok = value >= threshold if op == ">=" else value <= threshold
+        passed = passed and ok
+        checks.append({
+            "metric": name,
+            "value": value,
+            "threshold": threshold,
+            "operator": op,
+            "passed": ok,
+        })
+    return {
+        "enabled": True,
+        "passed": passed,
+        "checks": checks,
+    }
+
+
 def evaluate_ripple_readability_qa(config, readability):
     gate = config.get("ripple_readability_review")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
@@ -1438,6 +1797,7 @@ def render_report(summary, root):
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
                 "focus_comparison_sheet", "focus_comparison_manifest",
+                "secondary_depth_sheet", "secondary_depth_manifest",
                 "ripple_readability_sheet", "ripple_readability_manifest",
                 "ripple_readability_comparison_sheet", "ripple_readability_comparison_manifest",
                 "review_dir"):
@@ -1479,6 +1839,8 @@ def render_report(summary, root):
         f"- Secondary framing gate: `{metrics.get('secondary_framing_gate', {})}`",
         f"- Focus review summary: `{metrics.get('focus_review', {})}`",
         f"- Focus review gate: `{metrics.get('focus_review_gate', {})}`",
+        f"- Secondary depth review summary: `{metrics.get('secondary_depth_review', {})}`",
+        f"- Secondary depth review gate: `{metrics.get('secondary_depth_review_gate', {})}`",
         f"- Ripple readability summary: `{metrics.get('ripple_readability', {})}`",
         f"- Ripple readability gate: `{metrics.get('ripple_readability_gate', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
@@ -1528,7 +1890,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S96 should add a dedicated contact-volume depth/layering diagnostic so future spray/foam tuning is gated by more than full-frame brightness and framing checks.",
+        "S97 should use the secondary depth diagnostic to tune a stronger volume-depth material/readability pass without breaking visual, temporal, or depth-review gates.",
         "",
     ])
     return "\n".join(lines)
@@ -1810,6 +2172,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "temporal_diff_review": section(renderer, "temporal_diff_review"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
         "focus_review": section(renderer, "focus_review"),
+        "secondary_depth_review": section(renderer, "secondary_depth_review"),
         "ripple_readability_review": section(renderer, "ripple_readability_review"),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
         "smooth_iterations": first_value(args.smooth_iterations,
@@ -2160,6 +2523,17 @@ def run_pipeline(args):
             if (summary["metrics"]["focus_review_gate"].get("enabled")
                     and not summary["metrics"]["focus_review_gate"].get("passed")):
                 fail(f"focus review QA gate failed: {summary['metrics']['focus_review_gate']}")
+        secondary_depth = create_secondary_depth_review(
+            summary, root, frame_dir, config.get("secondary_depth_review", {}), config["review_frames"])
+        if secondary_depth:
+            summary["artifacts"]["secondary_depth_sheet"] = secondary_depth["secondary_depth_sheet"]
+            summary["artifacts"]["secondary_depth_manifest"] = secondary_depth["secondary_depth_manifest"]
+            summary["metrics"]["secondary_depth_review"] = secondary_depth["secondary_depth_review"]
+            summary["metrics"]["secondary_depth_review_gate"] = evaluate_secondary_depth_review_qa(
+                config, summary["metrics"]["secondary_depth_review"])
+            if (summary["metrics"]["secondary_depth_review_gate"].get("enabled")
+                    and not summary["metrics"]["secondary_depth_review_gate"].get("passed")):
+                fail(f"secondary depth review QA gate failed: {summary['metrics']['secondary_depth_review_gate']}")
         ripple_readability = create_ripple_readability_review(
             summary, root, frame_dir, config.get("ripple_readability_review", {}), config["review_frames"])
         if ripple_readability:

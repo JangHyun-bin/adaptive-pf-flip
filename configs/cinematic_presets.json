@@ -996,6 +996,27 @@
           "emission_scale": 0.36
         }
       }
+    },
+    "dam_break_secondary_depth_reviewed": {
+      "extends": "dam_break_spray_foam_depth_layered",
+      "description": "Spray/foam depth layering with contact-volume secondary depth diagnostics enabled.",
+      "renderer": {
+        "secondary_depth_review": {
+          "enabled": true,
+          "channels": {
+            "spray": true,
+            "foam": true
+          },
+          "crop": [0.02, 0.2, 0.98, 0.9],
+          "thumbnail_width": 420,
+          "min_frame_count": 8,
+          "min_active_frame_count": 8,
+          "min_mean_crop_particles": 100,
+          "min_mean_crop_ratio": 0.75,
+          "min_mean_depth_span": 6.0,
+          "min_mean_normalized_depth_span": 0.2
+        }
+      }
     }
   }
 }
