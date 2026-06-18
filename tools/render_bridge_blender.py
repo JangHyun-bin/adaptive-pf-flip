@@ -290,19 +290,66 @@ def load_sequence(path, water_reconstruction_path=None):
     }
 
 
+def secondary_render_channel(row):
+    kind = row.get("kind", "")
+    channel = row.get("render_channel", "")
+    if channel in ("droplet", "spray", "foam", "bubble"):
+        return channel
+    if kind == "secondary_bubble":
+        return "bubble"
+    if kind == "secondary_droplet":
+        return "droplet"
+    return ""
+
+
 def count_secondary_particles(path):
     counts = {"droplet": 0, "spray": 0, "foam": 0, "bubble": 0, "total": 0}
     with open(path, encoding="utf-8", newline="") as f:
         for row in csv.DictReader(f):
-            kind = row.get("kind", "")
-            channel = row.get("render_channel", "")
-            if kind not in ("secondary_droplet", "secondary_bubble") and channel not in counts:
-                continue
+            channel = secondary_render_channel(row)
             if channel not in counts:
-                channel = "bubble" if kind == "secondary_bubble" else "droplet"
+                continue
             counts[channel] += 1
             counts["total"] += 1
     return counts
+
+
+def estimate_secondary_streak_counts(path, max_count, streak_pass):
+    counts = {"spray": 0, "foam": 0, "total": 0}
+    if not streak_pass.get("enabled", False) or max_count <= 0:
+        return counts
+    channels = streak_pass.get("channels") if isinstance(streak_pass.get("channels"), dict) else {}
+    min_speed = as_float(streak_pass.get("min_speed"), 0.35)
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if counts["total"] >= max_count:
+                break
+            channel = secondary_render_channel(row)
+            channel_mult = as_float(channels.get(channel), 0.0)
+            if channel not in ("spray", "foam") or channel_mult <= 0.0:
+                continue
+            vx = as_float(row.get("vx"), 0.0)
+            vy = as_float(row.get("vy"), 0.0)
+            vz = as_float(row.get("vz"), 0.0)
+            speed = math.sqrt(vx * vx + vy * vy + vz * vz)
+            if speed < min_speed:
+                continue
+            counts[channel] += 1
+            counts["total"] += 1
+    return counts
+
+
+def summarize_secondary_streak_counts(frames):
+    if not frames:
+        return {}
+    totals = [as_int(frame.get("secondary_streak_counts", {}).get("total"), 0) for frame in frames]
+    return {
+        "first": frames[0].get("secondary_streak_counts", {}),
+        "last": frames[-1].get("secondary_streak_counts", {}),
+        "min_total": min(totals),
+        "max_total": max(totals),
+        "mean_total": sum(totals) / float(len(totals)),
+    }
 
 
 def preset_section(data, name):
@@ -603,6 +650,9 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         secondary_radius_scale if secondary_radius_scale is not None
         else as_float(renderer_defaults.get("secondary_radius_scale"), 1.0)
     )
+    channel_radius_scales = secondary_channel_radius_summary(render_preset)
+    secondary_soft_pass = secondary_soft_pass_summary(render_preset)
+    secondary_streak_pass = secondary_streak_pass_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
     frames = []
@@ -616,6 +666,10 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             fail("sequence does not include water_mesh entries; run reconstruct_water.py and convert_render_cache.py first")
         mesh_path = require_file(water_mesh.get("mesh"), "water_mesh")
         secondary_counts = count_secondary_particles(frame["particles_csv"])
+        secondary_streak_counts = estimate_secondary_streak_counts(
+            frame["particles_csv"],
+            max_secondary_particles,
+            secondary_streak_pass)
         header = {
             "dims": frame.get("header", {}).get("dims", sequence["sequence"].get("dims", [1, 1, 1])),
             "dx": as_float(frame.get("header", {}).get("dx"), as_float(sequence["sequence"].get("dx"), 1.0)),
@@ -635,6 +689,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             "particles_csv": frame["particles_csv"],
             "particle_count": frame.get("particle_count", 0),
             "secondary_counts": secondary_counts,
+            "secondary_streak_counts": secondary_streak_counts,
             "output_png": os.path.abspath(os.path.join(render_dir, f"frame_{out_index:04d}.png")),
         })
 
@@ -651,9 +706,10 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "samples": samples,
         "max_secondary_particles": max_secondary_particles,
         "secondary_radius_scale": secondary_radius_scale,
-        "secondary_channel_radius_scales": secondary_channel_radius_summary(render_preset),
-        "secondary_soft_pass": secondary_soft_pass_summary(render_preset),
-        "secondary_streak_pass": secondary_streak_pass_summary(render_preset),
+        "secondary_channel_radius_scales": channel_radius_scales,
+        "secondary_soft_pass": secondary_soft_pass,
+        "secondary_streak_pass": secondary_streak_pass,
+        "secondary_streak_counts": summarize_secondary_streak_counts(frames),
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
@@ -1644,6 +1700,7 @@ def main(argv=None):
             "secondary_channel_radius_scales": spec["secondary_channel_radius_scales"],
             "secondary_soft_pass": spec["secondary_soft_pass"],
             "secondary_streak_pass": spec["secondary_streak_pass"],
+            "secondary_streak_counts": spec["secondary_streak_counts"],
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
             "camera_path_metrics": spec["camera_path_metrics"],
@@ -1658,6 +1715,7 @@ def main(argv=None):
                 "water_mesh": frame["water_mesh"],
                 "water_mesh_face_count": frame["water_mesh_face_count"],
                 "secondary_counts": frame["secondary_counts"],
+                "secondary_streak_counts": frame["secondary_streak_counts"],
             } for frame in spec["frames"]],
         }
         summary_path = os.path.abspath(os.path.join(args.out_dir, "bridge_summary.json"))

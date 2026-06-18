@@ -611,6 +611,7 @@ def render_report(summary, root):
         f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
         f"- Secondary soft pass: `{metrics.get('secondary_soft_pass', {})}`",
         f"- Secondary streak pass: `{metrics.get('secondary_streak_pass', {})}`",
+        f"- Secondary streak counts: `{metrics.get('secondary_streak_counts', {})}`",
         f"- Secondary channels first: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('first'))}`",
         f"- Secondary channels last: `{format_secondary_channels(metrics.get('secondary_channels', {}).get('last'))}`",
         f"- Secondary volume first: `{format_secondary_volumes(metrics.get('secondary_volumes', {}).get('first'))}`",
@@ -655,7 +656,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S73 should tune secondary streak length, width, alpha, and emission against S72 so motion streaks stay readable without turning the contact region noisy.",
+        "S74 should improve impact composition and timing so the active collision/spray region stays in frame before further particle micro-tuning.",
         "",
     ])
     return "\n".join(lines)
@@ -1220,6 +1221,7 @@ def run_pipeline(args):
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})
             summary["metrics"]["secondary_soft_pass"] = render_summary.get("secondary_soft_pass", {})
             summary["metrics"]["secondary_streak_pass"] = render_summary.get("secondary_streak_pass", {})
+            summary["metrics"]["secondary_streak_counts"] = render_summary.get("secondary_streak_counts", {})
             summary["metrics"]["visual_qa"] = render_summary.get("visual_qa", {})
             summary["metrics"]["visual_qa_gate"] = evaluate_visual_qa(
                 config, summary["metrics"]["visual_qa"])

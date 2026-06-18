@@ -183,11 +183,11 @@
             "spray": 1.0,
             "foam": 0.35
           },
-          "length_scale": 0.045,
-          "max_length": 1.15,
-          "width_scale": 0.42,
-          "alpha_scale": 0.18,
-          "emission_scale": 0.95,
+          "length_scale": 0.06,
+          "max_length": 1.35,
+          "width_scale": 0.5,
+          "alpha_scale": 0.21,
+          "emission_scale": 1.08,
           "min_speed": 0.35
         }
       },
@@ -383,11 +383,11 @@
             "spray": 1.0,
             "foam": 0.35
           },
-          "length_scale": 0.045,
-          "max_length": 1.15,
-          "width_scale": 0.42,
-          "alpha_scale": 0.18,
-          "emission_scale": 0.95,
+          "length_scale": 0.06,
+          "max_length": 1.35,
+          "width_scale": 0.5,
+          "alpha_scale": 0.21,
+          "emission_scale": 1.08,
           "min_speed": 0.35
         }
       },
