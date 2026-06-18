@@ -183,7 +183,8 @@ The missing work is not one feature. It is a pipeline:
 | S135 | S133 public gallery visual triage | Review the S133 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s133 public gallery` |
 | S136 | Offscreen-source impact framing pass | Reframe the S133 scene so the source is mostly out of frame and attention stays on water entering frame and impacting the pool | Done in `style: add offscreen source impact framing` |
 | S137 | S136 gallery refresh/publish | Package and publish the S136 review artifacts for external inspection before the next visual triage | Done in `docs: publish s136 cinematic gallery` |
-| S138 | S136 public gallery visual triage | Review the S136 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S138 | S136 public gallery visual triage | Review the S136 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s136 public gallery` |
+| S139 | Low-angle impact close-up framing | Move the camera lower and closer to the contact band so the upper source is fully cropped while spray/ripple readability remains gated | Planned |
 
 ## Decision Gates
 
@@ -521,16 +522,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S138.
+Continue with S139.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s136-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-low-angle-impact-closeup-framing.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s136_offscreen_source_impact_framing\gallery\gallery_manifest.json --publish build\shots\s136_offscreen_source_impact_framing\gallery\publish_manifest_s137.json --out docs\reports\cinematic_visual_review_s138.md --decision "Select the next visible shot adjustment from the S136 public gallery evidence." --next "S139 should implement the selected visual adjustment with a checked-in preset or scene change plus a 36-frame Blender comparison gate."
+python tools\run_cinematic_shot.py --preset dam_break_low_angle_impact_closeup --out build\shots\s139_low_angle_impact_closeup --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s136_offscreen_source_impact_framing\review\review_manifest.json --report docs\reports\cinematic_low_angle_impact_closeup_s139.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in S138 visual triage report that records public gallery checks, numeric gates, visual findings, and the next concrete shot adjustment.
+The next success condition is a checked-in S139 Blender gate report where the upper source is fully cropped from the review frames and visual/focus/secondary-depth/ripple/temporal/camera/secondary-framing gates remain passing.
