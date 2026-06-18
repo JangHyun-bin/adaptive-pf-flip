@@ -418,7 +418,7 @@ def markdown_report(summary, shot_dir, out_dir, index_path, manifest_path, rows,
         "",
         "## Next",
         "",
-        "S133 should implement the falling-source silhouette breakup pass and run a 36-frame Blender comparison against S130.",
+        "S134 should publish the latest static gallery and verify local/public HTML and GIF access.",
         "",
     ])
     return "\n".join(lines)

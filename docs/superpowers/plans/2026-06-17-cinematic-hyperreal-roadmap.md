@@ -178,7 +178,8 @@ The missing work is not one feature. It is a pipeline:
 | S130 | Environment/depth-context pass | Reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene | Done in `style: add environment depth context preset` |
 | S131 | S130 gallery refresh/publish | Package and publish the S130 review artifacts for external inspection before the next shot-shape adjustment | Done in `docs: publish s130 cinematic gallery` |
 | S132 | S130 public gallery visual triage | Review the S130 public gallery and choose the next concrete visible shot-shape adjustment from current evidence | Done in `docs: triage s130 public gallery` |
-| S133 | Falling-source silhouette breakup pass | Break the upper falling-water mass into staggered rounded lobes with less continuous vertical side-wall structure | Planned |
+| S133 | Falling-source silhouette breakup pass | Break the upper falling-water mass into staggered rounded lobes with less continuous vertical side-wall structure | Done in `feat: add falling source silhouette breakup` |
+| S134 | S133 gallery refresh/publish | Package and publish the S133 review artifacts for external inspection | Planned |
 
 ## Decision Gates
 
@@ -516,16 +517,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S133.
+Continue with S134.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-falling-source-silhouette-breakup-pass.md`
+`docs/superpowers/plans/2026-06-18-s133-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_falling_source_silhouette_breakup --out build\shots\s133_falling_source_silhouette_breakup --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s130_environment_depth_context\review\review_manifest.json --report docs\reports\cinematic_falling_source_silhouette_breakup_s133.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s133_falling_source_silhouette_breakup --out docs\reports\cinematic_artifact_package_s134.md
+python tools\build_cinematic_gallery.py build\shots\s133_falling_source_silhouette_breakup --package docs\reports\cinematic_artifact_package_s134.md --out build\shots\s133_falling_source_silhouette_breakup\gallery --report docs\reports\cinematic_static_gallery_s134.md
+python tools\publish_cinematic_gallery.py build\shots\s133_falling_source_silhouette_breakup\gallery --port 8799 --cftunnel --manifest build\shots\s133_falling_source_silhouette_breakup\gallery\publish_manifest_s134.json --report docs\reports\cinematic_gallery_publish_s134.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S133 visual gate report with less continuous upper-source side-wall structure and preserved S130 review/QA gates.
+The next success condition is a checked-in S133 gallery package/publish report with verified local/public `index.html` and `assets/shot.gif`.

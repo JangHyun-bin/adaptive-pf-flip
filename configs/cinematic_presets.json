@@ -1531,6 +1531,23 @@
         }
       }
     },
+    "dam_break_falling_source_silhouette_breakup": {
+      "extends": "dam_break_environment_depth_context",
+      "description": "Environment-depth shot using a staggered lobe source to reduce continuous vertical side-wall structure.",
+      "simulation": {
+        "scene": "source-breakup-water-event"
+      },
+      "renderer": {
+        "contact_mist_curtain_pass": {
+          "layers": 11,
+          "region_min": [3.6, 1.6, 6.2],
+          "region_max": [29.0, 16.8, 22.0],
+          "x_inset": 3.0,
+          "alpha_scale": 0.105,
+          "emission_scale": 0.4
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

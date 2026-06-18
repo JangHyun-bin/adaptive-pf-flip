@@ -540,6 +540,98 @@ void SparseSim3DTP::initNonBoxedLargeWaterEvent() {
   resetVolumeCorrectionStats(*this);
 }
 
+void SparseSim3DTP::initSourceBreakupWaterEvent() {
+  resetSceneState(*this);
+  const int sheetX0 = std::max(1, grid.nx / 8);
+  const int sheetX1 = std::min(grid.nx - 1, std::max(sheetX0 + 3, grid.nx * 7 / 8));
+  const int sheetY0 = std::max(2, grid.ny * 8 / 20);
+  const int sheetY1 = std::min(grid.ny - 1, std::max(sheetY0 + 3, grid.ny * 15 / 20));
+  const int sheetZ0 = std::max(1, grid.nz * 3 / 10);
+  const int sheetZ1 = std::min(grid.nz - 1, std::max(sheetZ0 + 2, grid.nz * 7 / 10));
+  const int poolX0 = std::max(1, grid.nx / 7);
+  const int poolX1 = std::min(grid.nx - 1, std::max(poolX0 + 4, grid.nx * 6 / 7));
+  const int poolY1 = std::min(grid.ny - 1, std::max(3, grid.ny / 6));
+  const int poolZ0 = std::max(1, grid.nz / 6);
+  const int poolZ1 = std::min(grid.nz - 1, std::max(poolZ0 + 4, grid.nz * 5 / 6));
+  const double cx = 0.5 * static_cast<double>(sheetX0 + sheetX1);
+  const double cz = 0.5 * static_cast<double>(sheetZ0 + sheetZ1);
+  const double rx = std::max(1.0, 0.5 * static_cast<double>(sheetX1 - sheetX0));
+  const double rz = std::max(1.0, 0.5 * static_cast<double>(sheetZ1 - sheetZ0));
+  constexpr double pi = 3.14159265358979323846;
+
+  struct Lobe {
+    double x;
+    double z;
+    double rx;
+    double rz;
+    double y0;
+    double y1;
+    double phase;
+  };
+  const Lobe lobes[] = {
+    {-0.42, -0.16, 0.52, 0.66, 0.12, 0.92, 0.0},
+    { 0.08,  0.20, 0.62, 0.54, 0.00, 0.68, 1.7},
+    { 0.50, -0.08, 0.46, 0.58, 0.34, 1.00, 3.1},
+    {-0.05, -0.38, 0.34, 0.34, 0.24, 0.58, 4.2},
+  };
+
+  for (int k = 1; k < grid.nz - 1; ++k) {
+    for (int j = 1; j < grid.ny - 1; ++j) {
+      for (int i = 1; i < grid.nx - 1; ++i) {
+        const double x = static_cast<double>(i) + 0.5;
+        const double y = static_cast<double>(j) + 0.5;
+        const double z = static_cast<double>(k) + 0.5;
+        bool fallingSource = false;
+        Vec3 velocity{0.0, 0.0, 0.0};
+
+        for (const Lobe& lobe : lobes) {
+          const double lcx = cx + lobe.x * rx;
+          const double lcz = cz + lobe.z * rz;
+          const double lrx = std::max(1.0, rx * lobe.rx);
+          const double lrz = std::max(1.0, rz * lobe.rz);
+          const double sx = (x - lcx) / lrx;
+          const double sz = (z - lcz) / lrz;
+          const double edge = sx * sx + sz * sz;
+          if (edge >= 1.0) continue;
+          const double wave =
+            0.55 * std::sin((x - lcx) * 0.8 + (z - lcz) * 0.65 + lobe.phase);
+          const double y0 =
+            static_cast<double>(sheetY0) +
+            lobe.y0 * static_cast<double>(sheetY1 - sheetY0) +
+            0.45 * std::max(0.0, edge - 0.25) + wave;
+          const double y1 =
+            static_cast<double>(sheetY0) +
+            lobe.y1 * static_cast<double>(sheetY1 - sheetY0) -
+            0.65 * std::max(0.0, edge - 0.15) + 0.35 * wave;
+          const double verticalBreak =
+            std::sin((x - cx) * 1.15 + (z - cz) * 0.95 + y * 0.42 + lobe.phase);
+          if (verticalBreak < -0.72 && y > y0 + 1.1 && y < y1 - 0.9) continue;
+          if (y >= y0 && y < y1 &&
+              i >= sheetX0 && i < sheetX1 &&
+              k >= sheetZ0 && k < sheetZ1) {
+            fallingSource = true;
+            velocity = {
+              0.18 * (x - lcx) + 0.24 * std::sin((z - lcz) * pi / lrz),
+              -14.2 - 0.5 * std::sin((x - lcx) * pi / lrx + lobe.phase),
+              0.13 * (z - lcz) - 0.18 * std::sin((x - lcx) * pi / lrx)
+            };
+            break;
+          }
+        }
+
+        const bool impactPool =
+          i >= poolX0 && i < poolX1 &&
+          j < poolY1 &&
+          k >= poolZ0 && k < poolZ1;
+        const bool liquid = fallingSource || impactPool;
+        seedCell(particles, i, j, k, grid.dx, liquid ? 0 : 1, velocity);
+      }
+    }
+  }
+  applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
+}
+
 void SparseSim3DTP::initRayleighTaylor() {
   resetSceneState(*this);
   int mid = grid.ny / 2;

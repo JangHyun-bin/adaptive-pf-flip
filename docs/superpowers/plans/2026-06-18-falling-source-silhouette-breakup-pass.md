@@ -36,6 +36,17 @@ python tools\run_cinematic_shot.py --preset dam_break_falling_source_silhouette_
 - Comparison sheet against S130 is generated.
 - Report records whether the continuous upper-source side-wall read is reduced and what remains.
 
+## Result
+
+- Scene: `source-breakup-water-event`
+- Preset: `dam_break_falling_source_silhouette_breakup`
+- Shot output: `build/shots/s133_falling_source_silhouette_breakup`
+- Report: `docs/reports/cinematic_falling_source_silhouette_breakup_s133.md`
+- Status: `ok`
+- Frames: `36`
+- Visual, focus, secondary-depth, ripple, temporal, camera-stability, and secondary-framing gates passed.
+- Visual note: the upper source is no longer a single flat slab, but late frames still form a large contained water mass.
+
 ## Verification
 
 ```powershell

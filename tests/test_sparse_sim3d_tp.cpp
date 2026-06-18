@@ -43,6 +43,20 @@ size_t highLiquidCount(const SparseSim3DTP& sim) {
   return count;
 }
 
+size_t highLiquidSideCount(const SparseSim3DTP& sim) {
+  size_t count = 0;
+  const double minY = sim.grid.ny * 0.4;
+  const double sideMargin = std::max(1.0, sim.grid.nx * 0.22);
+  for (size_t i = 0; i < sim.particles.size(); ++i) {
+    const auto& p = sim.particles.pos[i];
+    if (sim.particles.type[i] == 0 && p.y > minY &&
+        (p.x < sideMargin || p.x > sim.grid.nx - sideMargin)) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 bool finiteParticles(const Particles3DTP& particles) {
   for (size_t i = 0; i < particles.size(); ++i) {
     const auto& p = particles.pos[i];
@@ -208,6 +222,40 @@ TEST_CASE("sparse 3D nonboxed water event uses rounded falling source") {
   CHECK(highLiquid > 0);
   CHECK(highLiquid < rectangularHighLiquid);
   CHECK(highLiquid > rectangularHighLiquid / 3);
+  CHECK(volumeType(sim.particles, 0) > 0.0);
+
+  for (int step = 0; step < 4; ++step) {
+    sim.step();
+  }
+
+  CHECK(sim.particles.size() == n0);
+  CHECK(finiteParticles(sim.particles));
+  CHECK(meanYType(sim.particles, 0) < y0);
+  CHECK(sim.interface_diagnostics_last.finite == 1);
+}
+
+TEST_CASE("sparse 3D source-breakup water event staggers upper source") {
+  SparseSim3DTP nonboxed(12, 18, 12, 1.0);
+  nonboxed.initNonBoxedLargeWaterEvent();
+
+  SparseSim3DTP sim(12, 18, 12, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 40;
+  sim.initSourceBreakupWaterEvent();
+
+  const size_t n0 = sim.particles.size();
+  const size_t highLiquid = highLiquidCount(sim);
+  const size_t nonboxedHighLiquid = highLiquidCount(nonboxed);
+  const size_t sideLiquid = highLiquidSideCount(sim);
+  const size_t nonboxedSideLiquid = highLiquidSideCount(nonboxed);
+  const double y0 = meanYType(sim.particles, 0);
+
+  REQUIRE(n0 > 0);
+  CHECK(countType(sim.particles, 0) > 0);
+  CHECK(highLiquid > 0);
+  CHECK(highLiquid < nonboxedHighLiquid);
+  CHECK(highLiquid > nonboxedHighLiquid / 4);
+  CHECK(sideLiquid < nonboxedSideLiquid);
   CHECK(volumeType(sim.particles, 0) > 0.0);
 
   for (int step = 0; step < 4; ++step) {

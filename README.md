@@ -219,6 +219,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S130** | **Environment/depth-context pass** - `dam_break_environment_depth_context` softens enclosure cues with wider scattering/mist, lower contrast floor/world treatment, and preserved S127 review gates. | done |
 | **S131** | **S130 gallery refresh/publish** - packages and publishes the S130 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://italiano-anaheim-empty-colored.trycloudflare.com`. | done |
 | **S132** | **S130 public gallery visual triage** - reviews the S130 public gallery and selects S133 falling-source silhouette breakup as the next visible shot-shape adjustment. | done |
+| **S133** | **Falling-source silhouette breakup pass** - `source-breakup-water-event` uses staggered rounded lobes for the upper falling mass and preserves the S130 Blender review gates. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

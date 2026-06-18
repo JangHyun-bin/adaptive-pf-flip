@@ -96,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S133 should implement the falling-source silhouette breakup pass and run a 36-frame Blender comparison against S130.",
+        "S134 should package and publish the latest review artifacts for external inspection.",
         "",
     ])
     return "\n".join(lines)
