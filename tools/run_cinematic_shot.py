@@ -260,6 +260,12 @@ def parse_args(argv):
     parser.add_argument("--no-build", action="store_true", help="do not build exporter if missing")
     parser.add_argument("--rebuild", action="store_true", help="build exporter target before running")
     parser.add_argument("--threshold", type=float, default=0.02, help="water reconstruction threshold")
+    parser.add_argument("--smooth-iterations", type=int,
+                        help="water mesh smoothing iterations")
+    parser.add_argument("--smooth-alpha", type=float,
+                        help="water mesh smoothing blend factor")
+    parser.add_argument("--write-normals", action="store_true",
+                        help="force OBJ normal output for reconstructed water meshes")
     parser.add_argument("--fps", type=float, help="output GIF frame rate")
     parser.add_argument("--samples", type=int, help="Blender render samples")
     parser.add_argument("--blender", help="explicit Blender executable path")
@@ -278,6 +284,11 @@ def parse_args(argv):
         parser.error("cg-iters must be non-negative")
     if args.threshold < 0.0 or not math.isfinite(args.threshold):
         parser.error("threshold must be finite and non-negative")
+    if args.smooth_iterations is not None and args.smooth_iterations < 0:
+        parser.error("smooth-iterations must be non-negative")
+    if args.smooth_alpha is not None and (
+            args.smooth_alpha < 0.0 or args.smooth_alpha > 1.0 or not math.isfinite(args.smooth_alpha)):
+        parser.error("smooth-alpha must be finite in [0, 1]")
     if args.fps is not None and (args.fps <= 0.0 or not math.isfinite(args.fps)):
         parser.error("fps must be finite and positive")
     if args.samples is not None and args.samples <= 0:
@@ -342,6 +353,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
     sim = section(shot_preset, "simulation")
     shot = section(shot_preset, "shot")
     renderer = section(render_preset, "renderer")
+    reconstruction = section(render_preset, "reconstruction")
     frames = first_value(args.frames, shot.get("frames"), 24)
     width = first_value(args.width, shot.get("width"), 1280)
     height = first_value(args.height, shot.get("height"), 720)
@@ -372,6 +384,13 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                           renderer.get("min_nonblank_ratio"),
                                           0.05),
         "fps": first_value(args.fps, shot.get("fps"), 12.0),
+        "smooth_iterations": first_value(args.smooth_iterations,
+                                         reconstruction.get("smooth_iterations"),
+                                         0),
+        "smooth_alpha": first_value(args.smooth_alpha,
+                                    reconstruction.get("smooth_alpha"),
+                                    0.18),
+        "write_normals": bool(args.write_normals or reconstruction.get("write_normals", False)),
     }
 
 
@@ -508,14 +527,19 @@ def run_pipeline(args):
             "--require-cinematic",
         ])
 
-        pipeline.run("reconstruct_water", [
+        reconstruct_cmd = [
             sys.executable,
             tool_path(root, "reconstruct_water.py"),
             manifest_path,
             water_dir,
             "--frames", str(config["frames"]),
             "--threshold", str(args.threshold),
-        ])
+            "--smooth-iterations", str(config["smooth_iterations"]),
+            "--smooth-alpha", str(config["smooth_alpha"]),
+        ]
+        if config["write_normals"]:
+            reconstruct_cmd.append("--write-normals")
+        pipeline.run("reconstruct_water", reconstruct_cmd)
         require_file(water_index, "water reconstruction index")
 
         pipeline.run("convert_render_cache", [

@@ -29,6 +29,11 @@
         "min_nonblank_ratio": 0.05,
         "min_occupancy": 0.01
       },
+      "reconstruction": {
+        "smooth_iterations": 2,
+        "smooth_alpha": 0.18,
+        "write_normals": true
+      },
       "camera": {
         "position": [7.0, 12.8, 39.0],
         "target": [6.0, 8.2, 6.0],
@@ -125,6 +130,11 @@
         "max_secondary_particles": 768,
         "min_nonblank_ratio": 0.05,
         "min_occupancy": 0.005
+      },
+      "reconstruction": {
+        "smooth_iterations": 3,
+        "smooth_alpha": 0.16,
+        "write_normals": true
       },
       "camera": {
         "position": [9.0, 10.5, 45.0],

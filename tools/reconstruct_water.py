@@ -208,7 +208,7 @@ FACE_DEFS = [
 ]
 
 
-def write_obj(path, frame, occupied):
+def build_surface_mesh(frame, occupied):
     dx = frame["dx"]
     vertices = []
     faces = []
@@ -232,16 +232,102 @@ def write_obj(path, frame, occupied):
             face = [add_vertex((i + cx, j + cy, k + cz)) for cx, cy, cz in corners]
             faces.append(face)
 
+    return vertices, faces
+
+
+def vec_sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def cross(a, b):
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def normalize(v):
+    length = math.sqrt(max(0.0, v[0] * v[0] + v[1] * v[1] + v[2] * v[2]))
+    if length <= 1e-12:
+        return (0.0, 1.0, 0.0)
+    return (v[0] / length, v[1] / length, v[2] / length)
+
+
+def build_adjacency(vertex_count, faces):
+    neighbors = [set() for _ in range(vertex_count)]
+    for face in faces:
+        zero = [idx - 1 for idx in face]
+        for a, b in zip(zero, zero[1:] + zero[:1]):
+            if 0 <= a < vertex_count and 0 <= b < vertex_count:
+                neighbors[a].add(b)
+                neighbors[b].add(a)
+    return neighbors
+
+
+def smooth_vertices(vertices, faces, iterations, alpha):
+    if iterations <= 0 or alpha <= 0.0 or not vertices:
+        return vertices
+    alpha = min(1.0, max(0.0, alpha))
+    neighbors = build_adjacency(len(vertices), faces)
+    current = list(vertices)
+    for _ in range(iterations):
+        updated = []
+        for idx, vertex in enumerate(current):
+            linked = neighbors[idx]
+            if not linked:
+                updated.append(vertex)
+                continue
+            avg = (
+                sum(current[n][0] for n in linked) / len(linked),
+                sum(current[n][1] for n in linked) / len(linked),
+                sum(current[n][2] for n in linked) / len(linked),
+            )
+            updated.append((
+                vertex[0] * (1.0 - alpha) + avg[0] * alpha,
+                vertex[1] * (1.0 - alpha) + avg[1] * alpha,
+                vertex[2] * (1.0 - alpha) + avg[2] * alpha,
+            ))
+        current = updated
+    return current
+
+
+def compute_vertex_normals(vertices, faces):
+    normals = [(0.0, 0.0, 0.0) for _ in vertices]
+    for face in faces:
+        if len(face) < 3:
+            continue
+        i0, i1, i2 = face[0] - 1, face[1] - 1, face[2] - 1
+        if not (0 <= i0 < len(vertices) and 0 <= i1 < len(vertices) and 0 <= i2 < len(vertices)):
+            continue
+        edge_a = vec_sub(vertices[i1], vertices[i0])
+        edge_b = vec_sub(vertices[i2], vertices[i0])
+        n = cross(edge_a, edge_b)
+        for idx in face:
+            vi = idx - 1
+            if 0 <= vi < len(normals):
+                prev = normals[vi]
+                normals[vi] = (prev[0] + n[0], prev[1] + n[1], prev[2] + n[2])
+    return [normalize(n) for n in normals]
+
+
+def write_obj(path, frame, vertices, faces, write_normals):
+    normals = compute_vertex_normals(vertices, faces) if write_normals else []
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("# LSFS S41 water reconstruction OBJ\n")
         f.write(f"# source {frame['source']}\n")
         f.write(f"# frame {frame['frame']} time {frame['time']:.17g}\n")
         for x, y, z in vertices:
             f.write(f"v {x:.17g} {y:.17g} {z:.17g}\n")
+        for x, y, z in normals:
+            f.write(f"vn {x:.17g} {y:.17g} {z:.17g}\n")
         f.write("g water\n")
         for face in faces:
-            f.write("f " + " ".join(str(idx) for idx in face) + "\n")
-    return len(vertices), len(faces)
+            if write_normals:
+                f.write("f " + " ".join(f"{idx}//{idx}" for idx in face) + "\n")
+            else:
+                f.write("f " + " ".join(str(idx) for idx in face) + "\n")
+    return len(vertices), len(faces), len(normals)
 
 
 def select_source_frame(frames, out_index, out_count):
@@ -251,7 +337,8 @@ def select_source_frame(frames, out_index, out_count):
     return frames[src_index]
 
 
-def reconstruct(src, out_dir, frame_count, threshold):
+def reconstruct(src, out_dir, frame_count, threshold,
+                smooth_iterations=0, smooth_alpha=0.18, write_normals=False):
     frames = load_source(src)
     out_dir = os.path.abspath(out_dir)
     mesh_dir = os.path.join(out_dir, "meshes")
@@ -264,7 +351,9 @@ def reconstruct(src, out_dir, frame_count, threshold):
         if not occupied:
             fail(f"{frame['source']}: no occupied water cells at threshold {threshold}")
         mesh_path = os.path.join(mesh_dir, f"frame_{out_index:04d}_water.obj")
-        vertex_count, face_count = write_obj(mesh_path, frame, occupied)
+        vertices, faces = build_surface_mesh(frame, occupied)
+        vertices = smooth_vertices(vertices, faces, smooth_iterations, smooth_alpha)
+        vertex_count, face_count, normal_count = write_obj(mesh_path, frame, vertices, faces, write_normals)
         output_frames.append({
             "frame": out_index,
             "source_frame": frame["frame"],
@@ -274,6 +363,7 @@ def reconstruct(src, out_dir, frame_count, threshold):
             "occupied_cell_count": len(occupied),
             "vertex_count": vertex_count,
             "face_count": face_count,
+            "normal_count": normal_count,
         })
 
     summary = {
@@ -282,6 +372,9 @@ def reconstruct(src, out_dir, frame_count, threshold):
         "representation": "obj_mesh",
         "source": src,
         "threshold": threshold,
+        "smooth_iterations": smooth_iterations,
+        "smooth_alpha": smooth_alpha,
+        "write_normals": write_normals,
         "frame_count": len(output_frames),
         "frames": output_frames,
     }
@@ -299,18 +392,34 @@ def parse_args(argv):
     parser.add_argument("--frames", type=int, default=8, help="number of OBJ frames to write")
     parser.add_argument("--threshold", type=float, default=0.02,
                         help="minimum phase-cell phi or liquid-volume fraction")
+    parser.add_argument("--smooth-iterations", type=int, default=0,
+                        help="Laplacian smoothing iterations for exported vertices")
+    parser.add_argument("--smooth-alpha", type=float, default=0.18,
+                        help="smoothing blend factor per iteration")
+    parser.add_argument("--write-normals", action="store_true",
+                        help="write one OBJ vertex normal per vertex")
     args = parser.parse_args(argv)
     if args.frames <= 0:
         parser.error("frames must be positive")
     if args.threshold < 0.0 or not math.isfinite(args.threshold):
         parser.error("threshold must be finite and non-negative")
+    if args.smooth_iterations < 0:
+        parser.error("smooth-iterations must be non-negative")
+    if args.smooth_alpha < 0.0 or args.smooth_alpha > 1.0 or not math.isfinite(args.smooth_alpha):
+        parser.error("smooth-alpha must be finite in [0, 1]")
     return args
 
 
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     try:
-        summary_path, summary = reconstruct(args.src, args.out_dir, args.frames, args.threshold)
+        summary_path, summary = reconstruct(args.src,
+                                            args.out_dir,
+                                            args.frames,
+                                            args.threshold,
+                                            smooth_iterations=args.smooth_iterations,
+                                            smooth_alpha=args.smooth_alpha,
+                                            write_normals=args.write_normals)
     except ReconstructionError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
         return 1
