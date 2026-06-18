@@ -1,0 +1,200 @@
+{
+  "schema": "lsfs_cinematic_presets",
+  "version": 1,
+  "presets": {
+    "bubble_cinematic": {
+      "description": "Default small sparse 3D two-phase bubble tank cinematic look.",
+      "simulation": {
+        "kind": "sparse",
+        "nx": 12,
+        "ny": 18,
+        "nz": 12,
+        "dt": 0.02,
+        "cg_iters": null,
+        "physics_preset": false
+      },
+      "shot": {
+        "frames": 24,
+        "sim_steps": 24,
+        "cache_every": 1,
+        "width": 1280,
+        "height": 720,
+        "fps": 12.0
+      },
+      "renderer": {
+        "preferred": "auto",
+        "engine": "eevee",
+        "samples": 24,
+        "max_secondary_particles": 512,
+        "min_nonblank_ratio": 0.05,
+        "min_occupancy": 0.01
+      },
+      "camera": {
+        "position": [7.0, 12.8, 39.0],
+        "target": [6.0, 8.2, 6.0],
+        "up": [0.0, 1.0, 0.0],
+        "focal_length_mm": 58.0,
+        "vertical_fov_degrees": 39.0,
+        "near_clip": 0.05,
+        "far_clip": 120.0
+      },
+      "lighting": {
+        "world_color": [0.018, 0.021, 0.026],
+        "key_area": {
+          "location": [3.0, -12.0, 20.0],
+          "energy": 720.0,
+          "size": 8.0
+        },
+        "sun": {
+          "rotation_degrees": [42.0, 0.0, 32.0],
+          "energy": 1.25
+        },
+        "floor": {
+          "enabled": true,
+          "scale": 1.35
+        }
+      },
+      "materials": {
+        "water": {
+          "base_color": [0.16, 0.62, 1.0, 0.5],
+          "roughness": 0.025,
+          "alpha": 0.5,
+          "transmission": 0.42
+        },
+        "floor": {
+          "base_color": [0.014, 0.016, 0.02, 1.0],
+          "roughness": 0.72,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "droplet": {
+          "base_color": [0.74, 0.96, 1.0, 0.86],
+          "roughness": 0.05,
+          "alpha": 0.86,
+          "transmission": 0.25
+        },
+        "spray": {
+          "base_color": [0.9, 0.98, 1.0, 0.8],
+          "roughness": 0.12,
+          "alpha": 0.8,
+          "transmission": 0.15
+        },
+        "foam": {
+          "base_color": [0.96, 0.94, 0.78, 1.0],
+          "roughness": 0.58,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [1.0, 0.76, 0.32, 0.78],
+          "roughness": 0.16,
+          "alpha": 0.78,
+          "transmission": 0.16
+        }
+      },
+      "tone_mapping": {
+        "view_transform": "Filmic",
+        "look": "Medium High Contrast",
+        "exposure": 0.15,
+        "gamma": 1.0
+      }
+    },
+    "dam_break_cinematic": {
+      "description": "Wider high-energy water-body look for the next dam-break or falling-water scene.",
+      "simulation": {
+        "kind": "sparse",
+        "nx": 16,
+        "ny": 20,
+        "nz": 14,
+        "dt": 0.02,
+        "cg_iters": null,
+        "physics_preset": false
+      },
+      "shot": {
+        "frames": 24,
+        "sim_steps": 24,
+        "cache_every": 1,
+        "width": 1280,
+        "height": 720,
+        "fps": 12.0
+      },
+      "renderer": {
+        "preferred": "auto",
+        "engine": "eevee",
+        "samples": 32,
+        "max_secondary_particles": 768,
+        "min_nonblank_ratio": 0.05,
+        "min_occupancy": 0.005
+      },
+      "camera": {
+        "position": [9.0, 10.5, 45.0],
+        "target": [8.0, 7.0, 7.0],
+        "up": [0.0, 1.0, 0.0],
+        "focal_length_mm": 44.0,
+        "vertical_fov_degrees": 46.0,
+        "near_clip": 0.05,
+        "far_clip": 150.0
+      },
+      "lighting": {
+        "world_color": [0.02, 0.023, 0.026],
+        "key_area": {
+          "location": [-5.0, -14.0, 22.0],
+          "energy": 920.0,
+          "size": 11.0
+        },
+        "sun": {
+          "rotation_degrees": [50.0, 0.0, -26.0],
+          "energy": 1.05
+        },
+        "floor": {
+          "enabled": true,
+          "scale": 1.6
+        }
+      },
+      "materials": {
+        "water": {
+          "base_color": [0.12, 0.55, 0.95, 0.56],
+          "roughness": 0.035,
+          "alpha": 0.56,
+          "transmission": 0.38
+        },
+        "floor": {
+          "base_color": [0.018, 0.017, 0.015, 1.0],
+          "roughness": 0.8,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "droplet": {
+          "base_color": [0.72, 0.94, 1.0, 0.9],
+          "roughness": 0.06,
+          "alpha": 0.9,
+          "transmission": 0.2
+        },
+        "spray": {
+          "base_color": [0.88, 0.97, 1.0, 0.82],
+          "roughness": 0.14,
+          "alpha": 0.82,
+          "transmission": 0.12
+        },
+        "foam": {
+          "base_color": [0.98, 0.95, 0.82, 1.0],
+          "roughness": 0.64,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [1.0, 0.72, 0.28, 0.76],
+          "roughness": 0.2,
+          "alpha": 0.76,
+          "transmission": 0.12
+        }
+      },
+      "tone_mapping": {
+        "view_transform": "Filmic",
+        "look": "Medium High Contrast",
+        "exposure": 0.05,
+        "gamma": 1.0
+      }
+    }
+  }
+}

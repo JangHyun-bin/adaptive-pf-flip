@@ -19,7 +19,7 @@ import time
 from datetime import datetime, timezone
 
 
-PRESETS = {
+BUILTIN_PRESETS = {
     "bubble_cinematic": {
         "kind": "sparse",
         "nx": 12,
@@ -41,6 +41,14 @@ def fail(message):
     raise ShotError(message)
 
 
+def repo_root():
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
+
+def default_preset_config_path():
+    return os.path.join(repo_root(), "configs", "cinematic_presets.json")
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -57,10 +65,6 @@ def write_json(path, payload):
 def read_json(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
-
-
-def repo_root():
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 
 
 def tool_path(root, name):
@@ -144,19 +148,24 @@ def parse_positive_int(value, label):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Run an LSFS cinematic shot pipeline")
-    parser.add_argument("--preset", choices=sorted(PRESETS), default="bubble_cinematic")
+    parser.add_argument("--preset", default="bubble_cinematic",
+                        help="shot preset name from --preset-config")
+    parser.add_argument("--preset-config", default=default_preset_config_path(),
+                        help="cinematic preset config JSON")
+    parser.add_argument("--render-preset",
+                        help="render look preset name; defaults to --preset")
     parser.add_argument("--out", required=True, help="output shot directory")
-    parser.add_argument("--frames", type=lambda v: parse_positive_int(v, "frames"), default=24)
-    parser.add_argument("--width", type=lambda v: parse_positive_int(v, "width"), default=1280)
-    parser.add_argument("--height", type=lambda v: parse_positive_int(v, "height"), default=720)
-    parser.add_argument("--renderer", choices=("auto", "preview", "blender"), default="auto")
+    parser.add_argument("--frames", type=lambda v: parse_positive_int(v, "frames"))
+    parser.add_argument("--width", type=lambda v: parse_positive_int(v, "width"))
+    parser.add_argument("--height", type=lambda v: parse_positive_int(v, "height"))
+    parser.add_argument("--renderer", choices=("auto", "preview", "blender"))
     parser.add_argument("--kind", choices=("sparse", "mr"), help="override preset simulation kind")
     parser.add_argument("--nx", type=lambda v: parse_positive_int(v, "nx"))
     parser.add_argument("--ny", type=lambda v: parse_positive_int(v, "ny"))
     parser.add_argument("--nz", type=lambda v: parse_positive_int(v, "nz"))
     parser.add_argument("--sim-steps", type=lambda v: parse_positive_int(v, "sim-steps"),
                         help="simulation steps to export; defaults to --frames")
-    parser.add_argument("--cache-every", type=lambda v: parse_positive_int(v, "cache-every"), default=1)
+    parser.add_argument("--cache-every", type=lambda v: parse_positive_int(v, "cache-every"))
     parser.add_argument("--dt", type=float, help="simulation dt override")
     parser.add_argument("--cg-iters", type=int, help="pressure CG iteration override")
     parser.add_argument("--physics-preset", action="store_true", help="enable full physics preset in exporter")
@@ -165,13 +174,13 @@ def parse_args(argv):
     parser.add_argument("--no-build", action="store_true", help="do not build exporter if missing")
     parser.add_argument("--rebuild", action="store_true", help="build exporter target before running")
     parser.add_argument("--threshold", type=float, default=0.02, help="water reconstruction threshold")
-    parser.add_argument("--fps", type=float, default=12.0, help="output GIF frame rate")
-    parser.add_argument("--samples", type=int, default=24, help="Blender render samples")
+    parser.add_argument("--fps", type=float, help="output GIF frame rate")
+    parser.add_argument("--samples", type=int, help="Blender render samples")
     parser.add_argument("--blender", help="explicit Blender executable path")
-    parser.add_argument("--max-secondary-particles", type=int, default=512)
-    parser.add_argument("--min-occupancy", type=float, default=0.01,
+    parser.add_argument("--max-secondary-particles", type=int)
+    parser.add_argument("--min-occupancy", type=float,
                         help="preview renderer minimum occupancy")
-    parser.add_argument("--min-nonblank-ratio", type=float, default=0.05,
+    parser.add_argument("--min-nonblank-ratio", type=float,
                         help="Blender frame nonblank gate")
     parser.add_argument("--timeout-seconds", type=int, default=300,
                         help="Blender subprocess timeout")
@@ -182,38 +191,100 @@ def parse_args(argv):
         parser.error("cg-iters must be non-negative")
     if args.threshold < 0.0 or not math.isfinite(args.threshold):
         parser.error("threshold must be finite and non-negative")
-    if args.fps <= 0.0 or not math.isfinite(args.fps):
+    if args.fps is not None and (args.fps <= 0.0 or not math.isfinite(args.fps)):
         parser.error("fps must be finite and positive")
-    if args.samples <= 0:
+    if args.samples is not None and args.samples <= 0:
         parser.error("samples must be positive")
-    if args.max_secondary_particles < 0:
+    if args.max_secondary_particles is not None and args.max_secondary_particles < 0:
         parser.error("max-secondary-particles must be non-negative")
-    if args.min_occupancy < 0.0 or not math.isfinite(args.min_occupancy):
+    if args.min_occupancy is not None and (args.min_occupancy < 0.0 or not math.isfinite(args.min_occupancy)):
         parser.error("min-occupancy must be finite and non-negative")
-    if args.min_nonblank_ratio < 0.0 or not math.isfinite(args.min_nonblank_ratio):
+    if args.min_nonblank_ratio is not None and (
+            args.min_nonblank_ratio < 0.0 or not math.isfinite(args.min_nonblank_ratio)):
         parser.error("min-nonblank-ratio must be finite and non-negative")
     if args.timeout_seconds <= 0:
         parser.error("timeout-seconds must be positive")
     return args
 
 
-def effective_config(args):
-    preset = PRESETS[args.preset]
+def resolve_config_path(path):
+    if os.path.isabs(path):
+        return path
+    cwd_candidate = os.path.abspath(path)
+    if os.path.isfile(cwd_candidate):
+        return cwd_candidate
+    return os.path.join(repo_root(), path)
+
+
+def load_preset_config(path):
+    resolved = resolve_config_path(path)
+    if os.path.isfile(resolved):
+        data = read_json(resolved)
+        if data.get("schema") != "lsfs_cinematic_presets":
+            fail(f"{resolved}: expected lsfs_cinematic_presets schema")
+        presets = data.get("presets")
+        if not isinstance(presets, dict) or not presets:
+            fail(f"{resolved}: presets must be a non-empty object")
+        return resolved, presets
+    if os.path.normcase(os.path.abspath(resolved)) == os.path.normcase(os.path.abspath(default_preset_config_path())):
+        return None, BUILTIN_PRESETS
+    fail(f"{resolved}: preset config not found")
+
+
+def preset_object(presets, name, label):
+    value = presets.get(name)
+    if not isinstance(value, dict):
+        known = ", ".join(sorted(presets))
+        fail(f"unknown {label} preset {name!r}; known presets: {known}")
+    return value
+
+
+def section(preset, name):
+    value = preset.get(name, {})
+    return value if isinstance(value, dict) else {}
+
+
+def first_value(*values):
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def effective_config(args, shot_preset, render_preset_name, render_preset, preset_config_path):
+    sim = section(shot_preset, "simulation")
+    shot = section(shot_preset, "shot")
+    renderer = section(render_preset, "renderer")
+    frames = first_value(args.frames, shot.get("frames"), 24)
+    width = first_value(args.width, shot.get("width"), 1280)
+    height = first_value(args.height, shot.get("height"), 720)
     return {
         "preset": args.preset,
-        "description": preset["description"],
-        "kind": args.kind or preset["kind"],
-        "nx": args.nx or preset["nx"],
-        "ny": args.ny or preset["ny"],
-        "nz": args.nz or preset["nz"],
-        "dt": args.dt if args.dt is not None else preset["dt"],
-        "cg_iters": args.cg_iters if args.cg_iters is not None else preset["cg_iters"],
-        "physics_preset": bool(args.physics_preset or preset["physics_preset"]),
-        "sim_steps": args.sim_steps or args.frames,
-        "cache_every": args.cache_every,
-        "frames": args.frames,
-        "width": args.width,
-        "height": args.height,
+        "render_preset": render_preset_name,
+        "preset_config": preset_config_path,
+        "description": shot_preset.get("description", ""),
+        "kind": args.kind or sim.get("kind", "sparse"),
+        "nx": first_value(args.nx, sim.get("nx"), 12),
+        "ny": first_value(args.ny, sim.get("ny"), 18),
+        "nz": first_value(args.nz, sim.get("nz"), 12),
+        "dt": first_value(args.dt, sim.get("dt"), 0.02),
+        "cg_iters": first_value(args.cg_iters, sim.get("cg_iters")),
+        "physics_preset": bool(args.physics_preset or sim.get("physics_preset", False)),
+        "sim_steps": first_value(args.sim_steps, shot.get("sim_steps"), frames),
+        "cache_every": first_value(args.cache_every, shot.get("cache_every"), 1),
+        "frames": frames,
+        "width": width,
+        "height": height,
+        "renderer": args.renderer or renderer.get("preferred", "auto"),
+        "samples": first_value(args.samples, renderer.get("samples"), 24),
+        "max_secondary_particles": first_value(args.max_secondary_particles,
+                                               renderer.get("max_secondary_particles"),
+                                               512),
+        "min_occupancy": first_value(args.min_occupancy, renderer.get("min_occupancy"), 0.01),
+        "min_nonblank_ratio": first_value(args.min_nonblank_ratio,
+                                          renderer.get("min_nonblank_ratio"),
+                                          0.05),
+        "fps": first_value(args.fps, shot.get("fps"), 12.0),
     }
 
 
@@ -239,9 +310,9 @@ def parse_blender_check(stdout):
     return payload if isinstance(payload, dict) else {"available": False, "error": "invalid check payload"}
 
 
-def choose_renderer(args, pipeline, root):
-    if args.renderer != "auto":
-        return args.renderer, None
+def choose_renderer(renderer_choice, args, pipeline, root):
+    if renderer_choice != "auto":
+        return renderer_choice, None
     command = [sys.executable, tool_path(root, "render_bridge_blender.py"), "--check"]
     if args.blender:
         command.extend(["--blender", args.blender])
@@ -268,7 +339,11 @@ def run_pipeline(args):
     os.makedirs(out_dir, exist_ok=True)
     pipeline = Pipeline(out_dir, root)
     started = utc_now()
-    config = effective_config(args)
+    preset_config_path, presets = load_preset_config(args.preset_config)
+    shot_preset = preset_object(presets, args.preset, "shot")
+    render_preset_name = args.render_preset or args.preset
+    render_preset = preset_object(presets, render_preset_name, "render")
+    config = effective_config(args, shot_preset, render_preset_name, render_preset, preset_config_path)
     cache_dir = os.path.join(out_dir, "cache")
     converted_dir = os.path.join(out_dir, "converted")
     water_dir = os.path.join(out_dir, "water_mesh")
@@ -292,6 +367,9 @@ def run_pipeline(args):
         "config": config,
         "requested_renderer": args.renderer,
         "selected_renderer": None,
+        "preset_config": preset_config_path,
+        "shot_preset": args.preset,
+        "render_preset": render_preset_name,
         "artifacts": {
             "manifest": manifest_path,
             "sequence": sequence_path,
@@ -363,7 +441,7 @@ def run_pipeline(args):
         ])
         require_file(sequence_path, "converted sequence")
 
-        selected_renderer, blender_report = choose_renderer(args, pipeline, root)
+        selected_renderer, blender_report = choose_renderer(config["renderer"], args, pipeline, root)
         summary["selected_renderer"] = selected_renderer
         if blender_report is not None:
             summary["blender_check"] = blender_report
@@ -378,10 +456,12 @@ def run_pipeline(args):
                 "--frames", str(config["frames"]),
                 "--width", str(config["width"]),
                 "--height", str(config["height"]),
-                "--samples", str(args.samples),
-                "--max-secondary-particles", str(args.max_secondary_particles),
-                "--min-nonblank-ratio", str(args.min_nonblank_ratio),
+                "--samples", str(config["samples"]),
+                "--max-secondary-particles", str(config["max_secondary_particles"]),
+                "--min-nonblank-ratio", str(config["min_nonblank_ratio"]),
                 "--timeout-seconds", str(args.timeout_seconds),
+                "--preset-config", preset_config_path or default_preset_config_path(),
+                "--render-preset", render_preset_name,
             ]
             if args.blender:
                 command.extend(["--blender", args.blender])
@@ -398,7 +478,7 @@ def run_pipeline(args):
                 "--frames", str(config["frames"]),
                 "--width", str(config["width"]),
                 "--height", str(config["height"]),
-                "--min-occupancy", str(args.min_occupancy),
+                "--min-occupancy", str(config["min_occupancy"]),
                 "--water-reconstruction", water_index,
             ])
             frame_dir = render_dir
@@ -411,7 +491,7 @@ def run_pipeline(args):
             tool_path(root, "assemble_frames.py"),
             frame_dir,
             gif_path,
-            "--fps", str(args.fps),
+            "--fps", str(config["fps"]),
         ])
         require_file(gif_path, "shot GIF")
 

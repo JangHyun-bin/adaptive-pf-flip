@@ -34,6 +34,14 @@ class BridgeError(Exception):
     pass
 
 
+def repo_root():
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
+
+def default_preset_config_path():
+    return os.path.join(repo_root(), "configs", "cinematic_presets.json")
+
+
 def fail(message):
     raise BridgeError(message)
 
@@ -44,6 +52,35 @@ def read_json(path):
             return json.load(f)
     except json.JSONDecodeError as exc:
         fail(f"{path}: invalid JSON: {exc}")
+
+
+def resolve_config_path(path):
+    if not path:
+        return default_preset_config_path()
+    if os.path.isabs(path):
+        return path
+    cwd_candidate = os.path.abspath(path)
+    if os.path.isfile(cwd_candidate):
+        return cwd_candidate
+    return os.path.join(repo_root(), path)
+
+
+def load_render_preset(config_path, preset_name):
+    if not preset_name:
+        return None, None
+    resolved = resolve_config_path(config_path)
+    if not os.path.isfile(resolved):
+        fail(f"{resolved}: preset config not found")
+    data = read_json(resolved)
+    if data.get("schema") != "lsfs_cinematic_presets":
+        fail(f"{resolved}: expected lsfs_cinematic_presets schema")
+    presets = data.get("presets")
+    if not isinstance(presets, dict):
+        fail(f"{resolved}: presets must be an object")
+    preset = presets.get(preset_name)
+    if not isinstance(preset, dict):
+        fail(f"{resolved}: unknown render preset {preset_name!r}")
+    return resolved, preset
 
 
 def write_json(path, payload):
@@ -302,8 +339,17 @@ def pick_water_mesh(frame, water_index, out_index, out_count):
 
 
 def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruction_path,
-                     engine, samples, max_secondary_particles):
+                     engine, samples, max_secondary_particles, render_preset_name=None,
+                     render_preset=None):
     sequence = load_sequence(src, water_reconstruction_path)
+    render_preset = render_preset or {}
+    renderer_defaults = render_preset.get("renderer", {})
+    engine = engine or renderer_defaults.get("engine", "eevee")
+    samples = samples if samples is not None else as_int(renderer_defaults.get("samples"), 24)
+    max_secondary_particles = (
+        max_secondary_particles if max_secondary_particles is not None
+        else as_int(renderer_defaults.get("max_secondary_particles"), 512)
+    )
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
     frames = []
@@ -350,6 +396,8 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "engine": engine,
         "samples": samples,
         "max_secondary_particles": max_secondary_particles,
+        "render_preset_name": render_preset_name,
+        "render_preset": render_preset,
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "water_reconstruction": sequence.get("water_reconstruction", {}),
@@ -403,6 +451,42 @@ def set_input(node, names, value):
     return False
 
 
+def preset_section(preset, name):
+    value = preset.get(name, {})
+    return value if isinstance(value, dict) else {}
+
+
+def vector_value(value, fallback, length=None):
+    if isinstance(value, (list, tuple)):
+        target_len = length or len(fallback)
+        if len(value) >= target_len:
+            out = []
+            for i in range(target_len):
+                try:
+                    out.append(float(value[i]))
+                except (TypeError, ValueError):
+                    return tuple(fallback)
+            return tuple(out)
+    return tuple(fallback)
+
+
+def scalar_value(value, fallback):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def material_values(preset, name, color, roughness, alpha, transmission):
+    cfg = preset_section(preset_section(preset, "materials"), name)
+    return {
+        "color": vector_value(cfg.get("base_color"), color, 4),
+        "roughness": scalar_value(cfg.get("roughness"), roughness),
+        "alpha": scalar_value(cfg.get("alpha"), alpha),
+        "transmission": scalar_value(cfg.get("transmission"), transmission),
+    }
+
+
 def make_principled_material(name, color, roughness=0.2, alpha=1.0, transmission=0.0):
     mat = bpy.data.materials.new(name)
     mat.diffuse_color = color
@@ -437,6 +521,9 @@ def configure_engine(scene, engine, samples):
 
 def configure_scene(spec):
     scene = bpy.context.scene
+    preset = spec.get("render_preset") or {}
+    tone = preset_section(preset, "tone_mapping")
+    lighting = preset_section(preset, "lighting")
     scene.render.resolution_x = int(spec["width"])
     scene.render.resolution_y = int(spec["height"])
     scene.render.film_transparent = False
@@ -444,15 +531,15 @@ def configure_scene(spec):
     scene.render.image_settings.color_mode = "RGB"
     configure_engine(scene, spec.get("engine", "eevee"), spec.get("samples", 24))
     try:
-        scene.view_settings.view_transform = "Filmic"
-        scene.view_settings.look = "Medium High Contrast"
-        scene.view_settings.exposure = 0.0
-        scene.view_settings.gamma = 1.0
+        scene.view_settings.view_transform = tone.get("view_transform", "Filmic")
+        scene.view_settings.look = tone.get("look", "Medium High Contrast")
+        scene.view_settings.exposure = scalar_value(tone.get("exposure"), 0.0)
+        scene.view_settings.gamma = scalar_value(tone.get("gamma"), 1.0)
     except TypeError:
         pass
     world = scene.world or bpy.data.worlds.new("World")
     scene.world = world
-    world.color = (0.02, 0.025, 0.032)
+    world.color = vector_value(lighting.get("world_color"), (0.02, 0.025, 0.032), 3)
 
 
 def make_camera():
@@ -468,8 +555,10 @@ def look_at(obj, target):
     obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
 
-def configure_camera(camera, frame):
-    cam = frame["camera"]
+def configure_camera(camera, frame, preset):
+    cam = dict(frame["camera"])
+    preset_camera = preset_section(preset, "camera")
+    cam.update(preset_camera)
     camera.location = to_blender(cam["position"])
     target = to_blender(cam["target"])
     look_at(camera, target)
@@ -481,23 +570,31 @@ def configure_camera(camera, frame):
     camera.data.clip_end = max(1.0, float(cam.get("far_clip", 500.0)))
 
 
-def add_lights():
-    bpy.ops.object.light_add(type="AREA", location=(3.0, -12.0, 20.0))
+def add_lights(preset):
+    lighting = preset_section(preset, "lighting")
+    key_cfg = preset_section(lighting, "key_area")
+    sun_cfg = preset_section(lighting, "sun")
+    key_location = vector_value(key_cfg.get("location"), (3.0, -12.0, 20.0), 3)
+    bpy.ops.object.light_add(type="AREA", location=key_location)
     key = bpy.context.object
     key.name = "LSFS Key Area"
-    key.data.energy = 450.0
-    key.data.size = 7.0
+    key.data.energy = scalar_value(key_cfg.get("energy"), 450.0)
+    key.data.size = scalar_value(key_cfg.get("size"), 7.0)
     bpy.ops.object.light_add(type="SUN", location=(0.0, 0.0, 12.0))
     sun = bpy.context.object
     sun.name = "LSFS Sun"
-    sun.data.energy = 1.3
-    sun.rotation_euler = (math.radians(40.0), 0.0, math.radians(30.0))
+    sun.data.energy = scalar_value(sun_cfg.get("energy"), 1.3)
+    sun_rotation = vector_value(sun_cfg.get("rotation_degrees"), (40.0, 0.0, 30.0), 3)
+    sun.rotation_euler = tuple(math.radians(v) for v in sun_rotation)
 
 
-def add_floor(frame, material):
+def add_floor(frame, material, preset):
+    floor_cfg = preset_section(preset_section(preset, "lighting"), "floor")
+    if floor_cfg.get("enabled", True) is False:
+        return
     dims = frame.get("header", {}).get("dims", [10, 10, 10])
     dx = float(frame.get("header", {}).get("dx", 1.0))
-    size = max(float(dims[0]), float(dims[2]), 1.0) * dx * 1.3
+    size = max(float(dims[0]), float(dims[2]), 1.0) * dx * scalar_value(floor_cfg.get("scale"), 1.3)
     bpy.ops.mesh.primitive_plane_add(size=size, location=(float(dims[0]) * dx * 0.5,
                                                          -float(dims[2]) * dx * 0.5,
                                                          -0.015))
@@ -571,30 +668,38 @@ def add_secondary_particles(frame, materials, max_count):
 
 def main():
     spec = read_spec()
+    preset = spec.get("render_preset") or {}
     clear_scene()
     configure_scene(spec)
     camera = make_camera()
-    add_lights()
+    add_lights(preset)
+    water = material_values(preset, "water", (0.18, 0.66, 1.0, 0.52), 0.03, 0.52, 0.35)
+    floor = material_values(preset, "floor", (0.015, 0.018, 0.024, 1.0), 0.7, 1.0, 0.0)
+    droplet = material_values(preset, "droplet", (0.72, 0.95, 1.0, 0.85), 0.05, 0.85, 0.25)
+    spray = material_values(preset, "spray", (0.9, 0.98, 1.0, 0.8), 0.12, 0.8, 0.15)
+    foam = material_values(preset, "foam", (0.95, 0.94, 0.82, 1.0), 0.55, 1.0, 0.0)
+    bubble = material_values(preset, "bubble", (1.0, 0.78, 0.34, 0.78), 0.15, 0.78, 0.15)
     water_mat = make_principled_material("LSFS Water Glass",
-                                         (0.18, 0.66, 1.0, 0.52),
-                                         roughness=0.03,
-                                         alpha=0.52,
-                                         transmission=0.35)
+                                         water["color"],
+                                         roughness=water["roughness"],
+                                         alpha=water["alpha"],
+                                         transmission=water["transmission"])
     floor_mat = make_principled_material("LSFS Dark Floor",
-                                         (0.015, 0.018, 0.024, 1.0),
-                                         roughness=0.7,
-                                         alpha=1.0)
+                                         floor["color"],
+                                         roughness=floor["roughness"],
+                                         alpha=floor["alpha"],
+                                         transmission=floor["transmission"])
     particle_mats = {
-        "droplet": make_principled_material("LSFS Droplet", (0.72, 0.95, 1.0, 0.85), 0.05, 0.85, 0.25),
-        "spray": make_principled_material("LSFS Spray", (0.9, 0.98, 1.0, 0.8), 0.12, 0.8, 0.15),
-        "foam": make_principled_material("LSFS Foam", (0.95, 0.94, 0.82, 1.0), 0.55, 1.0, 0.0),
-        "bubble": make_principled_material("LSFS Bubble", (1.0, 0.78, 0.34, 0.78), 0.15, 0.78, 0.15),
+        "droplet": make_principled_material("LSFS Droplet", droplet["color"], droplet["roughness"], droplet["alpha"], droplet["transmission"]),
+        "spray": make_principled_material("LSFS Spray", spray["color"], spray["roughness"], spray["alpha"], spray["transmission"]),
+        "foam": make_principled_material("LSFS Foam", foam["color"], foam["roughness"], foam["alpha"], foam["transmission"]),
+        "bubble": make_principled_material("LSFS Bubble", bubble["color"], bubble["roughness"], bubble["alpha"], bubble["transmission"]),
     }
     if spec.get("frames"):
-        add_floor(spec["frames"][0], floor_mat)
+        add_floor(spec["frames"][0], floor_mat, preset)
     for frame in spec["frames"]:
         remove_frame_assets()
-        configure_camera(camera, frame)
+        configure_camera(camera, frame, preset)
         add_water_mesh(frame, water_mat)
         add_secondary_particles(frame, particle_mats, int(spec.get("max_secondary_particles", 512)))
         bpy.context.scene.frame_set(int(frame["index"]))
@@ -693,12 +798,15 @@ def parse_args(argv):
     parser.add_argument("--blender", help="explicit blender executable path")
     parser.add_argument("--dry-run", action="store_true", help="write scene spec and driver without launching Blender")
     parser.add_argument("--water-reconstruction", help="optional S41 water_reconstruction.json override")
+    parser.add_argument("--preset-config", default=default_preset_config_path(),
+                        help="cinematic preset config JSON")
+    parser.add_argument("--render-preset", help="named render preset to apply")
     parser.add_argument("--frames", type=int, default=8, help="number of PNG frames to render")
     parser.add_argument("--width", type=int, default=1280, help="output image width")
     parser.add_argument("--height", type=int, default=720, help="output image height")
-    parser.add_argument("--engine", choices=("eevee", "cycles"), default="eevee", help="Blender render engine")
-    parser.add_argument("--samples", type=int, default=24, help="render samples")
-    parser.add_argument("--max-secondary-particles", type=int, default=512,
+    parser.add_argument("--engine", choices=("eevee", "cycles"), help="Blender render engine")
+    parser.add_argument("--samples", type=int, help="render samples")
+    parser.add_argument("--max-secondary-particles", type=int,
                         help="maximum secondary particles instantiated per frame")
     parser.add_argument("--min-nonblank-ratio", type=float, default=0.05,
                         help="minimum nonblack pixel ratio required after rendering")
@@ -712,9 +820,9 @@ def parse_args(argv):
         parser.error("frames must be positive")
     if args.width <= 0 or args.height <= 0:
         parser.error("width and height must be positive")
-    if args.samples <= 0:
+    if args.samples is not None and args.samples <= 0:
         parser.error("samples must be positive")
-    if args.max_secondary_particles < 0:
+    if args.max_secondary_particles is not None and args.max_secondary_particles < 0:
         parser.error("max-secondary-particles must be non-negative")
     if args.min_nonblank_ratio < 0.0 or not math.isfinite(args.min_nonblank_ratio):
         parser.error("min-nonblank-ratio must be finite and non-negative")
@@ -731,6 +839,7 @@ def main(argv=None):
 
     try:
         os.makedirs(args.out_dir, exist_ok=True)
+        preset_config_path, render_preset = load_render_preset(args.preset_config, args.render_preset)
         spec = build_scene_spec(args.src,
                                 args.out_dir,
                                 args.frames,
@@ -739,7 +848,9 @@ def main(argv=None):
                                 args.water_reconstruction,
                                 args.engine,
                                 args.samples,
-                                args.max_secondary_particles)
+                                args.max_secondary_particles,
+                                args.render_preset,
+                                render_preset)
         spec_path = os.path.abspath(os.path.join(args.out_dir, "blender_scene_spec.json"))
         driver_path = os.path.abspath(os.path.join(args.out_dir, "blender_driver.py"))
         write_json(spec_path, spec)
@@ -756,8 +867,10 @@ def main(argv=None):
             "width": args.width,
             "height": args.height,
             "frame_count": len(spec["frames"]),
-            "engine": args.engine,
-            "samples": args.samples,
+            "engine": spec["engine"],
+            "samples": spec["samples"],
+            "render_preset_name": args.render_preset,
+            "preset_config": preset_config_path,
             "dependency": report,
             "frames": [{
                 "index": frame["index"],

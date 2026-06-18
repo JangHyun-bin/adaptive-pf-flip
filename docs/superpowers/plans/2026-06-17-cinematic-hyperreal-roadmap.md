@@ -89,7 +89,7 @@ The missing work is not one feature. It is a pipeline:
 | S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | Done in `feat: add water reconstruction export` |
 | S42 | External renderer bridge | Blender/USD/OpenVDB bridge selected by measured feasibility | Done in `feat: add external render bridge` |
 | S43 | Shot orchestration runner | Single command emits cache, validation, render frames, and movie | Done in `feat: add cinematic shot pipeline` |
-| S44 | Hyperreal material and lighting pass | Camera, lights, tone mapping, water/spray material presets | `feat: add cinematic render presets` |
+| S44 | Hyperreal material and lighting pass | Camera, lights, tone mapping, water/spray material presets | Done in `feat: add cinematic render presets` |
 | S45 | Large-scale cinematic gate | End-to-end large shot with CSV, manifest, preview, and render artifacts | `test: add large scale cinematic gate` |
 
 ## Decision Gates
@@ -428,16 +428,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S44.
+Continue with S45.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-render-presets.md`
+`docs/superpowers/plans/2026-06-18-large-scale-cinematic-gate.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\shots\bubble_cinematic --frames 24 --width 1280 --height 720
+python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\shots\s45_bubble --frames 48 --width 1280 --height 720
 ```
 
-The next success condition is a named render-preset schema for camera, material, lighting, tone mapping, renderer choice, and shot dimensions, consumed by the S43 shot runner.
+The next success condition is an end-to-end larger cinematic gate with a shot GIF, `shot_summary.json`, render artifact paths, and a short report under `docs/reports/`.
