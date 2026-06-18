@@ -209,6 +209,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S120** | **Cinematic artifact inspection package** - `tools/package_cinematic_artifacts.py` validates and links the S119 GIF, contact sheet, and baseline comparison sheets in `cinematic_artifact_package_s120.md`. | done |
 | **S121** | **Cinematic static gallery** - `tools/build_cinematic_gallery.py` copies the S119 review assets into a self-contained `gallery/` with `index.html`, `gallery_manifest.json`, and `cinematic_static_gallery_s121.md`. | done |
 | **S122** | **Cinematic gallery cftunnel publisher** - `tools/publish_cinematic_gallery.py` serves the static gallery, optionally opens a Cloudflare quick tunnel, verifies HTML/GIF assets, and records run-specific manifests under `build/`. | done |
+| **S123** | **Cinematic visual review triage** - `tools/summarize_cinematic_gallery_review.py` records gallery/publish coverage, numeric render gates, visual findings, and selects S124 contact-band composition look-dev. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

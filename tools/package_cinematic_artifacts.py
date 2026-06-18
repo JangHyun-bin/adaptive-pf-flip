@@ -233,7 +233,7 @@ def markdown(summary, summary_path, shot_dir, rows, out_path, root):
         "",
         "## Next",
         "",
-        "S123 should capture a visual review triage report from the published gallery and choose the next look-dev adjustment.",
+        "S124 should add and validate a contact-band composition preset against the current S119 baseline.",
         "",
     ])
     return "\n".join(lines)

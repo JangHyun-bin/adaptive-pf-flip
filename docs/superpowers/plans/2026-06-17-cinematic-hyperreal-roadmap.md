@@ -168,6 +168,7 @@ The missing work is not one feature. It is a pipeline:
 | S120 | Cinematic artifact inspection package | Validate and link the current GIF, contact sheet, and comparison sheets for quick visual inspection | Done in `tools: package cinematic artifacts` |
 | S121 | Cinematic static gallery | Copy the current review assets into a self-contained browser gallery with manifest and report | Done in `tools: build cinematic gallery` |
 | S122 | Cinematic gallery cftunnel publisher | Serve the static gallery locally, open an optional Cloudflare quick tunnel, and verify HTML/GIF assets over HTTP | Done in `tools: publish cinematic gallery` |
+| S123 | Cinematic visual review triage | Record gallery/publish coverage, numeric gates, visual findings, and select the next look-dev adjustment | Done in `docs: triage cinematic visual review` |
 
 ## Decision Gates
 
@@ -505,16 +506,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S123.
+Continue with S124.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-visual-review-triage.md`
+`docs/superpowers/plans/2026-06-18-contact-band-composition-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s119_blender_quality_baseline_comparison\gallery\gallery_manifest.json --publish build\shots\s119_blender_quality_baseline_comparison\gallery\publish_manifest_s122.json --out docs\reports\cinematic_visual_review_s123.md
+python tools\run_cinematic_shot.py --preset dam_break_contact_band_composition --out build\shots\s124_contact_band_composition --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s119_blender_quality_baseline_comparison\review\review_manifest.json --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a compact visual review triage report that records what still looks non-cinematic and chooses the next look-dev adjustment.
+The next success condition is a contact-band composition preset that reduces the tank/back-wall read while preserving the S119 visual, focus, secondary-depth, ripple, temporal, and comparison gates.
