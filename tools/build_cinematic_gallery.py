@@ -418,7 +418,7 @@ def markdown_report(summary, shot_dir, out_dir, index_path, manifest_path, rows,
         "",
         "## Next",
         "",
-        "S126 should add a scene/background/camera composition pass that reduces the remaining boxed/tank read without relaxing the current gates.",
+        "S127 should add a non-boxed falling-water scene/source-shape pass so the top water silhouette stops reading as a rectangular tank wall.",
         "",
     ])
     return "\n".join(lines)

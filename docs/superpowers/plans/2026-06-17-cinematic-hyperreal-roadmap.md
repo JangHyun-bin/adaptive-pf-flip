@@ -171,7 +171,8 @@ The missing work is not one feature. It is a pipeline:
 | S123 | Cinematic visual review triage | Record gallery/publish coverage, numeric gates, visual findings, and select the next look-dev adjustment | Done in `docs: triage cinematic visual review` |
 | S124 | Contact-band composition pass | Lower the large-grid camera target toward the contact band while preserving S119 comparison and review gates | Done in `style: add contact band composition preset` |
 | S125 | Contact-volume integration pass | Add lower contact-volume haze plus softer spray/foam/water scattering material settings while preserving S124 review gates | Done in `style: add contact volume integration preset` |
-| S126 | Scene de-tank composition pass | Reduce the remaining boxed/tank read with scene/background/camera composition changes without relaxing secondary framing gates | Planned |
+| S126 | Scene de-tank composition pass | Add a contact mist curtain pass and softer world/floor contrast while preserving S125 review gates | Done in `style: add scene detank composition pass` |
+| S127 | Non-boxed falling-water scene pass | Change the falling-water scene/source shape so the top water silhouette no longer reads as a rectangular tank wall | Planned |
 
 ## Decision Gates
 
@@ -509,16 +510,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S126.
+Continue with S127.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-scene-detank-composition-pass.md`
+`docs/superpowers/plans/2026-06-18-nonboxed-falling-water-scene-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_scene_detank_composition --out build\shots\s126_scene_detank_composition --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s125_contact_volume_integrated\review\review_manifest.json --no-build --timeout-seconds 1800
+python tools\run_cinematic_shot.py --preset dam_break_nonboxed_falling_water --out build\shots\s127_nonboxed_falling_water --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s126_scene_detank_composition\review\review_manifest.json --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a scene/background/camera composition preset that visibly reduces the remaining boxed/tank read without relaxing the S125 visual, focus, secondary-depth, ripple, temporal, or secondary framing gates.
+The next success condition is a falling-water scene/source-shape change that visibly reduces the rectangular top-water silhouette without relaxing the S126 visual, focus, secondary-depth, ripple, temporal, or secondary framing gates.

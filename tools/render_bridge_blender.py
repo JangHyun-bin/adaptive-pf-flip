@@ -844,6 +844,20 @@ def water_volume_scattering_pass_summary(render_preset):
     }
 
 
+def contact_mist_curtain_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "contact_mist_curtain_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "layers": as_int(cfg.get("layers"), 0),
+        "region_min": vec3(cfg.get("region_min"), (2.0, 2.0, 6.5)),
+        "region_max": vec3(cfg.get("region_max"), (30.0, 16.0, 20.5)),
+        "z_jitter": as_float(cfg.get("z_jitter"), 0.35),
+        "x_inset": as_float(cfg.get("x_inset"), 0.0),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.18),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.25),
+    }
+
+
 def water_impact_ripple_pass_summary(render_preset):
     cfg = preset_section(preset_section(render_preset, "renderer"), "water_impact_ripple_pass")
     channels = preset_section(cfg, "channels")
@@ -975,6 +989,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
     water_reflection_pass = water_reflection_pass_summary(render_preset)
     water_volume_scattering_pass = water_volume_scattering_pass_summary(render_preset)
+    contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     render_dir = os.path.join(out_dir, "frames")
@@ -1047,6 +1062,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "water_surface_glint_pass": water_surface_glint_pass,
         "water_reflection_pass": water_reflection_pass,
         "water_volume_scattering_pass": water_volume_scattering_pass,
+        "contact_mist_curtain_pass": contact_mist_curtain_pass,
         "water_impact_ripple_pass": water_impact_ripple_pass,
         "water_impact_ripple_counts": summarize_water_impact_ripple_counts(frames),
         "secondary_framing_qa": secondary_framing_qa,
@@ -1540,6 +1556,20 @@ def water_volume_scattering_pass_values(spec):
     }
 
 
+def contact_mist_curtain_pass_values(spec):
+    cfg = spec.get("contact_mist_curtain_pass") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "layers": max(0, int(scalar_value(cfg.get("layers"), 0))),
+        "region_min": vector_value(cfg.get("region_min"), (2.0, 2.0, 6.5), 3),
+        "region_max": vector_value(cfg.get("region_max"), (30.0, 16.0, 20.5), 3),
+        "z_jitter": max(0.0, scalar_value(cfg.get("z_jitter"), 0.35)),
+        "x_inset": max(0.0, scalar_value(cfg.get("x_inset"), 0.0)),
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.18)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.25)),
+    }
+
+
 def water_impact_ripple_pass_values(spec):
     cfg = spec.get("water_impact_ripple_pass") or {}
     channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
@@ -1646,6 +1676,51 @@ def add_water_volume_scattering_pass(frame, material, scattering_pass):
     mesh.from_pydata(verts, [], faces)
     mesh.update()
     obj = bpy.data.objects.new("LSFS Water Volume Scattering", mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return len(faces)
+
+
+def add_contact_mist_curtain_pass(frame, material, curtain_pass):
+    if not curtain_pass.get("enabled", False):
+        return 0
+    layers = int(curtain_pass.get("layers", 0))
+    if layers <= 0:
+        return 0
+    region_min = curtain_pass.get("region_min", (2.0, 2.0, 6.5))
+    region_max = curtain_pass.get("region_max", (30.0, 16.0, 20.5))
+    xmin, ymin, zmin = (float(region_min[0]), float(region_min[1]), float(region_min[2]))
+    xmax, ymax, zmax = (float(region_max[0]), float(region_max[1]), float(region_max[2]))
+    if xmax <= xmin or ymax <= ymin or zmax <= zmin:
+        return 0
+    x_inset = min(max(0.0, float(curtain_pass.get("x_inset", 0.0))), (xmax - xmin) * 0.45)
+    z_jitter = max(0.0, float(curtain_pass.get("z_jitter", 0.35)))
+    verts = []
+    faces = []
+    for layer in range(layers):
+        t = (layer + 0.5) / float(layers)
+        z = zmin + (zmax - zmin) * t
+        z += (hash01(layer, 43.0) - 0.5) * z_jitter
+        layer_inset = x_inset * (0.65 + 0.7 * hash01(layer, 44.0))
+        x0 = xmin + layer_inset
+        x1 = xmax - layer_inset
+        if x1 <= x0:
+            continue
+        base = len(verts)
+        verts.extend([
+            to_blender((x0, ymin, z)),
+            to_blender((x1, ymin, z)),
+            to_blender((x1, ymax, z)),
+            to_blender((x0, ymax, z)),
+        ])
+        faces.append((base, base + 1, base + 2, base + 3))
+    if not faces:
+        return 0
+    mesh = bpy.data.meshes.new("LSFS Contact Mist Curtain Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new("LSFS Contact Mist Curtain", mesh)
     bpy.context.collection.objects.link(obj)
     obj["lsfs_frame_asset"] = True
     obj.data.materials.append(material)
@@ -2236,6 +2311,7 @@ def main():
     water_glint = material_values(preset, "water_glint", (0.82, 0.96, 1.0, 0.32), 0.08, 0.32, 0.0)
     water_reflection = material_values(preset, "water_reflection", (0.62, 0.86, 1.0, 0.24), 0.06, 0.24, 0.0)
     water_volume_scatter = material_values(preset, "water_volume_scatter", (0.24, 0.58, 0.9, 0.16), 0.82, 0.16, 0.0)
+    contact_mist_curtain = material_values(preset, "contact_mist_curtain", (0.55, 0.78, 0.95, 0.14), 0.92, 0.14, 0.0)
     water_ripple = material_values(preset, "water_ripple", (0.8, 0.96, 1.0, 0.3), 0.08, 0.3, 0.0)
     floor = material_values(preset, "floor", (0.015, 0.018, 0.024, 1.0), 0.7, 1.0, 0.0)
     droplet = material_values(preset, "droplet", (0.72, 0.95, 1.0, 0.85), 0.05, 0.85, 0.25)
@@ -2255,6 +2331,7 @@ def main():
     glint_pass = water_surface_glint_pass_values(spec)
     reflection_pass = water_reflection_pass_values(spec)
     scattering_pass = water_volume_scattering_pass_values(spec)
+    curtain_pass = contact_mist_curtain_pass_values(spec)
     ripple_pass = water_impact_ripple_pass_values(spec)
     water_glint = scaled_overlay_values(water_glint,
                                         glint_pass.get("alpha_scale", 0.22),
@@ -2263,8 +2340,11 @@ def main():
                                              reflection_pass.get("alpha_scale", 0.18),
                                              reflection_pass.get("emission_scale", 0.32))
     water_volume_scatter = scaled_overlay_values(water_volume_scatter,
-                                                 scattering_pass.get("alpha_scale", 0.22),
-                                                 scattering_pass.get("emission_scale", 0.18))
+                                                  scattering_pass.get("alpha_scale", 0.22),
+                                                  scattering_pass.get("emission_scale", 0.18))
+    contact_mist_curtain = scaled_overlay_values(contact_mist_curtain,
+                                                 curtain_pass.get("alpha_scale", 0.18),
+                                                 curtain_pass.get("emission_scale", 0.25))
     water_ripple = scaled_overlay_values(water_ripple,
                                          ripple_pass.get("alpha_scale", 0.26),
                                          ripple_pass.get("emission_scale", 0.42))
@@ -2298,6 +2378,7 @@ def main():
         "water_glint": make_principled_material("LSFS Water Surface Glint", water_glint["color"], water_glint["roughness"], water_glint["alpha"], water_glint["transmission"], water_glint["emission_color"], water_glint["emission_strength"]),
         "water_reflection": make_principled_material("LSFS Water Reflection Ribbons", water_reflection["color"], water_reflection["roughness"], water_reflection["alpha"], water_reflection["transmission"], water_reflection["emission_color"], water_reflection["emission_strength"]),
         "water_volume_scatter": make_principled_material("LSFS Water Volume Scattering", water_volume_scatter["color"], water_volume_scatter["roughness"], water_volume_scatter["alpha"], water_volume_scatter["transmission"], water_volume_scatter["emission_color"], water_volume_scatter["emission_strength"]),
+        "contact_mist_curtain": make_principled_material("LSFS Contact Mist Curtain", contact_mist_curtain["color"], contact_mist_curtain["roughness"], contact_mist_curtain["alpha"], contact_mist_curtain["transmission"], contact_mist_curtain["emission_color"], contact_mist_curtain["emission_strength"]),
         "water_ripple": make_principled_material("LSFS Impact Ripple Cues", water_ripple["color"], water_ripple["roughness"], water_ripple["alpha"], water_ripple["transmission"], water_ripple["emission_color"], water_ripple["emission_strength"]),
     }
     if soft_pass.get("material_falloff") == "radial_shader":
@@ -2317,6 +2398,9 @@ def main():
         add_water_volume_scattering_pass(frame,
                                          particle_mats["water_volume_scatter"],
                                          scattering_pass)
+        add_contact_mist_curtain_pass(frame,
+                                      particle_mats["contact_mist_curtain"],
+                                      curtain_pass)
         add_water_impact_ripple_pass(frame,
                                      particle_mats["water_ripple"],
                                      ripple_pass)
@@ -2558,6 +2642,7 @@ def main(argv=None):
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
             "water_reflection_pass": spec["water_reflection_pass"],
             "water_volume_scattering_pass": spec["water_volume_scattering_pass"],
+            "contact_mist_curtain_pass": spec["contact_mist_curtain_pass"],
             "water_impact_ripple_pass": spec["water_impact_ripple_pass"],
             "water_impact_ripple_counts": spec["water_impact_ripple_counts"],
             "secondary_framing_qa": spec["secondary_framing_qa"],

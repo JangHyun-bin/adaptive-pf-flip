@@ -1331,6 +1331,91 @@
         }
       }
     },
+    "dam_break_scene_detank_composition": {
+      "extends": "dam_break_contact_volume_integrated",
+      "description": "Contact-volume preset with softer world/floor contrast and wider low haze to reduce the boxed tank read.",
+      "lighting": {
+        "world_color": [0.026, 0.031, 0.034],
+        "key_area": {
+          "energy": 820.0,
+          "size": 12.0
+        },
+        "sun": {
+          "energy": 0.92
+        },
+        "floor": {
+          "enabled": true,
+          "scale": 1.72
+        }
+      },
+      "renderer": {
+        "water_volume_scattering_pass": {
+          "layers": 10,
+          "region_min": [2.6, 1.35, 3.6],
+          "region_max": [29.0, 8.4, 21.2],
+          "inset": 0.34,
+          "alpha_scale": 0.16,
+          "emission_scale": 0.44
+        },
+        "contact_mist_curtain_pass": {
+          "enabled": true,
+          "layers": 7,
+          "region_min": [6.0, 2.4, 8.4],
+          "region_max": [26.0, 15.2, 17.8],
+          "z_jitter": 0.42,
+          "x_inset": 1.8,
+          "alpha_scale": 0.11,
+          "emission_scale": 0.34
+        },
+        "secondary_soft_pass": {
+          "alpha_scale": 0.22,
+          "emission_scale": 0.72,
+          "max_radius": 1.08
+        },
+        "surface_contact_foam_pass": {
+          "alpha_scale": 0.28,
+          "emission_scale": 0.34
+        },
+        "water_impact_ripple_pass": {
+          "alpha_scale": 0.38,
+          "emission_scale": 0.68
+        }
+      },
+      "materials": {
+        "floor": {
+          "base_color": [0.026, 0.027, 0.025, 1.0],
+          "roughness": 0.84,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "water_volume_scatter": {
+          "base_color": [0.31, 0.66, 0.94, 0.11],
+          "emission_color": [0.3, 0.6, 0.9, 1.0],
+          "emission_strength": 0.09,
+          "roughness": 0.94,
+          "alpha": 0.11,
+          "transmission": 0.0
+        },
+        "contact_mist_curtain": {
+          "base_color": [0.52, 0.76, 0.9, 0.09],
+          "emission_color": [0.34, 0.58, 0.78, 1.0],
+          "emission_strength": 0.045,
+          "roughness": 0.96,
+          "alpha": 0.09,
+          "transmission": 0.0
+        },
+        "spray": {
+          "base_color": [0.78, 0.92, 0.98, 0.74],
+          "emission_strength": 0.052,
+          "alpha": 0.74
+        },
+        "foam": {
+          "base_color": [0.94, 0.96, 0.9, 0.9],
+          "emission_strength": 0.075,
+          "alpha": 0.9
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

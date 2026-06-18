@@ -2182,6 +2182,7 @@ def render_report(summary, root):
         f"- Water surface glint pass: `{metrics.get('water_surface_glint_pass', {})}`",
         f"- Water reflection pass: `{metrics.get('water_reflection_pass', {})}`",
         f"- Water volume scattering pass: `{metrics.get('water_volume_scattering_pass', {})}`",
+        f"- Contact mist curtain pass: `{metrics.get('contact_mist_curtain_pass', {})}`",
         f"- Water impact ripple pass: `{metrics.get('water_impact_ripple_pass', {})}`",
         f"- Water impact ripple counts: `{metrics.get('water_impact_ripple_counts', {})}`",
         f"- Secondary channel radius scales: `{metrics.get('secondary_channel_radius_scales', {})}`",
@@ -2247,7 +2248,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S126 should add a scene/background/camera composition pass that reduces the remaining boxed/tank read without relaxing the current gates.",
+        "S127 should add a non-boxed falling-water scene/source-shape pass so the top water silhouette stops reading as a rectangular tank wall.",
         "",
     ])
     return "\n".join(lines)
@@ -2983,6 +2984,7 @@ def run_pipeline(args):
             summary["metrics"]["water_surface_glint_pass"] = render_summary.get("water_surface_glint_pass", {})
             summary["metrics"]["water_reflection_pass"] = render_summary.get("water_reflection_pass", {})
             summary["metrics"]["water_volume_scattering_pass"] = render_summary.get("water_volume_scattering_pass", {})
+            summary["metrics"]["contact_mist_curtain_pass"] = render_summary.get("contact_mist_curtain_pass", {})
             summary["metrics"]["water_impact_ripple_pass"] = render_summary.get("water_impact_ripple_pass", {})
             summary["metrics"]["water_impact_ripple_counts"] = render_summary.get("water_impact_ripple_counts", {})
             summary["metrics"]["secondary_channel_radius_scales"] = render_summary.get("secondary_channel_radius_scales", {})

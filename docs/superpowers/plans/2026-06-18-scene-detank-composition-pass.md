@@ -27,6 +27,27 @@ python tools\run_cinematic_shot.py --preset dam_break_scene_detank_composition -
 python tools\summarize_shot_commands.py build\shots\s126_scene_detank_composition\shot_summary.json --out docs\reports\cinematic_scene_detank_composition_s126.md
 ```
 
+## Result
+
+S126 passed and produced `build/shots/s126_scene_detank_composition/shot.gif` plus S125 comparison review sheets.
+
+Key metrics from the full 36-frame Blender gate:
+
+- visual QA gate: pass
+- focus review gate: pass
+- secondary framing gate: pass
+- secondary depth gate: pass
+- ripple readability gate: pass
+- temporal highlight gate: pass
+- contact mist curtain pass: enabled, `7` layers
+- visual mean luminance: `96.77`
+- visual mean contrast: `222.11`
+- secondary framing min/mean inside ratio: `0.341` / `0.982`
+- ripple edge mean: `27.25`
+- warm-cache rerun command time: `4.63s`
+
+Visual inspection confirms that the added central mist curtain and softer world/floor contrast make the dark mid-gap less empty while preserving S125 diagnostics. The dominant remaining issue is still the rectangular upper water silhouette, so the next milestone should alter the falling-water scene/source shape rather than keep stacking material overlays.
+
 ## Acceptance Gate
 
 - Visual QA gate passes.
@@ -42,7 +63,12 @@ python tools\summarize_shot_commands.py build\shots\s126_scene_detank_compositio
 
 ```powershell
 python -m json.tool configs\cinematic_presets.json
-python -m py_compile tools\run_cinematic_shot.py tools\summarize_shot_commands.py tools\build_cinematic_gallery.py tools\package_cinematic_artifacts.py
+python -m py_compile tools\render_bridge_blender.py tools\run_cinematic_shot.py tools\summarize_shot_commands.py tools\build_cinematic_gallery.py tools\package_cinematic_artifacts.py
+python tools\summarize_shot_commands.py build\shots\s126_scene_detank_composition\shot_summary.json --out docs\reports\cinematic_scene_detank_composition_s126.md
 git diff --check
 ctest --test-dir build -C Release --output-on-failure
 ```
+
+## Next
+
+S127 should add a non-boxed falling-water scene/source-shape pass so the top water silhouette stops reading as a rectangular tank wall.
