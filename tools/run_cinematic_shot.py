@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 BUILTIN_PRESETS = {
     "bubble_cinematic": {
         "kind": "sparse",
+        "scene": "bubble",
         "nx": 12,
         "ny": 18,
         "nz": 12,
@@ -126,7 +127,7 @@ def render_report(summary, root):
     metrics = summary.get("metrics", {})
     artifacts = summary.get("artifacts", {})
     lines = [
-        "# S45 Large-Scale Cinematic Gate",
+        "# Cinematic Shot Report",
         "",
         "## Summary",
         "",
@@ -134,6 +135,7 @@ def render_report(summary, root):
         f"- Shot preset: `{summary.get('shot_preset', config.get('preset', 'unknown'))}`",
         f"- Render preset: `{summary.get('render_preset', config.get('render_preset', 'unknown'))}`",
         f"- Selected renderer: `{summary.get('selected_renderer', 'unknown')}`",
+        f"- Simulation scene: `{config.get('scene', 'bubble')}`",
         f"- Frames: `{config.get('frames', 'n/a')}`",
         f"- Resolution: `{config.get('width', 'n/a')} x {config.get('height', 'n/a')}`",
         f"- Simulation grid: `{config.get('nx', 'n/a')} x {config.get('ny', 'n/a')} x {config.get('nz', 'n/a')}`",
@@ -163,18 +165,22 @@ def render_report(summary, root):
     for item in summary.get("commands", []):
         lines.append(
             f"| `{item.get('label', 'unknown')}` | `{item.get('returncode', 'n/a')}` | {format_ms(item.get('elapsed_ms'))} |")
+    scene = config.get("scene", "bubble")
+    scene_note = "- The current exporter scene is bubble-tank style; use `--scene falling-water` or `dam_break_cinematic` for a more dynamic falling/collapsing water body."
+    if scene in ("dam-break", "dambreak", "falling-water", "falling"):
+        scene_note = "- The dynamic water-motion scene is now selected, but it is still reconstructed from coarse sparse phase cells rather than a production liquid surface."
     lines.extend([
         "",
         "## Known Limitations",
         "",
         "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky.",
-        "- The current exporter scene is a bubble-tank style sparse two-phase setup, not a full dam-break or waterfall shot.",
+        scene_note,
         "- Secondary spray/foam channels are wired through the cache and renderer path, but this gate may contain little or no visible secondary particle content.",
         "- This is an opt-in cinematic gate; it is intentionally not part of default `ctest`.",
         "",
         "## Next Recommended Milestone",
         "",
-        "S46 should target visual surface quality: smoother water reconstruction, better mesh normals, and a dam-break or falling-water cache preset that produces more cinematic motion.",
+        "S48 should make secondary droplet, spray, foam, and bubble channels visibly useful in cinematic frames.",
         "",
     ])
     return "\n".join(lines)
@@ -246,6 +252,8 @@ def parse_args(argv):
     parser.add_argument("--height", type=lambda v: parse_positive_int(v, "height"))
     parser.add_argument("--renderer", choices=("auto", "preview", "blender"))
     parser.add_argument("--kind", choices=("sparse", "mr"), help="override preset simulation kind")
+    parser.add_argument("--scene", choices=("bubble", "dam-break", "dambreak", "falling-water", "falling"),
+                        help="override preset simulation scene")
     parser.add_argument("--nx", type=lambda v: parse_positive_int(v, "nx"))
     parser.add_argument("--ny", type=lambda v: parse_positive_int(v, "ny"))
     parser.add_argument("--nz", type=lambda v: parse_positive_int(v, "nz"))
@@ -363,6 +371,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "preset_config": preset_config_path,
         "description": shot_preset.get("description", ""),
         "kind": args.kind or sim.get("kind", "sparse"),
+        "scene": args.scene or sim.get("scene", "bubble"),
         "nx": first_value(args.nx, sim.get("nx"), 12),
         "ny": first_value(args.ny, sim.get("ny"), 18),
         "nz": first_value(args.nz, sim.get("nz"), 12),
@@ -504,6 +513,7 @@ def run_pipeline(args):
         export_cmd = [
             exporter,
             "--kind", config["kind"],
+            "--scene", config["scene"],
             "--nx", str(config["nx"]),
             "--ny", str(config["ny"]),
             "--nz", str(config["nz"]),

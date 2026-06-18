@@ -22,6 +22,18 @@ double volumeType(const Particles3DTP& particles, unsigned char type) {
   return volume;
 }
 
+double meanYType(const Particles3DTP& particles, unsigned char type) {
+  double sum = 0.0;
+  int count = 0;
+  for (size_t i = 0; i < particles.size(); ++i) {
+    if (particles.type[i] == type) {
+      sum += particles.pos[i].y;
+      ++count;
+    }
+  }
+  return count ? sum / count : 0.0;
+}
+
 bool finiteParticles(const Particles3DTP& particles) {
   for (size_t i = 0; i < particles.size(); ++i) {
     const auto& p = particles.pos[i];
@@ -110,6 +122,32 @@ TEST_CASE("sparse 3D two-phase RT step stays stable") {
   CHECK(meanY(0) < heavy0);
   CHECK(std::isfinite(meanY(1)));
   CHECK(maxActive > 0);
+}
+
+TEST_CASE("sparse 3D falling-water scene starts suspended and falls") {
+  SparseSim3DTP sim(12, 18, 12, 1.0);
+  sim.dt = 0.02;
+  sim.cg_iters = 40;
+  sim.initFallingWaterColumn();
+
+  const size_t n0 = sim.particles.size();
+  const size_t liquid0 = countType(sim.particles, 0);
+  const size_t gas0 = countType(sim.particles, 1);
+  const double y0 = meanYType(sim.particles, 0);
+
+  REQUIRE(n0 > 0);
+  CHECK(liquid0 > 0);
+  CHECK(gas0 > liquid0);
+  CHECK(y0 > sim.grid.ny * 0.5);
+  CHECK(volumeType(sim.particles, 0) > 0.0);
+
+  for (int step = 0; step < 4; ++step) {
+    sim.step();
+  }
+
+  CHECK(sim.particles.size() == n0);
+  CHECK(finiteParticles(sim.particles));
+  CHECK(meanYType(sim.particles, 0) < y0 - 0.2);
 }
 
 TEST_CASE("sparse 3D two-phase adaptive timestep reports effective dt") {

@@ -9,12 +9,13 @@
 
 namespace {
 
-void seedCell(Particles3DTP& ps, int i, int j, int k, double dx, unsigned char type) {
+void seedCell(Particles3DTP& ps, int i, int j, int k, double dx, unsigned char type,
+              const Vec3& velocity = Vec3{0.0, 0.0, 0.0}) {
   for (int s = 0; s < 8; ++s) {
     double x = (i + 0.25 + 0.5 * (s & 1)) * dx;
     double y = (j + 0.25 + 0.5 * ((s >> 1) & 1)) * dx;
     double z = (k + 0.25 + 0.5 * ((s >> 2) & 1)) * dx;
-    ps.add({x, y, z}, {0.0, 0.0, 0.0}, type);
+    ps.add({x, y, z}, velocity, type);
   }
 }
 
@@ -303,24 +304,28 @@ void updateVolumeCorrectionStats(SparseSim3DTP& sim, double stepDt) {
   }
 }
 
+void resetSceneState(SparseSim3DTP& sim) {
+  sim.particles = Particles3DTP();
+  sim.narrow_band_air_removed_last = 0;
+  sim.narrow_band_air_removed_total = 0;
+  sim.gas_particle_coarsening_removed_last = 0;
+  sim.gas_particle_coarsening_removed_total = 0;
+  sim.liquid_particle_coarsening_removed_last = 0;
+  sim.liquid_particle_coarsening_removed_total = 0;
+  sim.liquid_particle_refill_added_last = 0;
+  sim.liquid_particle_refill_added_total = 0;
+  resetParticleBoundaryStats(sim);
+  resetEscapedParticleBranching(sim);
+  resetTimestepStats(sim);
+  sim.interface_diagnostics_last = InterfaceDiagnostics3D();
+  sim.surface_tension_stats_last = SurfaceTensionStats3D();
+  sim.phase.rho_tilde_0 = calibrateRhoTilde0(sim.phase, sim.Vp);
+}
+
 } // namespace
 
 void SparseSim3DTP::initTwoPhaseDamBreak() {
-  particles = Particles3DTP();
-  narrow_band_air_removed_last = 0;
-  narrow_band_air_removed_total = 0;
-  gas_particle_coarsening_removed_last = 0;
-  gas_particle_coarsening_removed_total = 0;
-  liquid_particle_coarsening_removed_last = 0;
-  liquid_particle_coarsening_removed_total = 0;
-  liquid_particle_refill_added_last = 0;
-  liquid_particle_refill_added_total = 0;
-  resetParticleBoundaryStats(*this);
-  resetEscapedParticleBranching(*this);
-  resetTimestepStats(*this);
-  interface_diagnostics_last = InterfaceDiagnostics3D();
-  surface_tension_stats_last = SurfaceTensionStats3D();
-  phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  resetSceneState(*this);
   int wx = grid.nx * 4 / 10;
   int hy = grid.ny * 7 / 10;
   for (int k = 1; k < grid.nz - 1; ++k) {
@@ -335,22 +340,32 @@ void SparseSim3DTP::initTwoPhaseDamBreak() {
   resetVolumeCorrectionStats(*this);
 }
 
+void SparseSim3DTP::initFallingWaterColumn() {
+  resetSceneState(*this);
+  const int x0 = std::max(1, grid.nx * 5 / 16);
+  const int x1 = std::min(grid.nx - 1, std::max(x0 + 2, grid.nx * 11 / 16));
+  const int y0 = std::max(1, grid.ny * 11 / 20);
+  const int y1 = std::min(grid.ny - 1, std::max(y0 + 2, grid.ny * 17 / 20));
+  const int z0 = std::max(1, grid.nz * 5 / 16);
+  const int z1 = std::min(grid.nz - 1, std::max(z0 + 2, grid.nz * 11 / 16));
+  const Vec3 initialFall{0.0, -8.0, 0.0};
+  for (int k = 1; k < grid.nz - 1; ++k) {
+    for (int j = 1; j < grid.ny - 1; ++j) {
+      for (int i = 1; i < grid.nx - 1; ++i) {
+        const bool liquid = (i >= x0 && i < x1 &&
+                             j >= y0 && j < y1 &&
+                             k >= z0 && k < z1);
+        seedCell(particles, i, j, k, grid.dx, liquid ? 0 : 1,
+                 liquid ? initialFall : Vec3{0.0, 0.0, 0.0});
+      }
+    }
+  }
+  applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
+}
+
 void SparseSim3DTP::initRayleighTaylor() {
-  particles = Particles3DTP();
-  narrow_band_air_removed_last = 0;
-  narrow_band_air_removed_total = 0;
-  gas_particle_coarsening_removed_last = 0;
-  gas_particle_coarsening_removed_total = 0;
-  liquid_particle_coarsening_removed_last = 0;
-  liquid_particle_coarsening_removed_total = 0;
-  liquid_particle_refill_added_last = 0;
-  liquid_particle_refill_added_total = 0;
-  resetParticleBoundaryStats(*this);
-  resetEscapedParticleBranching(*this);
-  resetTimestepStats(*this);
-  interface_diagnostics_last = InterfaceDiagnostics3D();
-  surface_tension_stats_last = SurfaceTensionStats3D();
-  phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  resetSceneState(*this);
   int mid = grid.ny / 2;
   constexpr double pi = 3.14159265358979323846;
   for (int k = 1; k < grid.nz - 1; ++k) {
@@ -367,21 +382,7 @@ void SparseSim3DTP::initRayleighTaylor() {
 }
 
 void SparseSim3DTP::initBubbleTank() {
-  particles = Particles3DTP();
-  narrow_band_air_removed_last = 0;
-  narrow_band_air_removed_total = 0;
-  gas_particle_coarsening_removed_last = 0;
-  gas_particle_coarsening_removed_total = 0;
-  liquid_particle_coarsening_removed_last = 0;
-  liquid_particle_coarsening_removed_total = 0;
-  liquid_particle_refill_added_last = 0;
-  liquid_particle_refill_added_total = 0;
-  resetParticleBoundaryStats(*this);
-  resetEscapedParticleBranching(*this);
-  resetTimestepStats(*this);
-  interface_diagnostics_last = InterfaceDiagnostics3D();
-  surface_tension_stats_last = SurfaceTensionStats3D();
-  phase.rho_tilde_0 = calibrateRhoTilde0(phase, Vp);
+  resetSceneState(*this);
   int waterLevel = grid.ny / 2;
   double cx = grid.nx * 0.5;
   double cy = waterLevel * 0.375;

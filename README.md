@@ -133,6 +133,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S44** | **Cinematic render presets** - named presets now drive shot dimensions, renderer choice, camera, lighting, material, and tone-mapping values for the S43 runner and Blender bridge. | done |
 | **S45** | **Large-scale cinematic gate** - the preset-driven shot runner now produces a 48-frame 1280x720 Blender gate, `shot_summary.json`, GIF, and checked-in report with metrics and limitations. | done |
 | **S46** | **Smooth cinematic water meshes** - water reconstruction can now export opt-in smoothed OBJ vertices and vertex normals, with cinematic presets enabling smoother Blender shading by default. | done |
+| **S47** | **Dynamic falling-water cinematic preset** - the render-cache exporter and shot runner now accept scene selection, and `dam_break_cinematic` drives a sparse 3D two-phase falling-water scene instead of the bubble tank. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -211,6 +212,7 @@ cmake --build build --config Release --target validate_surface_tension3d
 # export SPEC-4 pre-render JSONL cache frames
 cmake --build build --config Release --target export_render_cache3d
 ./build/Release/export_render_cache3d.exe --kind sparse --steps 4 --every 4 --out-prefix render_cache_sparse
+./build/Release/export_render_cache3d.exe --kind sparse --scene falling-water --steps 4 --every 1 --out-prefix build/render_cache_falling
 ./build/Release/export_render_cache3d.exe --kind mr --steps 4 --every 4 --out-prefix render_cache_mr
 python tools/validate_render_cache.py render_cache_sparse_manifest.json
 python tools/validate_render_cache.py render_cache_sparse_manifest.json --require-cinematic
@@ -224,6 +226,7 @@ python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/b
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/dam_break_cinematic --frames 24 --width 1280 --height 720
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s45_bubble --frames 48 --width 1280 --height 720 --samples 12 --report docs/reports/cinematic_gate_s45.md
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s46_smooth --frames 24 --width 1280 --height 720
+python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s47_dam_break --frames 24 --width 1280 --height 720 --report docs/reports/cinematic_gate_s47.md
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0
@@ -296,7 +299,7 @@ apps/          run_dambreak, run_dambreak3d, run_rt2d, run_rt3d, dump_render, ru
                run_sparse_rt3d, run_sparse_bubble3d, run_multires_bubble, run_multires_bubble3d,
                export_render_cache3d, validate_multires3d_tp, bench_multires_sparse3d_tp,
                bench_multires3d_solver, bench_large_scale3d_tp
-configs/       cinematic_presets.json stores S44 shot, camera, light, material, and tone presets
+configs/       cinematic_presets.json stores shot, scene, camera, light, material, and tone presets
 tools/         rough_render.py, render_cache_preview.py, validate_render_cache.py, convert_render_cache.py,
                reconstruct_water.py, cinematic_render_stub.py, render_bridge_blender.py,
                run_cinematic_shot.py, and assemble_frames.py export/preview consumers

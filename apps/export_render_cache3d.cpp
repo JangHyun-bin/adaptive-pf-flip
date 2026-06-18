@@ -43,9 +43,29 @@ const char* argString(int argc, char** argv, const char* key, const char* fallba
 
 void usage() {
   std::fprintf(stderr,
-               "usage: export_render_cache3d [--kind sparse|mr] [--nx N] [--ny N] [--nz N] "
+               "usage: export_render_cache3d [--kind sparse|mr] [--scene bubble|dam-break|falling-water] "
+               "[--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
                "[--out-prefix NAME] [--manifest PATH] [--physics-preset]\n");
+}
+
+bool sceneIsBubble(const char* scene) {
+  return std::strcmp(scene, "bubble") == 0;
+}
+
+bool sceneIsDamBreak(const char* scene) {
+  return std::strcmp(scene, "dam-break") == 0 ||
+         std::strcmp(scene, "dambreak") == 0;
+}
+
+bool sceneIsFallingWater(const char* scene) {
+  return std::strcmp(scene, "falling-water") == 0 ||
+         std::strcmp(scene, "falling") == 0;
+}
+
+const char* canonicalScene(const char* scene) {
+  if (sceneIsFallingWater(scene)) return "falling-water";
+  return sceneIsDamBreak(scene) ? "dam-break" : "bubble";
 }
 
 std::string framePath(const std::string& prefix, int frame) {
@@ -85,8 +105,12 @@ long long fileSizeBytes(const std::string& path) {
 
 int main(int argc, char** argv) {
   const char* kind = argString(argc, argv, "--kind", "sparse");
+  const char* scene = argString(argc, argv, "--scene", "bubble");
   const bool sparseKind = std::strcmp(kind, "sparse") == 0;
   const bool mrKind = std::strcmp(kind, "mr") == 0;
+  const bool bubbleScene = sceneIsBubble(scene);
+  const bool damBreakScene = sceneIsDamBreak(scene);
+  const bool fallingWaterScene = sceneIsFallingWater(scene);
   int nx = argInt(argc, argv, "--nx", 12);
   int ny = argInt(argc, argv, "--ny", 18);
   int nz = argInt(argc, argv, "--nz", 12);
@@ -101,12 +125,17 @@ int main(int argc, char** argv) {
   const bool physicsPreset = hasFlag(argc, argv, "--physics-preset");
 
   if ((!sparseKind && !mrKind) ||
+      (!bubbleScene && !damBreakScene && !fallingWaterScene) ||
       nx < 4 || ny < 4 || nz < 4 ||
       steps <= 0 || every <= 0 ||
       dt <= 0.0 || cgIters < 0 ||
       std::strlen(prefix) == 0 ||
       manifestPath.empty()) {
     usage();
+    return 2;
+  }
+  if (mrKind && !bubbleScene) {
+    std::fprintf(stderr, "export_render_cache3d: --kind mr currently supports only --scene bubble\n");
     return 2;
   }
 
@@ -117,7 +146,13 @@ int main(int argc, char** argv) {
     if (physicsPreset) applyFullPhysicsPreset3D(sim);
     sim.dt = dt;
     sim.cg_iters = cgIters;
-    sim.initBubbleTank();
+    if (fallingWaterScene) {
+      sim.initFallingWaterColumn();
+    } else if (damBreakScene) {
+      sim.initTwoPhaseDamBreak();
+    } else {
+      sim.initBubbleTank();
+    }
     const RenderCacheCamera3D camera =
       defaultRenderCacheCamera3D(sim.grid.nx, sim.grid.ny, sim.grid.nz, sim.grid.dx);
     double simTime = 0.0;
@@ -140,6 +175,7 @@ int main(int argc, char** argv) {
                                sim.grid.dx, manifestFrames);
     std::printf("manifest=%s\n", manifestPath.c_str());
     std::printf("kind=sparse\n");
+    std::printf("scene=%s\n", canonicalScene(scene));
     std::printf("particles=%zu\n", sim.particles.size());
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
@@ -171,6 +207,7 @@ int main(int argc, char** argv) {
                                sim.layout.dx, manifestFrames);
     std::printf("manifest=%s\n", manifestPath.c_str());
     std::printf("kind=mr\n");
+    std::printf("scene=%s\n", canonicalScene(scene));
     std::printf("particles=%zu\n", sim.particles.size());
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());

@@ -6,6 +6,7 @@
       "description": "Default small sparse 3D two-phase bubble tank cinematic look.",
       "simulation": {
         "kind": "sparse",
+        "scene": "bubble",
         "nx": 12,
         "ny": 18,
         "nz": 12,
@@ -105,9 +106,10 @@
       }
     },
     "dam_break_cinematic": {
-      "description": "Wider high-energy water-body look for the next dam-break or falling-water scene.",
+      "description": "Wider high-energy water-body look for the falling-water/dam-break scene.",
       "simulation": {
         "kind": "sparse",
+        "scene": "falling-water",
         "nx": 16,
         "ny": 20,
         "nz": 14,
@@ -137,11 +139,11 @@
         "write_normals": true
       },
       "camera": {
-        "position": [9.0, 10.5, 45.0],
-        "target": [8.0, 7.0, 7.0],
+        "position": [9.0, 12.0, 52.0],
+        "target": [8.0, 8.2, 7.0],
         "up": [0.0, 1.0, 0.0],
-        "focal_length_mm": 44.0,
-        "vertical_fov_degrees": 46.0,
+        "focal_length_mm": 38.0,
+        "vertical_fov_degrees": 54.0,
         "near_clip": 0.05,
         "far_clip": 150.0
       },
