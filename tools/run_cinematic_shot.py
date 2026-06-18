@@ -136,6 +136,8 @@ def render_report(summary, root):
         f"- Render preset: `{summary.get('render_preset', config.get('render_preset', 'unknown'))}`",
         f"- Selected renderer: `{summary.get('selected_renderer', 'unknown')}`",
         f"- Simulation scene: `{config.get('scene', 'bubble')}`",
+        f"- Secondary demo particles: `{config.get('secondary_demo_particles', 0)}`",
+        f"- Secondary radius scale: `{config.get('secondary_radius_scale', 1.0)}`",
         f"- Frames: `{config.get('frames', 'n/a')}`",
         f"- Resolution: `{config.get('width', 'n/a')} x {config.get('height', 'n/a')}`",
         f"- Simulation grid: `{config.get('nx', 'n/a')} x {config.get('ny', 'n/a')} x {config.get('nz', 'n/a')}`",
@@ -175,12 +177,12 @@ def render_report(summary, root):
         "",
         "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky.",
         scene_note,
-        "- Secondary spray/foam channels are wired through the cache and renderer path, but this gate may contain little or no visible secondary particle content.",
+        "- Opt-in secondary demo particles make spray/foam/bubble channels visible, but they are not yet a physical spray-generation model.",
         "- This is an opt-in cinematic gate; it is intentionally not part of default `ctest`.",
         "",
         "## Next Recommended Milestone",
         "",
-        "S48 should make secondary droplet, spray, foam, and bubble channels visibly useful in cinematic frames.",
+        "S49 should add camera motion and shot continuity checks; later physics work should replace demo secondary seeding with physical spray generation.",
         "",
     ])
     return "\n".join(lines)
@@ -263,6 +265,8 @@ def parse_args(argv):
     parser.add_argument("--dt", type=float, help="simulation dt override")
     parser.add_argument("--cg-iters", type=int, help="pressure CG iteration override")
     parser.add_argument("--physics-preset", action="store_true", help="enable full physics preset in exporter")
+    parser.add_argument("--secondary-demo-particles", type=int,
+                        help="opt-in render-demo secondary particles per exported frame")
     parser.add_argument("--build-dir", default="build", help="CMake build directory")
     parser.add_argument("--config", default="Release", help="CMake build config")
     parser.add_argument("--no-build", action="store_true", help="do not build exporter if missing")
@@ -278,6 +282,8 @@ def parse_args(argv):
     parser.add_argument("--samples", type=int, help="Blender render samples")
     parser.add_argument("--blender", help="explicit Blender executable path")
     parser.add_argument("--max-secondary-particles", type=int)
+    parser.add_argument("--secondary-radius-scale", type=float,
+                        help="scale factor for Blender secondary particle radii")
     parser.add_argument("--min-occupancy", type=float,
                         help="preview renderer minimum occupancy")
     parser.add_argument("--min-nonblank-ratio", type=float,
@@ -301,8 +307,13 @@ def parse_args(argv):
         parser.error("fps must be finite and positive")
     if args.samples is not None and args.samples <= 0:
         parser.error("samples must be positive")
+    if args.secondary_demo_particles is not None and args.secondary_demo_particles < 0:
+        parser.error("secondary-demo-particles must be non-negative")
     if args.max_secondary_particles is not None and args.max_secondary_particles < 0:
         parser.error("max-secondary-particles must be non-negative")
+    if args.secondary_radius_scale is not None and (
+            args.secondary_radius_scale <= 0.0 or not math.isfinite(args.secondary_radius_scale)):
+        parser.error("secondary-radius-scale must be finite and positive")
     if args.min_occupancy is not None and (args.min_occupancy < 0.0 or not math.isfinite(args.min_occupancy)):
         parser.error("min-occupancy must be finite and non-negative")
     if args.min_nonblank_ratio is not None and (
@@ -378,6 +389,9 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "dt": first_value(args.dt, sim.get("dt"), 0.02),
         "cg_iters": first_value(args.cg_iters, sim.get("cg_iters")),
         "physics_preset": bool(args.physics_preset or sim.get("physics_preset", False)),
+        "secondary_demo_particles": first_value(args.secondary_demo_particles,
+                                                sim.get("secondary_demo_particles"),
+                                                0),
         "sim_steps": first_value(args.sim_steps, shot.get("sim_steps"), frames),
         "cache_every": first_value(args.cache_every, shot.get("cache_every"), 1),
         "frames": frames,
@@ -388,6 +402,9 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "max_secondary_particles": first_value(args.max_secondary_particles,
                                                renderer.get("max_secondary_particles"),
                                                512),
+        "secondary_radius_scale": first_value(args.secondary_radius_scale,
+                                             renderer.get("secondary_radius_scale"),
+                                             1.0),
         "min_occupancy": first_value(args.min_occupancy, renderer.get("min_occupancy"), 0.01),
         "min_nonblank_ratio": first_value(args.min_nonblank_ratio,
                                           renderer.get("min_nonblank_ratio"),
@@ -527,6 +544,8 @@ def run_pipeline(args):
             export_cmd.extend(["--cg-iters", str(config["cg_iters"])])
         if config["physics_preset"]:
             export_cmd.append("--physics-preset")
+        if config["secondary_demo_particles"] > 0:
+            export_cmd.extend(["--secondary-demo-particles", str(config["secondary_demo_particles"])])
         pipeline.run("export_render_cache", export_cmd)
         require_file(manifest_path, "render cache manifest")
 
@@ -579,6 +598,7 @@ def run_pipeline(args):
                 "--height", str(config["height"]),
                 "--samples", str(config["samples"]),
                 "--max-secondary-particles", str(config["max_secondary_particles"]),
+                "--secondary-radius-scale", str(config["secondary_radius_scale"]),
                 "--min-nonblank-ratio", str(config["min_nonblank_ratio"]),
                 "--timeout-seconds", str(args.timeout_seconds),
                 "--preset-config", preset_config_path or default_preset_config_path(),

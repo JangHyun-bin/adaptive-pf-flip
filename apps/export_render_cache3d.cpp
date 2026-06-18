@@ -4,6 +4,7 @@
 #include "physics_preset3d.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -46,7 +47,8 @@ void usage() {
                "usage: export_render_cache3d [--kind sparse|mr] [--scene bubble|dam-break|falling-water] "
                "[--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
-               "[--out-prefix NAME] [--manifest PATH] [--physics-preset]\n");
+               "[--out-prefix NAME] [--manifest PATH] [--physics-preset] "
+               "[--secondary-demo-particles N]\n");
 }
 
 bool sceneIsBubble(const char* scene) {
@@ -101,6 +103,85 @@ long long fileSizeBytes(const std::string& path) {
   return static_cast<long long>(in.tellg());
 }
 
+struct ParticleBounds3D {
+  Vec3 min{0.0, 0.0, 0.0};
+  Vec3 max{0.0, 0.0, 0.0};
+  bool valid = false;
+};
+
+void includeParticle(ParticleBounds3D& bounds, const Vec3& p) {
+  if (!bounds.valid) {
+    bounds.min = p;
+    bounds.max = p;
+    bounds.valid = true;
+    return;
+  }
+  bounds.min.x = std::min(bounds.min.x, p.x);
+  bounds.min.y = std::min(bounds.min.y, p.y);
+  bounds.min.z = std::min(bounds.min.z, p.z);
+  bounds.max.x = std::max(bounds.max.x, p.x);
+  bounds.max.y = std::max(bounds.max.y, p.y);
+  bounds.max.z = std::max(bounds.max.z, p.z);
+}
+
+ParticleBounds3D liquidParticleBounds(const Particles3DTP& particles) {
+  ParticleBounds3D bounds;
+  for (size_t i = 0; i < particles.size(); ++i) {
+    if (particles.type[i] == 0) includeParticle(bounds, particles.pos[i]);
+  }
+  return bounds;
+}
+
+template <typename Sim>
+void seedCinematicSecondaries(Sim& sim, int frameIndex, int requestedParticles) {
+  if (requestedParticles <= 0) return;
+  sim.escaped_droplets = Particles3DTP();
+  sim.escaped_bubbles = Particles3DTP();
+  sim.escaped_droplet_ages.clear();
+  sim.escaped_bubble_ages.clear();
+
+  const ParticleBounds3D bounds = liquidParticleBounds(sim.particles);
+  if (!bounds.valid) return;
+
+  constexpr double pi = 3.14159265358979323846;
+  const int dropletCount = std::max(0, requestedParticles * 3 / 4);
+  const int bubbleCount = std::max(0, requestedParticles - dropletCount);
+  const double cx = 0.5 * (bounds.min.x + bounds.max.x);
+  const double cz = 0.5 * (bounds.min.z + bounds.max.z);
+  const double rx = std::max(0.6, 0.62 * (bounds.max.x - bounds.min.x + 1.0));
+  const double rz = std::max(0.6, 0.62 * (bounds.max.z - bounds.min.z + 1.0));
+  const double baseY = bounds.min.y + 0.18;
+  const double phase = 0.37 * static_cast<double>(frameIndex);
+
+  for (int n = 0; n < dropletCount; ++n) {
+    const double a = 2.0 * pi * (static_cast<double>(n) / std::max(1, dropletCount)) + phase;
+    const double ring = 0.55 + 0.45 * static_cast<double>((n % 5) + 1) / 5.0;
+    const Vec3 pos{
+      cx + std::cos(a) * rx * ring,
+      baseY + 0.08 * static_cast<double>(n % 7),
+      cz + std::sin(a) * rz * ring
+    };
+    const int channelSlot = n % 3;
+    const int age = channelSlot == 0 ? 0 : (channelSlot == 1 ? 2 : 6);
+    const double speed = channelSlot == 2 ? 0.18 : (channelSlot == 1 ? 0.72 : 1.65);
+    const double lift = channelSlot == 2 ? 0.08 : 0.35 + 0.12 * (n % 4);
+    const Vec3 vel{std::cos(a) * speed, lift, std::sin(a) * speed};
+    sim.escaped_droplets.add(pos, vel, 0, 1.0);
+    sim.escaped_droplet_ages.push_back(age);
+  }
+
+  for (int n = 0; n < bubbleCount; ++n) {
+    const double a = 2.0 * pi * (static_cast<double>(n) / std::max(1, bubbleCount)) - phase;
+    const Vec3 pos{
+      cx + std::cos(a) * rx * 0.28,
+      bounds.min.y + 0.25 + 0.12 * static_cast<double>(n % 6),
+      cz + std::sin(a) * rz * 0.28
+    };
+    sim.escaped_bubbles.add(pos, Vec3{0.0, 0.22, 0.0}, 1, 0.75);
+    sim.escaped_bubble_ages.push_back(0);
+  }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -123,12 +204,14 @@ int main(int argc, char** argv) {
   const char* manifestArg = argString(argc, argv, "--manifest", nullptr);
   const std::string manifestPath = manifestArg ? manifestArg : defaultManifestPath;
   const bool physicsPreset = hasFlag(argc, argv, "--physics-preset");
+  const int secondaryDemoParticles = argInt(argc, argv, "--secondary-demo-particles", 0);
 
   if ((!sparseKind && !mrKind) ||
       (!bubbleScene && !damBreakScene && !fallingWaterScene) ||
       nx < 4 || ny < 4 || nz < 4 ||
       steps <= 0 || every <= 0 ||
       dt <= 0.0 || cgIters < 0 ||
+      secondaryDemoParticles < 0 ||
       std::strlen(prefix) == 0 ||
       manifestPath.empty()) {
     usage();
@@ -162,6 +245,7 @@ int main(int argc, char** argv) {
       if (s % every == 0 || s == steps - 1) {
         const int frameIndex = frameCount;
         const std::string path = framePath(prefix, frameIndex);
+        seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
         writeSparseRenderCache3D(sim, path, frameIndex, simTime, camera);
         std::printf("wrote=%s\n", path.c_str());
         manifestFrames.push_back(RenderCacheManifestFrame3D{
@@ -179,6 +263,7 @@ int main(int argc, char** argv) {
     std::printf("particles=%zu\n", sim.particles.size());
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
+    std::printf("secondary_demo_particles=%d\n", secondaryDemoParticles);
   } else {
     MRSim3DTP sim(nx, ny, nz, 1.0);
     if (physicsPreset) applyFullPhysicsPreset3D(sim);
@@ -194,6 +279,7 @@ int main(int argc, char** argv) {
       if (s % every == 0 || s == steps - 1) {
         const int frameIndex = frameCount;
         const std::string path = framePath(prefix, frameIndex);
+        seedCinematicSecondaries(sim, frameIndex, secondaryDemoParticles);
         writeMRRenderCache3D(sim, path, frameIndex, simTime, camera);
         std::printf("wrote=%s\n", path.c_str());
         manifestFrames.push_back(RenderCacheManifestFrame3D{
@@ -211,6 +297,7 @@ int main(int argc, char** argv) {
     std::printf("particles=%zu\n", sim.particles.size());
     std::printf("secondary_droplets=%zu\n", sim.escaped_droplets.size());
     std::printf("secondary_bubbles=%zu\n", sim.escaped_bubbles.size());
+    std::printf("secondary_demo_particles=%d\n", secondaryDemoParticles);
   }
 
   std::printf("frames=%d\n", frameCount);

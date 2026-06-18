@@ -134,6 +134,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S45** | **Large-scale cinematic gate** - the preset-driven shot runner now produces a 48-frame 1280x720 Blender gate, `shot_summary.json`, GIF, and checked-in report with metrics and limitations. | done |
 | **S46** | **Smooth cinematic water meshes** - water reconstruction can now export opt-in smoothed OBJ vertices and vertex normals, with cinematic presets enabling smoother Blender shading by default. | done |
 | **S47** | **Dynamic falling-water cinematic preset** - the render-cache exporter and shot runner now accept scene selection, and `dam_break_cinematic` drives a sparse 3D two-phase falling-water scene instead of the bubble tank. | done |
+| **S48** | **Visible cinematic secondary particles** - the render-cache exporter can seed opt-in demo secondary droplets/bubbles per frame, and Blender rendering can scale those channels so spray, foam, droplets, and bubbles are visible in cinematic gates. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
@@ -212,7 +213,7 @@ cmake --build build --config Release --target validate_surface_tension3d
 # export SPEC-4 pre-render JSONL cache frames
 cmake --build build --config Release --target export_render_cache3d
 ./build/Release/export_render_cache3d.exe --kind sparse --steps 4 --every 4 --out-prefix render_cache_sparse
-./build/Release/export_render_cache3d.exe --kind sparse --scene falling-water --steps 4 --every 1 --out-prefix build/render_cache_falling
+./build/Release/export_render_cache3d.exe --kind sparse --scene falling-water --steps 4 --every 1 --secondary-demo-particles 96 --out-prefix build/render_cache_falling
 ./build/Release/export_render_cache3d.exe --kind mr --steps 4 --every 4 --out-prefix render_cache_mr
 python tools/validate_render_cache.py render_cache_sparse_manifest.json
 python tools/validate_render_cache.py render_cache_sparse_manifest.json --require-cinematic
@@ -227,6 +228,7 @@ python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shot
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s45_bubble --frames 48 --width 1280 --height 720 --samples 12 --report docs/reports/cinematic_gate_s45.md
 python tools/run_cinematic_shot.py --preset bubble_cinematic --out build/shots/s46_smooth --frames 24 --width 1280 --height 720
 python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s47_dam_break --frames 24 --width 1280 --height 720 --report docs/reports/cinematic_gate_s47.md
+python tools/run_cinematic_shot.py --preset dam_break_cinematic --out build/shots/s48_secondary --frames 24 --width 1280 --height 720 --report docs/reports/cinematic_gate_s48.md
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview --frames 12 --width 1280 --height 720
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_mesh --frames 8 --width 1280 --height 720 --water-reconstruction build/water_mesh/water_reconstruction.json
 python tools/cinematic_render_stub.py render_cache_sparse_manifest.json build/cinematic_preview_foam --frames 12 --width 1280 --height 720 --secondary-channel foam --min-occupancy 0

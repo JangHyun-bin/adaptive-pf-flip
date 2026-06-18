@@ -12,7 +12,8 @@
         "nz": 12,
         "dt": 0.02,
         "cg_iters": null,
-        "physics_preset": false
+        "physics_preset": false,
+        "secondary_demo_particles": 0
       },
       "shot": {
         "frames": 24,
@@ -27,6 +28,7 @@
         "engine": "eevee",
         "samples": 24,
         "max_secondary_particles": 512,
+        "secondary_radius_scale": 1.0,
         "min_nonblank_ratio": 0.05,
         "min_occupancy": 0.01
       },
@@ -115,7 +117,8 @@
         "nz": 14,
         "dt": 0.02,
         "cg_iters": null,
-        "physics_preset": false
+        "physics_preset": false,
+        "secondary_demo_particles": 96
       },
       "shot": {
         "frames": 24,
@@ -130,6 +133,7 @@
         "engine": "eevee",
         "samples": 32,
         "max_secondary_particles": 768,
+        "secondary_radius_scale": 2.4,
         "min_nonblank_ratio": 0.05,
         "min_occupancy": 0.005
       },

@@ -93,7 +93,7 @@ The missing work is not one feature. It is a pipeline:
 | S45 | Large-scale cinematic gate | End-to-end large shot with CSV, manifest, preview, and render artifacts | Done in `test: add large scale cinematic gate` |
 | S46 | Smooth water surface pass | Reduce voxel-block look with mesh smoothing, normals, and reconstruction QA | Done in `feat: smooth cinematic water meshes` |
 | S47 | Falling-water/dam-break cache preset | Produce a more visually dynamic water-motion shot than the current bubble tank | Done in `feat: add cinematic falling water preset` |
-| S48 | Visible secondary particle pass | Ensure spray/foam/bubble channels can be seen in cinematic frames | `feat: enhance secondary cinematic render` |
+| S48 | Visible secondary particle pass | Ensure spray/foam/bubble channels can be seen in cinematic frames | Done in `feat: enhance secondary cinematic render` |
 | S49 | Camera motion and shot grammar | Add camera path interpolation, framing presets, and shot continuity checks | `feat: add cinematic camera motion` |
 | S50 | Water material depth pass | Improve material response with depth tint, edge highlights, and preset sweeps | `feat: improve water material presets` |
 | S51 | Presentation artifact pack | Emit GIF/contact sheet/report bundle for fast visual review and sharing | `feat: package cinematic review artifacts` |

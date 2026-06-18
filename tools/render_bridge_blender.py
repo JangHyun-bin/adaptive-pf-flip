@@ -339,8 +339,8 @@ def pick_water_mesh(frame, water_index, out_index, out_count):
 
 
 def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruction_path,
-                     engine, samples, max_secondary_particles, render_preset_name=None,
-                     render_preset=None):
+                     engine, samples, max_secondary_particles, secondary_radius_scale,
+                     render_preset_name=None, render_preset=None):
     sequence = load_sequence(src, water_reconstruction_path)
     render_preset = render_preset or {}
     renderer_defaults = render_preset.get("renderer", {})
@@ -349,6 +349,10 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     max_secondary_particles = (
         max_secondary_particles if max_secondary_particles is not None
         else as_int(renderer_defaults.get("max_secondary_particles"), 512)
+    )
+    secondary_radius_scale = (
+        secondary_radius_scale if secondary_radius_scale is not None
+        else as_float(renderer_defaults.get("secondary_radius_scale"), 1.0)
     )
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
@@ -396,6 +400,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "engine": engine,
         "samples": samples,
         "max_secondary_particles": max_secondary_particles,
+        "secondary_radius_scale": secondary_radius_scale,
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "world_units": "cell",
@@ -637,7 +642,7 @@ def secondary_channel(row):
     return "bubble" if kind == "secondary_bubble" else "droplet"
 
 
-def add_secondary_particles(frame, materials, max_count):
+def add_secondary_particles(frame, materials, max_count, radius_scale):
     path = frame.get("particles_csv")
     if not path or not os.path.isfile(path) or max_count <= 0:
         return 0
@@ -652,7 +657,8 @@ def add_secondary_particles(frame, materials, max_count):
                 break
             pos = (float(row.get("x", 0.0)), float(row.get("y", 0.0)), float(row.get("z", 0.0)))
             volume = max(0.05, float(row.get("volume", 1.0)))
-            radius = min(0.14, max(0.035, 0.035 * math.sqrt(volume)))
+            base_radius = min(0.14, max(0.035, 0.035 * math.sqrt(volume)))
+            radius = min(0.35, max(0.02, base_radius * max(0.01, radius_scale)))
             channel = secondary_channel(row)
             bpy.ops.mesh.primitive_uv_sphere_add(segments=8,
                                                  ring_count=4,
@@ -701,7 +707,10 @@ def main():
         remove_frame_assets()
         configure_camera(camera, frame, preset)
         add_water_mesh(frame, water_mat)
-        add_secondary_particles(frame, particle_mats, int(spec.get("max_secondary_particles", 512)))
+        add_secondary_particles(frame,
+                                particle_mats,
+                                int(spec.get("max_secondary_particles", 512)),
+                                float(spec.get("secondary_radius_scale", 1.0)))
         bpy.context.scene.frame_set(int(frame["index"]))
         bpy.context.scene.render.filepath = frame["output_png"]
         bpy.ops.render.render(write_still=True)
@@ -808,6 +817,8 @@ def parse_args(argv):
     parser.add_argument("--samples", type=int, help="render samples")
     parser.add_argument("--max-secondary-particles", type=int,
                         help="maximum secondary particles instantiated per frame")
+    parser.add_argument("--secondary-radius-scale", type=float,
+                        help="scale factor for rendered secondary particle sphere radii")
     parser.add_argument("--min-nonblank-ratio", type=float, default=0.05,
                         help="minimum nonblack pixel ratio required after rendering")
     parser.add_argument("--timeout-seconds", type=int, default=300, help="Blender process timeout")
@@ -824,6 +835,9 @@ def parse_args(argv):
         parser.error("samples must be positive")
     if args.max_secondary_particles is not None and args.max_secondary_particles < 0:
         parser.error("max-secondary-particles must be non-negative")
+    if args.secondary_radius_scale is not None and (
+            args.secondary_radius_scale <= 0.0 or not math.isfinite(args.secondary_radius_scale)):
+        parser.error("secondary-radius-scale must be finite and positive")
     if args.min_nonblank_ratio < 0.0 or not math.isfinite(args.min_nonblank_ratio):
         parser.error("min-nonblank-ratio must be finite and non-negative")
     if args.timeout_seconds <= 0:
@@ -849,6 +863,7 @@ def main(argv=None):
                                 args.engine,
                                 args.samples,
                                 args.max_secondary_particles,
+                                args.secondary_radius_scale,
                                 args.render_preset,
                                 render_preset)
         spec_path = os.path.abspath(os.path.join(args.out_dir, "blender_scene_spec.json"))
@@ -869,6 +884,7 @@ def main(argv=None):
             "frame_count": len(spec["frames"]),
             "engine": spec["engine"],
             "samples": spec["samples"],
+            "secondary_radius_scale": spec["secondary_radius_scale"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,
