@@ -162,6 +162,7 @@ The missing work is not one feature. It is a pipeline:
 | S114 | Render frame reuse | Add opt-in render-frame reuse for preview/Blender outputs and expose render reuse status in shot reports | Done in `perf: reuse fresh render frames` |
 | S115 | Large-grid warm-cache preview benchmark | Measure the full opt-in warm-cache path on a larger-grid preview run | Done in `test: benchmark large grid warm cache preview` |
 | S116 | Warm-cache fingerprint cost reduction | Move water reconstruction reuse detection before phase-cell loading and reduce large-grid warm-cache reconstruction check time | Done in `perf: reduce warm cache fingerprint overhead` |
+| S117 | GIF assembly reuse | Add opt-in GIF assembly reuse and expose GIF reuse status in shot reports | Done in `perf: reuse fresh cinematic gif` |
 
 ## Decision Gates
 
@@ -499,16 +500,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S117.
+Continue with S118.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-gif-assembly-reuse.md`
+`docs/superpowers/plans/2026-06-18-blender-quality-warm-cache-return.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_large_grid_warm_cache_preview --out build\shots\s117_gif_reuse_probe --frames 36 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 900
+python tools\run_cinematic_shot.py --preset dam_break_large_grid_render_quality_followup --out build\shots\s118_blender_quality_warm_cache_return --frames 36 --sim-steps 8 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 1800
 ```
 
-The next success condition is adding conservative GIF assembly reuse so repeated preview review runs skip rebuilding an unchanged GIF.
+The next success condition is returning to a Blender quality gate while keeping the warm-cache controls enabled for iteration.

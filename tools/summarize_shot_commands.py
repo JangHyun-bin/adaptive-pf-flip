@@ -66,6 +66,7 @@ def markdown(summary, summary_path, root):
         f"- Water reconstruction reused: `{metrics.get('water_reconstruction_reused', 'n/a')}`",
         f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
         f"- Render frames reused: `{metrics.get('render_frames_reused', 'n/a')}`",
+        f"- GIF reused: `{metrics.get('gif_reused', 'n/a')}`",
         "",
         "## Command Timings",
         "",
@@ -95,7 +96,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S117 should add warm-cache GIF assembly reuse because the remaining repeated-preview work is now mostly assembling an unchanged frame sequence.",
+        "S118 should return to Blender render-quality work with the full warm-cache path enabled.",
         "",
     ])
     return "\n".join(lines)

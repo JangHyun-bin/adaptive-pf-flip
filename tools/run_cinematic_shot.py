@@ -395,6 +395,35 @@ def write_render_stamp(path, fingerprint, frame_dir, render_summary_path, frame_
     })
 
 
+def frame_png_paths(frame_dir, frame_count):
+    return [os.path.join(frame_dir, f"frame_{index:04d}.png") for index in range(frame_count)]
+
+
+def load_reusable_gif(stamp_path, expected_fingerprint, gif_path):
+    if not os.path.isfile(stamp_path) or not os.path.isfile(gif_path):
+        return None
+    try:
+        stamp = read_json(stamp_path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if stamp.get("status") != "ok":
+        return None
+    if stamp.get("gif_fingerprint") != expected_fingerprint:
+        return None
+    return stamp
+
+
+def write_gif_stamp(path, fingerprint, gif_path):
+    write_json(path, {
+        "runner": "lsfs_cinematic_gif_stamp",
+        "version": 1,
+        "status": "ok",
+        "gif": gif_path,
+        "gif_bytes": os.path.getsize(gif_path),
+        "gif_fingerprint": fingerprint,
+    })
+
+
 def format_secondary_interface_gate(metrics):
     if not isinstance(metrics, dict) or "secondary_spray_interface_gate" not in metrics:
         return "n/a"
@@ -2111,7 +2140,7 @@ def render_report(summary, root):
         "",
     ]
     for key in ("manifest", "export_stamp", "validation_stamp", "sequence", "water_reconstruction", "render_summary",
-                "render_frame_dir", "gif", "contact_sheet", "review_manifest",
+                "render_frame_dir", "gif", "gif_stamp", "contact_sheet", "review_manifest",
                 "comparison_sheet", "comparison_manifest", "temporal_diff_sheet",
                 "temporal_diff_manifest", "focus_sheet", "focus_review_manifest",
                 "focus_comparison_sheet", "focus_comparison_manifest",
@@ -2134,6 +2163,7 @@ def render_report(summary, root):
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
         f"- Water reconstruction reused: `{metrics.get('water_reconstruction_reused', 'n/a')}`",
         f"- Render frames reused: `{metrics.get('render_frames_reused', 'n/a')}`",
+        f"- GIF reused: `{metrics.get('gif_reused', 'n/a')}`",
         f"- Surface mode: `{metrics.get('surface_mode', 'n/a')}`",
         f"- Implicit blur iterations: `{metrics.get('implicit_blur_iterations', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
@@ -2217,7 +2247,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S117 should add conservative GIF assembly reuse so repeated preview review runs skip rebuilding an unchanged GIF.",
+        "S118 should return to a Blender quality gate while keeping the warm-cache controls enabled for iteration.",
         "",
     ])
     return "\n".join(lines)
@@ -2374,6 +2404,8 @@ def parse_args(argv):
                         help="let reconstruct_water.py reuse water meshes when inputs and options are unchanged")
     parser.add_argument("--reuse-render-frames", action="store_true",
                         help="reuse rendered PNG frames when renderer inputs and options are unchanged")
+    parser.add_argument("--reuse-gif", action="store_true",
+                        help="reuse shot.gif when frame inputs and GIF options are unchanged")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -2845,13 +2877,33 @@ def run_pipeline(args):
             write_render_stamp(render_stamp, fingerprint, frame_dir, render_summary_path, config["frames"])
         summary["artifacts"]["render_frame_dir"] = frame_dir
 
-        pipeline.run("assemble_gif", [
+        gif_cmd = [
             sys.executable,
             tool_path(root, "assemble_frames.py"),
             frame_dir,
             gif_path,
             "--fps", str(config["fps"]),
-        ])
+        ]
+        gif_stamp = os.path.join(out_dir, "gif_stamp.json")
+        summary["artifacts"]["gif_stamp"] = gif_stamp
+        gif_fingerprint = render_fingerprint(
+            gif_cmd,
+            [tool_path(root, "assemble_frames.py")],
+            frame_png_paths(frame_dir, config["frames"]))
+        gif_stamp_payload = (
+            load_reusable_gif(gif_stamp, gif_fingerprint, gif_path)
+            if args.reuse_gif else None
+        )
+        if gif_stamp_payload:
+            pipeline.record(
+                "assemble_gif",
+                gif_cmd,
+                stdout=key_value_stdout({"frames": config["frames"], "reused": True}, "reused"))
+            summary["gif_metrics"] = {"reused": True}
+        else:
+            pipeline.run("assemble_gif", gif_cmd)
+            summary["gif_metrics"] = {"reused": False}
+            write_gif_stamp(gif_stamp, gif_fingerprint, gif_path)
         require_file(gif_path, "shot GIF")
 
         manifest = read_json(manifest_path)
@@ -2867,6 +2919,7 @@ def run_pipeline(args):
             "water_mesh_frame_count": water.get("frame_count"),
             "water_reconstruction_reused": bool(summary.get("reconstruction_metrics", {}).get("reused", False)),
             "render_frames_reused": bool(summary.get("render_metrics", {}).get("reused", False)),
+            "gif_reused": bool(summary.get("gif_metrics", {}).get("reused", False)),
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
