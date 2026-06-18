@@ -169,6 +169,7 @@ The missing work is not one feature. It is a pipeline:
 | S121 | Cinematic static gallery | Copy the current review assets into a self-contained browser gallery with manifest and report | Done in `tools: build cinematic gallery` |
 | S122 | Cinematic gallery cftunnel publisher | Serve the static gallery locally, open an optional Cloudflare quick tunnel, and verify HTML/GIF assets over HTTP | Done in `tools: publish cinematic gallery` |
 | S123 | Cinematic visual review triage | Record gallery/publish coverage, numeric gates, visual findings, and select the next look-dev adjustment | Done in `docs: triage cinematic visual review` |
+| S124 | Contact-band composition pass | Lower the large-grid camera target toward the contact band while preserving S119 comparison and review gates | Done in `style: add contact band composition preset` |
 
 ## Decision Gates
 
@@ -506,16 +507,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S124.
+Continue with S125.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-contact-band-composition-pass.md`
+`docs/superpowers/plans/2026-06-18-contact-volume-integration-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_band_composition --out build\shots\s124_contact_band_composition --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s119_blender_quality_baseline_comparison\review\review_manifest.json --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 1800
+python tools\run_cinematic_shot.py --preset dam_break_contact_volume_integrated --out build\shots\s125_contact_volume_integrated --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s124_contact_band_composition\review\review_manifest.json --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --reuse-gif --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a contact-band composition preset that reduces the tank/back-wall read while preserving the S119 visual, focus, secondary-depth, ripple, temporal, and comparison gates.
+The next success condition is a contact-volume integration preset that softens the remaining boxed/tank read without losing the S124 composition and review gates.

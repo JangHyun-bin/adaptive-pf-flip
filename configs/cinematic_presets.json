@@ -1210,6 +1210,71 @@
         }
       }
     },
+    "dam_break_contact_band_composition": {
+      "extends": "dam_break_large_grid_render_quality_followup",
+      "description": "Large-grid contact-band composition pass that lowers and tightens the camera to reduce the tank/back-wall read.",
+      "renderer": {
+        "secondary_framing_qa": {
+          "min_mean_inside_ratio": 0.9,
+          "min_frame_inside_ratio": 0.3,
+          "min_mean_screen_y": 0.4,
+          "max_mean_screen_y": 0.84
+        },
+        "focus_review": {
+          "crop": [0.02, 0.34, 0.98, 0.92],
+          "min_nonblank_ratio": 0.95,
+          "min_contrast": 60.0,
+          "min_mean_luminance": 68.0,
+          "max_mean_luminance": 128.0,
+          "min_mean_bright_ratio": 0.0
+        },
+        "secondary_depth_review": {
+          "crop": [0.02, 0.16, 0.98, 0.9],
+          "min_mean_crop_ratio": 0.68
+        },
+        "ripple_readability_review": {
+          "crop": [0.02, 0.28, 0.98, 0.9],
+          "min_edge_mean": 8.0,
+          "min_edge_nonzero_ratio": 0.025
+        }
+      },
+      "camera": {
+        "auto_frame": {
+          "max_scale": 1.18,
+          "fov_pad_degrees": 8.0
+        },
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [12.4, 10.9, 37.8],
+              "target": [14.0, 9.4, 11.0],
+              "vertical_fov_degrees": 46.0
+            },
+            {
+              "t": 0.55,
+              "position": [13.1, 10.6, 36.8],
+              "target": [14.0, 9.0, 11.0],
+              "vertical_fov_degrees": 44.0
+            },
+            {
+              "t": 1.0,
+              "position": [13.8, 10.2, 35.8],
+              "target": [14.0, 8.6, 11.0],
+              "vertical_fov_degrees": 42.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 10.0,
+          "min_target_distance": 23.0,
+          "max_vertical_fov_degrees": 55.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

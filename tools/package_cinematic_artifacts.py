@@ -233,7 +233,7 @@ def markdown(summary, summary_path, shot_dir, rows, out_path, root):
         "",
         "## Next",
         "",
-        "S124 should add and validate a contact-band composition preset against the current S119 baseline.",
+        "S125 should add a contact-volume integration preset that softens the remaining boxed/tank read.",
         "",
     ])
     return "\n".join(lines)
