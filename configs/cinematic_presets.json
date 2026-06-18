@@ -823,6 +823,53 @@
           "min_mean_bright_ratio": 0.00015
         }
       }
+    },
+    "dam_break_contact_focus_camera_tuned": {
+      "extends": "dam_break_water_impact_ripple_focus_qa",
+      "description": "Contact-focused camera pass for denser impact ripple inspection.",
+      "renderer": {
+        "focus_review": {
+          "crop": [0.02, 0.3, 0.98, 0.88],
+          "min_contrast": 42.0,
+          "min_mean_luminance": 58.0,
+          "max_mean_luminance": 132.0
+        }
+      },
+      "camera": {
+        "position": [13.0, 10.8, 37.0],
+        "target": [14.0, 8.05, 11.0],
+        "vertical_fov_degrees": 42.0,
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [12.4, 10.9, 37.8],
+              "target": [14.0, 8.45, 11.0],
+              "vertical_fov_degrees": 42.0
+            },
+            {
+              "t": 0.55,
+              "position": [13.1, 10.6, 36.8],
+              "target": [14.0, 8.05, 11.0],
+              "vertical_fov_degrees": 40.0
+            },
+            {
+              "t": 1.0,
+              "position": [13.8, 10.2, 35.8],
+              "target": [14.0, 7.65, 11.0],
+              "vertical_fov_degrees": 38.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 10.0,
+          "min_target_distance": 24.0,
+          "max_vertical_fov_degrees": 42.0
+        }
+      }
     }
   }
 }
