@@ -2250,7 +2250,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S135 should review the latest public gallery and choose the next concrete visible shot adjustment from current evidence.",
+        "S136 should implement the offscreen-source impact framing pass and run a 36-frame Blender comparison against S133.",
         "",
     ])
     return "\n".join(lines)

@@ -180,7 +180,8 @@ The missing work is not one feature. It is a pipeline:
 | S132 | S130 public gallery visual triage | Review the S130 public gallery and choose the next concrete visible shot-shape adjustment from current evidence | Done in `docs: triage s130 public gallery` |
 | S133 | Falling-source silhouette breakup pass | Break the upper falling-water mass into staggered rounded lobes with less continuous vertical side-wall structure | Done in `feat: add falling source silhouette breakup` |
 | S134 | S133 gallery refresh/publish | Package and publish the S133 review artifacts for external inspection | Done in `docs: publish s133 cinematic gallery` |
-| S135 | S133 public gallery visual triage | Review the S133 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S135 | S133 public gallery visual triage | Review the S133 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s133 public gallery` |
+| S136 | Offscreen-source impact framing pass | Reframe the S133 scene so the source is mostly out of frame and attention stays on water entering frame and impacting the pool | Planned |
 
 ## Decision Gates
 
@@ -518,16 +519,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S135.
+Continue with S136.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s133-public-gallery-visual-triage.md`
+`docs/superpowers/plans/2026-06-18-offscreen-source-impact-framing-pass.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s133_falling_source_silhouette_breakup\gallery\gallery_manifest.json --publish build\shots\s133_falling_source_silhouette_breakup\gallery\publish_manifest_s134.json --out docs\reports\cinematic_visual_review_s135.md
+python tools\run_cinematic_shot.py --preset dam_break_offscreen_source_impact_framing --out build\shots\s136_offscreen_source_impact_framing --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s133_falling_source_silhouette_breakup\review\review_manifest.json --report docs\reports\cinematic_offscreen_source_impact_framing_s136.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in visual triage report that records the S133 public gallery state and selects the next concrete visible shot adjustment.
+The next success condition is a checked-in S136 visual gate report where the upper source is mostly cropped/out-of-frame while S133 review/QA gates remain passing.

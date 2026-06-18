@@ -25,6 +25,13 @@ python tools\summarize_cinematic_gallery_review.py build\shots\s133_falling_sour
 - Current S133 visual strengths and remaining issues are listed.
 - The next visible shot adjustment is selected as a concrete S136 milestone.
 
+## Result
+
+- Report: `docs/reports/cinematic_visual_review_s135.md`
+- Public gallery checked: `https://abstract-shareware-hawaiian-healthy.trycloudflare.com`
+- Local/public `index.html` and `assets/shot.gif` checks passed.
+- Decision: S136 should keep the S133 source-breakup scene but reframe so the upper source is mostly out of frame and the impact pool remains the visual center.
+
 ## Verification
 
 ```powershell

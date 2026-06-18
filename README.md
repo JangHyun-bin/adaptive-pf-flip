@@ -221,6 +221,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S132** | **S130 public gallery visual triage** - reviews the S130 public gallery and selects S133 falling-source silhouette breakup as the next visible shot-shape adjustment. | done |
 | **S133** | **Falling-source silhouette breakup pass** - `source-breakup-water-event` uses staggered rounded lobes for the upper falling mass and preserves the S130 Blender review gates. | done |
 | **S134** | **S133 gallery refresh/publish** - packages and publishes the S133 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://abstract-shareware-hawaiian-healthy.trycloudflare.com`. | done |
+| **S135** | **S133 public gallery visual triage** - reviews the S133 public gallery and selects S136 offscreen-source impact framing as the next visible adjustment. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
