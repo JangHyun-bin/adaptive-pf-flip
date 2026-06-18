@@ -174,7 +174,8 @@
           "emission_scale": 0.88,
           "max_radius": 0.98,
           "geometry": "billboard_disks",
-          "falloff": [1.0, 0.32, 0.08, 0.0]
+          "falloff": [1.0, 0.32, 0.08, 0.0],
+          "material_falloff": "radial_shader"
         }
       },
       "reconstruction": {
@@ -360,7 +361,8 @@
           "emission_scale": 0.88,
           "max_radius": 0.98,
           "geometry": "billboard_disks",
-          "falloff": [1.0, 0.32, 0.08, 0.0]
+          "falloff": [1.0, 0.32, 0.08, 0.0],
+          "material_falloff": "radial_shader"
         }
       },
       "reconstruction": {

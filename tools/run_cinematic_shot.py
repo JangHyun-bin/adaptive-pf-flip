@@ -654,7 +654,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S71 should replace ring-only mist falloff with texture/material-node style radial falloff so sprite edges soften more smoothly without losing visual QA or render-cost targets.",
+        "S72 should render secondary spray/foam with velocity-aligned streak or smear geometry so contact particles read as moving spray instead of circular sprites.",
         "",
     ])
     return "\n".join(lines)

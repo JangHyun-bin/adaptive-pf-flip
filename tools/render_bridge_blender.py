@@ -546,6 +546,7 @@ def secondary_soft_pass_summary(render_preset):
         "max_radius": as_float(cfg.get("max_radius"), 1.0),
         "geometry": str(cfg.get("geometry", "batched_spheres")),
         "falloff": [as_float(item, 0.0) for item in falloff],
+        "material_falloff": str(cfg.get("material_falloff", "ring_materials")),
     }
 
 
@@ -1027,6 +1028,7 @@ def secondary_soft_pass_values(spec):
         "max_radius": max(0.01, scalar_value(cfg.get("max_radius"), 1.0)),
         "geometry": str(cfg.get("geometry", "batched_spheres")),
         "falloff": [max(0.0, scalar_value(item, 0.0)) for item in falloff],
+        "material_falloff": str(cfg.get("material_falloff", "ring_materials")),
     }
 
 
@@ -1096,6 +1098,7 @@ def billboard_axes(frame, center):
 
 def add_billboard_cloud_mesh(name, particles, materials, frame, segments=10, falloff=None):
     verts = []
+    vert_uvs = []
     faces = []
     material_indices = []
     segments = max(5, int(segments))
@@ -1107,12 +1110,15 @@ def add_billboard_cloud_mesh(name, particles, materials, frame, segments=10, fal
         radius = max(0.001, float(radius))
         right, up = billboard_axes(frame, center)
         verts.append(tuple(center_vec))
+        vert_uvs.append((0.5, 0.5))
         for ring in range(1, ring_count + 1):
             r = radius * ring / float(ring_count)
+            uv_r = 0.5 * ring / float(ring_count)
             for seg in range(segments):
                 theta = 2.0 * math.pi * seg / float(segments)
                 p = center_vec + right * (math.cos(theta) * r) + up * (math.sin(theta) * r)
                 verts.append(tuple(p))
+                vert_uvs.append((0.5 + math.cos(theta) * uv_r, 0.5 + math.sin(theta) * uv_r))
         first_ring = base + 1
         for seg in range(segments):
             faces.append((base, first_ring + seg, first_ring + ((seg + 1) % segments)))
@@ -1132,6 +1138,12 @@ def add_billboard_cloud_mesh(name, particles, materials, frame, segments=10, fal
     mesh = bpy.data.meshes.new(name + " Mesh")
     mesh.from_pydata(verts, [], faces)
     mesh.update()
+    if vert_uvs:
+        uv_layer = mesh.uv_layers.new(name="MistFalloffUV")
+        for poly in mesh.polygons:
+            for loop_index in poly.loop_indices:
+                vertex_index = mesh.loops[loop_index].vertex_index
+                uv_layer.data[loop_index].uv = vert_uvs[vertex_index]
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj["lsfs_frame_asset"] = True
@@ -1202,6 +1214,43 @@ def make_particle_falloff_materials(prefix, values, falloff):
     return mats
 
 
+def make_radial_soft_material(name, values):
+    mat = make_principled_material(name,
+                                   values["color"],
+                                   values["roughness"],
+                                   values["alpha"],
+                                   values["transmission"],
+                                   values["emission_color"],
+                                   values["emission_strength"])
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    if not bsdf:
+        return mat
+    try:
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+        texcoord = nodes.new(type="ShaderNodeTexCoord")
+        subtract = nodes.new(type="ShaderNodeVectorMath")
+        subtract.operation = "SUBTRACT"
+        subtract.inputs[1].default_value = (0.5, 0.5, 0.0)
+        length = nodes.new(type="ShaderNodeVectorMath")
+        length.operation = "LENGTH"
+        ramp = nodes.new(type="ShaderNodeValToRGB")
+        ramp.color_ramp.elements[0].position = 0.0
+        ramp.color_ramp.elements[0].color = (1.0, 1.0, 1.0, clamp01(values["alpha"]))
+        ramp.color_ramp.elements[1].position = 0.5
+        ramp.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 0.0)
+        mid = ramp.color_ramp.elements.new(0.24)
+        mid.color = (1.0, 1.0, 1.0, clamp01(values["alpha"] * 0.38))
+        links.new(texcoord.outputs["UV"], subtract.inputs[0])
+        links.new(subtract.outputs["Vector"], length.inputs[0])
+        links.new(length.outputs["Value"], ramp.inputs["Fac"])
+        if "Alpha" in ramp.outputs and "Alpha" in bsdf.inputs:
+            links.new(ramp.outputs["Alpha"], bsdf.inputs["Alpha"])
+    except Exception:
+        pass
+    return mat
+
+
 def main():
     spec = read_spec()
     preset = spec.get("render_preset") or {}
@@ -1239,6 +1288,9 @@ def main():
         "spray_soft_falloff": make_particle_falloff_materials("LSFS Spray Mist Falloff", spray_soft, soft_pass.get("falloff", [1.0])),
         "foam_soft_falloff": make_particle_falloff_materials("LSFS Foam Soft Falloff", foam_soft, soft_pass.get("falloff", [1.0])),
     }
+    if soft_pass.get("material_falloff") == "radial_shader":
+        particle_mats["spray_soft_falloff"] = [make_radial_soft_material("LSFS Spray Mist Radial", spray_soft)]
+        particle_mats["foam_soft_falloff"] = [make_radial_soft_material("LSFS Foam Soft Radial", foam_soft)]
     channel_scales = spec.get("secondary_channel_radius_scales") or {}
     if spec.get("frames"):
         add_floor(spec["frames"][0], floor_mat, preset)
