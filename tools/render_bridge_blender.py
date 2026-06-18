@@ -550,6 +550,24 @@ def secondary_soft_pass_summary(render_preset):
     }
 
 
+def secondary_streak_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "secondary_streak_pass")
+    channels = preset_section(cfg, "channels")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "spray": as_float(channels.get("spray"), 0.0),
+            "foam": as_float(channels.get("foam"), 0.0),
+        },
+        "length_scale": as_float(cfg.get("length_scale"), 0.04),
+        "max_length": as_float(cfg.get("max_length"), 1.0),
+        "width_scale": as_float(cfg.get("width_scale"), 0.45),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 0.22),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.9),
+        "min_speed": as_float(cfg.get("min_speed"), 0.35),
+    }
+
+
 def pick_water_mesh(frame, water_index, out_index, out_count):
     if water_index:
         water_frame = select_resampled(water_index["frames"], out_index, out_count)
@@ -635,6 +653,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "secondary_radius_scale": secondary_radius_scale,
         "secondary_channel_radius_scales": secondary_channel_radius_summary(render_preset),
         "secondary_soft_pass": secondary_soft_pass_summary(render_preset),
+        "secondary_streak_pass": secondary_streak_pass_summary(render_preset),
         "render_preset_name": render_preset_name,
         "render_preset": render_preset,
         "camera_motion": camera_motion_summary(render_preset),
@@ -1032,6 +1051,22 @@ def secondary_soft_pass_values(spec):
     }
 
 
+def secondary_streak_pass_values(spec):
+    cfg = spec.get("secondary_streak_pass") or {}
+    channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "spray": max(0.0, scalar_value(channels.get("spray"), 0.0)),
+            "foam": max(0.0, scalar_value(channels.get("foam"), 0.0)),
+        },
+        "length_scale": max(0.0, scalar_value(cfg.get("length_scale"), 0.04)),
+        "max_length": max(0.01, scalar_value(cfg.get("max_length"), 1.0)),
+        "width_scale": max(0.01, scalar_value(cfg.get("width_scale"), 0.45)),
+        "min_speed": max(0.0, scalar_value(cfg.get("min_speed"), 0.35)),
+    }
+
+
 def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_scales, soft_pass):
     if not soft_pass.get("enabled", False):
         return 0
@@ -1074,6 +1109,53 @@ def add_secondary_soft_pass(frame, materials, max_count, radius_scale, channel_s
     return count
 
 
+def to_blender_vec(vec):
+    return Vector((float(vec[0]), -float(vec[2]), float(vec[1])))
+
+
+def add_secondary_streak_pass(frame, materials, max_count, radius_scale, channel_scales, streak_pass):
+    if not streak_pass.get("enabled", False):
+        return 0
+    path = frame.get("particles_csv")
+    if not path or not os.path.isfile(path) or max_count <= 0:
+        return 0
+    count = 0
+    by_channel = {"spray": [], "foam": []}
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if count >= max_count:
+                break
+            channel = secondary_channel(row)
+            channel_mult = float(streak_pass.get("channels", {}).get(channel, 0.0) or 0.0)
+            if channel_mult <= 0.0 or f"{channel}_streak" not in materials:
+                continue
+            velocity = (
+                float(row.get("vx", 0.0)),
+                float(row.get("vy", 0.0)),
+                float(row.get("vz", 0.0)),
+            )
+            speed = math.sqrt(sum(v * v for v in velocity))
+            if speed < float(streak_pass.get("min_speed", 0.0)):
+                continue
+            pos = (float(row.get("x", 0.0)), float(row.get("y", 0.0)), float(row.get("z", 0.0)))
+            volume = max(0.05, float(row.get("volume", 1.0)))
+            base_radius = min(0.14, max(0.035, 0.035 * math.sqrt(volume)))
+            channel_scale = channel_radius_scale(channel, channel_scales)
+            core_radius = min(0.55, max(0.02, base_radius * max(0.01, radius_scale) * channel_scale))
+            length = min(float(streak_pass.get("max_length", 1.0)),
+                         max(core_radius, speed * float(streak_pass.get("length_scale", 0.04)) * channel_mult))
+            width = max(0.01, core_radius * float(streak_pass.get("width_scale", 0.45)))
+            by_channel[channel].append((to_blender(pos), to_blender_vec(velocity), length, width))
+            count += 1
+    for channel, particles in by_channel.items():
+        if particles:
+            add_streak_cloud_mesh(f"LSFS {channel.title()} Velocity Streaks",
+                                  particles,
+                                  materials[f"{channel}_streak"],
+                                  frame)
+    return count
+
+
 def safe_normalized(vec, fallback):
     try:
         if vec.length > 1e-8:
@@ -1094,6 +1176,38 @@ def billboard_axes(frame, center):
     right = safe_normalized(right, (1.0, 0.0, 0.0))
     up = safe_normalized(right.cross(forward), (0.0, 0.0, 1.0))
     return right, up
+
+
+def add_streak_cloud_mesh(name, particles, material, frame):
+    verts = []
+    faces = []
+    for center, velocity, length, width in particles:
+        center_vec = Vector(center)
+        camera_pos = Vector(to_blender(frame.get("camera", {}).get("position", [0.0, 0.0, 1.0])))
+        forward = safe_normalized(camera_pos - center_vec, (0.0, 0.0, 1.0))
+        direction = velocity - forward * velocity.dot(forward)
+        direction = safe_normalized(direction, (1.0, 0.0, 0.0))
+        side = safe_normalized(direction.cross(forward), (0.0, 0.0, 1.0))
+        half_len = max(0.001, float(length)) * 0.5
+        half_width = max(0.001, float(width)) * 0.5
+        base = len(verts)
+        start = center_vec - direction * half_len
+        end = center_vec + direction * half_len
+        verts.extend([
+            tuple(start - side * half_width),
+            tuple(start + side * half_width),
+            tuple(end + side * half_width),
+            tuple(end - side * half_width),
+        ])
+        faces.append((base, base + 1, base + 2, base + 3))
+    mesh = bpy.data.meshes.new(name + " Mesh")
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj["lsfs_frame_asset"] = True
+    obj.data.materials.append(material)
+    return obj
 
 
 def add_billboard_cloud_mesh(name, particles, materials, frame, segments=10, falloff=None):
@@ -1272,12 +1386,19 @@ def main():
                                          alpha=floor["alpha"],
                                          transmission=floor["transmission"])
     soft_pass = secondary_soft_pass_values(spec)
+    streak_pass = secondary_streak_pass_values(spec)
     spray_soft = scaled_particle_values(spray,
                                         spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
                                         spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
     foam_soft = scaled_particle_values(foam,
                                        spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
                                        spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
+    spray_streak = scaled_particle_values(spray,
+                                          spec.get("secondary_streak_pass", {}).get("alpha_scale", 0.22),
+                                          spec.get("secondary_streak_pass", {}).get("emission_scale", 0.9))
+    foam_streak = scaled_particle_values(foam,
+                                         spec.get("secondary_streak_pass", {}).get("alpha_scale", 0.22),
+                                         spec.get("secondary_streak_pass", {}).get("emission_scale", 0.9))
     particle_mats = {
         "droplet": make_principled_material("LSFS Droplet", droplet["color"], droplet["roughness"], droplet["alpha"], droplet["transmission"], droplet["emission_color"], droplet["emission_strength"]),
         "spray": make_principled_material("LSFS Spray", spray["color"], spray["roughness"], spray["alpha"], spray["transmission"], spray["emission_color"], spray["emission_strength"]),
@@ -1287,6 +1408,8 @@ def main():
         "foam_soft": make_principled_material("LSFS Foam Soft", foam_soft["color"], foam_soft["roughness"], foam_soft["alpha"], foam_soft["transmission"], foam_soft["emission_color"], foam_soft["emission_strength"]),
         "spray_soft_falloff": make_particle_falloff_materials("LSFS Spray Mist Falloff", spray_soft, soft_pass.get("falloff", [1.0])),
         "foam_soft_falloff": make_particle_falloff_materials("LSFS Foam Soft Falloff", foam_soft, soft_pass.get("falloff", [1.0])),
+        "spray_streak": make_principled_material("LSFS Spray Streak", spray_streak["color"], spray_streak["roughness"], spray_streak["alpha"], spray_streak["transmission"], spray_streak["emission_color"], spray_streak["emission_strength"]),
+        "foam_streak": make_principled_material("LSFS Foam Streak", foam_streak["color"], foam_streak["roughness"], foam_streak["alpha"], foam_streak["transmission"], foam_streak["emission_color"], foam_streak["emission_strength"]),
     }
     if soft_pass.get("material_falloff") == "radial_shader":
         particle_mats["spray_soft_falloff"] = [make_radial_soft_material("LSFS Spray Mist Radial", spray_soft)]
@@ -1303,6 +1426,12 @@ def main():
                                 int(spec.get("max_secondary_particles", 512)),
                                 float(spec.get("secondary_radius_scale", 1.0)),
                                 channel_scales)
+        add_secondary_streak_pass(frame,
+                                  particle_mats,
+                                  int(spec.get("max_secondary_particles", 512)),
+                                  float(spec.get("secondary_radius_scale", 1.0)),
+                                  channel_scales,
+                                  streak_pass)
         add_secondary_soft_pass(frame,
                                 particle_mats,
                                 int(spec.get("max_secondary_particles", 512)),
@@ -1514,6 +1643,7 @@ def main(argv=None):
             "secondary_radius_scale": spec["secondary_radius_scale"],
             "secondary_channel_radius_scales": spec["secondary_channel_radius_scales"],
             "secondary_soft_pass": spec["secondary_soft_pass"],
+            "secondary_streak_pass": spec["secondary_streak_pass"],
             "camera_motion": spec["camera_motion"],
             "camera_framing": spec["camera_framing"],
             "camera_path_metrics": spec["camera_path_metrics"],

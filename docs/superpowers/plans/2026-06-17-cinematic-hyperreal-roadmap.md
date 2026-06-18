@@ -117,6 +117,7 @@ The missing work is not one feature. It is a pipeline:
 | S69 | Secondary mist alpha falloff | Add concentric radial alpha falloff materials for billboard mist disks while preserving render cost and QA | Done in `feat: add secondary mist alpha falloff` |
 | S70 | Secondary mist falloff tuning | Tune outer alpha, radius, and inner emission for cleaner mist billboard edges while preserving QA | Done in `style: tune secondary mist falloff` |
 | S71 | Secondary mist texture falloff | Add UV-driven radial shader alpha falloff for mist billboards while preserving QA and render cost | Done in `feat: add secondary mist texture falloff` |
+| S72 | Secondary velocity streak pass | Add velocity-aligned spray/foam streak quads from secondary particle velocities for stronger motion readability | Done in `feat: add secondary velocity streak pass` |
 
 ## Decision Gates
 
@@ -454,16 +455,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S72.
+Continue with S73.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-velocity-streaks.md`
+`docs/superpowers/plans/2026-06-18-secondary-streak-tuning.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s72_secondary_velocity_streaks --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s72.md --compare-review-manifest build\shots\s62_secondary_size_pass\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_contact_closeup --out build\shots\s73_secondary_streak_tuning --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s73.md --compare-review-manifest build\shots\s72_secondary_velocity_streaks\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a stronger visual change: render secondary spray/foam with velocity-aligned streak or smear geometry so contact particles read as moving spray instead of circular sprites.
+The next success condition is stronger streak readability without turning the contact region into noisy white scratches: tune streak length, width, alpha, and emission against the S72 review sheet.

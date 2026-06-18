@@ -176,6 +176,19 @@
           "geometry": "billboard_disks",
           "falloff": [1.0, 0.32, 0.08, 0.0],
           "material_falloff": "radial_shader"
+        },
+        "secondary_streak_pass": {
+          "enabled": true,
+          "channels": {
+            "spray": 1.0,
+            "foam": 0.35
+          },
+          "length_scale": 0.045,
+          "max_length": 1.15,
+          "width_scale": 0.42,
+          "alpha_scale": 0.18,
+          "emission_scale": 0.95,
+          "min_speed": 0.35
         }
       },
       "reconstruction": {
@@ -363,6 +376,19 @@
           "geometry": "billboard_disks",
           "falloff": [1.0, 0.32, 0.08, 0.0],
           "material_falloff": "radial_shader"
+        },
+        "secondary_streak_pass": {
+          "enabled": true,
+          "channels": {
+            "spray": 1.0,
+            "foam": 0.35
+          },
+          "length_scale": 0.045,
+          "max_length": 1.15,
+          "width_scale": 0.42,
+          "alpha_scale": 0.18,
+          "emission_scale": 0.95,
+          "min_speed": 0.35
         }
       },
       "reconstruction": {
