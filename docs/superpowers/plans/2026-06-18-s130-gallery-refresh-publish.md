@@ -25,6 +25,17 @@ python tools\publish_cinematic_gallery.py build\shots\s130_environment_depth_con
 - Publisher verifies local/public `index.html` and `assets/shot.gif`.
 - README and roadmap point to the next visual triage or shot-shape adjustment.
 
+## Result
+
+- Artifact package: `docs/reports/cinematic_artifact_package_s131.md`
+- Static gallery report: `docs/reports/cinematic_static_gallery_s131.md`
+- Publish report: `docs/reports/cinematic_gallery_publish_s131.md`
+- Local URL: `http://127.0.0.1:8798`
+- Public URL: `https://italiano-anaheim-empty-colored.trycloudflare.com`
+- HTTP server PID: `84964`
+- cloudflared PID: `119744`
+- Verified local/public `index.html` and `assets/shot.gif`.
+
 ## Verification
 
 ```powershell

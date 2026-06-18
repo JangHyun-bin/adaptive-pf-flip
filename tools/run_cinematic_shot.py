@@ -2250,7 +2250,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S131 should package and publish the latest review artifacts for external inspection before the next visible shot-shape adjustment.",
+        "S132 should review the latest public gallery and choose the next concrete visible shot-shape adjustment from current evidence.",
         "",
     ])
     return "\n".join(lines)

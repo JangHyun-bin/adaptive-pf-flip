@@ -233,7 +233,7 @@ def markdown(summary, summary_path, shot_dir, rows, out_path, root):
         "",
         "## Next",
         "",
-        "S131 should build and publish a static gallery from this artifact package for external inspection.",
+        "S132 should review the latest public gallery and choose the next concrete visible shot-shape adjustment from current evidence.",
         "",
     ])
     return "\n".join(lines)

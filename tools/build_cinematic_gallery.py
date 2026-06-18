@@ -418,7 +418,7 @@ def markdown_report(summary, shot_dir, out_dir, index_path, manifest_path, rows,
         "",
         "## Next",
         "",
-        "S131 should publish the latest static gallery and verify local/public HTML and GIF access.",
+        "S132 should review the latest public gallery and choose the next concrete visible shot-shape adjustment from current evidence.",
         "",
     ])
     return "\n".join(lines)

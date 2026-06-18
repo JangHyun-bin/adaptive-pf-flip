@@ -176,7 +176,8 @@ The missing work is not one feature. It is a pipeline:
 | S128 | S127 gallery refresh/publish | Package and publish the S127 review artifacts so the current non-boxed scene can be inspected externally | Done in `docs: publish s127 cinematic gallery` |
 | S129 | Public gallery visual triage | Review the S127 public gallery and choose the next concrete scene/render improvement from visible evidence | Done in `docs: triage s127 public gallery` |
 | S130 | Environment/depth-context pass | Reduce visible side-wall/enclosure bands and add stronger large-scale depth context around the non-boxed falling-water scene | Done in `style: add environment depth context preset` |
-| S131 | S130 gallery refresh/publish | Package and publish the S130 review artifacts for external inspection before the next shot-shape adjustment | Planned |
+| S131 | S130 gallery refresh/publish | Package and publish the S130 review artifacts for external inspection before the next shot-shape adjustment | Done in `docs: publish s130 cinematic gallery` |
+| S132 | S130 public gallery visual triage | Review the S130 public gallery and choose the next concrete visible shot-shape adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -514,18 +515,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S131.
+Continue with S132.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s130-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s130-public-gallery-visual-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s130_environment_depth_context --out docs\reports\cinematic_artifact_package_s131.md
-python tools\build_cinematic_gallery.py build\shots\s130_environment_depth_context --package docs\reports\cinematic_artifact_package_s131.md --out build\shots\s130_environment_depth_context\gallery --report docs\reports\cinematic_static_gallery_s131.md
-python tools\publish_cinematic_gallery.py build\shots\s130_environment_depth_context\gallery --port 8798 --cftunnel --manifest build\shots\s130_environment_depth_context\gallery\publish_manifest_s131.json --report docs\reports\cinematic_gallery_publish_s131.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s130_environment_depth_context\gallery\gallery_manifest.json --publish build\shots\s130_environment_depth_context\gallery\publish_manifest_s131.json --out docs\reports\cinematic_visual_review_s132.md
 ```
 
-The next success condition is a checked-in S130 gallery package/publish report with verified local/public `index.html` and `assets/shot.gif`.
+The next success condition is a checked-in visual triage report that records the S130 public gallery state and selects the next concrete shot-shape adjustment.
