@@ -88,7 +88,7 @@ The missing work is not one feature. It is a pipeline:
 | S40 | Secondary spray/foam visual channels | Separate droplet/bubble/foam-like channels in cache and preview | Done in `feat: add secondary render channels` |
 | S41 | Surface/volume reconstruction path | Mesh or volume asset output for water body | Done in `feat: add water reconstruction export` |
 | S42 | External renderer bridge | Blender/USD/OpenVDB bridge selected by measured feasibility | Done in `feat: add external render bridge` |
-| S43 | Shot orchestration runner | Single command emits cache, validation, render frames, and movie | `feat: add cinematic shot pipeline` |
+| S43 | Shot orchestration runner | Single command emits cache, validation, render frames, and movie | Done in `feat: add cinematic shot pipeline` |
 | S44 | Hyperreal material and lighting pass | Camera, lights, tone mapping, water/spray material presets | `feat: add cinematic render presets` |
 | S45 | Large-scale cinematic gate | End-to-end large shot with CSV, manifest, preview, and render artifacts | `test: add large scale cinematic gate` |
 
@@ -428,11 +428,11 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S43.
+Continue with S44.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-17-cinematic-shot-pipeline.md`
+`docs/superpowers/plans/2026-06-18-cinematic-render-presets.md`
 
 The next command target should start from:
 
@@ -440,4 +440,4 @@ The next command target should start from:
 python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\shots\bubble_cinematic --frames 24 --width 1280 --height 720
 ```
 
-The next success condition is a single orchestrated command that emits cache frames, validates them, converts them, reconstructs water meshes, renders preview or Blender frames, and writes a shot summary with artifact paths.
+The next success condition is a named render-preset schema for camera, material, lighting, tone mapping, renderer choice, and shot dimensions, consumed by the S43 shot runner.
