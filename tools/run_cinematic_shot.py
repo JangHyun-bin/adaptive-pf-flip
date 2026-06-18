@@ -1890,7 +1890,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S97 should use the secondary depth diagnostic to tune a stronger volume-depth material/readability pass without breaking visual, temporal, or depth-review gates.",
+        "S98 should add a secondary depth comparison sheet so contact-volume diagnostic changes can be reviewed side by side across nearby gates.",
         "",
     ])
     return "\n".join(lines)

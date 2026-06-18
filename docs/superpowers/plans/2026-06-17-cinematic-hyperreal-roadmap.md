@@ -142,6 +142,7 @@ The missing work is not one feature. It is a pipeline:
 | S94 | Water surface breakup/noise tuning | Increase water surface detail strength/depth for stronger contact-region breakup while preserving diagnostic and temporal gates | Done in `style: tune water surface breakup noise` |
 | S95 | Spray/foam depth layering | Reduce spray/foam radius, soft-pass brightness, and foam streak intensity so secondaries sit more naturally in the contact volume | Done in `style: tune spray foam depth layering` |
 | S96 | Secondary depth review metric | Add projected spray/foam contact-volume diagnostic sheet and gate for crop count, depth span, and normalized depth span | Done in `test: add secondary depth review metric` |
+| S97 | Secondary volume-depth material tuning | Lower spray/foam emission and streak brightness while preserving secondary depth, visual, temporal, and ripple gates | Done in `style: tune secondary volume depth material` |
 
 ## Decision Gates
 
@@ -479,16 +480,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S97.
+Continue with S98.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-volume-depth-material-tuning.md`
+`docs/superpowers/plans/2026-06-18-secondary-depth-comparison-sheet.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_secondary_depth_reviewed --out build\shots\s97_secondary_volume_depth_material_tuning --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s97.md --compare-review-manifest build\shots\s96_secondary_depth_review_metric\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_secondary_volume_depth_tuned --out build\shots\s98_secondary_depth_comparison_sheet --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s98.md --compare-review-manifest build\shots\s97_secondary_volume_depth_material_tuning\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is using the new secondary depth diagnostic to tune a stronger volume-depth material/readability pass without breaking visual, temporal, or depth-review gates.
+The next success condition is a secondary depth comparison sheet so contact-volume diagnostic changes can be reviewed side by side across S96/S97/S98.
