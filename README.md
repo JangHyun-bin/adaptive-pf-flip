@@ -226,6 +226,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S137** | **S136 gallery refresh/publish** - packages and publishes the S136 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://mighty-eligibility-described-tops.trycloudflare.com`. | done |
 | **S138** | **S136 public gallery visual triage** - reviews the S136 public gallery and selects S139 low-angle impact close-up framing as the next visible composition pass. | done |
 | **S139** | **Low-angle impact close-up framing** - `dam_break_low_angle_impact_closeup` disables auto-frame, moves closer/lower to the contact band, and preserves S136 comparison/review gates. | done |
+| **S140** | **S139 gallery refresh/publish** - packages and publishes the S139 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://dual-pot-bat-proc.trycloudflare.com`. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

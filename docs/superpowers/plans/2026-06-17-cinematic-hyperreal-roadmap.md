@@ -185,7 +185,8 @@ The missing work is not one feature. It is a pipeline:
 | S137 | S136 gallery refresh/publish | Package and publish the S136 review artifacts for external inspection before the next visual triage | Done in `docs: publish s136 cinematic gallery` |
 | S138 | S136 public gallery visual triage | Review the S136 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s136 public gallery` |
 | S139 | Low-angle impact close-up framing | Move the camera lower and closer to the contact band so the upper source is mostly cropped while spray/ripple readability remains gated | Done in `style: add low angle impact closeup framing` |
-| S140 | S139 gallery refresh/publish | Package and publish the S139 review artifacts for external inspection before the next visual triage | Planned |
+| S140 | S139 gallery refresh/publish | Package and publish the S139 review artifacts for external inspection before the next visual triage | Done in `docs: publish s139 cinematic gallery` |
+| S141 | S139 public gallery visual triage | Review the S139 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -523,18 +524,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S140.
+Continue with S141.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s139-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s139-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s139_low_angle_impact_closeup --out docs\reports\cinematic_artifact_package_s140.md
-python tools\build_cinematic_gallery.py build\shots\s139_low_angle_impact_closeup --package docs\reports\cinematic_artifact_package_s140.md --out build\shots\s139_low_angle_impact_closeup\gallery --report docs\reports\cinematic_static_gallery_s140.md
-python tools\publish_cinematic_gallery.py build\shots\s139_low_angle_impact_closeup\gallery --port 8801 --cftunnel --manifest build\shots\s139_low_angle_impact_closeup\gallery\publish_manifest_s140.json --report docs\reports\cinematic_gallery_publish_s140.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s139_low_angle_impact_closeup\gallery\gallery_manifest.json --publish build\shots\s139_low_angle_impact_closeup\gallery\publish_manifest_s140.json --out docs\reports\cinematic_visual_review_s141.md --decision "Select the next visible shot adjustment from the S139 public gallery evidence." --next "S142 should implement the selected visual adjustment with a checked-in preset or scene change plus a 36-frame Blender comparison gate."
 ```
 
-The next success condition is a checked-in S140 package/gallery/publish report with local and public `index.html` plus `assets/shot.gif` verification.
+The next success condition is a checked-in S141 visual triage report that records public gallery checks, numeric gates, visual findings, and the next concrete shot adjustment.
