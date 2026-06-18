@@ -290,6 +290,111 @@ def write_export_cache_stamp(path, fingerprint, manifest_path, export_metrics):
     })
 
 
+def add_fingerprint_file(entries, seen, role, path, **extra):
+    if not path or not os.path.isfile(path):
+        return
+    abs_path = os.path.abspath(path)
+    if abs_path in seen:
+        return
+    seen.add(abs_path)
+    entries.append(file_fingerprint(role, abs_path, **extra))
+
+
+def water_reconstruction_asset_paths(water_index):
+    paths = []
+    if not water_index or not os.path.isfile(water_index):
+        return paths
+    paths.append(os.path.abspath(water_index))
+    try:
+        water = read_json(water_index)
+    except (OSError, json.JSONDecodeError):
+        return paths
+    base_dir = os.path.dirname(os.path.abspath(water_index))
+    for frame in water.get("frames", []):
+        if not isinstance(frame, dict):
+            continue
+        mesh = frame.get("mesh")
+        if isinstance(mesh, str) and mesh:
+            paths.append(mesh if os.path.isabs(mesh) else os.path.join(base_dir, mesh))
+    return paths
+
+
+def sequence_asset_paths(sequence_path):
+    paths = []
+    if not sequence_path or not os.path.isfile(sequence_path):
+        return paths
+    paths.append(os.path.abspath(sequence_path))
+    try:
+        sequence = read_json(sequence_path)
+    except (OSError, json.JSONDecodeError):
+        return paths
+    base_dir = os.path.dirname(os.path.abspath(sequence_path))
+    for frame in sequence.get("frames", []):
+        if not isinstance(frame, dict):
+            continue
+        for key in ("camera", "particles", "phase_cells", "water_mesh"):
+            value = frame.get(key)
+            if isinstance(value, str) and value:
+                paths.append(value if os.path.isabs(value) else os.path.join(base_dir, value))
+    water = sequence.get("water_reconstruction")
+    if isinstance(water, dict):
+        value = water.get("path")
+        if isinstance(value, str) and value:
+            paths.extend(water_reconstruction_asset_paths(value if os.path.isabs(value) else os.path.join(base_dir, value)))
+    return paths
+
+
+def render_fingerprint(command, tool_paths, input_paths):
+    entries = []
+    seen = set()
+    for path in tool_paths:
+        add_fingerprint_file(entries, seen, "renderer_tool", path)
+    for index, path in enumerate(input_paths):
+        add_fingerprint_file(entries, seen, "render_input", path, index=index)
+    return {
+        "version": 1,
+        "command": command_for_summary(command),
+        "files": entries,
+    }
+
+
+def render_outputs_exist(frame_dir, render_summary_path, frame_count):
+    if not os.path.isdir(frame_dir) or not os.path.isfile(render_summary_path):
+        return False
+    for index in range(frame_count):
+        if not os.path.isfile(os.path.join(frame_dir, f"frame_{index:04d}.png")):
+            return False
+    return True
+
+
+def load_reusable_render(stamp_path, expected_fingerprint, frame_dir, render_summary_path, frame_count):
+    if not os.path.isfile(stamp_path):
+        return None
+    try:
+        stamp = read_json(stamp_path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if stamp.get("status") != "ok":
+        return None
+    if stamp.get("render_fingerprint") != expected_fingerprint:
+        return None
+    if not render_outputs_exist(frame_dir, render_summary_path, frame_count):
+        return None
+    return stamp
+
+
+def write_render_stamp(path, fingerprint, frame_dir, render_summary_path, frame_count):
+    write_json(path, {
+        "runner": "lsfs_cinematic_render_stamp",
+        "version": 1,
+        "status": "ok",
+        "frame_dir": frame_dir,
+        "render_summary": render_summary_path,
+        "frame_count": frame_count,
+        "render_fingerprint": fingerprint,
+    })
+
+
 def format_secondary_interface_gate(metrics):
     if not isinstance(metrics, dict) or "secondary_spray_interface_gate" not in metrics:
         return "n/a"
@@ -2022,6 +2127,7 @@ def render_report(summary, root):
         f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
         f"- Water mesh frames: `{metrics.get('water_mesh_frame_count', 'n/a')}`",
         f"- Water reconstruction reused: `{metrics.get('water_reconstruction_reused', 'n/a')}`",
+        f"- Render frames reused: `{metrics.get('render_frames_reused', 'n/a')}`",
         f"- Surface mode: `{metrics.get('surface_mode', 'n/a')}`",
         f"- Implicit blur iterations: `{metrics.get('implicit_blur_iterations', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
@@ -2105,7 +2211,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S114 should add a conservative render-frame freshness check that can skip preview/Blender rendering when the sequence, renderer options, and existing frame outputs are unchanged.",
+        "S115 should measure the full warm-cache path on a larger-grid preview run before returning to Blender render quality work.",
         "",
     ])
     return "\n".join(lines)
@@ -2260,6 +2366,8 @@ def parse_args(argv):
                         help="reuse a validation stamp when manifest and cache frame contents are unchanged")
     parser.add_argument("--reuse-water-mesh", action="store_true",
                         help="let reconstruct_water.py reuse water meshes when inputs and options are unchanged")
+    parser.add_argument("--reuse-render-frames", action="store_true",
+                        help="reuse rendered PNG frames when renderer inputs and options are unchanged")
     args = parser.parse_args(argv)
     if args.dt is not None and (args.dt <= 0.0 or not math.isfinite(args.dt)):
         parser.error("dt must be finite and positive")
@@ -2652,6 +2760,8 @@ def run_pipeline(args):
 
         if selected_renderer == "blender":
             render_dir = blender_dir
+            frame_dir = os.path.join(render_dir, "frames")
+            render_summary_path = os.path.join(render_dir, "bridge_summary.json")
             command = [
                 sys.executable,
                 tool_path(root, "render_bridge_blender.py"),
@@ -2670,12 +2780,32 @@ def run_pipeline(args):
             ]
             if args.blender:
                 command.extend(["--blender", args.blender])
-            pipeline.run("render_blender", command)
-            frame_dir = os.path.join(render_dir, "frames")
-            summary["artifacts"]["render_summary"] = os.path.join(render_dir, "bridge_summary.json")
+            render_stamp = os.path.join(render_dir, "render_stamp.json")
+            input_paths = sequence_asset_paths(sequence_path)
+            if preset_config_path:
+                input_paths.append(preset_config_path)
+            if args.blender:
+                input_paths.append(args.blender)
+            fingerprint = render_fingerprint(command, [tool_path(root, "render_bridge_blender.py")], input_paths)
+            stamp = (
+                load_reusable_render(render_stamp, fingerprint, frame_dir, render_summary_path, config["frames"])
+                if args.reuse_render_frames else None
+            )
+            if stamp:
+                pipeline.record(
+                    "render_blender",
+                    command,
+                    stdout=key_value_stdout({"frames": config["frames"], "reused": True}, "reused"))
+                summary["render_metrics"] = {"reused": True}
+            else:
+                pipeline.run("render_blender", command)
+                summary["render_metrics"] = {"reused": False}
+            summary["artifacts"]["render_summary"] = render_summary_path
         else:
             render_dir = preview_dir
-            pipeline.run("render_preview", [
+            frame_dir = render_dir
+            render_summary_path = os.path.join(render_dir, "render_summary.json")
+            command = [
                 sys.executable,
                 tool_path(root, "cinematic_render_stub.py"),
                 manifest_path,
@@ -2685,10 +2815,28 @@ def run_pipeline(args):
                 "--height", str(config["height"]),
                 "--min-occupancy", str(config["min_occupancy"]),
                 "--water-reconstruction", water_index,
-            ])
-            frame_dir = render_dir
-            summary["artifacts"]["render_summary"] = os.path.join(render_dir, "render_summary.json")
+            ]
+            render_stamp = os.path.join(render_dir, "render_stamp.json")
+            input_paths = [manifest_path] + water_reconstruction_asset_paths(water_index)
+            fingerprint = render_fingerprint(command, [tool_path(root, "cinematic_render_stub.py")], input_paths)
+            stamp = (
+                load_reusable_render(render_stamp, fingerprint, frame_dir, render_summary_path, config["frames"])
+                if args.reuse_render_frames else None
+            )
+            if stamp:
+                pipeline.record(
+                    "render_preview",
+                    command,
+                    stdout=key_value_stdout({"frames": config["frames"], "reused": True}, "reused"))
+                summary["render_metrics"] = {"reused": True}
+            else:
+                pipeline.run("render_preview", command)
+                summary["render_metrics"] = {"reused": False}
+            summary["artifacts"]["render_summary"] = render_summary_path
         require_dir(frame_dir, "render frame directory")
+        require_file(render_summary_path, "render summary")
+        if not summary.get("render_metrics", {}).get("reused", False):
+            write_render_stamp(render_stamp, fingerprint, frame_dir, render_summary_path, config["frames"])
         summary["artifacts"]["render_frame_dir"] = frame_dir
 
         pipeline.run("assemble_gif", [
@@ -2712,6 +2860,7 @@ def run_pipeline(args):
             "converted_frame_count": sequence.get("frame_count"),
             "water_mesh_frame_count": water.get("frame_count"),
             "water_reconstruction_reused": bool(summary.get("reconstruction_metrics", {}).get("reused", False)),
+            "render_frames_reused": bool(summary.get("render_metrics", {}).get("reused", False)),
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),

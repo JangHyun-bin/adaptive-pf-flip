@@ -159,6 +159,7 @@ The missing work is not one feature. It is a pipeline:
 | S111 | Water reconstruction reuse | Add opt-in SHA256 water reconstruction reuse and expose water mesh reuse status in shot reports | Done in `perf: reuse fresh water reconstruction` |
 | S112 | Export cache reuse | Add opt-in exporter-command cache reuse and preserve export metrics for downstream gates | Done in `perf: reuse fresh export cache` |
 | S113 | Warm-cache stage summary | Summarize shot command timings and reuse flags from `shot_summary.json` | Done in `tools: summarize warm cache commands` |
+| S114 | Render frame reuse | Add opt-in render-frame reuse for preview/Blender outputs and expose render reuse status in shot reports | Done in `perf: reuse fresh render frames` |
 
 ## Decision Gates
 
@@ -496,16 +497,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S114.
+Continue with S115.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-render-frame-reuse.md`
+`docs/superpowers/plans/2026-06-18-large-grid-warm-cache-preview-benchmark.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset bubble_cinematic --out build\s114_render_reuse_probe --frames 2 --sim-steps 2 --width 320 --height 180 --renderer preview --review-frames 2 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 120
+python tools\run_cinematic_shot.py --preset dam_break_large_grid_render_quality_followup --out build\shots\s115_large_grid_warm_cache_preview --frames 8 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 900
 ```
 
-The next success condition is a conservative render-frame freshness check that can skip preview/Blender rendering when the sequence, renderer options, and existing frame outputs are unchanged.
+The next success condition is measuring the full warm-cache path on a larger-grid preview run before returning to Blender render quality work.

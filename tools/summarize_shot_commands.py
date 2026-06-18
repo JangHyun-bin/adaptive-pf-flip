@@ -65,6 +65,7 @@ def markdown(summary, summary_path, root):
         f"- Validation reused: `{metrics.get('validation_reused', 'n/a')}`",
         f"- Water reconstruction reused: `{metrics.get('water_reconstruction_reused', 'n/a')}`",
         f"- Converted sequence reused: `{metrics.get('converted_sequence_reused', 'n/a')}`",
+        f"- Render frames reused: `{metrics.get('render_frames_reused', 'n/a')}`",
         "",
         "## Command Timings",
         "",
@@ -94,7 +95,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S114 should target render-frame reuse because export, validation, reconstruction, and conversion now have opt-in warm-cache paths.",
+        "S115 should run a warm-cache larger-grid preview benchmark to measure the full reuse path before returning to render quality.",
         "",
     ])
     return "\n".join(lines)
