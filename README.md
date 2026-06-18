@@ -207,6 +207,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S118** | **Blender quality warm-cache return** - `dam_break_large_grid_render_quality_followup` passes the full 36-frame Blender quality gate with all warm-cache reuse flags enabled. | done |
 | **S119** | **Blender quality baseline comparison** - `s119_blender_quality_baseline_comparison` compares the current warm-cache Blender quality output against S106 with contact/focus/secondary-depth/ripple comparison sheets. | done |
 | **S120** | **Cinematic artifact inspection package** - `tools/package_cinematic_artifacts.py` validates and links the S119 GIF, contact sheet, and baseline comparison sheets in `cinematic_artifact_package_s120.md`. | done |
+| **S121** | **Cinematic static gallery** - `tools/build_cinematic_gallery.py` copies the S119 review assets into a self-contained `gallery/` with `index.html`, `gallery_manifest.json`, and `cinematic_static_gallery_s121.md`. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

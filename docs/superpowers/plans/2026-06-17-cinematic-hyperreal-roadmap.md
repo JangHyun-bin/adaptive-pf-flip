@@ -166,6 +166,7 @@ The missing work is not one feature. It is a pipeline:
 | S118 | Blender quality warm-cache return | Re-run the large-grid Blender quality gate with full warm-cache controls enabled | Done in `test: return to blender quality warm cache` |
 | S119 | Blender quality baseline comparison | Compare the current warm-cache Blender quality output against the S106 large-grid baseline | Done in `test: compare blender quality baseline` |
 | S120 | Cinematic artifact inspection package | Validate and link the current GIF, contact sheet, and comparison sheets for quick visual inspection | Done in `tools: package cinematic artifacts` |
+| S121 | Cinematic static gallery | Copy the current review assets into a self-contained browser gallery with manifest and report | Done in `tools: build cinematic gallery` |
 
 ## Decision Gates
 
@@ -503,16 +504,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S121.
+Continue with S122.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-cinematic-static-gallery.md`
+`docs/superpowers/plans/2026-06-18-cinematic-gallery-cftunnel.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\build_cinematic_gallery.py build\shots\s119_blender_quality_baseline_comparison --package docs\reports\cinematic_artifact_package_s120.md --out build\shots\s119_blender_quality_baseline_comparison\gallery
+python tools\publish_cinematic_gallery.py build\shots\s119_blender_quality_baseline_comparison\gallery --port 8899 --cftunnel
 ```
 
-The next success condition is a browser-ready static gallery that exposes the GIF, contact sheet, comparison sheets, and key metrics for local review or cftunnel sharing.
+The next success condition is a short-lived public tunnel URL that serves the gallery HTML and verifies copied assets with HTTP 200 responses.

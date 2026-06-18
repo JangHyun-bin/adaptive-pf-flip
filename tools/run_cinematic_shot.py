@@ -2247,7 +2247,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S121 should turn the current artifact package into a browser-ready static gallery for review or cftunnel sharing.",
+        "S122 should expose the current static gallery through a short-lived cftunnel and verify the copied assets over HTTP.",
         "",
     ])
     return "\n".join(lines)
