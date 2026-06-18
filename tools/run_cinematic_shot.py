@@ -1824,6 +1824,8 @@ def evaluate_camera_stability(config, camera_path):
     gate = config.get("camera_stability")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
         return {"enabled": False}
+    if not isinstance(camera_path, dict) or not camera_path.get("frame_count"):
+        return {"enabled": False, "reason": "camera_path_unavailable"}
     checks = []
     thresholds = {
         "min_position_y": (camera_path.get("min_position_y"), gate.get("min_position_y"), ">="),
@@ -1865,6 +1867,8 @@ def evaluate_visual_qa(config, visual_qa):
     gate = config.get("visual_qa")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
         return {"enabled": False}
+    if not isinstance(visual_qa, dict) or not visual_qa.get("frame_count"):
+        return {"enabled": False, "reason": "visual_qa_unavailable"}
     checks = []
     thresholds = {
         "min_nonblank_ratio": (("nonblank_ratio", "min"), gate.get("min_nonblank_ratio"), ">="),
@@ -1935,6 +1939,8 @@ def evaluate_secondary_framing_qa(config, framing):
     gate = config.get("secondary_framing_qa")
     if not isinstance(gate, dict) or not gate.get("enabled", False):
         return {"enabled": False}
+    if not isinstance(framing, dict) or not framing.get("frame_count"):
+        return {"enabled": False, "reason": "secondary_framing_unavailable"}
     checks = []
     thresholds = {
         "min_mean_inside_ratio": (("mean_inside_ratio",), gate.get("min_mean_inside_ratio"), ">="),
@@ -2211,7 +2217,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S115 should measure the full warm-cache path on a larger-grid preview run before returning to Blender render quality work.",
+        "S116 should reduce large-grid warm-cache fingerprint overhead, especially water reconstruction asset hashing, without weakening freshness guarantees.",
         "",
     ])
     return "\n".join(lines)

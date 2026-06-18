@@ -160,6 +160,7 @@ The missing work is not one feature. It is a pipeline:
 | S112 | Export cache reuse | Add opt-in exporter-command cache reuse and preserve export metrics for downstream gates | Done in `perf: reuse fresh export cache` |
 | S113 | Warm-cache stage summary | Summarize shot command timings and reuse flags from `shot_summary.json` | Done in `tools: summarize warm cache commands` |
 | S114 | Render frame reuse | Add opt-in render-frame reuse for preview/Blender outputs and expose render reuse status in shot reports | Done in `perf: reuse fresh render frames` |
+| S115 | Large-grid warm-cache preview benchmark | Measure the full opt-in warm-cache path on a larger-grid preview run | Done in `test: benchmark large grid warm cache preview` |
 
 ## Decision Gates
 
@@ -497,16 +498,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S115.
+Continue with S116.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-large-grid-warm-cache-preview-benchmark.md`
+`docs/superpowers/plans/2026-06-18-warm-cache-fingerprint-cost-reduction.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_large_grid_render_quality_followup --out build\shots\s115_large_grid_warm_cache_preview --frames 8 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 900
+python tools\run_cinematic_shot.py --preset dam_break_large_grid_warm_cache_preview --out build\shots\s116_fingerprint_cost_probe --frames 36 --sim-steps 8 --width 640 --height 360 --renderer preview --review-frames 4 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted --reuse-render-frames --no-build --timeout-seconds 900
 ```
 
-The next success condition is measuring the full warm-cache path on a larger-grid preview run before returning to Blender render quality work.
+The next success condition is reducing the large-grid warm-cache water reconstruction reuse check, currently `11.92s`, without weakening freshness guarantees.

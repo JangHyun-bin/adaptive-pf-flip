@@ -1209,6 +1209,25 @@
           "max_vertical_fov_degrees": 50.0
         }
       }
+    },
+    "dam_break_large_grid_warm_cache_preview": {
+      "extends": "dam_break_large_grid_render_quality_followup",
+      "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",
+      "renderer": {
+        "preferred": "preview",
+        "temporal_highlight_qa": {
+          "min_mean_delta": 0.2
+        },
+        "focus_review": {
+          "enabled": false
+        },
+        "secondary_depth_review": {
+          "enabled": false
+        },
+        "ripple_readability_review": {
+          "enabled": false
+        }
+      }
     }
   }
 }

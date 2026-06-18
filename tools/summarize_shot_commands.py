@@ -95,7 +95,7 @@ def markdown(summary, summary_path, root):
         "",
         "## Next",
         "",
-        "S115 should run a warm-cache larger-grid preview benchmark to measure the full reuse path before returning to render quality.",
+        "S116 should reduce warm-cache fingerprint overhead, especially water reconstruction asset hashing on larger grids.",
         "",
     ])
     return "\n".join(lines)
