@@ -870,6 +870,38 @@
           "max_vertical_fov_degrees": 42.0
         }
       }
+    },
+    "dam_break_ripple_placement_focus_tuned": {
+      "extends": "dam_break_contact_focus_camera_tuned",
+      "description": "Contact-focused camera with wider, slightly stronger impact ripple placement.",
+      "renderer": {
+        "water_impact_ripple_pass": {
+          "channels": {
+            "foam": 1.0,
+            "spray": 0.22
+          },
+          "arc_fraction": 0.58,
+          "radius": 0.5,
+          "radius_step": 0.3,
+          "width": 0.052,
+          "alpha_scale": 0.45,
+          "emission_scale": 0.84
+        },
+        "focus_review": {
+          "min_contrast": 42.0,
+          "min_mean_bright_ratio": 0.00018
+        },
+        "temporal_highlight_qa": {
+          "max_mean_delta": 16.0,
+          "max_highlight_change_ratio": 0.007
+        }
+      },
+      "materials": {
+        "water_ripple": {
+          "emission_strength": 0.42,
+          "roughness": 0.07
+        }
+      }
     }
   }
 }

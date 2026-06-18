@@ -1242,7 +1242,7 @@ def render_report(summary, root):
         "",
         "## Next Recommended Milestone",
         "",
-        "S90 should tune impact ripple placement or strength using focus-comparison evidence.",
+        "S91 should add ripple/contact readability diagnostics so subtle focus-region changes are easier to inspect.",
         "",
     ])
     return "\n".join(lines)

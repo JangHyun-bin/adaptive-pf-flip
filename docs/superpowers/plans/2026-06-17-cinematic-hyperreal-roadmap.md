@@ -135,6 +135,7 @@ The missing work is not one feature. It is a pipeline:
 | S87 | Water impact ripple focus QA | Add a focused contact-region review sheet and gate for ripple readability | Done in `test: add water impact ripple focus qa` |
 | S88 | Water impact ripple focus comparison | Compare focus review sheets across nearby cinematic gates without replacing the full-frame contact sheet | Done in `test: add water impact ripple focus comparison` |
 | S89 | Contact focus camera tuning | Narrow the contact camera and focus crop while preserving visual, temporal, camera, and secondary framing gates | Done in `style: tune contact focus camera` |
+| S90 | Ripple placement focus tuning | Widen and slightly strengthen contact-region impact ripples while preserving all cinematic gates | Done in `style: tune ripple placement focus` |
 
 ## Decision Gates
 
@@ -472,16 +473,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S90.
+Continue with S91.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-ripple-placement-focus-tuning.md`
+`docs/superpowers/plans/2026-06-18-ripple-readability-diagnostics.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_focus_camera_tuned --out build\shots\s90_ripple_placement_focus_tuning --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s90.md --compare-review-manifest build\shots\s89_contact_focus_camera_tuning\review\review_manifest.json --timeout-seconds 1500
+python tools\run_cinematic_shot.py --preset dam_break_ripple_placement_focus_tuned --out build\shots\s91_ripple_readability_diagnostics --nx 28 --ny 34 --nz 22 --frames 36 --sim-steps 36 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --report docs\reports\cinematic_gate_s91.md --compare-review-manifest build\shots\s90_ripple_placement_focus_tuning\review\review_manifest.json --timeout-seconds 1500
 ```
 
-The next success condition is a ripple-placement tuning pass that improves focus-crop readability without over-brightening water highlights or hiding secondary spray/foam.
+The next success condition is a diagnostic review artifact that makes subtle ripple/contact readability changes easier to inspect than full-frame sheets alone.
