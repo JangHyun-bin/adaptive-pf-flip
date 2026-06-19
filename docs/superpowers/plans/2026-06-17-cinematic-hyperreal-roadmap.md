@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S187.
+Continue with S188.
 
 S183 is implemented and validated:
 
@@ -596,6 +596,15 @@ S186 is implemented and validated:
 - S186 shot artifacts:
   `build/shots/s186_water_surface_continuity_stabilized`
 
-S187 should publish the S186 gallery through the existing static gallery and
-Cloudflare quick tunnel workflow, then triage whether to accept S186 or rebound
-surface overlay strength slightly.
+S187 is published:
+
+- Public gallery:
+  `https://prizes-inventory-plaintiff-violations.trycloudflare.com`
+- S187 gallery report:
+  `docs/reports/cinematic_water_surface_continuity_gallery_s187.md`
+- S187 publish report: `docs/reports/cinematic_gallery_publish_s187.md`
+- S187 plan:
+  `docs/superpowers/plans/2026-06-19-s186-gallery-publish.md`
+
+S188 should triage the public S186 gallery and choose whether to accept the
+surface continuity pass or rebound overlay strength.
