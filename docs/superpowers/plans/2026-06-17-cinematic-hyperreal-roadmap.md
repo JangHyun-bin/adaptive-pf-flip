@@ -198,7 +198,8 @@ The missing work is not one feature. It is a pipeline:
 | S150 | S148 public gallery visual triage | Review the S148 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s148 public gallery` |
 | S151 | Source-edge cleanup framing pass | Crop or de-emphasize the upper source region over S148 while preserving close-up contact, water thickness, and review gates | Done in `style: add source edge cleanup framing` |
 | S152 | S151 gallery refresh/publish | Package and publish the S151 review artifacts for external inspection before the next visual triage | Done in `docs: publish s151 cinematic gallery` |
-| S153 | S151 public gallery visual triage | Review the S151 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S153 | S151 public gallery visual triage | Review the S151 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s151 public gallery` |
+| S154 | Secondary bead de-emphasis and mist integration | Reduce bead-like secondary particles over S151 while strengthening soft mist/streak integration for spray and foam | Planned |
 
 ## Decision Gates
 
@@ -536,16 +537,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S153.
+Continue with S154.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s151-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-secondary-bead-mist-integration.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s151_source_edge_cleanup_framing\gallery\gallery_manifest.json --publish build\shots\s151_source_edge_cleanup_framing\gallery\publish_manifest_s152.json --out docs\reports\cinematic_visual_review_s153.md --finding "S151 reduces early upper-source distraction with source frames 12-47 and tighter lower camera framing while preserving all review gates." --decision "Select the next visible adjustment from the S151 public gallery." --next "TBD by S153 triage."
+python tools\run_cinematic_shot.py --preset dam_break_secondary_mist_integrated --out build\shots\s154_secondary_mist_integration --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s151_source_edge_cleanup_framing\review\review_manifest.json --report docs\reports\cinematic_secondary_mist_integration_s154.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in S153 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
+The next success condition is a checked-in S154 Blender gate report that reduces bead-like secondary read while preserving S151 framing, water thickness, ripple, temporal, visual, and secondary-depth gates.

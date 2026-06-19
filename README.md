@@ -239,6 +239,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S150** | **S148 public gallery visual triage** - reviews the S148 public gallery and selects S151 source-edge cleanup framing as the next visible composition pass. | done |
 | **S151** | **Source-edge cleanup framing pass** - `dam_break_source_edge_cleanup_framing` uses source frames 12-47 plus a tighter lower camera to reduce early upper-source distraction while preserving S148 gates. | done |
 | **S152** | **S151 gallery refresh/publish** - packages and publishes the S151 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://canal-hint-carbon-face.trycloudflare.com`. | done |
+| **S153** | **S151 public gallery visual triage** - reviews the S151 public gallery and selects S154 secondary bead de-emphasis/mist integration as the next visible look-dev pass. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
