@@ -2757,6 +2757,38 @@
         }
       }
     },
+    "dam_break_highlight_material_response_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S236 material/specular response probe that keeps accepted overlay density but raises glint/reflection emission response.",
+      "materials": {
+        "water_glint": {
+          "base_color": [0.9, 0.98, 1.0, 1.0],
+          "emission_color": [0.86, 0.98, 1.0, 1.0],
+          "emission_strength": 0.7,
+          "roughness": 0.03,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "water_reflection": {
+          "base_color": [0.72, 0.92, 1.0, 1.0],
+          "emission_color": [0.66, 0.9, 1.0, 1.0],
+          "emission_strength": 0.58,
+          "roughness": 0.035,
+          "alpha": 1.0,
+          "transmission": 0.0
+        }
+      },
+      "renderer": {
+        "water_surface_glint_pass": {
+          "alpha_scale": 0.44,
+          "emission_scale": 0.92
+        },
+        "water_reflection_pass": {
+          "alpha_scale": 0.44,
+          "emission_scale": 0.9
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

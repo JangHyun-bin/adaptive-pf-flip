@@ -1382,3 +1382,24 @@ delta `+8.375` and `luma_p995` delta `+9.8125`, and S233 has `luma_p99` delta
 remain flat or slightly negative, so the next useful step is S236
 material/specular tuning or a water/glint contribution mask rather than more
 overlay-only strip density.
+
+S236 tested material/specular highlight response:
+
+- S236 comparison report:
+  `docs/reports/cinematic_highlight_material_response_probe_s236.md`
+- S236 gallery report:
+  `docs/reports/cinematic_highlight_material_response_gallery_s236.md`
+- S236 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-material-response-probe.md`
+- S236 gallery:
+  `build/shots/s236_highlight_material_response_probe/gallery/index.html`
+
+S236 adds `dam_break_highlight_material_response_probe`, keeping accepted overlay
+density while raising `water_glint` and `water_reflection` material response. It
+passes the 16-frame gate with `normal_rough: 2`, `stable: 14`, stable ratio
+`0.875`, and blocked labels `0`. Direct secondary counts match on all frames,
+nonblank coverage is preserved, mean luminance rises by `0.5723060438368037`,
+minimum contrast rises by `6.0`, bright ratio improves by
+`3.580729166666665e-05`, hard highlight ratio is non-negative at `0.0` delta,
+and calibration deltas are strong (`luma_p99 +9.4375`, `luma_p995 +11.5`).
+Promote S236 to S237 32-frame motion review before any accepted-preset change.
