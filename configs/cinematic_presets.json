@@ -1744,6 +1744,64 @@
         }
       }
     },
+    "dam_break_foreground_water_thickness_refraction": {
+      "extends": "dam_break_foreground_surface_detail_foam",
+      "description": "S145 close-up with stronger foreground water-body thickness, depth tint, refraction-style volume layering, and broad softened reflections.",
+      "materials": {
+        "water": {
+          "base_color": [0.078, 0.46, 0.82, 0.64],
+          "depth_color": [0.008, 0.072, 0.24, 0.84],
+          "depth_strength": 0.62,
+          "rim_color": [0.72, 0.96, 1.0, 0.92],
+          "rim_strength": 0.58,
+          "rim_width": 0.31,
+          "specular": 0.9,
+          "coat_weight": 0.36,
+          "roughness": 0.035,
+          "alpha": 0.64,
+          "transmission": 0.34
+        },
+        "water_volume_scatter": {
+          "base_color": [0.18, 0.5, 0.86, 0.17],
+          "emission_color": [0.18, 0.45, 0.78, 1.0],
+          "emission_strength": 0.055,
+          "roughness": 0.9,
+          "alpha": 0.17,
+          "transmission": 0.0
+        }
+      },
+      "renderer": {
+        "water_volume_scattering_pass": {
+          "enabled": true,
+          "layers": 14,
+          "region_min": [1.0, 1.08, 2.6],
+          "region_max": [30.6, 9.05, 22.4],
+          "inset": 0.5,
+          "alpha_scale": 0.17,
+          "emission_scale": 0.54
+        },
+        "water_reflection_pass": {
+          "count": 34,
+          "length": 5.3,
+          "width": 0.115,
+          "drift_per_frame": 0.048,
+          "alpha_scale": 0.36,
+          "emission_scale": 0.72
+        },
+        "water_surface_glint_pass": {
+          "alpha_scale": 0.24,
+          "emission_scale": 0.5
+        },
+        "water_surface_detail": {
+          "strength": 0.07,
+          "scale": 2.8,
+          "depth": 6
+        },
+        "focus_review": {
+          "max_mean_luminance": 132.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

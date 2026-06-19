@@ -193,7 +193,8 @@ The missing work is not one feature. It is a pipeline:
 | S145 | Foreground surface-detail/foam-breakup pass | Preserve S142 timing/framing while increasing close-up water detail, glint/ripple readability, and contact foam breakup | Done in `style: add foreground surface detail foam` |
 | S146 | S145 gallery refresh/publish | Package and publish the S145 review artifacts for external inspection before the next visual triage | Done in `docs: publish s145 cinematic gallery` |
 | S147 | S145 public gallery visual triage | Review the S145 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s145 public gallery` |
-| S148 | Foreground water thickness/refraction pass | Add near-field water-body depth/refraction cues over S145 to reduce the thin-slab read while preserving current timing and gates | Planned |
+| S148 | Foreground water thickness/refraction pass | Add near-field water-body depth/refraction cues over S145 to reduce the thin-slab read while preserving current timing and gates | Done in `style: add foreground water thickness refraction` |
+| S149 | S148 gallery refresh/publish | Package and publish the S148 review artifacts for external inspection before the next visual triage | Planned |
 
 ## Decision Gates
 
@@ -531,16 +532,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S148.
+Continue with S149.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-foreground-water-thickness-refraction.md`
+`docs/superpowers/plans/2026-06-18-s148-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_foreground_water_thickness_refraction --out build\shots\s148_foreground_water_thickness_refraction --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s145_foreground_surface_detail_foam\review\review_manifest.json --report docs\reports\cinematic_foreground_water_thickness_refraction_s148.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s148_foreground_water_thickness_refraction --out docs\reports\cinematic_artifact_package_s149.md
+python tools\build_cinematic_gallery.py build\shots\s148_foreground_water_thickness_refraction --package docs\reports\cinematic_artifact_package_s149.md --out build\shots\s148_foreground_water_thickness_refraction\gallery --report docs\reports\cinematic_static_gallery_s149.md
+python tools\publish_cinematic_gallery.py build\shots\s148_foreground_water_thickness_refraction\gallery --port 8804 --cftunnel --manifest build\shots\s148_foreground_water_thickness_refraction\gallery\publish_manifest_s149.json --report docs\reports\cinematic_gallery_publish_s149.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S148 Blender gate report that strengthens foreground water-body depth/refraction cues without failing visual, temporal, ripple, camera, or secondary-framing gates.
+The next success condition is a checked-in S149 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
