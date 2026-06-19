@@ -1737,3 +1737,24 @@ secondary streak mean counts are unchanged; minimum contrast, mean frame
 contrast, nonblank coverage, and highlight ratio are unchanged; `luma_p95`,
 `luma_p99`, and `luma_p99.5` each rise by `0.0625`. Promote S251 to S252
 32-frame motion review.
+
+S252 reviewed S251 over the 32-frame accepted motion window:
+
+- S252 motion review report:
+  `docs/reports/cinematic_secondary_mist_soft_motion_review_s252.md`
+- S252 gallery report:
+  `docs/reports/cinematic_secondary_mist_soft_motion_gallery_s252.md`
+- S252 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-mist-soft-motion-review.md`
+- S252 gallery:
+  `build/shots/s252_secondary_mist_soft_motion_review/gallery/index.html`
+
+Against S246 accepted water-body thickness, S252 passes the surface-quality gate
+with `normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Contact foam, impact ripple, and secondary streak mean counts remain
+unchanged. Minimum contrast, mean frame contrast, nonblank coverage, and
+highlight ratio are unchanged; `luma_p95` rises by `0.125` and `luma_p99` by
+`0.03125`. However, mean luminance only rises by `0.020624593098958144`, and
+`luma_p99.5` has a tiny `-0.03125` delta. Do not promote S251. Return to the
+S246 accepted baseline and move to a more visible presentation or
+shot-composition pass.
