@@ -2983,6 +2983,32 @@
         }
       }
     },
+    "dam_break_secondary_mist_readability_soft_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S251 softer secondary mist readability probe that keeps contact haze unchanged and only nudges soft mist/streak readability.",
+      "renderer": {
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 3.6,
+            "foam": 3.1
+          },
+          "alpha_scale": 0.378,
+          "emission_scale": 0.84,
+          "max_radius": 1.4
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 1.2,
+            "foam": 0.51
+          },
+          "length_scale": 0.075,
+          "max_length": 1.43,
+          "width_scale": 0.33,
+          "alpha_scale": 0.185,
+          "emission_scale": 0.79
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

@@ -1716,3 +1716,24 @@ unchanged. Mean luminance rises by `0.4362015787760498`, `luma_p95` by
 coverage unchanged. However, minimum contrast drops by `3.0` and mean frame
 contrast by `1.78125`, so S249 should not be accepted as-is. Run S251 with a
 softer mist-only probe.
+
+S251 added a softer secondary mist probe:
+
+- S251 report:
+  `docs/reports/cinematic_secondary_mist_soft_probe_s251.md`
+- S251 gallery report:
+  `docs/reports/cinematic_secondary_mist_soft_gallery_s251.md`
+- S251 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-mist-soft-probe.md`
+- S251 gallery:
+  `build/shots/s251_secondary_mist_soft_probe/gallery/index.html`
+
+S251 adds `dam_break_secondary_mist_readability_soft_probe`, a conservative
+retry that leaves contact mist curtain and direct secondary particles unchanged
+while applying a small soft mist/streak lift. The matched 16-frame gate passes
+with `normal_rough: 2`, `stable: 14`, stable ratio `0.875`, and blocked labels
+`0`. Against S246 accepted 16-frame baseline, contact foam, impact ripple, and
+secondary streak mean counts are unchanged; minimum contrast, mean frame
+contrast, nonblank coverage, and highlight ratio are unchanged; `luma_p95`,
+`luma_p99`, and `luma_p99.5` each rise by `0.0625`. Promote S251 to S252
+32-frame motion review.
