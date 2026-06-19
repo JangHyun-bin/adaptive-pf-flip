@@ -2833,3 +2833,18 @@ and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
 The HTTP server PID is `59524`, and the Cloudflared PID is `44484`. Use S306
 as the current public larger-job full48 Blender proof endpoint while S292
 remains active separately as the full32 job-path proof endpoint.
+
+S307 packaged the S305/S306 full48 larger-job Blender proof:
+
+- S307 package report:
+  `docs/reports/cinematic_larger_renderer_job_full48_proof_package_s307.md`
+- S307 plan:
+  `docs/superpowers/plans/2026-06-20-larger-renderer-job-full48-proof-package.md`
+- S307 package JSON:
+  `build/shots/s307_larger_renderer_job_full48_proof_package/review_package.json`
+
+S307 collects `12` visual/metadata artifacts from the S305 gallery and `4`
+summary sources: the S295 larger renderer job, the S305-vs-S302 sampled
+comparison, the S306 publish manifest, and the S304 sample24 proof package. Use
+S307 as the current full48 larger-job Blender proof package before non-Blender
+external renderer adapters or larger simulation-scale jobs.
