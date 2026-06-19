@@ -1696,3 +1696,23 @@ unchanged, `luma_p95` rises by `0.25`, `luma_p99` by `0.0625`, and `luma_p99.5`
 by `0.125`. Bright and highlight ratios have tiny negative deltas near the
 comparison noise floor, so S249 should go to S250 32-frame motion review before
 acceptance.
+
+S250 reviewed S249 over the 32-frame accepted motion window:
+
+- S250 motion review report:
+  `docs/reports/cinematic_secondary_mist_motion_review_s250.md`
+- S250 gallery report:
+  `docs/reports/cinematic_secondary_mist_motion_gallery_s250.md`
+- S250 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-mist-motion-review.md`
+- S250 gallery:
+  `build/shots/s250_secondary_mist_motion_review/gallery/index.html`
+
+Against S246 accepted water-body thickness, S250 passes the surface-quality gate
+with `normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Contact foam, impact ripple, and secondary streak mean counts remain
+unchanged. Mean luminance rises by `0.4362015787760498`, `luma_p95` by
+`0.34375`, `luma_p99` by `0.1875`, and `luma_p99.5` by `0.09375`, with nonblank
+coverage unchanged. However, minimum contrast drops by `3.0` and mean frame
+contrast by `1.78125`, so S249 should not be accepted as-is. Run S251 with a
+softer mist-only probe.
