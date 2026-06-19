@@ -1846,3 +1846,20 @@ artifacts and `4` summary sources: `s255_parity`, `s255_baseline_delta`,
 external review and publish handoff while preserving S248 as historical S246
 evidence. Publish the S255 gallery/package next, then continue with either
 shot-composition/camera polish or the next renderer-data/export milestone.
+
+S257 published the S255 accepted gallery through a Cloudflare quick tunnel:
+
+- S257 publish report:
+  `docs/reports/cinematic_s255_gallery_publish_s257.md`
+- S257 plan:
+  `docs/superpowers/plans/2026-06-20-s255-gallery-publish.md`
+- S257 manifest:
+  `build/shots/s257_s255_gallery_publish/publish_manifest.json`
+- S257 public URL:
+  `https://kinds-dealers-cookie-athletics.trycloudflare.com`
+
+The publisher verified local and public `index.html` plus `assets/shot.gif`
+with HTTP `200`. The tunnel is session-scoped; refresh it if the process exits
+or the machine restarts. After review, either start a shot-composition/camera
+polish pass or move back to renderer-data/export schema work for larger-scale
+handoff.
