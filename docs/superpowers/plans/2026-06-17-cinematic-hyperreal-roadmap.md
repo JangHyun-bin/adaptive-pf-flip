@@ -1672,3 +1672,27 @@ comparison deltas, the S246 surface-quality gate, and S247 contribution
 diagnostics. The generated package contains `12` artifacts and `4` summary
 sources. Use this as the bridge-render review/export baseline before returning
 to secondary mist readability.
+
+S249 added a secondary mist readability probe:
+
+- S249 report:
+  `docs/reports/cinematic_secondary_mist_readability_probe_s249.md`
+- S249 gallery report:
+  `docs/reports/cinematic_secondary_mist_readability_gallery_s249.md`
+- S249 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-mist-readability-probe.md`
+- S249 gallery:
+  `build/shots/s249_secondary_mist_readability_probe/gallery/index.html`
+
+S249 adds `dam_break_secondary_mist_readability_probe`, a bounded soft mist,
+streak, and contact haze probe that leaves direct secondary particles unchanged.
+The stronger first trial in this step was too hazy, so the committed probe uses
+a smaller contact curtain and softer secondary increases. The matched 16-frame
+gate passes with `normal_rough: 2`, `stable: 14`, stable ratio `0.875`, and
+blocked labels `0`. Against S246 accepted 16-frame baseline, contact foam,
+impact ripple, and secondary streak mean counts are unchanged; mean luminance
+rises by `0.4338905164930651`, minimum contrast and nonblank coverage are
+unchanged, `luma_p95` rises by `0.25`, `luma_p99` by `0.0625`, and `luma_p99.5`
+by `0.125`. Bright and highlight ratios have tiny negative deltas near the
+comparison noise floor, so S249 should go to S250 32-frame motion review before
+acceptance.

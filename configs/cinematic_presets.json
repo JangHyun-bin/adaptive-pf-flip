@@ -2947,6 +2947,42 @@
         }
       }
     },
+    "dam_break_secondary_mist_readability_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S249 bounded secondary mist readability probe that raises soft spray/foam mist and contact haze without changing direct secondary particles.",
+      "renderer": {
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 3.64,
+            "foam": 3.14
+          },
+          "alpha_scale": 0.386,
+          "emission_scale": 0.86,
+          "max_radius": 1.42
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 1.22,
+            "foam": 0.53
+          },
+          "length_scale": 0.076,
+          "max_length": 1.44,
+          "width_scale": 0.34,
+          "alpha_scale": 0.19,
+          "emission_scale": 0.8
+        },
+        "contact_mist_curtain_pass": {
+          "enabled": true,
+          "layers": 12,
+          "region_min": [3.8, 1.6, 6.2],
+          "region_max": [33.2, 17.8, 24.0],
+          "x_inset": 3.3,
+          "z_jitter": 0.64,
+          "alpha_scale": 0.114,
+          "emission_scale": 0.42
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
