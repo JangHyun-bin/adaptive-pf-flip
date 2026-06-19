@@ -735,3 +735,19 @@ S200 should run a conservative visual island-filter probe and compare it
 against S191. The S199 `0.3` filter proves the mechanism but is too aggressive
 for production until visual review confirms the smaller component is an
 artifact rather than meaningful separated water.
+
+S200 ran a conservative island-filter visual probe:
+
+- S200 mesh quality report:
+  `docs/reports/cinematic_water_mesh_island_filter_quality_s200.md`
+- S200 comparison report:
+  `docs/reports/cinematic_water_mesh_island_filter_comparison_s200.md`
+- S200 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-island-filter-probe.md`
+- S200 artifacts:
+  `build/shots/s200_island_filter_probe`
+
+S200 should not replace S191. The filter removes 22656 faces and makes all
+reconstruction frames single-component, but the 8-frame S191/S200 render probe
+is pixel-identical. S201 should add component visibility or labeling diagnostics
+before further filtering.
