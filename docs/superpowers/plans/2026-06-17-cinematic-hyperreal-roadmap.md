@@ -652,6 +652,15 @@ S193 accepted S191:
 - S193 triage report: `docs/reports/cinematic_public_gallery_triage_s193.md`
 - S193 plan: `docs/superpowers/plans/2026-06-19-s191-public-gallery-triage.md`
 
-S194 should build a probe matrix for bounded smoothing strength and
-renderer-side water-volume occlusion candidates, then select one candidate for a
-full render.
+S194 selected the stronger bounded smoothing probe:
+
+- S194 report:
+  `docs/reports/cinematic_smoothing_occlusion_probe_matrix_s194.md`
+- S194 plan:
+  `docs/superpowers/plans/2026-06-19-smoothing-occlusion-probe-matrix.md`
+- Probe matrix:
+  `build/shots/s194_smoothing_occlusion_probe_matrix/probe_matrix.png`
+
+S195 should promote `dam_break_water_mesh_smoothing_strong_probe` into a
+full-shot preset, render a 36-frame S191-vs-S195 comparison, and only publish it
+if contrast/nonblank coverage stay inside the S194 gate.

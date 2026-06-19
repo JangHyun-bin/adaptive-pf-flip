@@ -2418,6 +2418,63 @@
         }
       }
     },
+    "dam_break_water_mesh_smoothing_soft_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S194 probe candidate with lighter water mesh smoothing.",
+      "renderer": {
+        "water_mesh_smoothing_pass": {
+          "factor": 0.045,
+          "iterations": 1
+        },
+        "water_surface_detail": {
+          "strength": 0.058,
+          "scale": 2.7
+        }
+      }
+    },
+    "dam_break_water_mesh_smoothing_strong_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S194 probe candidate with stronger bounded water mesh smoothing.",
+      "renderer": {
+        "water_mesh_smoothing_pass": {
+          "factor": 0.12,
+          "iterations": 3
+        },
+        "water_surface_detail": {
+          "strength": 0.04,
+          "scale": 3.0
+        }
+      }
+    },
+    "dam_break_water_volume_occlusion_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S194 probe candidate with renderer-side dark water-volume occlusion sheets.",
+      "renderer": {
+        "water_volume_occlusion_pass": {
+          "enabled": true,
+          "layers": 5,
+          "region_min": [1.0, 1.2, 2.8],
+          "region_max": [34.2, 8.9, 24.5],
+          "inset": 0.85,
+          "alpha_scale": 1.0,
+          "emission_scale": 0.0
+        },
+        "water_mesh_smoothing_pass": {
+          "factor": 0.075,
+          "iterations": 2
+        }
+      },
+      "materials": {
+        "water_volume_occlusion": {
+          "base_color": [0.015, 0.055, 0.085, 0.11],
+          "emission_color": [0.0, 0.0, 0.0, 1.0],
+          "emission_strength": 0.0,
+          "roughness": 0.94,
+          "alpha": 0.11,
+          "transmission": 0.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

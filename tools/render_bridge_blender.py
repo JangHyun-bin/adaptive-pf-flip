@@ -1020,6 +1020,19 @@ def water_volume_scattering_pass_summary(render_preset):
     }
 
 
+def water_volume_occlusion_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_volume_occlusion_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "layers": as_int(cfg.get("layers"), 0),
+        "region_min": vec3(cfg.get("region_min"), (1.0, 2.4, 3.2)),
+        "region_max": vec3(cfg.get("region_max"), (27.0, 8.4, 19.0)),
+        "inset": as_float(cfg.get("inset"), 0.15),
+        "alpha_scale": as_float(cfg.get("alpha_scale"), 1.0),
+        "emission_scale": as_float(cfg.get("emission_scale"), 0.0),
+    }
+
+
 def water_surface_continuity_pass_summary(render_preset):
     cfg = preset_section(preset_section(render_preset, "renderer"), "water_surface_continuity_pass")
     return {
@@ -1443,6 +1456,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
     water_reflection_pass = water_reflection_pass_summary(render_preset)
     water_volume_scattering_pass = water_volume_scattering_pass_summary(render_preset)
+    water_volume_occlusion_pass = water_volume_occlusion_pass_summary(render_preset)
     water_surface_continuity_pass = water_surface_continuity_pass_summary(render_preset)
     metadata_depth_attenuation_pass = metadata_depth_attenuation_pass_summary(render_preset)
     contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
@@ -1553,6 +1567,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "water_surface_glint_pass": water_surface_glint_pass,
         "water_reflection_pass": water_reflection_pass,
         "water_volume_scattering_pass": water_volume_scattering_pass,
+        "water_volume_occlusion_pass": water_volume_occlusion_pass,
         "water_surface_continuity_pass": water_surface_continuity_pass,
         "water_surface_continuity": water_surface_continuity,
         "render_data_summary": render_data_summary_for_report(render_data_summary),
@@ -2192,6 +2207,19 @@ def water_volume_scattering_pass_values(spec):
         "inset": max(0.0, scalar_value(cfg.get("inset"), 0.15)),
         "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.22)),
         "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.18)),
+    }
+
+
+def water_volume_occlusion_pass_values(spec):
+    cfg = spec.get("water_volume_occlusion_pass") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "layers": max(0, int(scalar_value(cfg.get("layers"), 0))),
+        "region_min": vector_value(cfg.get("region_min"), (1.0, 2.4, 3.2), 3),
+        "region_max": vector_value(cfg.get("region_max"), (27.0, 8.4, 19.0), 3),
+        "inset": max(0.0, scalar_value(cfg.get("inset"), 0.15)),
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 1.0)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.0)),
     }
 
 
@@ -3023,6 +3051,7 @@ def main():
     water_glint = material_values(preset, "water_glint", (0.82, 0.96, 1.0, 0.32), 0.08, 0.32, 0.0)
     water_reflection = material_values(preset, "water_reflection", (0.62, 0.86, 1.0, 0.24), 0.06, 0.24, 0.0)
     water_volume_scatter = material_values(preset, "water_volume_scatter", (0.24, 0.58, 0.9, 0.16), 0.82, 0.16, 0.0)
+    water_volume_occlusion = material_values(preset, "water_volume_occlusion", (0.02, 0.075, 0.12, 0.1), 0.9, 0.1, 0.0)
     contact_mist_curtain = material_values(preset, "contact_mist_curtain", (0.55, 0.78, 0.95, 0.14), 0.92, 0.14, 0.0)
     water_ripple = material_values(preset, "water_ripple", (0.8, 0.96, 1.0, 0.3), 0.08, 0.3, 0.0)
     floor = material_values(preset, "floor", (0.015, 0.018, 0.024, 1.0), 0.7, 1.0, 0.0)
@@ -3045,6 +3074,7 @@ def main():
     glint_pass = water_surface_glint_pass_values(spec)
     reflection_pass = water_reflection_pass_values(spec)
     scattering_pass = water_volume_scattering_pass_values(spec)
+    occlusion_pass = water_volume_occlusion_pass_values(spec)
     curtain_pass = contact_mist_curtain_pass_values(spec)
     ripple_pass = water_impact_ripple_pass_values(spec)
     water_volume_scatter_base = dict(water_volume_scatter)
@@ -3061,6 +3091,9 @@ def main():
     water_volume_scatter = scaled_overlay_values(water_volume_scatter,
                                                   scattering_pass.get("alpha_scale", 0.22),
                                                   scattering_pass.get("emission_scale", 0.18))
+    water_volume_occlusion = scaled_overlay_values(water_volume_occlusion,
+                                                   occlusion_pass.get("alpha_scale", 1.0),
+                                                   occlusion_pass.get("emission_scale", 0.0))
     contact_mist_curtain = scaled_overlay_values(contact_mist_curtain,
                                                  curtain_pass.get("alpha_scale", 0.18),
                                                  curtain_pass.get("emission_scale", 0.25))
@@ -3097,6 +3130,7 @@ def main():
         "water_glint": make_principled_material("LSFS Water Surface Glint", water_glint["color"], water_glint["roughness"], water_glint["alpha"], water_glint["transmission"], water_glint["emission_color"], water_glint["emission_strength"]),
         "water_reflection": make_principled_material("LSFS Water Reflection Ribbons", water_reflection["color"], water_reflection["roughness"], water_reflection["alpha"], water_reflection["transmission"], water_reflection["emission_color"], water_reflection["emission_strength"]),
         "water_volume_scatter": make_principled_material("LSFS Water Volume Scattering", water_volume_scatter["color"], water_volume_scatter["roughness"], water_volume_scatter["alpha"], water_volume_scatter["transmission"], water_volume_scatter["emission_color"], water_volume_scatter["emission_strength"]),
+        "water_volume_occlusion": make_principled_material("LSFS Water Volume Occlusion", water_volume_occlusion["color"], water_volume_occlusion["roughness"], water_volume_occlusion["alpha"], water_volume_occlusion["transmission"], water_volume_occlusion["emission_color"], water_volume_occlusion["emission_strength"]),
         "contact_mist_curtain": make_principled_material("LSFS Contact Mist Curtain", contact_mist_curtain["color"], contact_mist_curtain["roughness"], contact_mist_curtain["alpha"], contact_mist_curtain["transmission"], contact_mist_curtain["emission_color"], contact_mist_curtain["emission_strength"]),
         "water_ripple": make_principled_material("LSFS Impact Ripple Cues", water_ripple["color"], water_ripple["roughness"], water_ripple["alpha"], water_ripple["transmission"], water_ripple["emission_color"], water_ripple["emission_strength"]),
     }
@@ -3139,6 +3173,9 @@ def main():
         update_principled_material(particle_mats["spray_streak"], frame_spray_streak)
         update_principled_material(particle_mats["foam_streak"], frame_foam_streak)
         add_water_mesh(frame, water_mat, surface_detail, mesh_smoothing)
+        add_water_volume_scattering_pass(frame,
+                                         particle_mats["water_volume_occlusion"],
+                                         occlusion_pass)
         add_water_volume_scattering_pass(frame,
                                          particle_mats["water_volume_scatter"],
                                          frame_scattering_pass)
@@ -3412,6 +3449,7 @@ def main(argv=None):
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
             "water_reflection_pass": spec["water_reflection_pass"],
             "water_volume_scattering_pass": spec["water_volume_scattering_pass"],
+            "water_volume_occlusion_pass": spec["water_volume_occlusion_pass"],
             "water_surface_continuity_pass": spec["water_surface_continuity_pass"],
             "water_surface_continuity": spec["water_surface_continuity"],
             "render_data_summary": spec["render_data_summary"],
