@@ -207,7 +207,9 @@ The missing work is not one feature. It is a pipeline:
 | S159 | S157 public gallery visual triage | Review the S157 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s157 public gallery` |
 | S160 | Large-event cinematic scale gate | Move beyond same-shot look-dev by piloting a larger physical event with the S157 render stack and measured gates | Done in `test: add large event cinematic scale gate` |
 | S161 | S160 gallery refresh/publish | Package and publish the S160 large-event gate artifacts for public inspection before the next scale/composition adjustment | Done in `docs: publish s160 cinematic gallery` |
-| S162 | Establishing scale composition pass | Use S160 as input evidence to widen the shot grammar so the larger physical event reads as a broad falling-water scene, not only a foreground surface/mist close-up | Planned |
+| S162 | Establishing scale composition pass | Use S160 as input evidence to widen the shot grammar so the larger physical event reads as a broader impact-pool scene, not only a foreground surface/mist close-up | Done in `style: add establishing scale composition` |
+| S163 | S162 gallery refresh/publish | Package and publish the S162 establishing-scale artifacts for public inspection before the next visual triage | Planned |
+| S164 | S162 public gallery visual triage | Review the S162 public gallery and choose whether to attack source-slab silhouette, wider event shape, or render-detail readability next | Planned |
 
 ## Decision Gates
 

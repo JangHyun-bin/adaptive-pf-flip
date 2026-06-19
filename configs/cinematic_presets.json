@@ -2035,6 +2035,64 @@
         }
       }
     },
+    "dam_break_establishing_scale_composition": {
+      "extends": "dam_break_large_event_scale_gate",
+      "description": "S160 large-event stack with a wider impact-pool establishing camera while avoiding dominant upper source-slab framing.",
+      "renderer": {
+        "source_window": {
+          "enabled": true,
+          "start_index": 16,
+          "end_index": 55
+        },
+        "secondary_framing_qa": {
+          "min_mean_inside_ratio": 0.65,
+          "min_frame_inside_ratio": 0.15,
+          "min_mean_screen_y": 0.22,
+          "max_mean_screen_y": 0.92
+        },
+        "secondary_depth_review": {
+          "min_mean_crop_particles": 70,
+          "min_mean_crop_ratio": 0.35
+        },
+        "ripple_readability_review": {
+          "min_edge_mean": 6.0,
+          "min_edge_nonzero_ratio": 0.02,
+          "max_highlight_ratio": 0.012
+        }
+      },
+      "camera": {
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [16.3, 13.4, 43.5],
+              "target": [18.0, 6.8, 14.0],
+              "vertical_fov_degrees": 43.0
+            },
+            {
+              "t": 0.55,
+              "position": [17.6, 13.0, 41.5],
+              "target": [18.0, 6.6, 14.0],
+              "vertical_fov_degrees": 42.5
+            },
+            {
+              "t": 1.0,
+              "position": [19.0, 12.6, 39.5],
+              "target": [18.0, 6.3, 14.0],
+              "vertical_fov_degrees": 42.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 12.5,
+          "min_target_distance": 26.0,
+          "max_vertical_fov_degrees": 43.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",
