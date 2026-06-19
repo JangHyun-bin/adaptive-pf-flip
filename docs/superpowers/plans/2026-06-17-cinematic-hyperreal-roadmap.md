@@ -2296,3 +2296,24 @@ S278 stops the S276/S275 preview endpoint, serves the S277 gallery on local port
 plus `assets/shot.gif` checks all returned HTTP `200`. S278 is now the current
 lightweight external-render handoff preview endpoint; the S270/S269 accepted
 gallery endpoint remains active separately.
+
+S279 added the external-bundle benchmark readiness gate:
+
+- S279 tool:
+  `tools/validate_external_bundle_benchmark_gate.py`
+- S279 report:
+  `docs/reports/cinematic_external_bundle_benchmark_gate_s279.md`
+- S279 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-benchmark-gate.md`
+- S279 gate JSON:
+  `build/shots/s279_external_bundle_benchmark_gate/benchmark_gate.json`
+
+S279 validates the S273 bundle, S277 preview summary, and S278 publish manifest
+before larger-shot or benchmark work consumes the external-bundle path. The gate
+passed `13` checks with `0` failures: bundle schema/frame count, missing assets,
+monotonic source sampling, minimum water mesh faces, preview frame count,
+preview resolution, preview occupancy, publish status, recorded publish checks,
+and live public `index.html`/`assets/shot.gif`. It records the current input
+footprint as `1.37 GB`, projected `64`-frame input as `2.74 GB`, and projected
+`24`-frame preview sample input as `1.03 GB`. Use S279 as the preflight gate
+before bounded larger-shot dry-runs or benchmark jobs.
