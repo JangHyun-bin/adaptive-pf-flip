@@ -3193,3 +3193,28 @@ renders `8` selected frames at `spp=4` with `0` manifest failures, and publishes
 a `1289627` byte GIF with public HTTP `200` checks. Use S322 as the current
 secondary-material knob proof, while noting that real cinematic mist/foam still
 needs a non-sphere or volumetric representation.
+
+S323 added a screen-space secondary composite path:
+
+- S323 new tool:
+  `tools/composite_mitsuba_secondary_layer.py`
+- S323 composite report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_composite_subtle_s323.md`
+- S323 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_composite_publish_s323.md`
+- S323 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-composite.md`
+- S323 composite summary:
+  `build/shots/s323_larger_external_renderer_mitsuba_secondary_composite_subtle/secondary_composite_summary.json`
+- S323 public URL:
+  `https://fixes-achieve-pledge-cells.trycloudflare.com`
+
+S323 reads the S322 actual Mitsuba render manifest, matches each rendered frame
+back to its XML/export frame, parses the Mitsuba camera, projects secondary
+particle CSV rows into screen space, builds blurred RGBA mist/foam layers, and
+composites those layers over the actual Mitsuba PNG previews. The subtle proof
+projects `2877 / 2877` selected secondary particles across `8` frames, reaches
+maximum layer coverage `0.13125578703703702`, publishes a `1360178` byte GIF,
+and verifies public `index.html` plus `assets/shot.gif` with HTTP `200`. Use
+S323 as the first non-sphere secondary representation proof. It is currently a
+post-composite approximation, not yet a renderer contract or volumetric model.
