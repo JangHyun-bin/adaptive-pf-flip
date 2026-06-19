@@ -2530,3 +2530,26 @@ Local and public `index.html` plus `assets/shot.gif` checks all returned HTTP
 S290 is the current public job-path Blender render endpoint; S283 and S281
 remain active separately for accepted high-resolution bridge review and
 external-bundle benchmark preview.
+
+S291 scaled the job-path Blender render to the full 32-frame accepted window:
+
+- S291 render report:
+  `docs/reports/cinematic_external_renderer_job_blender_full32_s291.md`
+- S291 comparison report:
+  `docs/reports/cinematic_external_renderer_job_blender_full32_compare_s291.md`
+- S291 gallery report:
+  `docs/reports/cinematic_external_renderer_job_blender_full32_gallery_s291.md`
+- S291 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-blender-full32.md`
+- S291 gallery:
+  `build/shots/s291_external_renderer_job_blender_full32/gallery/index.html`
+
+S291 renders all `32` frames from the S285 job path at `960 x 540`, `12`
+samples, using source window `0..31` and the accepted
+`dam_break_water_mesh_smoothing` preset. Blender elapsed time is `160355.97`
+ms, minimum nonblank ratio is `1.0`, minimum contrast is `188.0`, first/last
+water mesh face counts are `20000` and `22300`, and first/last secondary totals
+are `256` and `964`. Against S282, nonblank delta is `0.0`, mean frame contrast
+delta is `0.125`, mean luma p99 delta is `0.25`, and mean specular ratio delta
+is `3.6168981481481466e-06`. Use S291 as the full-length job-path Blender proof
+before publishing, packaging, larger-shot jobs, or external renderer adapters.
