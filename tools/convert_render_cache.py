@@ -506,6 +506,9 @@ def convert_frame(manifest,
         result["water_mesh_vertex_count"] = water_frame.get("vertex_count", 0)
         result["water_mesh_face_count"] = water_frame.get("face_count", 0)
         result["water_mesh_occupied_cell_count"] = water_frame.get("occupied_cell_count", 0)
+        surface_quality = water_frame.get("surface_quality")
+        if isinstance(surface_quality, dict):
+            result["water_mesh_surface_quality"] = surface_quality
     return result
 
 
@@ -562,6 +565,9 @@ def convert(manifest_path,
             "representation": water_reconstruction.get("representation", "obj_mesh"),
             "frame_count": water_reconstruction.get("frame_count", len(water_reconstruction["frames"])),
         }
+        surface_quality = water_reconstruction.get("surface_quality_annotation")
+        if isinstance(surface_quality, dict):
+            sequence["water_reconstruction"]["surface_quality_annotation"] = surface_quality
     write_json(os.path.join(out_dir, "sequence.json"), sequence)
     return sequence
 

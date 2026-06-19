@@ -814,3 +814,21 @@ a `-2` minimum-contrast delta. S205 should pivot toward exported surface-quality
 data: water mesh continuity/normal metadata, depth/phase surface attributes, or
 a no-regression gate proving component treatment is inactive on the accepted
 S191 window before investing further in component-specific material tuning.
+
+S205 added metadata-only water mesh surface-quality annotation:
+
+- S205 report:
+  `docs/reports/cinematic_water_mesh_surface_quality_annotation_s205.md`
+- S205 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-surface-quality-annotation.md`
+- S205 annotated reconstruction:
+  `build/shots/s205_surface_quality_annotation/water_reconstruction.json`
+- S205 converted sequence probe:
+  `build/shots/s205_surface_quality_annotation/converted/sequence.json`
+
+S205 labels the 36-frame reconstruction as `component_fragmented: 5`,
+`normal_rough: 3`, and `stable: 28`, then verifies that all 56 converted render
+frames carry `water_mesh_surface_quality`. S206 should use this metadata in a
+renderer no-op/QA gate first: prove the accepted S191 source window is mostly
+stable, then selectively attach normal/continuity shading or component material
+treatment only on labeled frames.
