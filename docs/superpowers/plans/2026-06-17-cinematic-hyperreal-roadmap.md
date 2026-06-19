@@ -896,3 +896,22 @@ luminance rises by `0.18618055555555202`, and nonblank coverage is unchanged,
 but bright/highlight ratios drop and the visual delta is small. Keep S208 as an
 opt-in treatment for now. S210 should either run a wider normal-rough comparison
 or tune a less highlight-suppressing variant.
+
+S210 added and compared a softer-highlight normal-rough variant:
+
+- S210 untreated comparison report:
+  `docs/reports/cinematic_water_mesh_normal_rough_soft_highlight_comparison_s210.md`
+- S210 S208 comparison report:
+  `docs/reports/cinematic_water_mesh_normal_rough_s208_s210_comparison.md`
+- S210 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-normal-rough-soft-highlight.md`
+- S210 artifacts:
+  `build/shots/s210_normal_rough_soft_highlight`
+
+S210 keeps the accepted S191 window no-op (`stable: 4`, gate passed). Against
+untreated normal-rough frames it improves minimum contrast by `5` with unchanged
+nonblank coverage, but still suppresses bright/highlight ratios. Against S208 it
+improves minimum contrast by `1` and slightly restores bright ratio while
+leaving highlight ratio unchanged. Prefer S210 over S208 as the opt-in
+normal-rough candidate, but keep baseline promotion blocked until a wider
+keyframe or gallery review.

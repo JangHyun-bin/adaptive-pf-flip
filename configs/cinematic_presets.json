@@ -2520,6 +2520,21 @@
         }
       }
     },
+    "dam_break_water_normal_rough_labeled_soft_highlight_probe": {
+      "extends": "dam_break_water_component_material_labeled_probe",
+      "description": "S210 normal_rough material probe with less highlight suppression than S208 while keeping stable-frame no-op behavior.",
+      "renderer": {
+        "water_mesh_quality_material_pass": {
+          "enabled": true,
+          "quality_labels": ["normal_rough"],
+          "alpha_scale": 0.985,
+          "emission_scale": 0.94,
+          "rim_strength_scale": 0.92,
+          "roughness_min": 0.56,
+          "transmission_max": 0.3
+        }
+      }
+    },
     "dam_break_water_volume_occlusion_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with renderer-side dark water-volume occlusion sheets.",
