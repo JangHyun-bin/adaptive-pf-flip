@@ -3075,6 +3075,34 @@
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S262 historical alias for subject-clarity settings now promoted into dam_break_water_mesh_smoothing."
     },
+    "dam_break_secondary_color_cooling_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S266 material-only probe that cools warm secondary foam/spray/bubble colors so particles read as water/foam instead of firefly sparks.",
+      "materials": {
+        "spray": {
+          "base_color": [0.78, 0.94, 1.0, 0.54],
+          "emission_color": [0.76, 0.92, 1.0, 1.0],
+          "emission_strength": 0.028,
+          "roughness": 0.28,
+          "alpha": 0.54,
+          "transmission": 0.16
+        },
+        "foam": {
+          "base_color": [0.88, 0.97, 1.0, 0.7],
+          "emission_color": [0.78, 0.92, 1.0, 1.0],
+          "emission_strength": 0.038,
+          "roughness": 0.86,
+          "alpha": 0.7,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [0.68, 0.88, 1.0, 0.36],
+          "roughness": 0.22,
+          "alpha": 0.36,
+          "transmission": 0.2
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

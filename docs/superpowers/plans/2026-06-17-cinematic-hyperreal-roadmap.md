@@ -2038,3 +2038,24 @@ S264 gallery through a new Cloudflare quick tunnel. Local and public
 the current external review package and public gallery endpoint. Continue with
 another visible pass only if review shows a concrete issue; otherwise shift
 back to renderer-data/export schema or larger-scale handoff work.
+
+S266 added a material-only secondary color cooling probe:
+
+- S266 report:
+  `docs/reports/cinematic_secondary_color_cooling_probe_s266.md`
+- S266 gallery report:
+  `docs/reports/cinematic_secondary_color_cooling_gallery_s266.md`
+- S266 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-color-cooling-probe.md`
+- S266 gallery:
+  `build/shots/s266_secondary_color_cooling_probe/gallery/index.html`
+
+S266 adds `dam_break_secondary_color_cooling_probe`, extending S264 accepted
+`dam_break_water_mesh_smoothing` while changing only spray, foam, and bubble
+material color/emission/alpha. The 16-frame gate passes with `normal_rough: 2`,
+`stable: 14`, stable ratio `0.875`, and blocked labels `0`. Against S264,
+nonblank, contrast, bright ratio, and highlight ratio are unchanged; mean
+luminance changes only by `-0.05237711588542027`. Do not promote S266 as-is:
+material-only cooling is safe but too subtle. Run S267 with stronger secondary
+bead de-warming that also reduces direct bead retention/alpha and secondary
+emission.
