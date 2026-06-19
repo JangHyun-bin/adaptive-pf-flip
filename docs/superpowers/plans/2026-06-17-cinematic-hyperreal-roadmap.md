@@ -1223,3 +1223,23 @@ S220-motion baseline, S227 preserves nonblank coverage, minimum contrast, and
 direct secondary counts on all 32 frames while improving mean luminance by
 `0.20133558485242986`. Use S227 as the accepted motion proof before the next
 actual visual improvement pass.
+
+S228 added a foreground water-volume separation probe:
+
+- S228 comparison report:
+  `docs/reports/cinematic_foreground_volume_separation_probe_s228.md`
+- S228 gallery report:
+  `docs/reports/cinematic_foreground_volume_separation_gallery_s228.md`
+- S228 plan:
+  `docs/superpowers/plans/2026-06-19-foreground-volume-separation-probe.md`
+- S228 gallery:
+  `build/shots/s228_foreground_volume_separation_probe/gallery/index.html`
+
+S228 introduces `dam_break_foreground_volume_separation_probe`, inheriting from
+the accepted water mesh smoothing preset and changing only bounded rim,
+metadata-emission, and water-volume scattering controls. Against S224 accepted,
+S228 preserves coverage, minimum contrast, and direct secondary counts on all
+16 frames while increasing mean luminance by `0.6793684895833394`. Bright and
+highlight ratios drop slightly (`-6.510416666666654e-06` and
+`-3.2552083333333407e-06`), so S228 should remain a promotion candidate until
+S229 runs the same probe over the 32-frame motion window.

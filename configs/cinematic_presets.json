@@ -2647,6 +2647,26 @@
         }
       }
     },
+    "dam_break_foreground_volume_separation_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S228 foreground water separation probe that brightens rim/volume cues without changing secondary direct thinning.",
+      "materials": {
+        "water": {
+          "rim_strength": 0.72,
+          "rim_width": 0.26
+        }
+      },
+      "renderer": {
+        "metadata_depth_attenuation_pass": {
+          "water_emission_at_low_depth": 1.08,
+          "water_emission_at_high_depth": 0.72
+        },
+        "water_volume_scattering_pass": {
+          "alpha_scale": 0.3,
+          "emission_scale": 0.4
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
