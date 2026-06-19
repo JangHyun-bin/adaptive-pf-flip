@@ -2572,3 +2572,18 @@ The HTTP server PID is `66504`, and the Cloudflared PID is `129180`. S292 is
 the current public full-length job-path Blender render endpoint; S283 and S281
 remain active separately for accepted high-resolution bridge review and
 external-bundle benchmark preview.
+
+S293 packaged the full-length external-renderer job proof:
+
+- S293 package report:
+  `docs/reports/cinematic_full_renderer_job_proof_package_s293.md`
+- S293 plan:
+  `docs/superpowers/plans/2026-06-20-full-renderer-job-proof-package.md`
+- S293 package JSON:
+  `build/shots/s293_full_renderer_job_proof_package/review_package.json`
+
+S293 collects `12` visual/metadata artifacts from the S291 gallery and `4`
+summary sources: the S285 renderer job, S291-vs-S282 comparison, S292 publish
+manifest, and S280 external-bundle benchmark summary. Use S293 as the current
+handoff package for the full-length external-renderer job proof before moving
+to larger-shot job generation or a non-Blender external renderer adapter.
