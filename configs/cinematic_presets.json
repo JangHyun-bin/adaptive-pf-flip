@@ -2468,6 +2468,34 @@
         "component_detail_limit": 4
       }
     },
+    "dam_break_water_component_material_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S204 probe preset that preserves secondary water components but gives sub-threshold components a softer/deeper material treatment.",
+      "renderer": {
+        "water_mesh_component_material_pass": {
+          "enabled": true,
+          "max_component_face_ratio": 0.24,
+          "alpha_scale": 0.78,
+          "emission_scale": 0.7,
+          "roughness_min": 0.5
+        }
+      },
+      "materials": {
+        "water_component_secondary": {
+          "base_color": [0.12, 0.43, 0.72, 0.42],
+          "depth_color": [0.08, 0.24, 0.42, 0.38],
+          "depth_strength": 0.34,
+          "rim_color": [0.62, 0.86, 1.0, 0.46],
+          "rim_strength": 0.08,
+          "rim_width": 0.22,
+          "roughness": 0.5,
+          "alpha": 0.42,
+          "transmission": 0.08,
+          "emission_color": [0.1, 0.36, 0.62, 0.42],
+          "emission_strength": 0.02
+        }
+      }
+    },
     "dam_break_water_volume_occlusion_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with renderer-side dark water-volume occlusion sheets.",

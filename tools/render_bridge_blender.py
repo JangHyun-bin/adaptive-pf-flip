@@ -878,6 +878,17 @@ def water_mesh_smoothing_pass_summary(render_preset):
     }
 
 
+def water_mesh_component_material_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_mesh_component_material_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "max_component_face_ratio": min(1.0, max(0.0, as_float(cfg.get("max_component_face_ratio"), 0.24))),
+        "alpha_scale": max(0.0, as_float(cfg.get("alpha_scale"), 0.74)),
+        "emission_scale": max(0.0, as_float(cfg.get("emission_scale"), 0.72)),
+        "roughness_min": min(1.0, max(0.0, as_float(cfg.get("roughness_min"), 0.42))),
+    }
+
+
 def secondary_channel_radius_summary(render_preset):
     scales = preset_section(preset_section(render_preset, "renderer"), "secondary_channel_radius_scales")
     return {
@@ -1462,6 +1473,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     water_mesh_smoothing_pass = water_mesh_smoothing_pass_summary(render_preset)
+    water_mesh_component_material_pass = water_mesh_component_material_pass_summary(render_preset)
     water_surface_glint_pass, water_reflection_pass, surface_contact_foam_pass, water_volume_scattering_pass, water_impact_ripple_pass = (
         apply_water_surface_continuity_pass(
             water_surface_glint_pass,
@@ -1586,6 +1598,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "water_material": water_material_summary(render_preset),
         "water_surface_detail": water_surface_detail,
         "water_mesh_smoothing_pass": water_mesh_smoothing_pass,
+        "water_mesh_component_material_pass": water_mesh_component_material_pass,
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "source_window": source_window,
@@ -1768,6 +1781,30 @@ def scaled_overlay_values(values, alpha_scale=1.0, emission_scale=1.0):
     out["emission_color"] = tuple(emission)
     out["alpha"] = clamp01(out["alpha"] * max(0.0, alpha_scale))
     out["emission_strength"] = max(0.0, out["emission_strength"] * max(0.0, emission_scale))
+    return out
+
+
+def scaled_component_water_values(values, component_pass):
+    out = dict(values)
+    alpha_scale = max(0.0, component_pass.get("alpha_scale", 1.0))
+    emission_scale = max(0.0, component_pass.get("emission_scale", 1.0))
+    color = list(out["color"])
+    color[3] = clamp01(color[3] * alpha_scale)
+    out["color"] = tuple(color)
+    depth_color = list(out["depth_color"])
+    depth_color[3] = clamp01(depth_color[3] * alpha_scale)
+    out["depth_color"] = tuple(depth_color)
+    rim_color = list(out["rim_color"])
+    rim_color[3] = clamp01(rim_color[3] * alpha_scale)
+    out["rim_color"] = tuple(rim_color)
+    emission = list(out["emission_color"])
+    emission[3] = clamp01(emission[3] * alpha_scale)
+    out["emission_color"] = tuple(emission)
+    out["alpha"] = clamp01(out["alpha"] * alpha_scale)
+    out["emission_strength"] = max(0.0, out["emission_strength"] * emission_scale)
+    out["rim_strength"] = max(0.0, out["rim_strength"] * emission_scale)
+    out["roughness"] = max(out["roughness"], component_pass.get("roughness_min", 0.42))
+    out["transmission"] = min(out["transmission"], 0.16)
     return out
 
 
@@ -1994,6 +2031,17 @@ def water_mesh_smoothing_values(spec):
     }
 
 
+def water_mesh_component_material_values(spec):
+    cfg = spec.get("water_mesh_component_material_pass") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "max_component_face_ratio": min(1.0, max(0.0, scalar_value(cfg.get("max_component_face_ratio"), 0.24))),
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.74)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.72)),
+        "roughness_min": min(1.0, max(0.0, scalar_value(cfg.get("roughness_min"), 0.42))),
+    }
+
+
 def apply_water_mesh_smoothing(obj, smoothing):
     try:
         shade_smooth = bool(smoothing.get("shade_smooth", True)) if smoothing.get("enabled", False) else True
@@ -2010,15 +2058,86 @@ def apply_water_mesh_smoothing(obj, smoothing):
         return
 
 
-def add_water_mesh(frame, material, detail, smoothing):
+class MeshDisjointSet:
+    def __init__(self, size):
+        self.parent = list(range(size))
+        self.rank = [0] * size
+
+    def find(self, item):
+        parent = self.parent[item]
+        if parent != item:
+            self.parent[item] = self.find(parent)
+        return self.parent[item]
+
+    def union(self, a, b):
+        ra = self.find(a)
+        rb = self.find(b)
+        if ra == rb:
+            return
+        if self.rank[ra] < self.rank[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        if self.rank[ra] == self.rank[rb]:
+            self.rank[ra] += 1
+
+
+def component_polygon_groups(mesh):
+    vertex_count = len(mesh.vertices)
+    dsu = MeshDisjointSet(vertex_count)
+    for poly in mesh.polygons:
+        verts = list(poly.vertices)
+        if not verts:
+            continue
+        root = verts[0]
+        for vi in verts[1:]:
+            dsu.union(root, vi)
+    groups = {}
+    for poly in mesh.polygons:
+        verts = list(poly.vertices)
+        if not verts:
+            continue
+        root = dsu.find(verts[0])
+        groups.setdefault(root, []).append(poly.index)
+    out = sorted(groups.values(), key=len, reverse=True)
+    return out
+
+
+def apply_component_material(obj, component_material, component_pass):
+    if not component_pass.get("enabled", False) or component_material is None:
+        return 0
+    mesh = getattr(obj, "data", None)
+    if mesh is None or not hasattr(mesh, "polygons") or not mesh.polygons:
+        return 0
+    max_ratio = float(component_pass.get("max_component_face_ratio", 0.0))
+    if max_ratio <= 0.0:
+        return 0
+    groups = component_polygon_groups(mesh)
+    if len(groups) <= 1:
+        return 0
+    component_slot = len(mesh.materials)
+    mesh.materials.append(component_material)
+    total_faces = max(1, len(mesh.polygons))
+    assigned = 0
+    for group in groups:
+        ratio = len(group) / float(total_faces)
+        if ratio >= max_ratio:
+            continue
+        for polygon_index in group:
+            mesh.polygons[polygon_index].material_index = component_slot
+            assigned += 1
+    return assigned
+
+
+def add_water_mesh(frame, material, component_material, detail, smoothing, component_pass):
     objects = import_obj(frame["water_mesh"])
     for obj in objects:
         obj.name = "LSFS Water"
         obj["lsfs_frame_asset"] = True
         obj.rotation_euler[0] = math.radians(90.0)
+        obj.data.materials.append(material)
+        apply_component_material(obj, component_material, component_pass)
         apply_water_mesh_smoothing(obj, smoothing)
         apply_surface_detail(obj, detail, int(frame.get("index", 0)))
-        obj.data.materials.append(material)
     return len(objects)
 
 
@@ -3048,6 +3167,7 @@ def main():
     camera = make_camera()
     add_lights(preset)
     water = material_values(preset, "water", (0.18, 0.66, 1.0, 0.52), 0.03, 0.52, 0.35)
+    water_component_secondary = material_values(preset, "water_component_secondary", (0.13, 0.44, 0.72, 0.42), 0.48, 0.42, 0.08)
     water_glint = material_values(preset, "water_glint", (0.82, 0.96, 1.0, 0.32), 0.08, 0.32, 0.0)
     water_reflection = material_values(preset, "water_reflection", (0.62, 0.86, 1.0, 0.24), 0.06, 0.24, 0.0)
     water_volume_scatter = material_values(preset, "water_volume_scatter", (0.24, 0.58, 0.9, 0.16), 0.82, 0.16, 0.0)
@@ -3061,7 +3181,11 @@ def main():
     bubble = material_values(preset, "bubble", (1.0, 0.78, 0.34, 0.78), 0.15, 0.78, 0.15)
     surface_detail = surface_detail_values(preset)
     mesh_smoothing = water_mesh_smoothing_values(spec)
+    component_material_pass = water_mesh_component_material_values(spec)
+    water_component_secondary = scaled_component_water_values(water_component_secondary,
+                                                              component_material_pass)
     water_mat = make_water_material("LSFS Water Glass", water)
+    water_component_mat = make_water_material("LSFS Component Treated Water", water_component_secondary)
     floor_mat = make_principled_material("LSFS Dark Floor",
                                          floor["color"],
                                          roughness=floor["roughness"],
@@ -3172,7 +3296,7 @@ def main():
         update_material_or_list(particle_mats.get("foam_soft_falloff"), frame_foam_soft)
         update_principled_material(particle_mats["spray_streak"], frame_spray_streak)
         update_principled_material(particle_mats["foam_streak"], frame_foam_streak)
-        add_water_mesh(frame, water_mat, surface_detail, mesh_smoothing)
+        add_water_mesh(frame, water_mat, water_component_mat, surface_detail, mesh_smoothing, component_material_pass)
         add_water_volume_scattering_pass(frame,
                                          particle_mats["water_volume_occlusion"],
                                          occlusion_pass)
@@ -3466,6 +3590,7 @@ def main(argv=None):
             "water_material": spec["water_material"],
             "water_surface_detail": spec["water_surface_detail"],
             "water_mesh_smoothing_pass": spec["water_mesh_smoothing_pass"],
+            "water_mesh_component_material_pass": spec["water_mesh_component_material_pass"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,

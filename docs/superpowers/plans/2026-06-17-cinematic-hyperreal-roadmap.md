@@ -795,3 +795,22 @@ S203 shows component 2 is a broad visible upper/back water mass, not a tiny
 detached island. Do not promote face-ratio pruning. S204 should test
 component-aware render treatment instead: preserve component 2, but tune its
 depth/material contribution if it hurts readability.
+
+S204 added an opt-in component-aware material treatment:
+
+- S204 comparison report:
+  `docs/reports/cinematic_water_mesh_component_material_comparison_s204.md`
+- S204 overlay report:
+  `docs/reports/cinematic_water_mesh_component_material_overlay_s204.md`
+- S204 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-component-material-treatment.md`
+- S204 artifacts:
+  `build/shots/s204_component_material_probe`
+
+S204 is safer than pruning because it preserves the visible secondary water
+component, but it should not replace S191. The 8-frame early-window probe has a
+very small mean changed ratio (`0.000341796875`), no strong changed pixels, and
+a `-2` minimum-contrast delta. S205 should pivot toward exported surface-quality
+data: water mesh continuity/normal metadata, depth/phase surface attributes, or
+a no-regression gate proving component treatment is inactive on the accepted
+S191 window before investing further in component-specific material tuning.
