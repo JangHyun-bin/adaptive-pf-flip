@@ -1320,3 +1320,24 @@ contrast are preserved, mean luminance rises by `0.6406933593749926`, and
 bright ratio improves by `7.324218749999979e-06`. Highlight ratio remains
 unchanged at `0.0` delta, so keep S232 opt-in and use S233 for a 32-frame motion
 review only if the stronger overlay looks acceptable in the gallery.
+
+S233 validated S232 over the 32-frame accepted motion window:
+
+- S233 comparison report:
+  `docs/reports/cinematic_highlight_energy_motion_review_s233.md`
+- S233 gallery report:
+  `docs/reports/cinematic_highlight_energy_motion_gallery_s233.md`
+- S233 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-energy-motion-review.md`
+- S233 gallery:
+  `build/shots/s233_highlight_energy_motion_review/gallery/index.html`
+
+Against S230 accepted foreground-volume, S233 passes the surface-quality gate
+with `normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Direct secondary counts match on all 32 frames, nonblank coverage is
+preserved, minimum contrast rises by `9.0`, mean luminance rises by
+`0.656890869140625`, and bright ratio improves by
+`4.475911458333328e-06`. Highlight ratio still slips slightly by
+`-4.069010416666625e-07`, so keep the strong highlight probe opt-in. S234 should
+target highlight shape/threshold behavior instead of adding more broad overlay
+energy.
