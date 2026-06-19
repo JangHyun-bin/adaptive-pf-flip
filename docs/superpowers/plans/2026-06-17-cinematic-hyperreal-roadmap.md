@@ -984,3 +984,24 @@ nonblank coverage, minimum contrast, and highlight ratio with only tiny
 luminance/bright-ratio deltas. The S213 fold can stay in the accepted preset.
 Next work can leave mesh-quality gating and move back to broader cinematic
 quality passes, or publish the S214 gallery if remote visual review is needed.
+
+S216 added a depth/reflection probe on top of the accepted mixed-window preset:
+
+- S216 comparison report:
+  `docs/reports/cinematic_water_depth_reflection_probe_s216.md`
+- S216 gallery report:
+  `docs/reports/cinematic_water_depth_reflection_gallery_s216.md`
+- S216 plan:
+  `docs/superpowers/plans/2026-06-19-water-depth-reflection-probe.md`
+- S216 gallery:
+  `build/shots/s216_depth_reflection_probe/gallery/index.html`
+
+S216 introduces `dam_break_water_mesh_depth_reflection_probe` as an opt-in
+preset. It keeps accepted mesh smoothing and label-gated `normal_rough`
+smoothing, while slightly deepening the water material, reducing reflection
+ribbon density, and increasing volume/scatter depth. The mixed gate passed with
+`normal_rough: 1` and `stable: 7`, and the render completed, but the comparison
+against S214 drops minimum contrast by `-8.0` and mean luminance by
+`-0.7349235026041754` despite higher bright/highlight ratios. Do not promote
+S216 yet. S217 should tune this probe to recover contrast while preserving the
+useful highlight increase.

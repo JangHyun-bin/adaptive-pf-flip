@@ -2425,6 +2425,48 @@
         }
       }
     },
+    "dam_break_water_mesh_depth_reflection_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S216 probe that keeps accepted mesh smoothing while slightly deepening water volume and softening reflection ribbons.",
+      "materials": {
+        "water": {
+          "depth_strength": 0.78,
+          "rim_strength": 0.62,
+          "roughness": 0.04,
+          "alpha": 0.66,
+          "transmission": 0.22
+        }
+      },
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 178,
+          "alpha_scale": 0.31,
+          "emission_scale": 0.66,
+          "segment_count": 3,
+          "segment_gap": 0.18,
+          "dropout": 0.11
+        },
+        "water_reflection_pass": {
+          "count": 66,
+          "length": 4.35,
+          "width": 0.095,
+          "alpha_scale": 0.31,
+          "emission_scale": 0.66,
+          "segment_count": 4,
+          "segment_gap": 0.2,
+          "dropout": 0.1
+        },
+        "water_volume_scattering_pass": {
+          "alpha_scale": 0.3,
+          "emission_scale": 0.34
+        },
+        "water_surface_detail": {
+          "strength": 0.056,
+          "scale": 2.65,
+          "depth": 6
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
