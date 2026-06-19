@@ -2505,22 +2505,22 @@
           "iterations": 1
         },
         "water_surface_glint_pass": {
-          "count": 225,
-          "alpha_scale": 0.44,
-          "emission_scale": 0.92,
+          "count": 185,
+          "alpha_scale": 0.39,
+          "emission_scale": 0.86,
           "segment_count": 3,
           "segment_gap": 0.12,
-          "dropout": 0.045
+          "dropout": 0.07
         },
         "water_reflection_pass": {
-          "count": 82,
-          "length": 5.05,
+          "count": 68,
+          "length": 4.45,
           "width": 0.12,
-          "alpha_scale": 0.44,
-          "emission_scale": 0.9,
+          "alpha_scale": 0.38,
+          "emission_scale": 0.84,
           "segment_count": 3,
           "segment_gap": 0.14,
-          "dropout": 0.04
+          "dropout": 0.075
         },
         "water_surface_continuity_pass": {
           "contact_foam_count_scale": 0.78,
@@ -2568,8 +2568,8 @@
           "emission_scale": 0.78
         },
         "water_surface_detail": {
-          "strength": 0.054,
-          "scale": 2.72,
+          "strength": 0.058,
+          "scale": 2.58,
           "depth": 6
         },
         "water_volume_scattering_pass": {
@@ -2578,8 +2578,8 @@
           "region_min": [1.0, 0.9, 2.6],
           "region_max": [34.2, 8.8, 24.5],
           "inset": 0.76,
-          "alpha_scale": 0.32,
-          "emission_scale": 0.44
+          "alpha_scale": 0.34,
+          "emission_scale": 0.46
         },
         "water_volume_occlusion_pass": {
           "enabled": false,
@@ -3073,31 +3073,7 @@
     },
     "dam_break_subject_clarity_probe": {
       "extends": "dam_break_water_mesh_smoothing",
-      "description": "S262 subject-clarity probe that reduces surface glint clutter while slightly strengthening water body volume/detail.",
-      "renderer": {
-        "water_surface_glint_pass": {
-          "count": 185,
-          "alpha_scale": 0.39,
-          "emission_scale": 0.86,
-          "dropout": 0.07
-        },
-        "water_reflection_pass": {
-          "count": 68,
-          "length": 4.45,
-          "alpha_scale": 0.38,
-          "emission_scale": 0.84,
-          "dropout": 0.075
-        },
-        "water_volume_scattering_pass": {
-          "alpha_scale": 0.34,
-          "emission_scale": 0.46
-        },
-        "water_surface_detail": {
-          "strength": 0.058,
-          "scale": 2.58,
-          "depth": 6
-        }
-      }
+      "description": "S262 historical alias for subject-clarity settings now promoted into dam_break_water_mesh_smoothing."
     },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",

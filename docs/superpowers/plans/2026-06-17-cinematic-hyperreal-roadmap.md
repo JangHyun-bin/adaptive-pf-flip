@@ -1991,3 +1991,28 @@ raises mean frame contrast by `2.4375`, reduces mean bright ratio by
 `1.925998263888889e-05`, and visibly lowers surface-line clutter. The luma
 tail drops and highlight/specular deltas rise slightly, but remain small enough
 to promote S262/S263 subject-clarity settings to S264 accepted-preset parity.
+
+S264 promoted the subject-clarity settings into the accepted preset:
+
+- S264 parity report:
+  `docs/reports/cinematic_subject_clarity_acceptance_parity_s264.md`
+- S264 accepted delta report:
+  `docs/reports/cinematic_subject_clarity_acceptance_delta_s264.md`
+- S264 gallery report:
+  `docs/reports/cinematic_subject_clarity_acceptance_gallery_s264.md`
+- S264 plan:
+  `docs/superpowers/plans/2026-06-20-subject-clarity-acceptance.md`
+- S264 gallery:
+  `build/shots/s264_subject_clarity_acceptance/gallery/index.html`
+
+S264 moves S262 glint, reflection, water volume scattering, and water surface
+detail settings into `dam_break_water_mesh_smoothing` and keeps
+`dam_break_subject_clarity_probe` as a historical alias. Against S263, minimum
+contrast, bright ratio, highlight ratio, nonblank coverage, luma percentiles,
+upper-mid ratio, near-highlight ratio, specular ratio, and frame contrast all
+have `0.0` delta; mean luminance differs only by `-1.3563367957658556e-06`.
+Against S260, S264 preserves coverage, raises minimum contrast by `47.0`,
+raises mean frame contrast by `2.4375`, and reduces mean bright ratio while
+slightly increasing bounded highlight/specular ratios. S264 is now the current
+accepted bridge-render visual baseline. Refresh the accepted review package
+and public gallery from S264 next.
