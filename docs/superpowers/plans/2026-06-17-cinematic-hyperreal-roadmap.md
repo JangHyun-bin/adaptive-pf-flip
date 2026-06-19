@@ -1780,3 +1780,23 @@ rises by `2.5741634114583434`, minimum contrast by `1.0`, `luma_p95` by
 coverage unchanged. Bright and highlight deltas remain tiny, upper-mid ratio
 is effectively unchanged, and specular ratio decreases slightly. Promote S253
 to S254 32-frame motion review before any accepted-preset promotion.
+
+S254 reviewed the presentation lift over the 32-frame accepted motion window:
+
+- S254 motion review report:
+  `docs/reports/cinematic_presentation_lift_motion_review_s254.md`
+- S254 gallery report:
+  `docs/reports/cinematic_presentation_lift_motion_gallery_s254.md`
+- S254 plan:
+  `docs/superpowers/plans/2026-06-20-presentation-lift-motion-review.md`
+- S254 gallery:
+  `build/shots/s254_presentation_lift_motion_review/gallery/index.html`
+
+Against S246 accepted, S254 passes the surface-quality gate with
+`normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Mean luminance rises by `2.5770274522569423`, minimum contrast by `1.0`,
+`luma_p95` by `2.96875`, `luma_p99` by `2.53125`, and `luma_p99.5` by
+`2.53125`, with nonblank coverage unchanged. Mean frame contrast decreases by
+`1.6875`, but hard highlight/specular deltas remain tiny and visual comparison
+does not show broad washout. Promote the S253 tone/lighting lift to S255
+accepted-preset parity.
