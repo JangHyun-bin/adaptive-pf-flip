@@ -2997,3 +2997,21 @@ occupancy `0.07859760802469136`, `7680` total sphere shapes, and up to `7000`
 water vertices drawn per frame. This is not a physically rendered image, but it
 is the first inspectable visual artifact generated from the non-Blender XML
 scene bundle itself.
+
+S315 published the S314 Mitsuba XML geometry preview gallery:
+
+- S315 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_preview_publish_s315.md`
+- S315 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-xml-preview-publish.md`
+- S315 manifest:
+  `build/shots/s315_larger_external_renderer_mitsuba_xml_preview_publish/publish_manifest.json`
+- S315 public URL:
+  `https://assign-pig-beauty-lots.trycloudflare.com`
+
+S315 serves the S314 preview gallery on local port `8904` and starts a new
+Cloudflare quick tunnel. Local and public `index.html` plus `assets/shot.gif`
+checks all returned HTTP `200`. The HTTP server PID is `112016`, and the
+Cloudflared PID is `156892`. Use S315 as the public non-Blender XML geometry
+preview while S306 remains active separately as the public full48 Blender render
+proof endpoint.
