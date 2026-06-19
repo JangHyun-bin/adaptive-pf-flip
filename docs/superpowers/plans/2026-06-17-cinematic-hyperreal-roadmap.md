@@ -556,16 +556,17 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S174.
+Continue with S175.
 
-The next implementation plan should package and compare the S173 metadata-depth
-render against S168 without rerunning simulation. The preferred route is either:
+The next implementation plan should package and publish the S173 metadata-depth
+render and S174 comparison artifacts for external inspection. The preferred
+route is:
 
-- a lightweight review/comparison artifact that consumes the existing S168 and
-  S173 Blender frame directories, or
-- a source-shot reuse mode in `tools/run_cinematic_shot.py` that can run review
-  gates over an existing converted cache and water mesh directory.
+- package the S173 shot artifacts and S174 comparison sheet,
+- build a static gallery entry that includes the GIF, representative frames,
+  bridge metrics, and comparison image,
+- publish through the existing gallery/tunnel workflow.
 
-The next success condition is a checked-in S174 report and inspectable
-comparison artifact that shows whether S173 improves depth/secondary read over
-S168, plus a recommendation for the next visual pass.
+The next success condition is a checked-in S175 report and a public gallery URL
+for the current S173/S174 visual state, plus a recommendation for the next
+render tuning pass.

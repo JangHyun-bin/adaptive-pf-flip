@@ -56,3 +56,32 @@ python tools\compare_cinematic_frames.py --left build\shots\s168_water_depth_for
 If S173 improves depth/secondary read without flattening the surface, move to a
 public gallery/package refresh. If the comparison shows over-attenuation, tune
 the S173 multiplier bounds before publishing.
+
+## Result
+
+S174 added `tools/compare_cinematic_frames.py` and generated an S168/S173
+comparison without rerunning simulation.
+
+Generated artifacts:
+
+- Report: `docs/reports/cinematic_metadata_depth_comparison_s174.md`
+- Comparison sheet: `build/shots/s174_metadata_depth_comparison/comparison_sheet.png`
+- Comparison summary: `build/shots/s174_metadata_depth_comparison/comparison_summary.json`
+
+Metric deltas:
+
+- Mean luminance delta: `-2.1279213686342615`
+- Minimum contrast delta: `1.0`
+- Mean bright ratio delta: `-0.0002721113040123457`
+- Mean highlight ratio delta: `-0.000015944492669753106`
+- Mean nonblank ratio delta: `0.0`
+
+Finding:
+
+- S173 preserves water-surface readability while lowering late-frame secondary
+  density and highlight pressure.
+
+Next:
+
+- S175 should package/publish the S173 comparison gallery so the current visual
+  state is externally inspectable before the next render tuning pass.
