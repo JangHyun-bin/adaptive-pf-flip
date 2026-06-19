@@ -2496,6 +2496,15 @@
         }
       }
     },
+    "dam_break_water_component_material_labeled_probe": {
+      "extends": "dam_break_water_component_material_probe",
+      "description": "S207 label-gated component material probe; component material treatment only applies on surface-quality component_fragmented frames.",
+      "renderer": {
+        "water_mesh_component_material_pass": {
+          "quality_labels": ["component_fragmented"]
+        }
+      }
+    },
     "dam_break_water_volume_occlusion_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with renderer-side dark water-volume occlusion sheets.",

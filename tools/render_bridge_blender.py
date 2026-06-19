@@ -129,6 +129,16 @@ def as_int(value, fallback=0):
         return fallback
 
 
+def string_list(value):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str) and item]
+
+
 def finite_float(value, fallback=None):
     try:
         out = float(value)
@@ -896,6 +906,7 @@ def water_mesh_component_material_pass_summary(render_preset):
         "alpha_scale": max(0.0, as_float(cfg.get("alpha_scale"), 0.74)),
         "emission_scale": max(0.0, as_float(cfg.get("emission_scale"), 0.72)),
         "roughness_min": min(1.0, max(0.0, as_float(cfg.get("roughness_min"), 0.42))),
+        "quality_labels": string_list(cfg.get("quality_labels")),
     }
 
 
@@ -2049,12 +2060,20 @@ def water_mesh_smoothing_values(spec):
 
 def water_mesh_component_material_values(spec):
     cfg = spec.get("water_mesh_component_material_pass") or {}
+    raw_labels = cfg.get("quality_labels") or []
+    if isinstance(raw_labels, str):
+        labels = [raw_labels] if raw_labels else []
+    elif isinstance(raw_labels, (list, tuple)):
+        labels = [str(label) for label in raw_labels if isinstance(label, str) and label]
+    else:
+        labels = []
     return {
         "enabled": bool(cfg.get("enabled", False)),
         "max_component_face_ratio": min(1.0, max(0.0, scalar_value(cfg.get("max_component_face_ratio"), 0.24))),
         "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.74)),
         "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.72)),
         "roughness_min": min(1.0, max(0.0, scalar_value(cfg.get("roughness_min"), 0.42))),
+        "quality_labels": labels,
     }
 
 
@@ -2144,6 +2163,14 @@ def apply_component_material(obj, component_material, component_pass):
     return assigned
 
 
+def component_material_label_allowed(frame, component_pass):
+    labels = component_pass.get("quality_labels") or []
+    if not labels:
+        return True
+    quality = frame.get("water_mesh_surface_quality") if isinstance(frame.get("water_mesh_surface_quality"), dict) else {}
+    return quality.get("label") in set(labels)
+
+
 def add_water_mesh(frame, material, component_material, detail, smoothing, component_pass):
     objects = import_obj(frame["water_mesh"])
     for obj in objects:
@@ -2151,7 +2178,8 @@ def add_water_mesh(frame, material, component_material, detail, smoothing, compo
         obj["lsfs_frame_asset"] = True
         obj.rotation_euler[0] = math.radians(90.0)
         obj.data.materials.append(material)
-        apply_component_material(obj, component_material, component_pass)
+        if component_material_label_allowed(frame, component_pass):
+            apply_component_material(obj, component_material, component_pass)
         apply_water_mesh_smoothing(obj, smoothing)
         apply_surface_detail(obj, detail, int(frame.get("index", 0)))
     return len(objects)

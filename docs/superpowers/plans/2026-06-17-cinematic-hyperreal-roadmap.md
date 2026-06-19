@@ -848,3 +848,20 @@ treatment is a no-op. A dry-run with the S205 annotated sequence also confirms
 `render_bridge_blender.py` now preserves `water_mesh_surface_quality` in both
 scene specs and bridge summaries. S207 can add label-driven render treatment,
 but it must keep the S206 no-op gate passing for the accepted S191 window.
+
+S207 added label-gated component material treatment:
+
+- S207 report:
+  `docs/reports/cinematic_water_mesh_component_labeled_treatment_s207.md`
+- S207 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-component-labeled-treatment.md`
+- S207 artifacts:
+  `build/shots/s207_component_material_labeled_probe`
+
+S207 adds `quality_labels` to `water_mesh_component_material_pass` and the
+`dam_break_water_component_material_labeled_probe` preset. The accepted S191
+window remains no-op (`stable: 4`, gate passed), while the early window selects
+`component_fragmented` frames for the softer component material. A 2-frame
+Blender smoke render passed on the early fragmented window. S208 should add an
+equally conservative label-gated path for `normal_rough` frames, keeping the
+S206/S207 accepted-window gates passing.
