@@ -1585,3 +1585,24 @@ ratio by `3.065321180555552e-05`, highlight ratio by
 `1.6818576388888902e-05`, and `luma_p99` by `0.125`, with nonblank coverage
 unchanged. Remaining watch items are minimum contrast `-1.0` and `luma_p99.5`
 `-0.125`, so S244 should go to S245 32-frame motion review before acceptance.
+
+S245 validated S244 over the 32-frame accepted motion window:
+
+- S245 motion review report:
+  `docs/reports/cinematic_water_body_thickness_motion_review_s245.md`
+- S245 gallery report:
+  `docs/reports/cinematic_water_body_thickness_motion_gallery_s245.md`
+- S245 plan:
+  `docs/superpowers/plans/2026-06-19-water-body-thickness-motion-review.md`
+- S245 gallery:
+  `build/shots/s245_water_body_thickness_motion_review/gallery/index.html`
+
+Against S242 accepted foam/readability, S245 passes the surface-quality gate
+with `normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Contact foam, impact ripple, and secondary streak mean counts remain
+unchanged. Mean luminance rises by `0.37631863064235915`, minimum contrast by
+`1.0`, bright ratio by `5.018446180555557e-05`, highlight ratio by
+`2.8754340277777787e-05`, `luma_p95` by `0.5`, and `luma_p99` by `0.09375`;
+coverage and `luma_p99.5` are unchanged. Promote S244 into
+`dam_break_water_mesh_smoothing` in S246 and run accepted-preset parity against
+S245.
