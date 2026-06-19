@@ -190,7 +190,8 @@ The missing work is not one feature. It is a pipeline:
 | S142 | Impact-timed review window | Let the Blender bridge render a later cache window so the shot starts closer to visible impact without changing the simulation | Done in `feat: add impact timed render window` |
 | S143 | S142 gallery refresh/publish | Package and publish the S142 review artifacts for external inspection before the next visual triage | Done in `docs: publish s142 cinematic gallery` |
 | S144 | S142 public gallery visual triage | Review the S142 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s142 public gallery` |
-| S145 | Foreground surface-detail/foam-breakup pass | Preserve S142 timing/framing while increasing close-up water detail, glint/ripple readability, and contact foam breakup | Planned |
+| S145 | Foreground surface-detail/foam-breakup pass | Preserve S142 timing/framing while increasing close-up water detail, glint/ripple readability, and contact foam breakup | Done in `style: add foreground surface detail foam` |
+| S146 | S145 gallery refresh/publish | Package and publish the S145 review artifacts for external inspection before the next visual triage | Planned |
 
 ## Decision Gates
 
@@ -528,16 +529,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S145.
+Continue with S146.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-foreground-surface-detail-foam-breakup.md`
+`docs/superpowers/plans/2026-06-18-s145-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_foreground_surface_detail_foam --out build\shots\s145_foreground_surface_detail_foam --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s142_impact_timed_window\review\review_manifest.json --report docs\reports\cinematic_foreground_surface_detail_foam_s145.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s145_foreground_surface_detail_foam --out docs\reports\cinematic_artifact_package_s146.md
+python tools\build_cinematic_gallery.py build\shots\s145_foreground_surface_detail_foam --package docs\reports\cinematic_artifact_package_s146.md --out build\shots\s145_foreground_surface_detail_foam\gallery --report docs\reports\cinematic_static_gallery_s146.md
+python tools\publish_cinematic_gallery.py build\shots\s145_foreground_surface_detail_foam\gallery --port 8803 --cftunnel --manifest build\shots\s145_foreground_surface_detail_foam\gallery\publish_manifest_s146.json --report docs\reports\cinematic_gallery_publish_s146.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S145 Blender gate report that improves close-up surface/foam readability while preserving S142 timing and gates.
+The next success condition is a checked-in S146 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.

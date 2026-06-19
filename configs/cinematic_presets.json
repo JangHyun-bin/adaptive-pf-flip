@@ -1693,6 +1693,57 @@
         }
       }
     },
+    "dam_break_foreground_surface_detail_foam": {
+      "extends": "dam_break_low_angle_impact_timed",
+      "description": "S142 timing with stronger foreground water detail, glint, ripple, and contact foam breakup for close-up readability.",
+      "renderer": {
+        "water_surface_detail": {
+          "enabled": true,
+          "strength": 0.076,
+          "scale": 3.1,
+          "depth": 6
+        },
+        "surface_contact_foam_pass": {
+          "radius_x": 1.68,
+          "radius_z": 0.24,
+          "alpha_scale": 0.34,
+          "emission_scale": 0.42,
+          "max_count": 300
+        },
+        "water_impact_ripple_pass": {
+          "max_count": 96,
+          "ring_count": 3,
+          "segments": 22,
+          "arc_fraction": 0.66,
+          "radius": 0.48,
+          "radius_step": 0.24,
+          "width": 0.045,
+          "alpha_scale": 0.46,
+          "emission_scale": 0.78
+        },
+        "water_surface_glint_pass": {
+          "count": 72,
+          "length": 1.45,
+          "width": 0.032,
+          "drift_per_frame": 0.12,
+          "alpha_scale": 0.28,
+          "emission_scale": 0.56
+        },
+        "water_reflection_pass": {
+          "count": 30,
+          "length": 4.8,
+          "width": 0.095,
+          "drift_per_frame": 0.055,
+          "alpha_scale": 0.38,
+          "emission_scale": 0.78
+        },
+        "ripple_readability_review": {
+          "min_edge_mean": 9.0,
+          "min_edge_nonzero_ratio": 0.03,
+          "max_highlight_ratio": 0.011
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",
