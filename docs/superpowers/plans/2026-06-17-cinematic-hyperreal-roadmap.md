@@ -2079,3 +2079,24 @@ soft/streak alpha and emission. The 16-frame gate passes with `normal_rough: 2`,
 nonblank coverage and contrast are stable, mean luminance drops by
 `0.24353271484375227`, upper luma tail drops, and bright/highlight increases
 are only around `1e-7`. Promote S267 to S268 32-frame motion review.
+
+S268 validated the secondary de-warm probe over the accepted motion window:
+
+- S268 report:
+  `docs/reports/cinematic_secondary_dewarm_motion_review_s268.md`
+- S268 gallery report:
+  `docs/reports/cinematic_secondary_dewarm_motion_gallery_s268.md`
+- S268 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-dewarm-motion-review.md`
+- S268 gallery:
+  `build/shots/s268_secondary_dewarm_motion_review/gallery/index.html`
+
+S268 keeps `dam_break_secondary_dewarm_probe` unchanged and compares it against
+S264 over `32` frames. The surface-quality gate passes with `normal_rough: 3`,
+`stable: 29`, stable ratio `0.90625`, and blocked labels `0`. Against S264,
+nonblank coverage, minimum contrast, and mean frame contrast are unchanged.
+Mean luminance drops by `0.24766113281251023`, upper luma tail drops
+(`p95 -0.71875`, `p99 -1.0625`, `p99.5 -1.25`), and bright/highlight/specular
+increases remain around `1e-7` to `5e-7`. The comparison sheet confirms the
+secondary particles remain visible while reading less like warm beads. Promote
+S267/S268 settings to S269 accepted-preset parity.
