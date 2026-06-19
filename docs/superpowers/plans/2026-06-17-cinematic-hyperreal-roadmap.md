@@ -201,7 +201,8 @@ The missing work is not one feature. It is a pipeline:
 | S153 | S151 public gallery visual triage | Review the S151 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s151 public gallery` |
 | S154 | Secondary bead de-emphasis and mist integration | Reduce bead-like secondary particles over S151 while strengthening soft mist/streak integration for spray and foam | Done in `style: integrate secondary mist rendering` |
 | S155 | S154 gallery refresh/publish | Package and publish the S154 review artifacts for external inspection before the next visual triage | Done in `docs: publish s154 cinematic gallery` |
-| S156 | S154 public gallery visual triage | Review the S154 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S156 | S154 public gallery visual triage | Review the S154 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s154 public gallery` |
+| S157 | Contact foam sheet continuity pass | Broaden and connect surface contact foam strokes/wakes around the impact region over S154 while preserving gates | Planned |
 
 ## Decision Gates
 
@@ -539,16 +540,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S156.
+Continue with S157.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s154-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-contact-foam-sheet-continuity.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s154_secondary_mist_integration\gallery\gallery_manifest.json --publish build\shots\s154_secondary_mist_integration\gallery\publish_manifest_s155.json --out docs\reports\cinematic_visual_review_s156.md --finding "S154 reduces direct secondary bead scale and strengthens soft mist/streak integration while preserving S151 framing and gates." --decision "Select the next visible adjustment from the S154 public gallery." --next "TBD by S156 triage."
+python tools\run_cinematic_shot.py --preset dam_break_contact_foam_sheet_continuity --out build\shots\s157_contact_foam_sheet_continuity --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s154_secondary_mist_integration\review\review_manifest.json --report docs\reports\cinematic_contact_foam_sheet_continuity_s157.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in S156 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
+The next success condition is a checked-in S157 Blender gate report that makes contact foam read more continuous without washing out water-surface ripples, secondary mist, temporal, visual, or secondary-depth gates.

@@ -242,6 +242,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S153** | **S151 public gallery visual triage** - reviews the S151 public gallery and selects S154 secondary bead de-emphasis/mist integration as the next visible look-dev pass. | done |
 | **S154** | **Secondary bead de-emphasis and mist integration** - `dam_break_secondary_mist_integrated` reduces direct secondary bead scales and strengthens soft mist/streak integration while preserving S151 gates. | done |
 | **S155** | **S154 gallery refresh/publish** - packages and publishes the S154 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://talk-bass-briefing-incentives.trycloudflare.com`. | done |
+| **S156** | **S154 public gallery visual triage** - reviews the S154 public gallery and selects S157 contact foam sheet continuity as the next visible look-dev pass. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
