@@ -1905,6 +1905,28 @@
         }
       }
     },
+    "dam_break_contact_foam_sheet_continuity": {
+      "extends": "dam_break_secondary_mist_integrated",
+      "description": "S154 mist-integrated shot with broader flow-aligned contact foam strokes for a more continuous impact wake.",
+      "renderer": {
+        "surface_contact_foam_pass": {
+          "max_count": 340,
+          "radius_x": 2.05,
+          "radius_z": 0.34,
+          "alpha_scale": 0.46,
+          "emission_scale": 0.52
+        },
+        "water_impact_ripple_pass": {
+          "alpha_scale": 0.43,
+          "emission_scale": 0.72
+        },
+        "ripple_readability_review": {
+          "min_edge_mean": 9.0,
+          "min_edge_nonzero_ratio": 0.03,
+          "max_highlight_ratio": 0.011
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

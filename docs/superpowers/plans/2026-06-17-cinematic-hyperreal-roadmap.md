@@ -202,7 +202,8 @@ The missing work is not one feature. It is a pipeline:
 | S154 | Secondary bead de-emphasis and mist integration | Reduce bead-like secondary particles over S151 while strengthening soft mist/streak integration for spray and foam | Done in `style: integrate secondary mist rendering` |
 | S155 | S154 gallery refresh/publish | Package and publish the S154 review artifacts for external inspection before the next visual triage | Done in `docs: publish s154 cinematic gallery` |
 | S156 | S154 public gallery visual triage | Review the S154 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s154 public gallery` |
-| S157 | Contact foam sheet continuity pass | Broaden and connect surface contact foam strokes/wakes around the impact region over S154 while preserving gates | Planned |
+| S157 | Contact foam sheet continuity pass | Broaden and connect surface contact foam strokes/wakes around the impact region over S154 while preserving gates | Done in `style: add contact foam sheet continuity` |
+| S158 | S157 gallery refresh/publish | Package and publish the S157 review artifacts for external inspection before the next visual triage | Planned |
 
 ## Decision Gates
 
@@ -540,16 +541,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S157.
+Continue with S158.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-contact-foam-sheet-continuity.md`
+`docs/superpowers/plans/2026-06-18-s157-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_contact_foam_sheet_continuity --out build\shots\s157_contact_foam_sheet_continuity --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s154_secondary_mist_integration\review\review_manifest.json --report docs\reports\cinematic_contact_foam_sheet_continuity_s157.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s157_contact_foam_sheet_continuity --out docs\reports\cinematic_artifact_package_s158.md
+python tools\build_cinematic_gallery.py build\shots\s157_contact_foam_sheet_continuity --package docs\reports\cinematic_artifact_package_s158.md --out build\shots\s157_contact_foam_sheet_continuity\gallery --report docs\reports\cinematic_static_gallery_s158.md
+python tools\publish_cinematic_gallery.py build\shots\s157_contact_foam_sheet_continuity\gallery --port 8817 --cftunnel --manifest build\shots\s157_contact_foam_sheet_continuity\gallery\publish_manifest_s158.json --report docs\reports\cinematic_gallery_publish_s158.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S157 Blender gate report that makes contact foam read more continuous without washing out water-surface ripples, secondary mist, temporal, visual, or secondary-depth gates.
+The next success condition is a checked-in S158 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
