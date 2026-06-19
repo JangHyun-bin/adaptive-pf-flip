@@ -197,7 +197,8 @@ The missing work is not one feature. It is a pipeline:
 | S149 | S148 gallery refresh/publish | Package and publish the S148 review artifacts for external inspection before the next visual triage | Done in `docs: publish s148 cinematic gallery` |
 | S150 | S148 public gallery visual triage | Review the S148 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s148 public gallery` |
 | S151 | Source-edge cleanup framing pass | Crop or de-emphasize the upper source region over S148 while preserving close-up contact, water thickness, and review gates | Done in `style: add source edge cleanup framing` |
-| S152 | S151 gallery refresh/publish | Package and publish the S151 review artifacts for external inspection before the next visual triage | Planned |
+| S152 | S151 gallery refresh/publish | Package and publish the S151 review artifacts for external inspection before the next visual triage | Done in `docs: publish s151 cinematic gallery` |
+| S153 | S151 public gallery visual triage | Review the S151 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -535,18 +536,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S152.
+Continue with S153.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s151-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s151-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s151_source_edge_cleanup_framing --out docs\reports\cinematic_artifact_package_s152.md
-python tools\build_cinematic_gallery.py build\shots\s151_source_edge_cleanup_framing --package docs\reports\cinematic_artifact_package_s152.md --out build\shots\s151_source_edge_cleanup_framing\gallery --report docs\reports\cinematic_static_gallery_s152.md
-python tools\publish_cinematic_gallery.py build\shots\s151_source_edge_cleanup_framing\gallery --port 8805 --cftunnel --manifest build\shots\s151_source_edge_cleanup_framing\gallery\publish_manifest_s152.json --report docs\reports\cinematic_gallery_publish_s152.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s151_source_edge_cleanup_framing\gallery\gallery_manifest.json --publish build\shots\s151_source_edge_cleanup_framing\gallery\publish_manifest_s152.json --out docs\reports\cinematic_visual_review_s153.md --finding "S151 reduces early upper-source distraction with source frames 12-47 and tighter lower camera framing while preserving all review gates." --decision "Select the next visible adjustment from the S151 public gallery." --next "TBD by S153 triage."
 ```
 
-The next success condition is a checked-in S152 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
+The next success condition is a checked-in S153 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
