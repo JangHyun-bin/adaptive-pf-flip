@@ -40,6 +40,22 @@ python tools\publish_cinematic_gallery.py build\shots\s160_large_event_scale_gat
 - Local and public `index.html` return HTTP 200.
 - Local and public `assets/shot.gif` return HTTP 200 and nonzero bytes.
 
+## Result
+
+- Status: published.
+- Local URL: `http://127.0.0.1:8818`.
+- Public URL: `https://clear-agree-chi-cottage.trycloudflare.com`.
+- Manifest: `build/shots/s160_large_event_scale_gate/gallery/publish_manifest_s161.json`.
+- Reports:
+  - `docs/reports/cinematic_artifact_package_s161.md`
+  - `docs/reports/cinematic_static_gallery_s161.md`
+  - `docs/reports/cinematic_gallery_publish_s161.md`
+- Verification:
+  - `http://127.0.0.1:8818/index.html`: 200, 8150 bytes.
+  - `http://127.0.0.1:8818/assets/shot.gif`: 200, 26170768 bytes.
+  - `https://clear-agree-chi-cottage.trycloudflare.com/index.html`: 200, 8150 bytes.
+  - `https://clear-agree-chi-cottage.trycloudflare.com/assets/shot.gif`: 200, 26170768 bytes.
+
 ## Verification
 
 ```powershell
