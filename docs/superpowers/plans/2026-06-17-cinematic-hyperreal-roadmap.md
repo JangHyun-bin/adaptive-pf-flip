@@ -2338,3 +2338,20 @@ passed with minimum occupancy `0.056202256944444445` against the `0.01` gate,
 (`69.25s` preview render, `1.28s` GIF assembly, `0.20s` gallery build). Use S280
 as the bounded larger preview benchmark before replacing the public preview
 endpoint or scaling further.
+
+S281 published the S280 external-bundle preview benchmark gallery:
+
+- S281 publish report:
+  `docs/reports/cinematic_external_bundle_preview_benchmark_publish_s281.md`
+- S281 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-preview-benchmark-publish.md`
+- S281 manifest:
+  `build/shots/s281_external_bundle_benchmark_publish/publish_manifest.json`
+- S281 public URL:
+  `https://roman-semester-highlighted-formatting.trycloudflare.com`
+
+S281 stops the S278/S277 preview endpoint, serves the S280 gallery on local port
+`8901`, and starts a new Cloudflare quick tunnel. Local and public `index.html`
+plus `assets/shot.gif` checks all returned HTTP `200`. S281 is now the current
+lightweight external-render benchmark preview endpoint; the S270/S269 accepted
+gallery endpoint remains active separately.
