@@ -209,7 +209,8 @@ The missing work is not one feature. It is a pipeline:
 | S161 | S160 gallery refresh/publish | Package and publish the S160 large-event gate artifacts for public inspection before the next scale/composition adjustment | Done in `docs: publish s160 cinematic gallery` |
 | S162 | Establishing scale composition pass | Use S160 as input evidence to widen the shot grammar so the larger physical event reads as a broader impact-pool scene, not only a foreground surface/mist close-up | Done in `style: add establishing scale composition` |
 | S163 | S162 gallery refresh/publish | Package and publish the S162 establishing-scale artifacts for public inspection before the next visual triage | Done in `docs: publish s162 cinematic gallery` |
-| S164 | S162 public gallery visual triage | Review the S162 public gallery and choose whether to attack source-slab silhouette, wider event shape, or render-detail readability next | Planned |
+| S164 | S162 public gallery visual triage | Review the S162 public gallery and choose whether to attack source-slab silhouette, wider event shape, or render-detail readability next | Done in `docs: triage s162 public gallery` |
+| S165 | Source-slab silhouette de-emphasis scene pass | Add a source-breakup scene/preset variant that reduces ceiling-like upper source mass while preserving the S162 impact-pool composition and gates | Planned |
 
 ## Decision Gates
 

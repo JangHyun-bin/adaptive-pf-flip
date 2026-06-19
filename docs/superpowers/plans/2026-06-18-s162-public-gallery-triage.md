@@ -42,6 +42,14 @@ Review the published S162 gallery and choose the next concrete visible adjustmen
 - Report records the public URL, checked assets, numeric gate summary, visual findings, and one selected next milestone.
 - Roadmap is updated with the next selected milestone.
 
+## Result
+
+- Status: completed.
+- Report: `docs/reports/cinematic_visual_review_s164.md`.
+- Public gallery: `https://edmonton-prospect-cure-actions.trycloudflare.com`.
+- Selected next milestone: S165 source-slab silhouette de-emphasis scene pass.
+- Roadmap updated with S165.
+
 ## Verification
 
 ```powershell
