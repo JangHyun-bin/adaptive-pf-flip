@@ -1633,3 +1633,23 @@ minimum contrast by `1.0`, bright ratio by `5.018446180555557e-05`, highlight
 ratio by `2.8754340277777787e-05`, `luma_p95` by `0.5`, and `luma_p99` by
 `0.09375`, with coverage and `luma_p99.5` unchanged. Use S246 as the current
 accepted cinematic water baseline.
+
+S247 added water-body contribution diagnostics:
+
+- S247 report:
+  `docs/reports/cinematic_water_body_contribution_diagnostics_s247.md`
+- S247 plan:
+  `docs/superpowers/plans/2026-06-19-water-body-contribution-diagnostics.md`
+- S247 diagnostic sheet:
+  `build/shots/s247_water_body_contribution_diagnostics/diagnostic_sheet.png`
+- S247 masks:
+  `build/shots/s247_water_body_contribution_diagnostics/masks/`
+
+S247 compares S242 accepted foam/readability against S246 accepted water-body
+thickness with upper-tail gain/loss masks. The diagnostic reports gain ratio
+`0.0022139485677083333`, loss ratio `0.0017569986979166666`, net gain ratio
+`0.00045694986979166665`, mean gain luma delta `10.267281407078043`, and mean
+loss luma delta `9.951799090238987`. The sheet shows a mixed upper-tail
+redistribution rather than a purely localized overlay gain, which is expected
+for material/scattering tuning. Keep S246 accepted, but prioritize the
+render-export/review schema before more subtle secondary mist tuning.
