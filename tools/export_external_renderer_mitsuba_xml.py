@@ -286,15 +286,25 @@ def build_phase_volume_proxy_payload(scene, limit, base_radius):
     return payload, []
 
 
-def secondary_bsdf_lines():
+def secondary_bsdf_lines(opacity=None):
     lines = []
     for channel in SECONDARY_CHANNELS:
         spec = SECONDARY_BSDFS[channel]
-        lines.extend([
-            f'  <bsdf type="diffuse" id="{spec["id"]}">',
-            f'    <rgb name="reflectance" value="{spec["reflectance"]}"/>',
-            '  </bsdf>',
-        ])
+        if opacity is None:
+            lines.extend([
+                f'  <bsdf type="diffuse" id="{spec["id"]}">',
+                f'    <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+                '  </bsdf>',
+            ])
+        else:
+            lines.extend([
+                f'  <bsdf type="mask" id="{spec["id"]}">',
+                f'    <float name="opacity" value="{opacity:.8g}"/>',
+                '    <bsdf type="diffuse">',
+                f'      <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+                '    </bsdf>',
+                '  </bsdf>',
+            ])
     return lines
 
 
@@ -381,7 +391,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         '    <float name="int_ior" value="1.333"/>',
         '    <float name="ext_ior" value="1.0"/>',
         '  </bsdf>',
-        *secondary_bsdf_lines(),
+        *secondary_bsdf_lines(args.secondary_opacity),
         *phase_volume_bsdf_lines(),
         '  <shape type="obj">',
         f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
@@ -537,6 +547,7 @@ def export_mitsuba(args):
             "frames_exported": len(exported),
             "secondary_proxy_limit": args.secondary_proxy_limit,
             "secondary_proxy_radius": args.secondary_proxy_radius,
+            "secondary_opacity": args.secondary_opacity,
             "phase_volume_proxy_limit": args.phase_volume_proxy_limit,
             "phase_volume_proxy_radius": args.phase_volume_proxy_radius,
         },
@@ -589,6 +600,7 @@ def markdown_report(export, out_path, root):
         f"- Camera target override: `{export.get('render_settings', {}).get('camera_target_override')}`",
         f"- Camera FOV override: `{export.get('render_settings', {}).get('camera_fov_override')}`",
         f"- Water alpha override: `{export.get('render_settings', {}).get('water_alpha_override')}`",
+        f"- Secondary opacity: `{export.get('render_settings', {}).get('secondary_opacity')}`",
         "",
         "## Checks",
         "",
@@ -660,6 +672,8 @@ def main(argv=None):
                         help="maximum sampled secondary particle sphere proxies per frame")
     parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,
                         help="base radius for secondary particle sphere proxies in cell units")
+    parser.add_argument("--secondary-opacity", type=float,
+                        help="wrap secondary BSDFs in a Mitsuba mask BSDF with this opacity")
     parser.add_argument("--phase-volume-proxy-limit", type=int, default=0,
                         help="maximum sampled phase-volume sphere proxies per frame")
     parser.add_argument("--phase-volume-proxy-radius", type=float, default=0.11,
@@ -678,6 +692,8 @@ def main(argv=None):
         parser.error("secondary-proxy-limit must be non-negative")
     if args.secondary_proxy_radius <= 0.0:
         parser.error("secondary-proxy-radius must be positive")
+    if args.secondary_opacity is not None and not (0.0 < args.secondary_opacity <= 1.0):
+        parser.error("secondary-opacity must be in the range (0, 1]")
     if args.phase_volume_proxy_limit < 0:
         parser.error("phase-volume-proxy-limit must be non-negative")
     if args.phase_volume_proxy_radius <= 0.0:

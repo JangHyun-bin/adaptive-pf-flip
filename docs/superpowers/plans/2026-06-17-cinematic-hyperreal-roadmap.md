@@ -3162,3 +3162,34 @@ Mitsuba GIF and verifies public `index.html` plus `assets/shot.gif` with HTTP
 more readable than S319/S320, but still needs renderer-side material, lighting,
 and secondary representation work before it can be judged as cinematic look
 development.
+
+S322 added masked secondary-proxy material control:
+
+- S322 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S322 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_masked_export_s322.md`
+- S322 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_masked_validation_s322.md`
+- S322 render report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_masked_render_s322.md`
+- S322 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_masked_gallery_s322.md`
+- S322 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_masked_publish_s322.md`
+- S322 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-mask.md`
+- S322 public URL:
+  `https://evaluate-inns-suppliers-wright.trycloudflare.com`
+
+S322 adds `--secondary-opacity` to the Mitsuba XML exporter. When set, the
+secondary channel diffuse BSDFs are wrapped in Mitsuba `mask` BSDFs so spray,
+foam, bubble, and droplet proxies are no longer forced to render as fully
+opaque spheres. A rejected large-radius experiment made secondary particles read
+as large blue dots, so the committed proof uses the S321 close-up setup with
+`192` secondary proxies per frame, `0.14` base radius, and `0.22` secondary
+opacity. The resulting actual Mitsuba render keeps all `48` XML frames valid,
+renders `8` selected frames at `spp=4` with `0` manifest failures, and publishes
+a `1289627` byte GIF with public HTTP `200` checks. Use S322 as the current
+secondary-material knob proof, while noting that real cinematic mist/foam still
+needs a non-sphere or volumetric representation.
