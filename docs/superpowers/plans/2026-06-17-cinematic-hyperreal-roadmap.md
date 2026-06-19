@@ -2279,3 +2279,20 @@ preview with minimum occupancy `0.05804398148148148` against the `0.01` gate,
 assembled a GIF, and built a preview gallery with `9` visual assets. Use S277
 as the preferred lightweight external-render handoff preview before heavier
 larger-shot or Blender work.
+
+S278 published the S277 external-bundle motion preview gallery:
+
+- S278 publish report:
+  `docs/reports/cinematic_external_bundle_motion_preview_publish_s278.md`
+- S278 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-motion-preview-publish.md`
+- S278 manifest:
+  `build/shots/s278_external_bundle_motion_preview_publish/publish_manifest.json`
+- S278 public URL:
+  `https://concord-extensions-dial-conduct.trycloudflare.com`
+
+S278 stops the S276/S275 preview endpoint, serves the S277 gallery on local port
+`8901`, and starts a new Cloudflare quick tunnel. Local and public `index.html`
+plus `assets/shot.gif` checks all returned HTTP `200`. S278 is now the current
+lightweight external-render handoff preview endpoint; the S270/S269 accepted
+gallery endpoint remains active separately.
