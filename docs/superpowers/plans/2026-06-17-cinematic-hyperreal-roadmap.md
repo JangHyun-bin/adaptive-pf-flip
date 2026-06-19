@@ -2448,3 +2448,21 @@ a `16` frame `960 x 540` preview with minimum occupancy
 `0.05804398148148148`, assembled a GIF, and built a `9` asset gallery. Use S286
 as the visual smoke test for the renderer job schema before publishing the
 gallery or writing a renderer-specific adapter.
+
+S287 published the S286 external renderer job preview gallery:
+
+- S287 publish report:
+  `docs/reports/cinematic_external_renderer_job_preview_publish_s287.md`
+- S287 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-preview-publish.md`
+- S287 manifest:
+  `build/shots/s287_external_renderer_job_preview_publish/publish_manifest.json`
+- S287 public URL:
+  `https://installations-uni-tiger-nov.trycloudflare.com`
+
+S287 serves the S286 gallery on local port `8902` and starts a separate
+Cloudflare quick tunnel. Local and public `index.html` plus `assets/shot.gif`
+checks all returned HTTP `200`. The HTTP server PID is `61388`, and the
+Cloudflared PID is `153412`. S287 is the public smoke-test endpoint for the
+external renderer job schema path; S283 and S281 remain active separately for
+accepted bridge review and external-bundle benchmark preview.
