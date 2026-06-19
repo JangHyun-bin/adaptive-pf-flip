@@ -1905,3 +1905,26 @@ nonblank coverage, raises minimum contrast by `5.0`, raises mean frame
 contrast by `7.34375`, lowers mean luminance by only `0.07692477756076244`,
 and reduces bright, highlight, near-highlight, and specular ratios. Promote
 the S258/S259 camera motion to S260 accepted-camera parity.
+
+S260 promoted the presentation composition camera into the accepted preset:
+
+- S260 parity report:
+  `docs/reports/cinematic_presentation_composition_acceptance_parity_s260.md`
+- S260 accepted delta report:
+  `docs/reports/cinematic_presentation_composition_acceptance_delta_s260.md`
+- S260 gallery report:
+  `docs/reports/cinematic_presentation_composition_acceptance_gallery_s260.md`
+- S260 plan:
+  `docs/superpowers/plans/2026-06-20-presentation-composition-acceptance.md`
+- S260 gallery:
+  `build/shots/s260_presentation_composition_acceptance/gallery/index.html`
+
+S260 moves the S258 camera motion/stability values into
+`dam_break_water_mesh_smoothing` and keeps
+`dam_break_presentation_composition_probe` as a historical alias. Against S259,
+all comparison metrics and calibration deltas are exactly `0.0`, confirming
+accepted-preset parity. Against S255, S260 preserves nonblank coverage, raises
+minimum contrast by `5.0`, raises mean frame contrast by `7.34375`, and reduces
+bright, highlight, near-highlight, and specular ratios. S260 is now the current
+accepted bridge-render visual baseline. Refresh the accepted review package
+and public gallery from S260 next.
