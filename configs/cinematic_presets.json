@@ -3103,6 +3103,70 @@
         }
       }
     },
+    "dam_break_secondary_dewarm_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S267 stronger secondary de-warm probe that combines cooler materials with fewer/briefer direct beads and softer secondary emission.",
+      "renderer": {
+        "secondary_channel_radius_scales": {
+          "droplet": 0.5,
+          "spray": 0.56,
+          "foam": 0.96,
+          "bubble": 0.4
+        },
+        "secondary_direct_pass": {
+          "channels": {
+            "droplet": 0.45,
+            "spray": 0.3,
+            "foam": 0.38,
+            "bubble": 0.16
+          },
+          "max_count_scale": 0.76
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 3.25,
+            "foam": 2.85
+          },
+          "alpha_scale": 0.34,
+          "emission_scale": 0.66,
+          "max_radius": 1.34
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 1.05,
+            "foam": 0.42
+          },
+          "alpha_scale": 0.16,
+          "emission_scale": 0.62,
+          "length_scale": 0.07,
+          "max_length": 1.38
+        }
+      },
+      "materials": {
+        "spray": {
+          "base_color": [0.74, 0.92, 1.0, 0.5],
+          "emission_color": [0.72, 0.9, 1.0, 1.0],
+          "emission_strength": 0.02,
+          "roughness": 0.3,
+          "alpha": 0.5,
+          "transmission": 0.16
+        },
+        "foam": {
+          "base_color": [0.82, 0.94, 1.0, 0.62],
+          "emission_color": [0.72, 0.88, 1.0, 1.0],
+          "emission_strength": 0.024,
+          "roughness": 0.88,
+          "alpha": 0.62,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [0.62, 0.84, 1.0, 0.26],
+          "roughness": 0.24,
+          "alpha": 0.26,
+          "transmission": 0.18
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

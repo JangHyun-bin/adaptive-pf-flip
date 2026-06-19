@@ -2059,3 +2059,23 @@ luminance changes only by `-0.05237711588542027`. Do not promote S266 as-is:
 material-only cooling is safe but too subtle. Run S267 with stronger secondary
 bead de-warming that also reduces direct bead retention/alpha and secondary
 emission.
+
+S267 added a stronger secondary de-warm probe:
+
+- S267 report:
+  `docs/reports/cinematic_secondary_dewarm_probe_s267.md`
+- S267 gallery report:
+  `docs/reports/cinematic_secondary_dewarm_gallery_s267.md`
+- S267 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-dewarm-probe.md`
+- S267 gallery:
+  `build/shots/s267_secondary_dewarm_probe/gallery/index.html`
+
+S267 adds `dam_break_secondary_dewarm_probe`, extending S264 accepted
+`dam_break_water_mesh_smoothing` while cooling spray/foam/bubble materials,
+reducing direct secondary bead retention/radius, and softening secondary
+soft/streak alpha and emission. The 16-frame gate passes with `normal_rough: 2`,
+`stable: 14`, stable ratio `0.875`, and blocked labels `0`. Against S264,
+nonblank coverage and contrast are stable, mean luminance drops by
+`0.24353271484375227`, upper luma tail drops, and bright/highlight increases
+are only around `1e-7`. Promote S267 to S268 32-frame motion review.
