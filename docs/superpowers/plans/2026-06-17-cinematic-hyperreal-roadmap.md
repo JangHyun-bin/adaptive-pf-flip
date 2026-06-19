@@ -2624,3 +2624,21 @@ range `8..55`, `0` missing assets, `0` camera failures, monotonic frame order,
 minimum water mesh faces `17720`, quality labels `normal_rough: 4` and
 `stable: 44`, and a `2.05 GB` input footprint. Use S295 as the larger renderer
 job contract before preview or Blender gates.
+
+S296 previewed the larger 48-frame renderer job:
+
+- S296 preview report:
+  `docs/reports/cinematic_larger_external_renderer_job_preview_s296.md`
+- S296 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_job_preview_gallery_s296.md`
+- S296 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-preview.md`
+- S296 gallery:
+  `build/shots/s296_larger_external_renderer_job_preview/gallery/index.html`
+
+S296 renders the S295 job through the preview renderer as `24` frames at
+`1280 x 720`, with minimum occupancy `0.056203342013888886` against the `0.01`
+gate. The generated GIF is `931895` bytes, and the gallery has `9` visual
+assets. A representative keyframe is nonblank and shows water, secondary
+particles, and mesh overlay. Use S296 as the larger-job visual smoke test before
+publishing or running a Blender adapter dry-run.
