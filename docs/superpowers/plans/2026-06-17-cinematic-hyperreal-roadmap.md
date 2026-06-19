@@ -1403,3 +1403,24 @@ minimum contrast rises by `6.0`, bright ratio improves by
 `3.580729166666665e-05`, hard highlight ratio is non-negative at `0.0` delta,
 and calibration deltas are strong (`luma_p99 +9.4375`, `luma_p995 +11.5`).
 Promote S236 to S237 32-frame motion review before any accepted-preset change.
+
+S237 validated S236 over the 32-frame accepted motion window:
+
+- S237 comparison report:
+  `docs/reports/cinematic_highlight_material_motion_review_s237.md`
+- S237 gallery report:
+  `docs/reports/cinematic_highlight_material_motion_gallery_s237.md`
+- S237 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-material-motion-review.md`
+- S237 gallery:
+  `build/shots/s237_highlight_material_motion_review/gallery/index.html`
+
+Against S230 accepted foreground-volume, S237 passes the surface-quality gate
+with `normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Direct secondary counts match on all 32 frames, nonblank coverage is
+preserved, minimum contrast rises by `16.0`, mean luminance rises by
+`0.571984456380207`, bright ratio improves by `2.943250868055555e-05`, hard
+highlight ratio is non-negative at `0.0` delta, and calibration deltas remain
+strong (`luma_p99 +9.40625`, `luma_p995 +11.4375`). Promote the S236 material
+response into `dam_break_water_mesh_smoothing` in S238 and run accepted-preset
+parity against S237.
