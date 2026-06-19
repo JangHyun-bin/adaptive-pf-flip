@@ -366,6 +366,11 @@ def load_water_reconstruction(path):
             "vertex_count": as_int(frame.get("vertex_count")),
             "face_count": as_int(frame.get("face_count")),
             "occupied_cell_count": as_int(frame.get("occupied_cell_count")),
+            "surface_quality": (
+                dict(frame.get("surface_quality"))
+                if isinstance(frame.get("surface_quality"), dict)
+                else {}
+            ),
         })
     if not frames:
         fail(f"{path}: water reconstruction has no frames")
@@ -475,6 +480,11 @@ def load_sequence(path, water_reconstruction_path=None):
             "water_mesh_vertex_count": as_int(entry.get("water_mesh_vertex_count")),
             "water_mesh_face_count": as_int(entry.get("water_mesh_face_count")),
             "water_mesh_occupied_cell_count": as_int(entry.get("water_mesh_occupied_cell_count")),
+            "water_mesh_surface_quality": (
+                dict(entry.get("water_mesh_surface_quality"))
+                if isinstance(entry.get("water_mesh_surface_quality"), dict)
+                else {}
+            ),
             "particle_count": as_int(entry.get("particle_count")),
             "secondary_channels": camera_payload.get("secondary_channels", {}),
         })
@@ -1322,6 +1332,7 @@ def pick_water_mesh(frame, water_index, out_index, out_count, source_window=None
         "vertex_count": frame.get("water_mesh_vertex_count", 0),
         "face_count": frame.get("water_mesh_face_count", 0),
         "occupied_cell_count": frame.get("water_mesh_occupied_cell_count", 0),
+        "surface_quality": frame.get("water_mesh_surface_quality", {}),
     }
 
 
@@ -1529,6 +1540,11 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             "water_mesh_vertex_count": as_int(water_mesh.get("vertex_count")),
             "water_mesh_face_count": as_int(water_mesh.get("face_count")),
             "water_mesh_occupied_cell_count": as_int(water_mesh.get("occupied_cell_count")),
+            "water_mesh_surface_quality": (
+                dict(water_mesh.get("surface_quality"))
+                if isinstance(water_mesh.get("surface_quality"), dict)
+                else {}
+            ),
             "render_data": dict(render_data) if render_data else {},
             "particles_csv": frame["particles_csv"],
             "particle_count": frame.get("particle_count", 0),
@@ -3601,6 +3617,7 @@ def main(argv=None):
                 "water_mesh_vertex_count": frame["water_mesh_vertex_count"],
                 "water_mesh_face_count": frame["water_mesh_face_count"],
                 "water_mesh_occupied_cell_count": frame["water_mesh_occupied_cell_count"],
+                "water_mesh_surface_quality": frame.get("water_mesh_surface_quality", {}),
                 "secondary_counts": frame["secondary_counts"],
                 "secondary_streak_counts": frame["secondary_streak_counts"],
                 "surface_contact_foam_counts": frame["surface_contact_foam_counts"],

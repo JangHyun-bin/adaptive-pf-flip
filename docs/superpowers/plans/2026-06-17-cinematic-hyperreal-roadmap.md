@@ -832,3 +832,19 @@ frames carry `water_mesh_surface_quality`. S206 should use this metadata in a
 renderer no-op/QA gate first: prove the accepted S191 source window is mostly
 stable, then selectively attach normal/continuity shading or component material
 treatment only on labeled frames.
+
+S206 added the surface-quality render-window gate:
+
+- S206 report:
+  `docs/reports/cinematic_water_mesh_surface_quality_gate_s206.md`
+- S206 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-surface-quality-gate.md`
+- S206 gate artifacts:
+  `build/shots/s206_surface_quality_gate`
+
+S206 proves the accepted S191 window is stable-only: all 36 S191 render frames
+map to `stable`, stable ratio is `1.0`, blocked labels are `0`, and component
+treatment is a no-op. A dry-run with the S205 annotated sequence also confirms
+`render_bridge_blender.py` now preserves `water_mesh_surface_quality` in both
+scene specs and bridge summaries. S207 can add label-driven render treatment,
+but it must keep the S206 no-op gate passing for the accepted S191 window.
