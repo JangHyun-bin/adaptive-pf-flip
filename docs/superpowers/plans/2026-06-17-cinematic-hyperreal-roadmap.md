@@ -2016,3 +2016,25 @@ raises mean frame contrast by `2.4375`, and reduces mean bright ratio while
 slightly increasing bounded highlight/specular ratios. S264 is now the current
 accepted bridge-render visual baseline. Refresh the accepted review package
 and public gallery from S264 next.
+
+S265 refreshed and published the S264 accepted review package:
+
+- S265 package report:
+  `docs/reports/cinematic_accepted_review_package_s265.md`
+- S265 publish report:
+  `docs/reports/cinematic_s264_gallery_publish_s265.md`
+- S265 plan:
+  `docs/superpowers/plans/2026-06-20-s264-review-package-publish.md`
+- S265 package JSON:
+  `build/shots/s265_accepted_review_package/review_package.json`
+- S265 public URL:
+  `https://course-graduation-flags-longer.trycloudflare.com`
+
+S265 packages S264 with `12` artifacts and `4` summary sources:
+`s264_parity`, `s264_baseline_delta`, `s264_surface_gate`, and
+`s263_motion_review`. It stops the previous S261/S260 tunnel and publishes the
+S264 gallery through a new Cloudflare quick tunnel. Local and public
+`index.html` plus `assets/shot.gif` return HTTP `200`. This supersedes S261 as
+the current external review package and public gallery endpoint. Continue with
+another visible pass only if review shows a concrete issue; otherwise shift
+back to renderer-data/export schema or larger-scale handoff work.
