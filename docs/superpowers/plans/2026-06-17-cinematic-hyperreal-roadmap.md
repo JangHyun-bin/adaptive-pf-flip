@@ -1758,3 +1758,25 @@ highlight ratio are unchanged; `luma_p95` rises by `0.125` and `luma_p99` by
 `luma_p99.5` has a tiny `-0.03125` delta. Do not promote S251. Return to the
 S246 accepted baseline and move to a more visible presentation or
 shot-composition pass.
+
+S253 added a presentation lift probe:
+
+- S253 report:
+  `docs/reports/cinematic_presentation_lift_probe_s253.md`
+- S253 gallery report:
+  `docs/reports/cinematic_presentation_lift_gallery_s253.md`
+- S253 plan:
+  `docs/superpowers/plans/2026-06-20-presentation-lift-probe.md`
+- S253 gallery:
+  `build/shots/s253_presentation_lift_probe/gallery/index.html`
+
+S253 adds `dam_break_presentation_lift_probe`, a presentation-only tone and
+lighting variant that inherits the accepted S246 simulation, material,
+secondary, foam, ripple, and metadata overlay behavior. The matched 16-frame
+gate passes with `normal_rough: 2`, `stable: 14`, stable ratio `0.875`, and
+blocked labels `0`. Against S246 accepted 16-frame baseline, mean luminance
+rises by `2.5741634114583434`, minimum contrast by `1.0`, `luma_p95` by
+`2.9375`, `luma_p99` by `2.5625`, and `luma_p99.5` by `2.5`, with nonblank
+coverage unchanged. Bright and highlight deltas remain tiny, upper-mid ratio
+is effectively unchanged, and specular ratio decreases slightly. Promote S253
+to S254 32-frame motion review before any accepted-preset promotion.
