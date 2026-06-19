@@ -2414,6 +2414,24 @@
           "factor": 0.04,
           "iterations": 1
         },
+        "water_surface_glint_pass": {
+          "count": 225,
+          "alpha_scale": 0.42,
+          "emission_scale": 0.84,
+          "segment_count": 3,
+          "segment_gap": 0.12,
+          "dropout": 0.045
+        },
+        "water_reflection_pass": {
+          "count": 82,
+          "length": 5.05,
+          "width": 0.12,
+          "alpha_scale": 0.43,
+          "emission_scale": 0.85,
+          "segment_count": 3,
+          "segment_gap": 0.14,
+          "dropout": 0.04
+        },
         "water_surface_detail": {
           "strength": 0.052,
           "scale": 2.8,

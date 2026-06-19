@@ -1066,3 +1066,27 @@ while preserving nonblank coverage, minimum contrast, and mean highlight ratio.
 S219 is the preferred overlay-only promotion candidate. S220 should fold these
 overlay controls into `dam_break_water_mesh_smoothing` and rerun the accepted
 mixed-window gate/render comparison.
+
+S220 promoted the S219 overlay-only controls into the accepted water mesh
+smoothing preset:
+
+- S220 acceptance report:
+  `docs/reports/cinematic_water_overlay_highlight_acceptance_s220.md`
+- S220 S219 parity report:
+  `docs/reports/cinematic_water_overlay_highlight_s219_s220_parity.md`
+- S220 gallery report:
+  `docs/reports/cinematic_water_overlay_highlight_acceptance_gallery_s220.md`
+- S220 plan:
+  `docs/superpowers/plans/2026-06-19-water-overlay-highlight-acceptance.md`
+- S220 gallery:
+  `build/shots/s220_accepted_overlay_highlight/gallery/index.html`
+
+S220 adds the S219 `water_surface_glint_pass` and `water_reflection_pass`
+overrides directly to `dam_break_water_mesh_smoothing`. The mixed gate passed
+with `normal_rough: 1` and `stable: 7`. Against S214 accepted, S220 preserves
+nonblank coverage, minimum contrast, and mean highlight ratio while improving
+mean luminance by `0.43489312065972285`. Against S219, parity holds within render
+noise (`-4.340277769188106e-06` mean luminance delta, all other aggregate deltas
+`0.0`). Use S220 as the accepted baseline for the next visual pass. A practical
+next target is secondary particle readability without increasing direct particle
+clutter.
