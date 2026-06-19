@@ -1243,3 +1243,21 @@ S228 preserves coverage, minimum contrast, and direct secondary counts on all
 highlight ratios drop slightly (`-6.510416666666654e-06` and
 `-3.2552083333333407e-06`), so S228 should remain a promotion candidate until
 S229 runs the same probe over the 32-frame motion window.
+
+S229 validated the S228 foreground-volume probe over the 32-frame motion window:
+
+- S229 comparison report:
+  `docs/reports/cinematic_foreground_volume_motion_review_s229.md`
+- S229 gallery report:
+  `docs/reports/cinematic_foreground_volume_motion_gallery_s229.md`
+- S229 plan:
+  `docs/superpowers/plans/2026-06-19-foreground-volume-motion-review.md`
+- S229 gallery:
+  `build/shots/s229_foreground_volume_motion_review/gallery/index.html`
+
+Against S227 accepted motion, S229 preserves nonblank coverage, minimum
+contrast, and direct secondary counts on all 32 frames while increasing mean
+luminance by `0.6768454318576431`. Bright and highlight ratios drop only
+slightly (`-5.56098090277778e-06` and `-2.8483072916666647e-06`). Promote the
+S228 foreground-volume settings in S230, then run accepted-preset parity against
+S229.
