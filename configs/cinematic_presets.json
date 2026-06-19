@@ -2533,6 +2533,30 @@
         }
       }
     },
+    "dam_break_water_mesh_overlay_highlight_strong_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S219 stronger overlay-only highlight probe for A/B against S218 before accepted-preset promotion.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 225,
+          "alpha_scale": 0.42,
+          "emission_scale": 0.84,
+          "segment_count": 3,
+          "segment_gap": 0.12,
+          "dropout": 0.045
+        },
+        "water_reflection_pass": {
+          "count": 82,
+          "length": 5.05,
+          "width": 0.12,
+          "alpha_scale": 0.43,
+          "emission_scale": 0.85,
+          "segment_count": 3,
+          "segment_gap": 0.14,
+          "dropout": 0.04
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

@@ -1045,3 +1045,24 @@ bright ratio, and highlight ratio are unchanged, while mean luminance improves
 by `0.1124663628472149`. S218 is the current safe overlay-highlight promotion
 candidate; S219 should either fold it into the accepted preset or A/B one
 slightly stronger overlay-only variant first.
+
+S219 A/B tested a stronger overlay-only candidate:
+
+- S219 S214 comparison report:
+  `docs/reports/cinematic_water_overlay_highlight_strong_probe_s219.md`
+- S219 S218 comparison report:
+  `docs/reports/cinematic_water_overlay_highlight_s218_s219_comparison.md`
+- S219 gallery report:
+  `docs/reports/cinematic_water_overlay_highlight_strong_gallery_s219.md`
+- S219 plan:
+  `docs/superpowers/plans/2026-06-19-water-overlay-highlight-strong-probe.md`
+- S219 gallery:
+  `build/shots/s219_overlay_highlight_strong_probe/gallery/index.html`
+
+S219 introduces `dam_break_water_mesh_overlay_highlight_strong_probe`, still
+changing only glint/reflection overlay controls. It improves mean luminance by
+`0.43489746093749204` against S214 and by `0.32243109809027715` against S218,
+while preserving nonblank coverage, minimum contrast, and mean highlight ratio.
+S219 is the preferred overlay-only promotion candidate. S220 should fold these
+overlay controls into `dam_break_water_mesh_smoothing` and rerun the accepted
+mixed-window gate/render comparison.
