@@ -869,6 +869,21 @@ def secondary_channel_radius_summary(render_preset):
     }
 
 
+def secondary_direct_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "secondary_direct_pass")
+    channels = preset_section(cfg, "channels")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "droplet": as_float(channels.get("droplet"), 1.0),
+            "spray": as_float(channels.get("spray"), 1.0),
+            "foam": as_float(channels.get("foam"), 1.0),
+            "bubble": as_float(channels.get("bubble"), 1.0),
+        },
+        "max_count_scale": as_float(cfg.get("max_count_scale"), 1.0),
+    }
+
+
 def secondary_soft_pass_summary(render_preset):
     cfg = preset_section(preset_section(render_preset, "renderer"), "secondary_soft_pass")
     channels = preset_section(cfg, "channels")
@@ -1273,6 +1288,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         else as_float(renderer_defaults.get("secondary_radius_scale"), 1.0)
     )
     channel_radius_scales = secondary_channel_radius_summary(render_preset)
+    secondary_direct_pass = secondary_direct_pass_summary(render_preset)
     secondary_soft_pass = secondary_soft_pass_summary(render_preset)
     secondary_streak_pass = secondary_streak_pass_summary(render_preset)
     surface_contact_foam_pass = surface_contact_foam_pass_summary(render_preset)
@@ -1357,6 +1373,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "max_secondary_particles": max_secondary_particles,
         "secondary_radius_scale": secondary_radius_scale,
         "secondary_channel_radius_scales": channel_radius_scales,
+        "secondary_direct_pass": secondary_direct_pass,
         "secondary_soft_pass": secondary_soft_pass,
         "secondary_streak_pass": secondary_streak_pass,
         "secondary_streak_counts": summarize_secondary_streak_counts(frames),
@@ -1807,23 +1824,54 @@ def channel_radius_scale(channel, scales):
         return 1.0
 
 
-def add_secondary_particles(frame, materials, max_count, radius_scale, channel_scales):
+def secondary_direct_pass_values(spec):
+    cfg = spec.get("secondary_direct_pass") or {}
+    channels = cfg.get("channels") if isinstance(cfg.get("channels"), dict) else {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "channels": {
+            "droplet": min(1.0, max(0.0, scalar_value(channels.get("droplet"), 1.0))),
+            "spray": min(1.0, max(0.0, scalar_value(channels.get("spray"), 1.0))),
+            "foam": min(1.0, max(0.0, scalar_value(channels.get("foam"), 1.0))),
+            "bubble": min(1.0, max(0.0, scalar_value(channels.get("bubble"), 1.0))),
+        },
+        "max_count_scale": min(1.0, max(0.0, scalar_value(cfg.get("max_count_scale"), 1.0))),
+    }
+
+
+def secondary_direct_keep(channel, row_index, direct_pass):
+    if not direct_pass.get("enabled", False):
+        return True
+    keep = float(direct_pass.get("channels", {}).get(channel, 1.0))
+    if keep >= 1.0:
+        return True
+    if keep <= 0.0:
+        return False
+    return hash01(row_index, 251.0) <= keep
+
+
+def add_secondary_particles(frame, materials, max_count, radius_scale, channel_scales, direct_pass):
     path = frame.get("particles_csv")
     if not path or not os.path.isfile(path) or max_count <= 0:
         return 0
     count = 0
+    direct_max_count = max(0, int(round(max_count * float(direct_pass.get("max_count_scale", 1.0)))))
+    if direct_max_count <= 0:
+        return 0
     with open(path, encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
+        for row_index, row in enumerate(csv.DictReader(f)):
             kind = row.get("kind", "")
             channel = row.get("render_channel", "")
             if kind not in ("secondary_droplet", "secondary_bubble") and channel not in materials:
                 continue
-            if count >= max_count:
+            if count >= direct_max_count:
                 break
             pos = (float(row.get("x", 0.0)), float(row.get("y", 0.0)), float(row.get("z", 0.0)))
             volume = max(0.05, float(row.get("volume", 1.0)))
             base_radius = min(0.14, max(0.035, 0.035 * math.sqrt(volume)))
             channel = secondary_channel(row)
+            if not secondary_direct_keep(channel, row_index, direct_pass):
+                continue
             channel_scale = channel_radius_scale(channel, channel_scales)
             radius = min(0.55, max(0.02, base_radius * max(0.01, radius_scale) * channel_scale))
             bpy.ops.mesh.primitive_uv_sphere_add(segments=8,
@@ -2787,6 +2835,7 @@ def main():
                                          roughness=floor["roughness"],
                                          alpha=floor["alpha"],
                                          transmission=floor["transmission"])
+    direct_pass = secondary_direct_pass_values(spec)
     soft_pass = secondary_soft_pass_values(spec)
     streak_pass = secondary_streak_pass_values(spec)
     contact_foam_pass = surface_contact_foam_pass_values(spec)
@@ -2909,7 +2958,8 @@ def main():
                                 particle_mats,
                                 frame_max_secondary,
                                 float(spec.get("secondary_radius_scale", 1.0)),
-                                channel_scales)
+                                channel_scales,
+                                direct_pass)
         add_secondary_streak_pass(frame,
                                   particle_mats,
                                   frame_max_secondary,
@@ -3150,6 +3200,7 @@ def main(argv=None):
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],
             "secondary_channel_radius_scales": spec["secondary_channel_radius_scales"],
+            "secondary_direct_pass": spec["secondary_direct_pass"],
             "secondary_soft_pass": spec["secondary_soft_pass"],
             "secondary_streak_pass": spec["secondary_streak_pass"],
             "secondary_streak_counts": spec["secondary_streak_counts"],

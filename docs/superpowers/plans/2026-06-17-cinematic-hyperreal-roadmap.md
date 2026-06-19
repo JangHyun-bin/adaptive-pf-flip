@@ -556,17 +556,19 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S183.
+Continue with S184.
 
-The next implementation plan should implement the S182-selected secondary direct
-visibility gating pass. Use these artifacts as inputs:
+S183 is implemented and validated:
 
-- S180 gate report: `docs/reports/cinematic_secondary_mist_debeading_s180.md`
-- S180 comparison report:
-  `docs/reports/cinematic_secondary_mist_debeading_comparison_s180.md`
-- S181 public gallery: `https://message-kernel-pizza-increase.trycloudflare.com`
-- S181 publish report: `docs/reports/cinematic_gallery_publish_s181.md`
-- S182 triage report: `docs/reports/cinematic_public_gallery_triage_s182.md`
+- S183 gate report:
+  `docs/reports/cinematic_secondary_direct_visibility_gate_s183.md`
+- S183 comparison report:
+  `docs/reports/cinematic_secondary_direct_visibility_gate_comparison_s183.md`
+- S183 plan:
+  `docs/superpowers/plans/2026-06-19-secondary-direct-visibility-gate.md`
+- S183 shot artifacts:
+  `build/shots/s183_secondary_direct_visibility_gate`
 
-The next success condition is a checked-in S183 renderer/preset pass that thins
-direct secondary spheres without removing soft mist/streak visibility.
+S184 should publish the S183 gallery through the existing static gallery and
+Cloudflare quick tunnel workflow, then triage whether the next visible target is
+surface reconstruction continuity or further secondary material tuning.

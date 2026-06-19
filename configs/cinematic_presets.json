@@ -2335,6 +2335,35 @@
         }
       }
     },
+    "dam_break_secondary_direct_visibility_gate": {
+      "extends": "dam_break_secondary_mist_debeading",
+      "description": "S180 de-beading with direct secondary sphere thinning while preserving soft mist and streak passes.",
+      "renderer": {
+        "secondary_direct_pass": {
+          "enabled": true,
+          "channels": {
+            "droplet": 0.55,
+            "spray": 0.42,
+            "foam": 0.62,
+            "bubble": 0.35
+          },
+          "max_count_scale": 0.82
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 2.9,
+            "foam": 2.45
+          },
+          "alpha_scale": 0.27,
+          "emission_scale": 0.72,
+          "max_radius": 1.16
+        },
+        "secondary_streak_pass": {
+          "alpha_scale": 0.12,
+          "emission_scale": 0.62
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",
