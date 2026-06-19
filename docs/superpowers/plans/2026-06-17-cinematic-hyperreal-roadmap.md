@@ -915,3 +915,17 @@ improves minimum contrast by `1` and slightly restores bright ratio while
 leaving highlight ratio unchanged. Prefer S210 over S208 as the opt-in
 normal-rough candidate, but keep baseline promotion blocked until a wider
 keyframe or gallery review.
+
+S211 ran the wider S210 normal-rough keyframe review:
+
+- S211 report:
+  `docs/reports/cinematic_water_mesh_normal_rough_keyframe_review_s211.md`
+- S211 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-normal-rough-keyframe-review.md`
+- S211 artifacts:
+  `build/shots/s211_normal_rough_keyframe_review`
+
+S211 rejects S210 for baseline promotion. The 4-frame 640x360 review preserves
+nonblank coverage, but minimum contrast drops by `8` and bright/highlight ratios
+drop. The next `normal_rough` pass should stop suppressing water material and
+instead test label-gated mesh smoothing or normal-continuity treatment.
