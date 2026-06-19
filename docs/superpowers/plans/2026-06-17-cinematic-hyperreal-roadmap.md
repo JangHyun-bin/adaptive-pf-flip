@@ -2642,3 +2642,20 @@ gate. The generated GIF is `931895` bytes, and the gallery has `9` visual
 assets. A representative keyframe is nonblank and shows water, secondary
 particles, and mesh overlay. Use S296 as the larger-job visual smoke test before
 publishing or running a Blender adapter dry-run.
+
+S297 published the larger-job preview gallery:
+
+- S297 publish report:
+  `docs/reports/cinematic_larger_external_renderer_job_preview_publish_s297.md`
+- S297 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-preview-publish.md`
+- S297 manifest:
+  `build/shots/s297_larger_external_renderer_job_preview_publish/publish_manifest.json`
+- S297 public URL:
+  `https://arch-walk-informational-corporate.trycloudflare.com`
+
+S297 serves the S296 gallery on local port `8903` and starts a Cloudflare quick
+tunnel. Local and public `index.html` plus `assets/shot.gif` checks all returned
+HTTP `200`. The HTTP server PID is `167784`, and the Cloudflared PID is
+`49980`. Use S297 as the public larger-job preview endpoint while S292 remains
+active separately as the full32 Blender render proof endpoint.
