@@ -751,3 +751,17 @@ S200 should not replace S191. The filter removes 22656 faces and makes all
 reconstruction frames single-component, but the 8-frame S191/S200 render probe
 is pixel-identical. S201 should add component visibility or labeling diagnostics
 before further filtering.
+
+S201 explained the pixel-identical S200 probe:
+
+- S201 report:
+  `docs/reports/cinematic_water_mesh_component_visibility_s201.md`
+- S201 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-component-visibility.md`
+- S201 diagnostics:
+  `build/shots/s201_component_visibility_diagnostics`
+
+S201 shows the S200 render selected mesh frames `[13, 16, 19, 22, 26, 29, 32,
+35]`, none of which contain components below the `0.24` filter threshold. S202
+should build an earlier-window component-label probe targeting the frames where
+the secondary component actually exists.
