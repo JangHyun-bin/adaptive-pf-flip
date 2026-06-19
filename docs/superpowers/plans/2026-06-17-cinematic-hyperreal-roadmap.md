@@ -2394,3 +2394,18 @@ and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
 The new HTTP server PID is `138664`, and the Cloudflared PID is `38632`. S283 is
 now the current high-resolution bridge-review endpoint; S281 remains active
 separately as the lightweight external-bundle benchmark preview endpoint.
+
+S284 packaged the S282/S283 high-resolution bridge review state:
+
+- S284 package report:
+  `docs/reports/cinematic_accepted_bridge_hires_review_package_s284.md`
+- S284 plan:
+  `docs/superpowers/plans/2026-06-20-accepted-bridge-hires-review-package.md`
+- S284 package JSON:
+  `build/shots/s284_accepted_hires_review_package/review_package.json`
+
+S284 collects `12` visual/metadata artifacts from the S282 gallery and `4`
+summary sources: S282-vs-S269 frame deltas, S282 surface-gate output, the S283
+publish manifest, and the S280 external-bundle preview benchmark summary. Use
+S284 as the current high-resolution bridge-review handoff package while keeping
+S269 as the accepted preset baseline.
