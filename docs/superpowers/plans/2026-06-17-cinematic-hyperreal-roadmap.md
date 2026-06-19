@@ -2244,3 +2244,19 @@ copies `8` preview keyframes, and includes the S274 render summary. The gallery
 has `9` visual assets, `1` metadata file, and preserves the S274 minimum
 occupancy `0.0608984375`. Use S275 as the lightweight shareable visual page for
 the external-render handoff path.
+
+S276 published the S275 lightweight external-bundle preview gallery:
+
+- S276 publish report:
+  `docs/reports/cinematic_external_bundle_preview_publish_s276.md`
+- S276 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-preview-publish.md`
+- S276 manifest:
+  `build/shots/s276_external_bundle_preview_publish/publish_manifest.json`
+- S276 public URL:
+  `https://broken-textile-compared-rebound.trycloudflare.com`
+
+S276 serves the S275 gallery on local port `8901` and starts a separate
+Cloudflare quick tunnel, leaving the S270/S269 accepted gallery endpoint active.
+Local and public `index.html` plus `assets/shot.gif` checks all returned HTTP
+`200`. Use S276 as the lightweight external-bundle visual handoff endpoint.
