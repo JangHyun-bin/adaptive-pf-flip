@@ -1885,3 +1885,23 @@ unchanged at `-0.032495117187508527`, minimum contrast rises by `57.0`, mean
 frame contrast by `10.9375`, nonblank coverage is unchanged, and bright/
 highlight ratios decrease. Promote S258 to S259 32-frame motion review before
 accepting or rejecting the camera path.
+
+S259 reviewed the camera composition over the 32-frame accepted motion window:
+
+- S259 motion review report:
+  `docs/reports/cinematic_presentation_composition_motion_review_s259.md`
+- S259 gallery report:
+  `docs/reports/cinematic_presentation_composition_motion_gallery_s259.md`
+- S259 plan:
+  `docs/superpowers/plans/2026-06-20-presentation-composition-motion-review.md`
+- S259 gallery:
+  `build/shots/s259_presentation_composition_motion_review/gallery/index.html`
+
+Against S255 accepted, S259 passes the surface-quality gate with
+`normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Secondary framing remains inside QA with mean inside ratio
+`0.9373630705958788` and min inside ratio `0.7239057239057239`. S259 preserves
+nonblank coverage, raises minimum contrast by `5.0`, raises mean frame
+contrast by `7.34375`, lowers mean luminance by only `0.07692477756076244`,
+and reduces bright, highlight, near-highlight, and specular ratios. Promote
+the S258/S259 camera motion to S260 accepted-camera parity.
