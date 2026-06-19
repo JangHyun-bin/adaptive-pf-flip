@@ -1448,3 +1448,25 @@ highlight ratio while improving mean luminance by `0.5719794379340328`, minimum
 contrast by `16.0`, bright ratio by `2.943250868055555e-05`, `luma_p99` by
 `9.40625`, and `luma_p995` by `11.4375`. Use S238 as the current accepted
 cinematic water baseline.
+
+S239 added highlight contribution diagnostics:
+
+- S239 report:
+  `docs/reports/cinematic_highlight_contribution_diagnostics_s239.md`
+- S239 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-contribution-diagnostics.md`
+- S239 diagnostic sheet:
+  `build/shots/s239_highlight_contribution_diagnostics/diagnostic_sheet.png`
+- S239 masks:
+  `build/shots/s239_highlight_contribution_diagnostics/masks/`
+
+S239 adds `tools/highlight_contribution_diagnostics.py`, an image-space
+upper-tail gain/loss mask tool. Comparing S230 accepted foreground-volume
+against S238 accepted highlight-material over 32 frames gives aggregate gain
+ratio `0.031143391927083333`, loss ratio `0.0`, net gain ratio
+`0.031143391927083333`, mean gain luma delta `12.647490145835157`, and strongest
+gain luma delta `25`. The diagnostic sheet shows the accepted highlight change
+adds upper-tail energy in the intended glint/reflection regions without
+measurable upper-tail loss. S240 should move to a non-highlight visual pass,
+such as water/foam readability or contribution-mask rendering, rather than more
+broad highlight recovery.
