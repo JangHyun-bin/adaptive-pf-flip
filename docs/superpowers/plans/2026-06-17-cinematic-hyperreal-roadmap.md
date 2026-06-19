@@ -195,7 +195,8 @@ The missing work is not one feature. It is a pipeline:
 | S147 | S145 public gallery visual triage | Review the S145 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s145 public gallery` |
 | S148 | Foreground water thickness/refraction pass | Add near-field water-body depth/refraction cues over S145 to reduce the thin-slab read while preserving current timing and gates | Done in `style: add foreground water thickness refraction` |
 | S149 | S148 gallery refresh/publish | Package and publish the S148 review artifacts for external inspection before the next visual triage | Done in `docs: publish s148 cinematic gallery` |
-| S150 | S148 public gallery visual triage | Review the S148 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S150 | S148 public gallery visual triage | Review the S148 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s148 public gallery` |
+| S151 | Source-edge cleanup framing pass | Crop or de-emphasize the upper source region over S148 while preserving close-up contact, water thickness, and review gates | Planned |
 
 ## Decision Gates
 
@@ -533,16 +534,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S150.
+Continue with S151.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s148-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-source-edge-cleanup-framing.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s148_foreground_water_thickness_refraction\gallery\gallery_manifest.json --publish build\shots\s148_foreground_water_thickness_refraction\gallery\publish_manifest_s149.json --out docs\reports\cinematic_visual_review_s150.md --finding "S148 strengthens foreground water-body depth/refraction cues while preserving S145 timing and review gates." --decision "Select the next visible adjustment from the S148 public gallery." --next "TBD by S150 triage."
+python tools\run_cinematic_shot.py --preset dam_break_source_edge_cleanup_framing --out build\shots\s151_source_edge_cleanup_framing --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s148_foreground_water_thickness_refraction\review\review_manifest.json --report docs\reports\cinematic_source_edge_cleanup_framing_s151.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in S150 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
+The next success condition is a checked-in S151 Blender gate report that reduces upper-source distraction while preserving S148 visual, focus, ripple, temporal, camera, and secondary-framing gates.
