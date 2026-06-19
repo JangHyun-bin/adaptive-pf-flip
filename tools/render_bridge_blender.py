@@ -941,6 +941,12 @@ def water_surface_glint_pass_summary(render_preset):
         "drift_per_frame": as_float(cfg.get("drift_per_frame"), 0.08),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.22),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.45),
+        "angle_jitter_degrees": as_float(cfg.get("angle_jitter_degrees"), 0.0),
+        "length_jitter": as_float(cfg.get("length_jitter"), 0.0),
+        "width_jitter": as_float(cfg.get("width_jitter"), 0.0),
+        "segment_count": as_int(cfg.get("segment_count"), 1),
+        "segment_gap": as_float(cfg.get("segment_gap"), 0.0),
+        "dropout": as_float(cfg.get("dropout"), 0.0),
     }
 
 
@@ -957,6 +963,12 @@ def water_reflection_pass_summary(render_preset):
         "drift_per_frame": as_float(cfg.get("drift_per_frame"), 0.035),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.18),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.32),
+        "angle_jitter_degrees": as_float(cfg.get("angle_jitter_degrees"), 0.0),
+        "length_jitter": as_float(cfg.get("length_jitter"), 0.0),
+        "width_jitter": as_float(cfg.get("width_jitter"), 0.0),
+        "segment_count": as_int(cfg.get("segment_count"), 1),
+        "segment_gap": as_float(cfg.get("segment_gap"), 0.0),
+        "dropout": as_float(cfg.get("dropout"), 0.0),
     }
 
 
@@ -1892,6 +1904,12 @@ def water_surface_glint_pass_values(spec):
         "drift_per_frame": scalar_value(cfg.get("drift_per_frame"), 0.08),
         "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.22)),
         "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.45)),
+        "angle_jitter_degrees": max(0.0, scalar_value(cfg.get("angle_jitter_degrees"), 0.0)),
+        "length_jitter": max(0.0, scalar_value(cfg.get("length_jitter"), 0.0)),
+        "width_jitter": max(0.0, scalar_value(cfg.get("width_jitter"), 0.0)),
+        "segment_count": max(1, int(scalar_value(cfg.get("segment_count"), 1))),
+        "segment_gap": min(0.85, max(0.0, scalar_value(cfg.get("segment_gap"), 0.0))),
+        "dropout": min(0.95, max(0.0, scalar_value(cfg.get("dropout"), 0.0))),
     }
 
 
@@ -1908,6 +1926,12 @@ def water_reflection_pass_values(spec):
         "drift_per_frame": scalar_value(cfg.get("drift_per_frame"), 0.035),
         "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 0.18)),
         "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 0.32)),
+        "angle_jitter_degrees": max(0.0, scalar_value(cfg.get("angle_jitter_degrees"), 0.0)),
+        "length_jitter": max(0.0, scalar_value(cfg.get("length_jitter"), 0.0)),
+        "width_jitter": max(0.0, scalar_value(cfg.get("width_jitter"), 0.0)),
+        "segment_count": max(1, int(scalar_value(cfg.get("segment_count"), 1))),
+        "segment_gap": min(0.85, max(0.0, scalar_value(cfg.get("segment_gap"), 0.0))),
+        "dropout": min(0.95, max(0.0, scalar_value(cfg.get("dropout"), 0.0))),
     }
 
 
@@ -1974,6 +1998,52 @@ def flow_strip_axes(flow):
     direction = flow_xz.normalized()
     side = Vector((-direction.y, direction.x, 0.0))
     return direction, side
+
+
+def rotated_strip_axes(direction, side, angle_radians):
+    c = math.cos(angle_radians)
+    s = math.sin(angle_radians)
+    out_direction = direction * c + side * s
+    if out_direction.length <= 1e-8:
+        out_direction = direction
+    out_direction = out_direction.normalized()
+    out_side = Vector((-out_direction.y, out_direction.x, 0.0))
+    return out_direction, out_side
+
+
+def strip_breakup_values(pass_cfg, index, salt):
+    dropout = float(pass_cfg.get("dropout", 0.0))
+    if dropout > 0.0 and hash01(index, salt + 1.0) < dropout:
+        return None
+    angle = math.radians(float(pass_cfg.get("angle_jitter_degrees", 0.0)))
+    angle *= (hash01(index, salt + 2.0) - 0.5) * 2.0
+    length_jitter = max(0.0, float(pass_cfg.get("length_jitter", 0.0)))
+    width_jitter = max(0.0, float(pass_cfg.get("width_jitter", 0.0)))
+    length_scale = 1.0 + (hash01(index, salt + 3.0) - 0.5) * 2.0 * length_jitter
+    width_scale = 1.0 + (hash01(index, salt + 4.0) - 0.5) * 2.0 * width_jitter
+    return {
+        "angle": angle,
+        "length_scale": max(0.05, length_scale),
+        "width_scale": max(0.05, width_scale),
+        "segments": max(1, int(pass_cfg.get("segment_count", 1))),
+        "gap": min(0.85, max(0.0, float(pass_cfg.get("segment_gap", 0.0)))),
+    }
+
+
+def append_segmented_strip(strips, center, direction, side, length, width, breakup, index, salt):
+    segments = max(1, int(breakup.get("segments", 1)))
+    if segments <= 1:
+        strips.append((center, direction, side, length, width))
+        return
+    gap = min(0.85, max(0.0, float(breakup.get("gap", 0.0))))
+    segment_length = max(0.001, length / float(segments) * (1.0 - gap))
+    for segment in range(segments):
+        t = (segment + 0.5) / float(segments) - 0.5
+        offset = direction * (t * length)
+        jitter = (hash01(index * 17 + segment, salt + 5.0) - 0.5) * segment_length * gap
+        segment_center = Vector(center) + offset + direction * jitter
+        segment_scale = 0.82 + 0.32 * hash01(index * 19 + segment, salt + 6.0)
+        strips.append((tuple(segment_center), direction, side, segment_length * segment_scale, width))
 
 
 def add_flow_strip_mesh(name, strips, material):
@@ -2110,6 +2180,9 @@ def add_water_surface_glint_pass(frame, material, glint_pass):
     drift = float(glint_pass.get("drift_per_frame", 0.08)) * int(frame.get("index", 0))
     strokes = []
     for index in range(count):
+        breakup = strip_breakup_values(glint_pass, index, 101.0)
+        if breakup is None:
+            continue
         tx = (hash01(index, 1.0) + drift * 0.07) % 1.0
         ty = hash01(index, 2.0)
         tz = (hash01(index, 3.0) + drift * 0.11) % 1.0
@@ -2117,7 +2190,16 @@ def add_water_surface_glint_pass(frame, material, glint_pass):
         y = float(region_min[1]) + (float(region_max[1]) - float(region_min[1])) * ty
         z = float(region_min[2]) + (float(region_max[2]) - float(region_min[2])) * tz
         scale = 0.55 + hash01(index, 4.0) * 0.75
-        strokes.append((to_blender((x, y, z)), direction, side, length * scale, width))
+        strip_direction, strip_side = rotated_strip_axes(direction, side, breakup["angle"])
+        append_segmented_strip(strokes,
+                               to_blender((x, y, z)),
+                               strip_direction,
+                               strip_side,
+                               length * scale * breakup["length_scale"],
+                               width * breakup["width_scale"],
+                               breakup,
+                               index,
+                               111.0)
     add_flow_strip_mesh("LSFS Water Surface Glints", strokes, material)
     return len(strokes)
 
@@ -2136,6 +2218,9 @@ def add_water_reflection_pass(frame, material, reflection_pass):
     drift = float(reflection_pass.get("drift_per_frame", 0.035)) * int(frame.get("index", 0))
     strips = []
     for index in range(count):
+        breakup = strip_breakup_values(reflection_pass, index, 201.0)
+        if breakup is None:
+            continue
         tx = (hash01(index, 11.0) + drift * 0.025) % 1.0
         ty = 0.35 + hash01(index, 12.0) * 0.65
         tz = (hash01(index, 13.0) + drift * 0.055) % 1.0
@@ -2144,7 +2229,16 @@ def add_water_reflection_pass(frame, material, reflection_pass):
         z = float(region_min[2]) + (float(region_max[2]) - float(region_min[2])) * tz
         strip_length = length * (0.65 + hash01(index, 14.0) * 0.8)
         strip_width = width * (0.7 + hash01(index, 15.0) * 0.7)
-        strips.append((to_blender((x, y, z)), direction, side, strip_length, strip_width))
+        strip_direction, strip_side = rotated_strip_axes(direction, side, breakup["angle"])
+        append_segmented_strip(strips,
+                               to_blender((x, y, z)),
+                               strip_direction,
+                               strip_side,
+                               strip_length * breakup["length_scale"],
+                               strip_width * breakup["width_scale"],
+                               breakup,
+                               index,
+                               211.0)
     add_flow_strip_mesh("LSFS Water Reflection Ribbons", strips, material)
     return len(strips)
 

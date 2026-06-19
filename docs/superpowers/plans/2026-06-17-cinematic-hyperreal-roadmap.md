@@ -556,17 +556,15 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S177.
+Continue with S178.
 
-The next implementation plan should implement the S176-selected surface
-reflection/glint breakup pass. Use the public URL and the S174 comparison sheet
-as evidence:
+The next implementation plan should package and publish S177 for public gallery
+review. Use these artifacts as inputs:
 
-- Public gallery: `https://yearly-whereas-generated-alfred.trycloudflare.com`
-- Comparison report: `docs/reports/cinematic_metadata_depth_comparison_s174.md`
-- Publish report: `docs/reports/cinematic_gallery_publish_s175.md`
-- Triage report: `docs/reports/cinematic_public_gallery_triage_s176.md`
+- S177 gate report: `docs/reports/cinematic_surface_reflection_breakup_s177.md`
+- S177 comparison report:
+  `docs/reports/cinematic_surface_reflection_breakup_comparison_s177.md`
+- S177 shot directory: `build/shots/s177_surface_reflection_breakup`
 
-The next success condition is a checked-in S177 preset/render pass that reduces
-the long, uniform horizontal reflection/glint ribbon read while preserving the
-S173 metadata-depth benefits.
+The next success condition is a checked-in S178 gallery/publish report and a
+public URL for S177, followed by public visual triage.

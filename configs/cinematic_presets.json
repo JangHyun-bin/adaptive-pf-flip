@@ -2232,6 +2232,38 @@
         }
       }
     },
+    "dam_break_surface_reflection_breakup": {
+      "extends": "dam_break_metadata_depth_attenuation",
+      "description": "S173 metadata-depth look with segmented and jittered glint/reflection strips to reduce uniform ribbon read.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 190,
+          "length": 1.36,
+          "width": 0.038,
+          "alpha_scale": 0.34,
+          "emission_scale": 0.72,
+          "angle_jitter_degrees": 7.0,
+          "length_jitter": 0.32,
+          "width_jitter": 0.22,
+          "segment_count": 2,
+          "segment_gap": 0.16,
+          "dropout": 0.08
+        },
+        "water_reflection_pass": {
+          "count": 72,
+          "length": 4.65,
+          "width": 0.105,
+          "alpha_scale": 0.35,
+          "emission_scale": 0.72,
+          "angle_jitter_degrees": 4.5,
+          "length_jitter": 0.38,
+          "width_jitter": 0.2,
+          "segment_count": 3,
+          "segment_gap": 0.18,
+          "dropout": 0.06
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

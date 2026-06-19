@@ -183,10 +183,12 @@ def make_sheet(pairs, out_path, left_label, right_label, thumb_width):
     sheet.save(out_path)
 
 
-def comparison_summary(left_summary, right_summary, pairs, left_label, right_label, sheet_path):
+def comparison_summary(left_summary, right_summary, pairs, left_label, right_label,
+                       sheet_path, title, finding, next_text):
     return {
         "schema": "lsfs_cinematic_frame_comparison",
         "version": 1,
+        "title": title,
         "left_label": left_label,
         "right_label": right_label,
         "left_summary": left_summary.get("scene_spec") or left_summary.get("source"),
@@ -201,6 +203,8 @@ def comparison_summary(left_summary, right_summary, pairs, left_label, right_lab
             "nonblank_ratio": metric_delta(left_summary, right_summary, "nonblank_ratio"),
         },
         "right_metadata_depth_attenuation": right_summary.get("metadata_depth_attenuation", {}),
+        "finding": finding,
+        "next": next_text,
         "pairs": pairs,
     }
 
@@ -208,6 +212,13 @@ def comparison_summary(left_summary, right_summary, pairs, left_label, right_lab
 def render_report(summary):
     deltas = summary.get("metric_deltas", {})
     attenuation = summary.get("right_metadata_depth_attenuation", {})
+    title = summary.get("title", "Cinematic Frame Comparison")
+    left_label = summary.get("left_label", "left")
+    right_label = summary.get("right_label", "right")
+    finding = summary.get("finding") or (
+        f"{right_label} changes are concentrated in the intended visual regions when compared with {left_label}."
+    )
+    next_text = summary.get("next") or "Use this comparison to select the next visible render adjustment."
 
     def delta_line(name, key):
         item = deltas.get(key, {})
@@ -217,7 +228,7 @@ def render_report(summary):
         )
 
     lines = [
-        "# S174 Metadata Depth Comparison",
+        f"# {title}",
         "",
         "## Status",
         "",
@@ -246,11 +257,11 @@ def render_report(summary):
         "",
         "## Visual Finding",
         "",
-        "S173 preserves the S168 water-surface readability while lowering late-frame secondary density and highlight pressure. The diff panel remains concentrated in the water-volume and secondary-particle regions rather than showing broad framing or exposure drift.",
+        finding,
         "",
         "## Next",
         "",
-        "Package the S173 comparison for the public gallery, then choose the next visual pass from the comparison rather than tuning by eye alone.",
+        next_text,
         "",
     ]
     return "\n".join(lines)
@@ -268,6 +279,9 @@ def parse_args(argv=None):
     parser.add_argument("--frames", type=int, default=8)
     parser.add_argument("--thumb-width", type=int, default=420)
     parser.add_argument("--report", help="optional Markdown report path")
+    parser.add_argument("--title", default="Cinematic Frame Comparison")
+    parser.add_argument("--finding", default="")
+    parser.add_argument("--next", default="")
     return parser.parse_args(argv)
 
 
@@ -304,7 +318,9 @@ def main(argv=None):
     make_sheet(pairs, sheet_path, args.left_label, args.right_label, args.thumb_width)
     left_summary = read_json(args.summary_left)
     right_summary = read_json(args.summary_right)
-    summary = comparison_summary(left_summary, right_summary, pairs, args.left_label, args.right_label, sheet_path)
+    summary = comparison_summary(left_summary, right_summary, pairs,
+                                 args.left_label, args.right_label,
+                                 sheet_path, args.title, args.finding, args.next)
     summary_path = str(out_dir / "comparison_summary.json")
     write_json(summary_path, summary)
     if args.report:
