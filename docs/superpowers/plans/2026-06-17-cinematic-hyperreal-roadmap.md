@@ -2720,3 +2720,18 @@ Local and public `index.html` plus `assets/shot.gif` checks all returned HTTP
 `200`. The HTTP server PID is `60752`, and the Cloudflared PID is `60408`. Use
 S300 as the current public larger-job Blender sample endpoint while S292 remains
 active separately as the full32 job-path proof endpoint.
+
+S301 packaged the larger-job Blender sample proof:
+
+- S301 package report:
+  `docs/reports/cinematic_larger_renderer_job_sample_proof_package_s301.md`
+- S301 plan:
+  `docs/superpowers/plans/2026-06-20-larger-renderer-job-sample-proof-package.md`
+- S301 package JSON:
+  `build/shots/s301_larger_renderer_job_sample_proof_package/review_package.json`
+
+S301 collects `12` visual/metadata artifacts from the S299 gallery and `4`
+summary sources: the S295 larger renderer job, S299-vs-S291 comparison, S300
+publish manifest, and S297 preview publish manifest. Use S301 as the current
+handoff package for the larger-job Blender sample proof before longer
+larger-job renders or non-Blender external renderer adapters.
