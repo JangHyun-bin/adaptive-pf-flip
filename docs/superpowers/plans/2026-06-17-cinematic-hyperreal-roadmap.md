@@ -556,17 +556,17 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S182.
+Continue with S183.
 
-The next implementation plan should triage the S181 public gallery and decide
-whether to keep or tune S180's secondary de-beading amount. Use these artifacts
-as inputs:
+The next implementation plan should implement the S182-selected secondary direct
+visibility gating pass. Use these artifacts as inputs:
 
 - S180 gate report: `docs/reports/cinematic_secondary_mist_debeading_s180.md`
 - S180 comparison report:
   `docs/reports/cinematic_secondary_mist_debeading_comparison_s180.md`
 - S181 public gallery: `https://message-kernel-pizza-increase.trycloudflare.com`
 - S181 publish report: `docs/reports/cinematic_gallery_publish_s181.md`
+- S182 triage report: `docs/reports/cinematic_public_gallery_triage_s182.md`
 
-The next success condition is a checked-in S182 triage report with a keep/tune
-decision and the next concrete visual target.
+The next success condition is a checked-in S183 renderer/preset pass that thins
+direct secondary spheres without removing soft mist/streak visibility.
