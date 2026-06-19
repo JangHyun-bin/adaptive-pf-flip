@@ -2126,3 +2126,23 @@ is preserved: coverage and contrast stay unchanged, mean luminance drops by
 `0.24766167534723138`, upper luma tail drops, and bright/highlight/specular
 increases remain negligible. S269 is the current accepted bridge-render visual
 baseline. Refresh the accepted review package and public gallery from S269.
+
+S270 refreshed and published the S269 accepted review package:
+
+- S270 package report:
+  `docs/reports/cinematic_accepted_review_package_s270.md`
+- S270 publish report:
+  `docs/reports/cinematic_s269_gallery_publish_s270.md`
+- S270 plan:
+  `docs/superpowers/plans/2026-06-20-s269-review-package-publish.md`
+- S270 package JSON:
+  `build/shots/s270_accepted_review_package/review_package.json`
+- S270 public URL:
+  `https://rfc-empirical-match-outstanding.trycloudflare.com`
+
+S270 packages S269 with `12` artifacts and `4` summary sources:
+`s269_parity`, `s269_baseline_delta`, `s269_surface_gate`, and
+`s268_motion_review`. It stops the previous S265/S264 quick tunnel and publishes
+the S269 gallery through a new Cloudflare quick tunnel. Local and public
+`index.html` plus `assets/shot.gif` checks all returned HTTP `200`. S270 is now
+the current external review package and public gallery endpoint.
