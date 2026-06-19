@@ -965,3 +965,22 @@ gates as `stable: 4` with stable ratio `1.0`, while the targeted normal-rough
 dry-run selects `normal_rough: 4`. S214 should run a mixed-window accepted-preset
 visual review so stable and normal-rough frames are checked together before the
 next cinematic treatment.
+
+S214 validated the accepted preset over a mixed `normal_rough`/`stable` window:
+
+- S214 comparison report:
+  `docs/reports/cinematic_water_mesh_mixed_window_accepted_preset_s214.md`
+- S214 gallery report:
+  `docs/reports/cinematic_water_mesh_mixed_window_gallery_s214.md`
+- S214 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-mixed-window-accepted-preset.md`
+- S214 gallery:
+  `build/shots/s214_mixed_window_accepted_preset/gallery/index.html`
+
+S214 uses source indices `8..55`, which route to `normal_rough: 1` and
+`stable: 7` at 8 review frames. The mixed gate passed, the accepted render and
+no-quality-smoothing baseline both completed, and the comparison preserves
+nonblank coverage, minimum contrast, and highlight ratio with only tiny
+luminance/bright-ratio deltas. The S213 fold can stay in the accepted preset.
+Next work can leave mesh-quality gating and move back to broader cinematic
+quality passes, or publish the S214 gallery if remote visual review is needed.
