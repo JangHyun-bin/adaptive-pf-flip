@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S184.
+Continue with S185.
 
 S183 is implemented and validated:
 
@@ -569,6 +569,14 @@ S183 is implemented and validated:
 - S183 shot artifacts:
   `build/shots/s183_secondary_direct_visibility_gate`
 
-S184 should publish the S183 gallery through the existing static gallery and
-Cloudflare quick tunnel workflow, then triage whether the next visible target is
-surface reconstruction continuity or further secondary material tuning.
+S184 is published:
+
+- Public gallery: `https://cove-grades-tba-tags.trycloudflare.com`
+- S184 gallery report:
+  `docs/reports/cinematic_secondary_direct_visibility_gate_gallery_s184.md`
+- S184 publish report: `docs/reports/cinematic_gallery_publish_s184.md`
+- S184 plan:
+  `docs/superpowers/plans/2026-06-19-s183-gallery-publish.md`
+
+S185 should triage the public S183 gallery and choose whether to accept the
+direct-secondary visibility gate or tune one more secondary material pass.
