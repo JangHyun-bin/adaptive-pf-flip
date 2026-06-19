@@ -3218,3 +3218,27 @@ maximum layer coverage `0.13125578703703702`, publishes a `1360178` byte GIF,
 and verifies public `index.html` plus `assets/shot.gif` with HTTP `200`. Use
 S323 as the first non-sphere secondary representation proof. It is currently a
 post-composite approximation, not yet a renderer contract or volumetric model.
+
+S324 added a restrained cinematic review grade for the actual Mitsuba composite:
+
+- S324 new tool:
+  `tools/grade_mitsuba_composite.py`
+- S324 grade report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_composite_grade_soft_s324.md`
+- S324 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_composite_grade_publish_s324.md`
+- S324 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-composite-grade.md`
+- S324 grade summary:
+  `build/shots/s324_larger_external_renderer_mitsuba_composite_grade_soft/grade_summary.json`
+- S324 public URL:
+  `https://hydrocodone-becomes-attempted-unified.trycloudflare.com`
+
+S324 reads the S323 secondary composite frames and applies a post-render review
+grade with exposure `1.02`, contrast `1.12`, saturation `1.08`, mild highlight
+bloom, cool tone, and vignette. A harsher first grade was rejected because it
+crushed water detail. The committed soft grade publishes an `8` frame,
+`3010803` byte GIF and verifies public `index.html` plus `assets/shot.gif` with
+HTTP `200`. Use S324 as the current most readable public proof, while noting
+that it is a review-grade post-process rather than physically based renderer
+look development.
