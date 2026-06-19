@@ -1362,3 +1362,23 @@ bright ratio improves by `2.441406249999975e-06`. Highlight ratio is still
 unchanged at `0.0` delta. Do not promote S234 to motion review; overlay-only
 strip tuning has likely reached the current aggregate metric ceiling, so the
 next useful step is render-metric calibration or a real material/specular pass.
+
+S235 added render-metric calibration for highlight tuning:
+
+- S235 report:
+  `docs/reports/cinematic_highlight_metric_calibration_s235.md`
+- S235 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-metric-calibration.md`
+- S235 calibration artifacts:
+  `build/shots/s235_highlight_metric_calibration/`
+
+S235 extends `tools/compare_cinematic_frames.py` with additive
+`calibration_deltas` computed from rendered PNG pairs: `luma_p95`, `luma_p99`,
+`luma_p995`, `upper_mid_ratio`, `near_highlight_ratio`, `specular_ratio`, and
+pair-derived mean `contrast`. The new metrics show why the previous probes were
+visually meaningful despite flat legacy `highlight_ratio`: S232 has `luma_p99`
+delta `+8.375` and `luma_p995` delta `+9.8125`, and S233 has `luma_p99` delta
+`+8.53125` and `luma_p995` delta `+9.875`. Hard near-highlight/specular ratios
+remain flat or slightly negative, so the next useful step is S236
+material/specular tuning or a water/glint contribution mask rather than more
+overlay-only strip density.

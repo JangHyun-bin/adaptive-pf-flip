@@ -89,6 +89,19 @@ def metric_delta(left_summary, right_summary, metric, stat="mean"):
     }
 
 
+def percentile_from_hist(hist, percentile):
+    total = sum(hist)
+    if total <= 0:
+        return 0
+    target = max(1, int(math.ceil(total * percentile)))
+    cumulative = 0
+    for value, count in enumerate(hist):
+        cumulative += count
+        if cumulative >= target:
+            return value
+    return len(hist) - 1
+
+
 def image_metrics(path):
     with Image.open(path) as img:
         rgb = img.convert("RGB")
@@ -97,8 +110,11 @@ def image_metrics(path):
         hist = gray.histogram()
         pixels = max(1, gray.width * gray.height)
         nonblank = sum(hist[8:])
+        upper_mid = sum(hist[200:])
         bright = sum(hist[220:])
+        near_highlight = sum(hist[235:])
         highlight = sum(hist[245:])
+        specular = sum(hist[250:])
         nonzero_bins = [index for index, count in enumerate(hist) if count]
         contrast = (max(nonzero_bins) - min(nonzero_bins)) if nonzero_bins else 0
         return {
@@ -106,12 +122,51 @@ def image_metrics(path):
             "width": rgb.width,
             "height": rgb.height,
             "mean_luminance": stat.mean[0],
+            "luma_p95": percentile_from_hist(hist, 0.95),
+            "luma_p99": percentile_from_hist(hist, 0.99),
+            "luma_p995": percentile_from_hist(hist, 0.995),
             "contrast": contrast,
             "nonblank_ratio": nonblank / float(pixels),
+            "upper_mid_ratio": upper_mid / float(pixels),
             "bright_ratio": bright / float(pixels),
+            "near_highlight_ratio": near_highlight / float(pixels),
             "highlight_ratio": highlight / float(pixels),
+            "specular_ratio": specular / float(pixels),
             "bytes": os.path.getsize(path),
         }
+
+
+def finite_values(values):
+    out = []
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(number):
+            out.append(number)
+    return out
+
+
+def summarize_values(values, stat):
+    values = finite_values(values)
+    if not values:
+        return None
+    if stat == "min":
+        return min(values)
+    if stat == "max":
+        return max(values)
+    return sum(values) / float(len(values))
+
+
+def pair_metric_delta(pairs, metric, stat="mean"):
+    left = summarize_values([pair.get("left_metrics", {}).get(metric) for pair in pairs], stat)
+    right = summarize_values([pair.get("right_metrics", {}).get(metric) for pair in pairs], stat)
+    return {
+        "left": left,
+        "right": right,
+        "delta": None if left is None or right is None else right - left,
+    }
 
 
 def diff_metrics(left_path, right_path):
@@ -202,6 +257,15 @@ def comparison_summary(left_summary, right_summary, pairs, left_label, right_lab
             "highlight_ratio": metric_delta(left_summary, right_summary, "highlight_ratio"),
             "nonblank_ratio": metric_delta(left_summary, right_summary, "nonblank_ratio"),
         },
+        "calibration_deltas": {
+            "luma_p95": pair_metric_delta(pairs, "luma_p95"),
+            "luma_p99": pair_metric_delta(pairs, "luma_p99"),
+            "luma_p995": pair_metric_delta(pairs, "luma_p995"),
+            "upper_mid_ratio": pair_metric_delta(pairs, "upper_mid_ratio"),
+            "near_highlight_ratio": pair_metric_delta(pairs, "near_highlight_ratio"),
+            "specular_ratio": pair_metric_delta(pairs, "specular_ratio"),
+            "contrast": pair_metric_delta(pairs, "contrast"),
+        },
         "right_metadata_depth_attenuation": right_summary.get("metadata_depth_attenuation", {}),
         "finding": finding,
         "next": next_text,
@@ -211,6 +275,7 @@ def comparison_summary(left_summary, right_summary, pairs, left_label, right_lab
 
 def render_report(summary):
     deltas = summary.get("metric_deltas", {})
+    calibration = summary.get("calibration_deltas", {})
     attenuation = summary.get("right_metadata_depth_attenuation", {})
     title = summary.get("title", "Cinematic Frame Comparison")
     left_label = summary.get("left_label", "left")
@@ -222,6 +287,13 @@ def render_report(summary):
 
     def delta_line(name, key):
         item = deltas.get(key, {})
+        return (
+            f"- {name}: left `{item.get('left')}`, right `{item.get('right')}`, "
+            f"delta `{item.get('delta')}`"
+        )
+
+    def calibration_line(name, key):
+        item = calibration.get(key, {})
         return (
             f"- {name}: left `{item.get('left')}`, right `{item.get('right')}`, "
             f"delta `{item.get('delta')}`"
@@ -247,6 +319,16 @@ def render_report(summary):
         delta_line("Mean bright ratio", "bright_ratio"),
         delta_line("Mean highlight ratio", "highlight_ratio"),
         delta_line("Mean nonblank ratio", "nonblank_ratio"),
+        "",
+        "## Calibration Deltas",
+        "",
+        calibration_line("Mean luma p95", "luma_p95"),
+        calibration_line("Mean luma p99", "luma_p99"),
+        calibration_line("Mean luma p99.5", "luma_p995"),
+        calibration_line("Mean upper-mid ratio", "upper_mid_ratio"),
+        calibration_line("Mean near-highlight ratio", "near_highlight_ratio"),
+        calibration_line("Mean specular ratio", "specular_ratio"),
+        calibration_line("Mean frame contrast", "contrast"),
         "",
         "## Metadata Attenuation",
         "",
