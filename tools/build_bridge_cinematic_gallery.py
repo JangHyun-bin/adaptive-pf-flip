@@ -343,6 +343,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Build a direct bridge cinematic gallery")
     parser.add_argument("shot_dir")
     parser.add_argument("--out", required=True)
+    parser.add_argument("--bridge-summary", help="optional bridge_summary.json override")
+    parser.add_argument("--frames-dir", help="optional rendered frame directory override")
+    parser.add_argument("--gif", help="optional shot GIF override")
     parser.add_argument("--comparison-sheet", required=True)
     parser.add_argument("--comparison-summary", required=True)
     parser.add_argument("--comparison-label", default="Comparison")
@@ -356,9 +359,12 @@ def main(argv=None):
     out_dir = os.path.abspath(args.out)
     os.makedirs(out_dir, exist_ok=True)
 
-    bridge_summary_path = require_file(os.path.join(shot_dir, "blender", "bridge_summary.json"), "bridge summary")
-    gif_path = require_file(os.path.join(shot_dir, "shot.gif"), "shot GIF")
-    frames = select_keyframes(frame_paths(os.path.join(shot_dir, "blender", "frames")), args.keyframes)
+    bridge_summary_path = require_file(
+        args.bridge_summary or os.path.join(shot_dir, "blender", "bridge_summary.json"),
+        "bridge summary")
+    gif_path = require_file(args.gif or os.path.join(shot_dir, "shot.gif"), "shot GIF")
+    frames_dir = args.frames_dir or os.path.join(shot_dir, "blender", "frames")
+    frames = select_keyframes(frame_paths(frames_dir), args.keyframes)
     comparison_sheet = require_file(args.comparison_sheet, "comparison sheet")
     comparison_summary_path = require_file(args.comparison_summary, "comparison summary")
 

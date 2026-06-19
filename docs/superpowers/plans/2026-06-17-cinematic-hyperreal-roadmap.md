@@ -2486,3 +2486,28 @@ using source window `0..31` and the accepted
 `20000` and `22300`, and secondary totals are `256` and `964`. Use S288 as the
 renderer-specific adapter gate before running a bounded Blender render through
 the job path.
+
+S289 rendered the first actual Blender sequence from the external renderer job
+schema:
+
+- S289 render report:
+  `docs/reports/cinematic_external_renderer_job_blender_render_s289.md`
+- S289 comparison report:
+  `docs/reports/cinematic_external_renderer_job_blender_render_compare_s289.md`
+- S289 gallery report:
+  `docs/reports/cinematic_external_renderer_job_blender_render_gallery_s289.md`
+- S289 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-blender-render.md`
+- S289 gallery:
+  `build/shots/s289_external_renderer_job_blender_render/gallery/index.html`
+
+S289 renders the S285 job path through Blender for `8` frames at `960 x 540`,
+`12` samples, using source window `0..31` and the accepted
+`dam_break_water_mesh_smoothing` preset. Blender elapsed time is `42895.83` ms,
+minimum nonblank ratio is `1.0`, minimum contrast is `207.0`, first/last water
+mesh face counts are `20000` and `22300`, and first/last secondary totals are
+`256` and `964`. Against an aligned S282 8-frame sample, nonblank delta is
+`0.0`, mean luma p99 delta is `0.375`, mean specular ratio delta is
+`4.099151234567901e-06`, and aligned mean frame contrast delta is `-0.125`. Use
+S289 as the first actual Blender render proof from the external renderer job
+schema.
