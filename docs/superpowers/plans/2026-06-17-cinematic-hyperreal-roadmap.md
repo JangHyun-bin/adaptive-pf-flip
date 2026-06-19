@@ -765,3 +765,19 @@ S201 shows the S200 render selected mesh frames `[13, 16, 19, 22, 26, 29, 32,
 35]`, none of which contain components below the `0.24` filter threshold. S202
 should build an earlier-window component-label probe targeting the frames where
 the secondary component actually exists.
+
+S202 rendered the early window where the filtered component is visible:
+
+- S202 comparison report:
+  `docs/reports/cinematic_water_mesh_island_filter_early_comparison_s202.md`
+- S202 visibility report:
+  `docs/reports/cinematic_water_mesh_component_visibility_s202.md`
+- S202 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-island-filter-early-window.md`
+- S202 artifacts:
+  `build/shots/s202_island_filter_early_probe`
+
+S202 should not promote island pruning. The removed component is visible and
+large enough to look like part of the early water mass. S203 should add a
+component label/overlay diagnostic so component 2 can be classified before any
+pruning threshold becomes production behavior.
