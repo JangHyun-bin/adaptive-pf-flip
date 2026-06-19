@@ -2907,3 +2907,27 @@ phase-cell CSV and particle CSV paths as sidecar contracts. The export reports
 `0` failures, `80.07 MB` of referenced water meshes, and `74.38 KB` of XML
 scene files. Use S310 as the first concrete non-Blender scene format before
 Mitsuba executable validation, particle proxy expansion, or volume conversion.
+
+S311 added secondary particle proxy expansion to the Mitsuba XML exporter:
+
+- S311 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S311 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_proxy_s311.md`
+- S311 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-proxy.md`
+- S311 export JSON:
+  `build/shots/s311_larger_external_renderer_mitsuba_secondary_proxy/mitsuba_export.json`
+- S311 command list:
+  `build/shots/s311_larger_external_renderer_mitsuba_secondary_proxy/mitsuba_render_commands.txt`
+
+S311 keeps secondary proxy export opt-in via `--secondary-proxy-limit`, reads the
+particle CSV secondary channels, samples proxy spheres while preserving
+`spray`, `foam`, `bubble`, and `droplet` channel distribution, and emits
+per-channel diffuse BSDFs plus Mitsuba sphere shapes. The S311 full48 export
+emits `4608` secondary proxies from `15413` available secondary particles, with
+`0` failures, `80.07 MB` of water meshes, and `995.47 KB` of XML scene files.
+Sample frames `0000`, `0024`, and `0047` each parse as XML and contain `1`
+water OBJ shape plus `96` secondary sphere shapes. Use S311 as the first
+non-Blender scene export where secondary particles are actual renderer scene
+geometry rather than sidecar-only data.

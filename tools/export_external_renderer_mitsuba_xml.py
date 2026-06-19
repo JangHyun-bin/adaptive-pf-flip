@@ -2,6 +2,7 @@
 """Export LSFS external renderer scene descriptors to Mitsuba XML scenes."""
 
 import argparse
+import csv
 import os
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
@@ -15,6 +16,30 @@ from build_bridge_review_package import (
     write_json,
     write_text,
 )
+
+SECONDARY_CHANNELS = ("spray", "foam", "bubble", "droplet")
+SECONDARY_BSDFS = {
+    "spray": {
+        "id": "lsfs_secondary_spray",
+        "reflectance": "0.70, 0.82, 0.92",
+        "default_radius_scale": 0.56,
+    },
+    "foam": {
+        "id": "lsfs_secondary_foam",
+        "reflectance": "0.92, 0.96, 0.98",
+        "default_radius_scale": 0.96,
+    },
+    "bubble": {
+        "id": "lsfs_secondary_bubble",
+        "reflectance": "0.62, 0.82, 0.96",
+        "default_radius_scale": 0.4,
+    },
+    "droplet": {
+        "id": "lsfs_secondary_droplet",
+        "reflectance": "0.82, 0.90, 1.0",
+        "default_radius_scale": 0.5,
+    },
+}
 
 
 def resolve_path(path):
@@ -55,7 +80,166 @@ def asset_path(scene, name):
     return resolve_path(asset.get("path") or asset.get("repo_path"))
 
 
-def write_mitsuba_scene(scene, out_path, output_image, film_format):
+def as_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def sample_items(items, requested):
+    if requested <= 0 or not items:
+        return []
+    if requested >= len(items):
+        return list(items)
+    if requested == 1:
+        return [items[len(items) // 2]]
+    indices = sorted(set(round(i * (len(items) - 1) / float(requested - 1)) for i in range(requested)))
+    return [items[index] for index in indices]
+
+
+def allocate_channel_samples(channel_rows, limit):
+    total = sum(len(rows) for rows in channel_rows.values())
+    target = min(max(0, limit), total)
+    allocations = {channel: 0 for channel in SECONDARY_CHANNELS}
+    if target <= 0:
+        return allocations
+    present = [channel for channel in SECONDARY_CHANNELS if channel_rows.get(channel)]
+    for channel in present:
+        if sum(allocations.values()) < target:
+            allocations[channel] = 1
+    remaining = target - sum(allocations.values())
+    if remaining <= 0:
+        return allocations
+    present_total = sum(len(channel_rows[channel]) for channel in present)
+    weighted = []
+    for channel in present:
+        rows = len(channel_rows[channel])
+        exact = remaining * rows / float(max(1, present_total))
+        extra = min(rows - allocations[channel], int(exact))
+        allocations[channel] += extra
+        weighted.append((exact - int(exact), rows, channel))
+    remaining = target - sum(allocations.values())
+    for _fraction, _rows, channel in sorted(weighted, reverse=True):
+        if remaining <= 0:
+            break
+        capacity = len(channel_rows[channel]) - allocations[channel]
+        if capacity <= 0:
+            continue
+        allocations[channel] += 1
+        remaining -= 1
+    while remaining > 0:
+        progressed = False
+        for channel in present:
+            capacity = len(channel_rows[channel]) - allocations[channel]
+            if capacity <= 0:
+                continue
+            allocations[channel] += 1
+            remaining -= 1
+            progressed = True
+            if remaining <= 0:
+                break
+        if not progressed:
+            break
+    return allocations
+
+
+def channel_radius_scale(scene, channel):
+    channels = (((scene.get("materials") or {}).get("secondary_particles") or {}).get("channels") or {})
+    channel_spec = channels.get(channel) or {}
+    return as_float(
+        channel_spec.get("radius_scale"),
+        SECONDARY_BSDFS.get(channel, {}).get("default_radius_scale", 1.0),
+    )
+
+
+def build_secondary_proxy_payload(scene, limit, base_radius):
+    payload = {
+        "enabled": limit > 0,
+        "limit": limit,
+        "base_radius": base_radius,
+        "available_counts": {channel: 0 for channel in SECONDARY_CHANNELS},
+        "proxy_counts": {channel: 0 for channel in SECONDARY_CHANNELS},
+        "proxy_count": 0,
+        "proxies": [],
+    }
+    if limit <= 0:
+        return payload, []
+    particles = asset_path(scene, "particle_stream")
+    if not particles or not os.path.isfile(particles):
+        return payload, [{
+            "kind": "missing_particle_stream",
+            "output_frame": scene.get("output_frame"),
+            "path": particles,
+        }]
+
+    channel_rows = {channel: [] for channel in SECONDARY_CHANNELS}
+    with open(particles, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            channel = (row.get("render_channel") or "").strip()
+            if channel not in channel_rows:
+                continue
+            kind = (row.get("kind") or "").strip()
+            if not kind.startswith("secondary"):
+                continue
+            channel_rows[channel].append({
+                "channel": channel,
+                "x": as_float(row.get("x")),
+                "y": as_float(row.get("y")),
+                "z": as_float(row.get("z")),
+                "volume": as_float(row.get("volume"), 1.0),
+                "age": as_float(row.get("age"), 0.0),
+            })
+
+    payload["available_counts"] = {channel: len(channel_rows[channel]) for channel in SECONDARY_CHANNELS}
+    allocations = allocate_channel_samples(channel_rows, limit)
+    proxies = []
+    for channel in SECONDARY_CHANNELS:
+        radius_scale = channel_radius_scale(scene, channel)
+        for row in sample_items(channel_rows[channel], allocations.get(channel, 0)):
+            volume_scale = max(0.55, min(1.45, row["volume"] ** (1.0 / 3.0) if row["volume"] > 0.0 else 1.0))
+            proxies.append({
+                "channel": channel,
+                "x": row["x"],
+                "y": row["y"],
+                "z": row["z"],
+                "radius": base_radius * radius_scale * volume_scale,
+                "age": row["age"],
+            })
+    payload["proxies"] = proxies
+    payload["proxy_count"] = len(proxies)
+    payload["proxy_counts"] = {
+        channel: sum(1 for item in proxies if item["channel"] == channel)
+        for channel in SECONDARY_CHANNELS
+    }
+    return payload, []
+
+
+def secondary_bsdf_lines():
+    lines = []
+    for channel in SECONDARY_CHANNELS:
+        spec = SECONDARY_BSDFS[channel]
+        lines.extend([
+            f'  <bsdf type="diffuse" id="{spec["id"]}">',
+            f'    <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+            '  </bsdf>',
+        ])
+    return lines
+
+
+def secondary_proxy_shape_lines(proxy):
+    spec = SECONDARY_BSDFS.get(proxy["channel"], SECONDARY_BSDFS["spray"])
+    return [
+        '  <shape type="sphere">',
+        f'    <point name="center" x="{proxy["x"]:.8g}" y="{proxy["y"]:.8g}" z="{proxy["z"]:.8g}"/>',
+        f'    <float name="radius" value="{proxy["radius"]:.8g}"/>',
+        f'    <ref name="bsdf" id="{spec["id"]}"/>',
+        '  </shape>',
+    ]
+
+
+def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_proxy):
     camera = scene.get("camera") or {}
     settings = scene.get("render_settings") or {}
     diagnostics = scene.get("diagnostics") or {}
@@ -74,6 +258,7 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format):
         '<scene version="3.0.0">',
         f'  <!-- LSFS output_frame={scene.get("output_frame")} sequence_frame={scene.get("sequence_frame")} time={time} -->',
         f'  <!-- water_faces={water_faces} secondary_total={secondary.get("total")} -->',
+        f'  <!-- secondary_proxy_count={secondary_proxy.get("proxy_count", 0)} -->',
         f'  <!-- phase_cells_csv={xml_path(phase_cells)} -->',
         f'  <!-- particles_csv={xml_path(particles)} -->',
         '  <integrator type="path">',
@@ -102,14 +287,19 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format):
         '    <float name="int_ior" value="1.333"/>',
         '    <float name="ext_ior" value="1.0"/>',
         '  </bsdf>',
+        *secondary_bsdf_lines(),
         '  <shape type="obj">',
         f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
         '    <boolean name="face_normals" value="true"/>',
         '    <ref name="bsdf" id="lsfs_water_surface"/>',
         '  </shape>',
+    ]
+    for proxy in secondary_proxy.get("proxies", []):
+        lines.extend(secondary_proxy_shape_lines(proxy))
+    lines.extend([
         '</scene>',
         '',
-    ]
+    ])
     write_text(out_path, "\n".join(lines))
     return {
         "output_frame": scene.get("output_frame"),
@@ -137,6 +327,13 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format):
             "particles": posix_rel(particles, os.getcwd()) if particles else None,
         },
         "secondary_counts": secondary,
+        "secondary_proxy": {
+            "enabled": secondary_proxy.get("enabled", False),
+            "limit": secondary_proxy.get("limit", 0),
+            "available_counts": secondary_proxy.get("available_counts", {}),
+            "proxy_counts": secondary_proxy.get("proxy_counts", {}),
+            "proxy_count": secondary_proxy.get("proxy_count", 0),
+        },
     }
 
 
@@ -176,9 +373,17 @@ def export_mitsuba(args):
                 "path": water_mesh,
             })
             continue
+        secondary_proxy, proxy_failures = build_secondary_proxy_payload(
+            scene,
+            args.secondary_proxy_limit,
+            args.secondary_proxy_radius,
+        )
+        if proxy_failures:
+            failures.extend(proxy_failures)
+            continue
         xml_scene = os.path.abspath(os.path.join(scene_dir, f"frame_{index:04d}.xml"))
         output_image = os.path.abspath(os.path.join(render_dir, f"frame_{index:04d}.{args.output_format}"))
-        item = write_mitsuba_scene(scene, xml_scene, output_image, args.film)
+        item = write_mitsuba_scene(scene, xml_scene, output_image, args.film, secondary_proxy)
         exported.append(item)
         commands.append(f'mitsuba render "{xml_scene}" -o "{output_image}"')
 
@@ -203,6 +408,8 @@ def export_mitsuba(args):
             "output_format": args.output_format,
             "frames_requested": args.frames,
             "frames_exported": len(exported),
+            "secondary_proxy_limit": args.secondary_proxy_limit,
+            "secondary_proxy_radius": args.secondary_proxy_radius,
         },
         "command_list": {
             "path": command_list_path,
@@ -214,6 +421,11 @@ def export_mitsuba(args):
             "failures": len(failures),
             "water_mesh_bytes": sum(item["water_mesh"]["size"] for item in exported),
             "xml_scene_bytes": sum(item["xml_scene"]["size"] for item in exported),
+            "secondary_proxy_count": sum(item["secondary_proxy"]["proxy_count"] for item in exported),
+            "secondary_proxy_available": sum(
+                sum(item["secondary_proxy"].get("available_counts", {}).values())
+                for item in exported
+            ),
         },
         "failures": failures,
         "frames": exported,
@@ -243,11 +455,13 @@ def markdown_report(export, out_path, root):
         f"- Failures: `{checks.get('failures')}`",
         f"- Water mesh bytes: `{format_bytes(checks.get('water_mesh_bytes', 0))}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
+        f"- Secondary proxies emitted: `{checks.get('secondary_proxy_count', 0)}`",
+        f"- Secondary particles available: `{checks.get('secondary_proxy_available', 0)}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | XML Scene | Sequence | Water Faces | Secondary Total |",
-        "| ---: | --- | ---: | ---: | ---: |",
+        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Proxy Count |",
+        "| ---: | --- | ---: | ---: | ---: | ---: |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -256,7 +470,8 @@ def markdown_report(export, out_path, root):
         lines.append(
             f"| {frame.get('output_frame')} | `{frame.get('xml_scene', {}).get('repo_path')}` | "
             f"{frame.get('sequence_frame')} | {frame.get('water_mesh', {}).get('faces')} | "
-            f"{(frame.get('secondary_counts') or {}).get('total')} |"
+            f"{(frame.get('secondary_counts') or {}).get('total')} | "
+            f"{(frame.get('secondary_proxy') or {}).get('proxy_count', 0)} |"
         )
     if export.get("failures"):
         lines.extend(["", "## Failures", ""])
@@ -279,6 +494,10 @@ def main(argv=None):
     parser.add_argument("--frames", type=int)
     parser.add_argument("--film", default="hdrfilm")
     parser.add_argument("--output-format", default="exr")
+    parser.add_argument("--secondary-proxy-limit", type=int, default=0,
+                        help="maximum sampled secondary particle sphere proxies per frame")
+    parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,
+                        help="base radius for secondary particle sphere proxies in cell units")
     parser.add_argument("--manifest-name", default="mitsuba_export.json")
     parser.add_argument("--report")
     parser.add_argument("--title", default="Mitsuba XML Export")
@@ -289,6 +508,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.frames is not None and args.frames <= 0:
         parser.error("frames must be positive")
+    if args.secondary_proxy_limit < 0:
+        parser.error("secondary-proxy-limit must be non-negative")
+    if args.secondary_proxy_radius <= 0.0:
+        parser.error("secondary-proxy-radius must be positive")
 
     export = export_mitsuba(args)
     out_path = os.path.abspath(os.path.join(args.out_dir, args.manifest_name))
