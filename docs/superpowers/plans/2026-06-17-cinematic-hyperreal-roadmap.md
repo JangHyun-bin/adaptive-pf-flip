@@ -1606,3 +1606,30 @@ unchanged. Mean luminance rises by `0.37631863064235915`, minimum contrast by
 coverage and `luma_p99.5` are unchanged. Promote S244 into
 `dam_break_water_mesh_smoothing` in S246 and run accepted-preset parity against
 S245.
+
+S246 accepted the water-body thickness/refraction tuning:
+
+- S246 acceptance report:
+  `docs/reports/cinematic_water_body_thickness_acceptance_s246.md`
+- S246 baseline delta report:
+  `docs/reports/cinematic_water_body_thickness_acceptance_baseline_delta_s246.md`
+- S246 gallery report:
+  `docs/reports/cinematic_water_body_thickness_acceptance_gallery_s246.md`
+- S246 plan:
+  `docs/superpowers/plans/2026-06-19-water-body-thickness-acceptance.md`
+- S246 gallery:
+  `build/shots/s246_water_body_thickness_acceptance/gallery/index.html`
+
+S246 folds the S244/S245 water material depth/alpha/transmission, water volume
+scatter material, 20-layer scattering pass, and surface detail tuning into
+`dam_break_water_mesh_smoothing`, while leaving occlusion disabled and accepted
+foam/ripple/highlight behavior unchanged. The 32-frame accepted render passes
+the surface-quality gate with `normal_rough: 3`, `stable: 29`, stable ratio
+`0.90625`, and blocked labels `0`. Against S245, parity holds within render
+noise: max changed ratio `0`, max strong changed ratio `0`, bright/highlight/
+contrast/nonblank/luma percentile deltas `0`, and scatter/foam/ripple/streak
+count deltas `0`. Against S242, mean luminance rises by `0.3763206651475599`,
+minimum contrast by `1.0`, bright ratio by `5.018446180555557e-05`, highlight
+ratio by `2.8754340277777787e-05`, `luma_p95` by `0.5`, and `luma_p99` by
+`0.09375`, with coverage and `luma_p99.5` unchanged. Use S246 as the current
+accepted cinematic water baseline.

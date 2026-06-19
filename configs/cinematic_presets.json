@@ -2402,8 +2402,12 @@
       "description": "S186 with bounded Smooth modifier support on imported water meshes to soften structural sheet seams.",
       "materials": {
         "water": {
-          "rim_strength": 0.72,
-          "rim_width": 0.26
+          "depth_strength": 0.76,
+          "rim_strength": 0.68,
+          "rim_width": 0.27,
+          "roughness": 0.04,
+          "alpha": 0.66,
+          "transmission": 0.22
         },
         "water_glint": {
           "base_color": [0.9, 0.98, 1.0, 1.0],
@@ -2419,6 +2423,12 @@
           "emission_strength": 0.58,
           "roughness": 0.035,
           "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "water_volume_scatter": {
+          "emission_strength": 0.06,
+          "roughness": 0.9,
+          "alpha": 0.16,
           "transmission": 0.0
         }
       },
@@ -2504,13 +2514,27 @@
           "emission_scale": 0.78
         },
         "water_surface_detail": {
-          "strength": 0.052,
-          "scale": 2.8,
+          "strength": 0.054,
+          "scale": 2.72,
           "depth": 6
         },
         "water_volume_scattering_pass": {
-          "alpha_scale": 0.3,
-          "emission_scale": 0.4
+          "enabled": true,
+          "layers": 20,
+          "region_min": [1.0, 0.9, 2.6],
+          "region_max": [34.2, 8.8, 24.5],
+          "inset": 0.76,
+          "alpha_scale": 0.32,
+          "emission_scale": 0.44
+        },
+        "water_volume_occlusion_pass": {
+          "enabled": false,
+          "layers": 0,
+          "region_min": [1.0, 0.9, 2.6],
+          "region_max": [34.2, 6.8, 24.5],
+          "inset": 0.88,
+          "alpha_scale": 0.0,
+          "emission_scale": 0.0
         }
       }
     },
