@@ -2759,3 +2759,21 @@ mean luma p99 delta is `0.0833333333333286`, mean specular ratio delta is
 `-3.215020576131689e-06`, and mean frame contrast delta is `-0.25`. Use S302 as
 the stronger larger-job Blender proof before publish, package, or full
 48-frame render attempts.
+
+S303 published the S302 larger-job 24-frame Blender sample gallery:
+
+- S303 publish report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample24_publish_s303.md`
+- S303 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-sample24-publish.md`
+- S303 manifest:
+  `build/shots/s303_larger_external_renderer_job_blender_sample24_publish/publish_manifest.json`
+- S303 public URL:
+  `https://animals-zealand-fcc-thursday.trycloudflare.com`
+
+S303 stops the S300 12-frame larger-job endpoint, serves the S302 24-frame
+gallery on local port `8903`, and starts a new Cloudflare quick tunnel. Local
+and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
+The HTTP server PID is `17836`, and the Cloudflared PID is `160000`. Use S303
+as the current public larger-job 24-frame Blender sample endpoint while S292
+remains active separately as the full32 job-path proof endpoint.
