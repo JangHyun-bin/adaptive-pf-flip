@@ -63,6 +63,17 @@ def csv3(values, default):
     return ", ".join(f"{float(items[i]):.8g}" for i in range(3))
 
 
+def csv3_required(values, label):
+    parts = [part.strip() for part in values.split(",")] if values else []
+    if len(parts) != 3:
+        raise ValueError(f"{label} must contain three comma-separated numbers")
+    return [float(part) for part in parts]
+
+
+def override3(value, fallback):
+    return value if value is not None else fallback
+
+
 def selected_frames(frames, requested=None):
     if not frames:
         return []
@@ -316,7 +327,7 @@ def phase_volume_proxy_shape_lines(proxy):
     ]
 
 
-def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_proxy, phase_volume_proxy):
+def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, phase_volume_proxy):
     camera = scene.get("camera") or {}
     settings = scene.get("render_settings") or {}
     diagnostics = scene.get("diagnostics") or {}
@@ -325,8 +336,13 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_pr
     particles = asset_path(scene, "particle_stream")
     width = int(settings.get("width") or 960)
     height = int(settings.get("height") or 540)
-    samples = int(settings.get("samples") or 12)
-    fov = float(camera.get("vertical_fov_degrees") or camera.get("fov_degrees") or 45.0)
+    samples = int(args.samples if args.samples is not None else settings.get("samples") or 12)
+    fov = float(args.camera_fov if args.camera_fov is not None else camera.get("vertical_fov_degrees") or camera.get("fov_degrees") or 45.0)
+    camera_position = override3(args.camera_position_vec, camera.get("position"))
+    camera_target = override3(args.camera_target_vec, camera.get("target"))
+    camera_up = override3(args.camera_up_vec, camera.get("up"))
+    background_radiance = override3(args.background_radiance_vec, [0.55, 0.62, 0.72])
+    water_alpha = args.water_alpha if args.water_alpha is not None else 0.035
     secondary = diagnostics.get("secondary_counts") or {}
     water_faces = diagnostics.get("water_mesh_face_count")
     time = scene.get("time")
@@ -346,22 +362,22 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_pr
         f'    <float name="fov" value="{fov:.8g}"/>',
         '    <string name="fov_axis" value="y"/>',
         '    <transform name="to_world">',
-        f'      <lookat origin="{csv3(camera.get("position"), [18.0, 30.8, 102.0])}" target="{csv3(camera.get("target"), [18.0, 22.0, 14.0])}" up="{csv3(camera.get("up"), [0.0, 1.0, 0.0])}"/>',
+        f'      <lookat origin="{csv3(camera_position, [18.0, 30.8, 102.0])}" target="{csv3(camera_target, [18.0, 22.0, 14.0])}" up="{csv3(camera_up, [0.0, 1.0, 0.0])}"/>',
         '    </transform>',
         '    <sampler type="independent">',
         f'      <integer name="sample_count" value="{samples}"/>',
         '    </sampler>',
-        f'    <film type="{escape(film_format)}">',
+        f'    <film type="{escape(args.film)}">',
         f'      <integer name="width" value="{width}"/>',
         f'      <integer name="height" value="{height}"/>',
         '      <rfilter type="gaussian"/>',
         '    </film>',
         '  </sensor>',
         '  <emitter type="constant">',
-        '    <rgb name="radiance" value="0.55, 0.62, 0.72"/>',
+        f'    <rgb name="radiance" value="{csv3(background_radiance, [0.55, 0.62, 0.72])}"/>',
         '  </emitter>',
         '  <bsdf type="roughdielectric" id="lsfs_water_surface">',
-        '    <float name="alpha" value="0.035"/>',
+        f'    <float name="alpha" value="{water_alpha:.8g}"/>',
         '    <float name="int_ior" value="1.333"/>',
         '    <float name="ext_ior" value="1.0"/>',
         '  </bsdf>',
@@ -482,7 +498,7 @@ def export_mitsuba(args):
             scene,
             xml_scene,
             output_image,
-            args.film,
+            args,
             secondary_proxy,
             phase_volume_proxy,
         )
@@ -510,6 +526,13 @@ def export_mitsuba(args):
             "output_format": args.output_format,
             "mitsuba_command": args.mitsuba_command,
             "mitsuba_mode": args.mitsuba_mode,
+            "samples_override": args.samples,
+            "camera_position_override": args.camera_position_vec,
+            "camera_target_override": args.camera_target_vec,
+            "camera_up_override": args.camera_up_vec,
+            "camera_fov_override": args.camera_fov,
+            "background_radiance_override": args.background_radiance_vec,
+            "water_alpha_override": args.water_alpha,
             "frames_requested": args.frames,
             "frames_exported": len(exported),
             "secondary_proxy_limit": args.secondary_proxy_limit,
@@ -561,6 +584,11 @@ def markdown_report(export, out_path, root):
         f"- Command list: `{export.get('command_list', {}).get('repo_path')}`",
         f"- Mitsuba command: `{export.get('render_settings', {}).get('mitsuba_command')}`",
         f"- Mitsuba mode: `{export.get('render_settings', {}).get('mitsuba_mode')}`",
+        f"- Samples override: `{export.get('render_settings', {}).get('samples_override')}`",
+        f"- Camera position override: `{export.get('render_settings', {}).get('camera_position_override')}`",
+        f"- Camera target override: `{export.get('render_settings', {}).get('camera_target_override')}`",
+        f"- Camera FOV override: `{export.get('render_settings', {}).get('camera_fov_override')}`",
+        f"- Water alpha override: `{export.get('render_settings', {}).get('water_alpha_override')}`",
         "",
         "## Checks",
         "",
@@ -614,6 +642,20 @@ def main(argv=None):
                         help="command name or path used in the generated render command list")
     parser.add_argument("--mitsuba-mode", default="scalar_rgb",
                         help="Mitsuba -m variant used in the generated render command list")
+    parser.add_argument("--samples", type=int,
+                        help="override scene sampler sample_count")
+    parser.add_argument("--camera-position",
+                        help="override camera origin as x,y,z")
+    parser.add_argument("--camera-target",
+                        help="override camera target as x,y,z")
+    parser.add_argument("--camera-up",
+                        help="override camera up vector as x,y,z")
+    parser.add_argument("--camera-fov", type=float,
+                        help="override perspective vertical FOV in degrees")
+    parser.add_argument("--background-radiance",
+                        help="override constant emitter radiance as r,g,b")
+    parser.add_argument("--water-alpha", type=float,
+                        help="override roughdielectric alpha for the water surface")
     parser.add_argument("--secondary-proxy-limit", type=int, default=0,
                         help="maximum sampled secondary particle sphere proxies per frame")
     parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,
@@ -640,6 +682,19 @@ def main(argv=None):
         parser.error("phase-volume-proxy-limit must be non-negative")
     if args.phase_volume_proxy_radius <= 0.0:
         parser.error("phase-volume-proxy-radius must be positive")
+    if args.samples is not None and args.samples <= 0:
+        parser.error("samples must be positive")
+    if args.camera_fov is not None and args.camera_fov <= 0.0:
+        parser.error("camera-fov must be positive")
+    if args.water_alpha is not None and args.water_alpha <= 0.0:
+        parser.error("water-alpha must be positive")
+    try:
+        args.camera_position_vec = csv3_required(args.camera_position, "camera-position") if args.camera_position else None
+        args.camera_target_vec = csv3_required(args.camera_target, "camera-target") if args.camera_target else None
+        args.camera_up_vec = csv3_required(args.camera_up, "camera-up") if args.camera_up else None
+        args.background_radiance_vec = csv3_required(args.background_radiance, "background-radiance") if args.background_radiance else None
+    except ValueError as exc:
+        parser.error(str(exc))
 
     export = export_mitsuba(args)
     out_path = os.path.abspath(os.path.join(args.out_dir, args.manifest_name))

@@ -3132,3 +3132,33 @@ publish gate verified public `index.html` with HTTP `200` and `3165` bytes plus
 public `assets/shot.gif` with HTTP `200` and `165682` bytes. Use S320 as the
 first externally shareable proof of actual Mitsuba renderer output. It is still
 a runtime proof (`spp=1`, `3` frames), not final cinematic look development.
+
+S321 added a closer actual Mitsuba visual proof:
+
+- S321 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S321 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_closeup_export_s321.md`
+- S321 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_closeup_validation_s321.md`
+- S321 render report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_closeup_render_s321.md`
+- S321 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_closeup_gallery_s321.md`
+- S321 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_closeup_publish_s321.md`
+- S321 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-closeup-proof.md`
+- S321 public URL:
+  `https://cooling-pts-cups-skating.trycloudflare.com`
+
+S321 extends the Mitsuba XML exporter with opt-in camera, sample, background
+radiance, and water roughness overrides. The S321 close-up XML bundle keeps all
+`48` source frames valid, disables phase-volume diagnostic proxies, retains
+secondary proxy spheres, and renders `8` selected frames at `spp=4` with `0`
+manifest failures. The published gallery assembles a `1261101` byte actual
+Mitsuba GIF and verifies public `index.html` plus `assets/shot.gif` with HTTP
+`200`. Use S321 as the current actual-Mitsuba visual proof. It is materially
+more readable than S319/S320, but still needs renderer-side material, lighting,
+and secondary representation work before it can be judged as cinematic look
+development.
