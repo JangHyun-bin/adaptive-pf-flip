@@ -3282,3 +3282,25 @@ projected particle counts, and layer coverage bounds. The committed validation
 run also enabled public URL probing and passed `77` checks with `0` failures and
 `0` skipped checks. Use S326 as the regression gate before changing the
 external-renderer handoff, secondary representation, or review-grade path.
+
+S327 added a portable renderer handoff bundle:
+
+- S327 new tool:
+  `tools/build_mitsuba_renderer_handoff_bundle.py`
+- S327 handoff bundle report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_handoff_bundle_s327.md`
+- S327 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-handoff-bundle.md`
+- S327 handoff manifest:
+  `build/shots/s327_mitsuba_renderer_handoff_bundle/handoff_manifest.json`
+- S327 bundle root:
+  `build/shots/s327_mitsuba_renderer_handoff_bundle`
+
+S327 reads the S325 contract and S326 validation, copies the contract,
+validation, source metadata, gallery artifacts, and all selected per-frame base
+preview, secondary layer, composite, and graded reference images into a portable
+bundle. The generated `lsfs_mitsuba_renderer_handoff_bundle` is `ready`, covers
+`8` frames, copies `41` files totaling `12.39 MB`, and has `0` missing
+references. Use S327 as the renderer-facing reference package before replacing
+the post-composite secondary layer and review grade with renderer-side
+implementations.
