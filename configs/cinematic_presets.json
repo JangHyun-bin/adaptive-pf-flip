@@ -2505,6 +2505,21 @@
         }
       }
     },
+    "dam_break_water_normal_rough_labeled_probe": {
+      "extends": "dam_break_water_component_material_labeled_probe",
+      "description": "S208 label-gated water material probe that slightly softens normal_rough water frames while preserving stable-frame no-op behavior.",
+      "renderer": {
+        "water_mesh_quality_material_pass": {
+          "enabled": true,
+          "quality_labels": ["normal_rough"],
+          "alpha_scale": 0.96,
+          "emission_scale": 0.82,
+          "rim_strength_scale": 0.78,
+          "roughness_min": 0.62,
+          "transmission_max": 0.24
+        }
+      }
+    },
     "dam_break_water_volume_occlusion_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with renderer-side dark water-volume occlusion sheets.",

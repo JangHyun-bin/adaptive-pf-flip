@@ -910,6 +910,19 @@ def water_mesh_component_material_pass_summary(render_preset):
     }
 
 
+def water_mesh_quality_material_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_mesh_quality_material_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "quality_labels": string_list(cfg.get("quality_labels")),
+        "alpha_scale": max(0.0, as_float(cfg.get("alpha_scale"), 1.0)),
+        "emission_scale": max(0.0, as_float(cfg.get("emission_scale"), 1.0)),
+        "rim_strength_scale": max(0.0, as_float(cfg.get("rim_strength_scale"), 1.0)),
+        "roughness_min": min(1.0, max(0.0, as_float(cfg.get("roughness_min"), 0.42))),
+        "transmission_max": min(1.0, max(0.0, as_float(cfg.get("transmission_max"), 1.0))),
+    }
+
+
 def secondary_channel_radius_summary(render_preset):
     scales = preset_section(preset_section(render_preset, "renderer"), "secondary_channel_radius_scales")
     return {
@@ -1496,6 +1509,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     water_mesh_smoothing_pass = water_mesh_smoothing_pass_summary(render_preset)
     water_mesh_component_material_pass = water_mesh_component_material_pass_summary(render_preset)
+    water_mesh_quality_material_pass = water_mesh_quality_material_pass_summary(render_preset)
     water_surface_glint_pass, water_reflection_pass, surface_contact_foam_pass, water_volume_scattering_pass, water_impact_ripple_pass = (
         apply_water_surface_continuity_pass(
             water_surface_glint_pass,
@@ -1626,6 +1640,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "water_surface_detail": water_surface_detail,
         "water_mesh_smoothing_pass": water_mesh_smoothing_pass,
         "water_mesh_component_material_pass": water_mesh_component_material_pass,
+        "water_mesh_quality_material_pass": water_mesh_quality_material_pass,
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "source_window": source_window,
@@ -2077,6 +2092,26 @@ def water_mesh_component_material_values(spec):
     }
 
 
+def water_mesh_quality_material_values(spec):
+    cfg = spec.get("water_mesh_quality_material_pass") or {}
+    raw_labels = cfg.get("quality_labels") or []
+    if isinstance(raw_labels, str):
+        labels = [raw_labels] if raw_labels else []
+    elif isinstance(raw_labels, (list, tuple)):
+        labels = [str(label) for label in raw_labels if isinstance(label, str) and label]
+    else:
+        labels = []
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "quality_labels": labels,
+        "alpha_scale": max(0.0, scalar_value(cfg.get("alpha_scale"), 1.0)),
+        "emission_scale": max(0.0, scalar_value(cfg.get("emission_scale"), 1.0)),
+        "rim_strength_scale": max(0.0, scalar_value(cfg.get("rim_strength_scale"), 1.0)),
+        "roughness_min": min(1.0, max(0.0, scalar_value(cfg.get("roughness_min"), 0.42))),
+        "transmission_max": min(1.0, max(0.0, scalar_value(cfg.get("transmission_max"), 1.0))),
+    }
+
+
 def apply_water_mesh_smoothing(obj, smoothing):
     try:
         shade_smooth = bool(smoothing.get("shade_smooth", True)) if smoothing.get("enabled", False) else True
@@ -2169,6 +2204,35 @@ def component_material_label_allowed(frame, component_pass):
         return True
     quality = frame.get("water_mesh_surface_quality") if isinstance(frame.get("water_mesh_surface_quality"), dict) else {}
     return quality.get("label") in set(labels)
+
+
+def scaled_quality_water_values(values, frame, quality_pass):
+    labels = quality_pass.get("quality_labels") or []
+    quality = frame.get("water_mesh_surface_quality") if isinstance(frame.get("water_mesh_surface_quality"), dict) else {}
+    if not quality_pass.get("enabled", False) or not labels or quality.get("label") not in set(labels):
+        return dict(values)
+    out = dict(values)
+    alpha_scale = max(0.0, quality_pass.get("alpha_scale", 1.0))
+    emission_scale = max(0.0, quality_pass.get("emission_scale", 1.0))
+    rim_scale = max(0.0, quality_pass.get("rim_strength_scale", 1.0))
+    color = list(out["color"])
+    color[3] = clamp01(color[3] * alpha_scale)
+    out["color"] = tuple(color)
+    depth_color = list(out["depth_color"])
+    depth_color[3] = clamp01(depth_color[3] * alpha_scale)
+    out["depth_color"] = tuple(depth_color)
+    rim_color = list(out["rim_color"])
+    rim_color[3] = clamp01(rim_color[3] * alpha_scale)
+    out["rim_color"] = tuple(rim_color)
+    emission = list(out["emission_color"])
+    emission[3] = clamp01(emission[3] * alpha_scale)
+    out["emission_color"] = tuple(emission)
+    out["alpha"] = clamp01(out["alpha"] * alpha_scale)
+    out["emission_strength"] = max(0.0, out["emission_strength"] * emission_scale)
+    out["rim_strength"] = max(0.0, out["rim_strength"] * rim_scale)
+    out["roughness"] = max(out["roughness"], quality_pass.get("roughness_min", 0.42))
+    out["transmission"] = min(out["transmission"], quality_pass.get("transmission_max", 1.0))
+    return out
 
 
 def add_water_mesh(frame, material, component_material, detail, smoothing, component_pass):
@@ -3226,6 +3290,7 @@ def main():
     surface_detail = surface_detail_values(preset)
     mesh_smoothing = water_mesh_smoothing_values(spec)
     component_material_pass = water_mesh_component_material_values(spec)
+    quality_material_pass = water_mesh_quality_material_values(spec)
     water_component_secondary = scaled_component_water_values(water_component_secondary,
                                                               component_material_pass)
     water_mat = make_water_material("LSFS Water Glass", water)
@@ -3340,6 +3405,7 @@ def main():
         update_material_or_list(particle_mats.get("foam_soft_falloff"), frame_foam_soft)
         update_principled_material(particle_mats["spray_streak"], frame_spray_streak)
         update_principled_material(particle_mats["foam_streak"], frame_foam_streak)
+        update_principled_material(water_mat, scaled_quality_water_values(water, frame, quality_material_pass))
         add_water_mesh(frame, water_mat, water_component_mat, surface_detail, mesh_smoothing, component_material_pass)
         add_water_volume_scattering_pass(frame,
                                          particle_mats["water_volume_occlusion"],
@@ -3635,6 +3701,7 @@ def main(argv=None):
             "water_surface_detail": spec["water_surface_detail"],
             "water_mesh_smoothing_pass": spec["water_mesh_smoothing_pass"],
             "water_mesh_component_material_pass": spec["water_mesh_component_material_pass"],
+            "water_mesh_quality_material_pass": spec["water_mesh_quality_material_pass"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,
