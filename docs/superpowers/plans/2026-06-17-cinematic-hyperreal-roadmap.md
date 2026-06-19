@@ -1515,3 +1515,30 @@ preserved, and calibration `luma_p99` rises by `0.1875`. The tiny negative
 upper-mid/specular deltas are below practical significance for this foam-focused
 pass. Promote S240 into `dam_break_water_mesh_smoothing` in S242 and run parity
 against S241.
+
+S242 accepted the foam/readability tuning:
+
+- S242 acceptance report:
+  `docs/reports/cinematic_foam_readability_acceptance_s242.md`
+- S242 baseline delta report:
+  `docs/reports/cinematic_foam_readability_acceptance_baseline_delta_s242.md`
+- S242 gallery report:
+  `docs/reports/cinematic_foam_readability_acceptance_gallery_s242.md`
+- S242 plan:
+  `docs/superpowers/plans/2026-06-19-foam-readability-acceptance.md`
+- S242 gallery:
+  `build/shots/s242_foam_readability_acceptance/gallery/index.html`
+
+S242 folds the S240/S241 contact foam, impact ripple, secondary soft, and
+secondary streak readability settings into `dam_break_water_mesh_smoothing`.
+The 32-frame accepted render passes the surface-quality gate with
+`normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels `0`.
+Against S241, parity holds within render noise: max changed ratio `0`, max
+strong changed ratio `0`, max mean abs luma `0.00014756944444444445`, bright
+ratio delta `0`, highlight ratio delta `0`, `luma_p99` delta `0`, and contact
+foam/ripple/streak count deltas `0`. Against S238, the accepted baseline gains
+the intended foam/ripple readability: contact foam mean count rises from
+`43.1875` to `54.5625`, impact ripple mean count rises from `62.0` to `73.0`,
+mean luminance rises by `0.16201321072048813`, bright ratio improves by
+`2.3057725694444525e-06`, and coverage/minimum contrast/hard highlight ratio
+remain unchanged. Use S242 as the current accepted cinematic water baseline.
