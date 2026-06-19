@@ -245,6 +245,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S156** | **S154 public gallery visual triage** - reviews the S154 public gallery and selects S157 contact foam sheet continuity as the next visible look-dev pass. | done |
 | **S157** | **Contact foam sheet continuity pass** - `dam_break_contact_foam_sheet_continuity` broadens flow-aligned surface contact foam strokes while preserving S154 mist, ripple, temporal, and visual gates. | done |
 | **S158** | **S157 gallery refresh/publish** - packages and publishes the S157 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://cindy-pad-witnesses-cincinnati.trycloudflare.com`. | done |
+| **S159** | **S157 public gallery visual triage** - reviews the S157 public gallery and selects S160 large-event cinematic scale gate as the next step beyond small renderer-side look-dev. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

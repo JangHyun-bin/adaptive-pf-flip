@@ -204,7 +204,8 @@ The missing work is not one feature. It is a pipeline:
 | S156 | S154 public gallery visual triage | Review the S154 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s154 public gallery` |
 | S157 | Contact foam sheet continuity pass | Broaden and connect surface contact foam strokes/wakes around the impact region over S154 while preserving gates | Done in `style: add contact foam sheet continuity` |
 | S158 | S157 gallery refresh/publish | Package and publish the S157 review artifacts for external inspection before the next visual triage | Done in `docs: publish s157 cinematic gallery` |
-| S159 | S157 public gallery visual triage | Review the S157 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S159 | S157 public gallery visual triage | Review the S157 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s157 public gallery` |
+| S160 | Large-event cinematic scale gate | Move beyond same-shot look-dev by piloting a larger physical event with the S157 render stack and measured gates | Planned |
 
 ## Decision Gates
 
@@ -542,16 +543,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S159.
+Continue with S160.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s157-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-large-event-cinematic-scale-gate.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s157_contact_foam_sheet_continuity\gallery\gallery_manifest.json --publish build\shots\s157_contact_foam_sheet_continuity\gallery\publish_manifest_s158.json --out docs\reports\cinematic_visual_review_s159.md --finding "S157 broadens flow-aligned contact foam strokes while preserving S154 mist integration and all review gates." --decision "Select the next visible adjustment from the S157 public gallery." --next "TBD by S159 triage."
+python tools\render_bridge_blender.py build\shots\s157_contact_foam_sheet_continuity\converted\sequence.json build\s160_large_event_scale_dry --frames 4 --width 640 --height 360 --dry-run --render-preset dam_break_large_event_scale_gate --preset-config configs\cinematic_presets.json --max-secondary-particles 512 --secondary-radius-scale 3.0
 ```
 
-The next success condition is a checked-in S159 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
+The next success condition is a checked-in S160 preset and Blender gate report that increases physical event scale while preserving the S157 renderer gates or records a measured scale-limit failure with next corrective action.
