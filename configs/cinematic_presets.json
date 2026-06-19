@@ -1845,6 +1845,66 @@
         }
       }
     },
+    "dam_break_secondary_mist_integrated": {
+      "extends": "dam_break_source_edge_cleanup_framing",
+      "description": "S151 framing with smaller direct secondary beads and stronger soft mist/streak integration for spray and foam.",
+      "renderer": {
+        "secondary_channel_radius_scales": {
+          "droplet": 0.78,
+          "spray": 0.86,
+          "foam": 1.12,
+          "bubble": 0.58
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 2.45,
+            "foam": 2.05
+          },
+          "alpha_scale": 0.24,
+          "emission_scale": 0.74,
+          "max_radius": 1.18,
+          "geometry": "billboard_disks",
+          "falloff": [0.82, 0.32, 0.1, 0.0],
+          "material_falloff": "radial_shader"
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 1.12,
+            "foam": 0.42
+          },
+          "length_scale": 0.066,
+          "max_length": 1.45,
+          "width_scale": 0.34,
+          "alpha_scale": 0.18,
+          "emission_scale": 0.9,
+          "min_speed": 0.32
+        }
+      },
+      "materials": {
+        "spray": {
+          "base_color": [0.8, 0.93, 1.0, 0.58],
+          "emission_color": [0.78, 0.94, 1.0, 1.0],
+          "emission_strength": 0.035,
+          "roughness": 0.22,
+          "alpha": 0.58,
+          "transmission": 0.18
+        },
+        "foam": {
+          "base_color": [0.96, 0.98, 0.9, 0.74],
+          "emission_color": [1.0, 0.95, 0.72, 1.0],
+          "emission_strength": 0.052,
+          "roughness": 0.82,
+          "alpha": 0.74,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [0.72, 0.9, 1.0, 0.42],
+          "roughness": 0.18,
+          "alpha": 0.42,
+          "transmission": 0.22
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

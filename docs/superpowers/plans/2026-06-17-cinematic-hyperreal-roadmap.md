@@ -199,7 +199,8 @@ The missing work is not one feature. It is a pipeline:
 | S151 | Source-edge cleanup framing pass | Crop or de-emphasize the upper source region over S148 while preserving close-up contact, water thickness, and review gates | Done in `style: add source edge cleanup framing` |
 | S152 | S151 gallery refresh/publish | Package and publish the S151 review artifacts for external inspection before the next visual triage | Done in `docs: publish s151 cinematic gallery` |
 | S153 | S151 public gallery visual triage | Review the S151 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s151 public gallery` |
-| S154 | Secondary bead de-emphasis and mist integration | Reduce bead-like secondary particles over S151 while strengthening soft mist/streak integration for spray and foam | Planned |
+| S154 | Secondary bead de-emphasis and mist integration | Reduce bead-like secondary particles over S151 while strengthening soft mist/streak integration for spray and foam | Done in `style: integrate secondary mist rendering` |
+| S155 | S154 gallery refresh/publish | Package and publish the S154 review artifacts for external inspection before the next visual triage | Planned |
 
 ## Decision Gates
 
@@ -537,16 +538,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S154.
+Continue with S155.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-secondary-bead-mist-integration.md`
+`docs/superpowers/plans/2026-06-18-s154-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_secondary_mist_integrated --out build\shots\s154_secondary_mist_integration --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s151_source_edge_cleanup_framing\review\review_manifest.json --report docs\reports\cinematic_secondary_mist_integration_s154.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s154_secondary_mist_integration --out docs\reports\cinematic_artifact_package_s155.md
+python tools\build_cinematic_gallery.py build\shots\s154_secondary_mist_integration --package docs\reports\cinematic_artifact_package_s155.md --out build\shots\s154_secondary_mist_integration\gallery --report docs\reports\cinematic_static_gallery_s155.md
+python tools\publish_cinematic_gallery.py build\shots\s154_secondary_mist_integration\gallery --port 8806 --cftunnel --manifest build\shots\s154_secondary_mist_integration\gallery\publish_manifest_s155.json --report docs\reports\cinematic_gallery_publish_s155.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S154 Blender gate report that reduces bead-like secondary read while preserving S151 framing, water thickness, ripple, temporal, visual, and secondary-depth gates.
+The next success condition is a checked-in S155 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
