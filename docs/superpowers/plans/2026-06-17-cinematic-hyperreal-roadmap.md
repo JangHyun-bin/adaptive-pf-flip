@@ -2702,3 +2702,21 @@ luma p99 delta is `-0.1666666666666714`, mean specular ratio delta is
 `-1.1252572016460965e-06`, and mean frame contrast delta is
 `-4.166666666666657`. Use S299 as the bounded larger-job Blender render proof
 before public publish, package, or longer larger-job render attempts.
+
+S300 published the S299 larger-job Blender sample gallery:
+
+- S300 publish report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample12_publish_s300.md`
+- S300 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-sample12-publish.md`
+- S300 manifest:
+  `build/shots/s300_larger_external_renderer_job_blender_sample12_publish/publish_manifest.json`
+- S300 public URL:
+  `https://vatican-ranking-laden-slip.trycloudflare.com`
+
+S300 stops the S297 larger-job preview endpoint, serves the S299 actual Blender
+sample gallery on local port `8903`, and starts a new Cloudflare quick tunnel.
+Local and public `index.html` plus `assets/shot.gif` checks all returned HTTP
+`200`. The HTTP server PID is `60752`, and the Cloudflared PID is `60408`. Use
+S300 as the current public larger-job Blender sample endpoint while S292 remains
+active separately as the full32 job-path proof endpoint.
