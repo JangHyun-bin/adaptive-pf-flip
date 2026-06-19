@@ -705,3 +705,18 @@ S197 kept S191 as the accepted baseline:
 S198 should start a reconstruction/export smoothing pass. Renderer-side
 smoothing now has diminishing returns; the next visible gain should come from
 better water surface data or exported continuity/normal cues.
+
+S198 added OBJ-level water mesh quality diagnostics:
+
+- S198 report:
+  `docs/reports/cinematic_water_mesh_quality_diagnostics_s198.md`
+- S198 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-quality-diagnostics.md`
+- S198 diagnostic outputs:
+  `build/shots/s198_water_mesh_quality_diagnostics`
+
+S199 should add reconstruction component metadata and an optional small-island
+filter/labeling path. S198 shows the current exported OBJ topology is closed and
+non-degenerate, but early frames split into two substantial components, so the
+next useful work is component/island handling rather than stronger renderer
+smoothing.
