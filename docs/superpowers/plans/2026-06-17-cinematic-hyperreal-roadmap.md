@@ -1299,3 +1299,24 @@ on all frames, nonblank coverage and minimum contrast are preserved, and mean
 luminance rises by `0.1705642361111046`, but bright/highlight ratio deltas are
 both `0.0`. Keep S231 opt-in and run a stronger S232 overlay-only candidate
 before any promotion.
+
+S232 tested a stronger overlay-only highlight recovery candidate:
+
+- S232 comparison report:
+  `docs/reports/cinematic_highlight_energy_recovery_strong_probe_s232.md`
+- S232 gallery report:
+  `docs/reports/cinematic_highlight_energy_recovery_strong_gallery_s232.md`
+- S232 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-energy-recovery-strong-probe.md`
+- S232 gallery:
+  `build/shots/s232_highlight_energy_recovery_strong_probe/gallery/index.html`
+
+S232 introduces `dam_break_highlight_energy_recovery_strong_probe`, still
+changing only glint/reflection overlay controls. Against the S230-equivalent
+accepted 16-frame baseline, the surface-quality gate passes with
+`normal_rough: 2`, `stable: 14`, stable ratio `0.875`, and blocked labels `0`.
+Direct secondary counts match on all 16 frames, nonblank coverage and minimum
+contrast are preserved, mean luminance rises by `0.6406933593749926`, and
+bright ratio improves by `7.324218749999979e-06`. Highlight ratio remains
+unchanged at `0.0` delta, so keep S232 opt-in and use S233 for a 32-frame motion
+review only if the stronger overlay looks acceptable in the gallery.

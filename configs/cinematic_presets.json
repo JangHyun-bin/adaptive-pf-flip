@@ -2701,6 +2701,30 @@
         }
       }
     },
+    "dam_break_highlight_energy_recovery_strong_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S232 stronger overlay-only highlight recovery probe after S231 preserved but did not recover aggregate highlight energy.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 252,
+          "alpha_scale": 0.52,
+          "emission_scale": 1.04,
+          "segment_count": 3,
+          "segment_gap": 0.105,
+          "dropout": 0.025
+        },
+        "water_reflection_pass": {
+          "count": 94,
+          "length": 5.25,
+          "width": 0.128,
+          "alpha_scale": 0.53,
+          "emission_scale": 1.08,
+          "segment_count": 3,
+          "segment_gap": 0.118,
+          "dropout": 0.025
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
