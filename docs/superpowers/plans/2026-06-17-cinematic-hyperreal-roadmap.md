@@ -556,17 +556,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S179.
+Continue with S180.
 
-The next implementation plan should triage the S178 public gallery and decide
-whether to keep or tune the S177 strip breakup bounds. Use these artifacts as
-inputs:
+The next implementation plan should implement the S179-selected secondary
+material/de-beading pass. Use these artifacts as inputs:
 
 - S177 gate report: `docs/reports/cinematic_surface_reflection_breakup_s177.md`
 - S177 comparison report:
   `docs/reports/cinematic_surface_reflection_breakup_comparison_s177.md`
 - S178 public gallery: `https://alloy-mailman-right-gay.trycloudflare.com`
 - S178 publish report: `docs/reports/cinematic_gallery_publish_s178.md`
+- S179 triage report: `docs/reports/cinematic_public_gallery_triage_s179.md`
 
-The next success condition is a checked-in S179 triage report with a keep/tune
-decision and the next concrete visual target.
+The next success condition is a checked-in S180 preset/render pass that reduces
+the tan/gold bead-like secondary particle read while preserving mist/foam
+visibility and S177 water-surface improvements.
