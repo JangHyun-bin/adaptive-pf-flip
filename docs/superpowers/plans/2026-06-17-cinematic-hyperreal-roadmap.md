@@ -1154,3 +1154,22 @@ highlight ratio while improving mean luminance by `0.17866536458332405`.
 Against S222, parity holds within render noise (`1.7903645826322645e-05` mean
 luminance delta, all other aggregate deltas `0.0`). Use S223 as the accepted
 baseline for a wider-window review or external gallery publish.
+
+S224 validated the accepted S223 preset over a wider mixed window:
+
+- S224 comparison report:
+  `docs/reports/cinematic_wide_accepted_review_s224.md`
+- S224 gallery report:
+  `docs/reports/cinematic_wide_accepted_review_gallery_s224.md`
+- S224 plan:
+  `docs/superpowers/plans/2026-06-19-wide-accepted-preset-review.md`
+- S224 gallery:
+  `build/shots/s224_wide_accepted_review/gallery/index.html`
+
+S224 uses source indices `8..55` as a 16-frame accepted review, producing
+`normal_rough: 2` and `stable: 14` with blocked labels `0` and stable ratio
+`0.875`. Against the S220-wide baseline, S224 preserves nonblank coverage,
+minimum contrast, and direct secondary counts on all 16 frames while improving
+mean luminance by `0.19168701171875568`. Keep S223 as the accepted baseline.
+The next practical choices are publishing the S224 gallery for remote review or
+running the next visual pass against this wider accepted proof.
