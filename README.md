@@ -232,6 +232,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S143** | **S142 gallery refresh/publish** - packages and publishes the S142 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://val-upgrades-counters-nose.trycloudflare.com`. | done |
 | **S144** | **S142 public gallery visual triage** - reviews the S142 public gallery and selects S145 foreground surface-detail/foam-breakup look-dev. | done |
 | **S145** | **Foreground surface-detail/foam-breakup pass** - `dam_break_foreground_surface_detail_foam` preserves S142 timing while increasing water surface detail, glint/ripple readability, and contact foam breakup. | done |
+| **S146** | **S145 gallery refresh/publish** - packages and publishes the S145 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://rep-humor-dictionary-carrier.trycloudflare.com`. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

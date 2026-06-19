@@ -191,7 +191,8 @@ The missing work is not one feature. It is a pipeline:
 | S143 | S142 gallery refresh/publish | Package and publish the S142 review artifacts for external inspection before the next visual triage | Done in `docs: publish s142 cinematic gallery` |
 | S144 | S142 public gallery visual triage | Review the S142 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s142 public gallery` |
 | S145 | Foreground surface-detail/foam-breakup pass | Preserve S142 timing/framing while increasing close-up water detail, glint/ripple readability, and contact foam breakup | Done in `style: add foreground surface detail foam` |
-| S146 | S145 gallery refresh/publish | Package and publish the S145 review artifacts for external inspection before the next visual triage | Planned |
+| S146 | S145 gallery refresh/publish | Package and publish the S145 review artifacts for external inspection before the next visual triage | Done in `docs: publish s145 cinematic gallery` |
+| S147 | S145 public gallery visual triage | Review the S145 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -529,18 +530,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S146.
+Continue with S147.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s145-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s145-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s145_foreground_surface_detail_foam --out docs\reports\cinematic_artifact_package_s146.md
-python tools\build_cinematic_gallery.py build\shots\s145_foreground_surface_detail_foam --package docs\reports\cinematic_artifact_package_s146.md --out build\shots\s145_foreground_surface_detail_foam\gallery --report docs\reports\cinematic_static_gallery_s146.md
-python tools\publish_cinematic_gallery.py build\shots\s145_foreground_surface_detail_foam\gallery --port 8803 --cftunnel --manifest build\shots\s145_foreground_surface_detail_foam\gallery\publish_manifest_s146.json --report docs\reports\cinematic_gallery_publish_s146.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s145_foreground_surface_detail_foam\gallery\gallery_manifest.json --publish build\shots\s145_foreground_surface_detail_foam\gallery\publish_manifest_s146.json --out docs\reports\cinematic_visual_review_s147.md --finding "S145 improves foreground surface/ripple readability over S142 while preserving the close-up timing gate." --decision "Select the next visible adjustment from the S145 public gallery." --next "TBD by S147 triage."
 ```
 
-The next success condition is a checked-in S146 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
+The next success condition is a checked-in S147 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
