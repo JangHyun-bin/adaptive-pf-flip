@@ -720,3 +720,18 @@ filter/labeling path. S198 shows the current exported OBJ topology is closed and
 non-degenerate, but early frames split into two substantial components, so the
 next useful work is component/island handling rather than stronger renderer
 smoothing.
+
+S199 added reconstruction component metadata and an opt-in island filter:
+
+- S199 report:
+  `docs/reports/cinematic_water_mesh_component_metadata_s199.md`
+- S199 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-component-metadata.md`
+- S199 probes:
+  `build/shots/s199_component_metadata_probe`
+  `build/shots/s199_component_filter_probe`
+
+S200 should run a conservative visual island-filter probe and compare it
+against S191. The S199 `0.3` filter proves the mechanism but is too aggressive
+for production until visual review confirms the smaller component is an
+artifact rather than meaningful separated water.

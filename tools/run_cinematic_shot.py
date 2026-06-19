@@ -2166,6 +2166,10 @@ def render_report(summary, root):
         f"- GIF reused: `{metrics.get('gif_reused', 'n/a')}`",
         f"- Surface mode: `{metrics.get('surface_mode', 'n/a')}`",
         f"- Implicit blur iterations: `{metrics.get('implicit_blur_iterations', 'n/a')}`",
+        f"- Water mesh min component face ratio: `{metrics.get('min_component_face_ratio', 'n/a')}`",
+        f"- Water mesh max component count: `{metrics.get('component_count_max', 'n/a')}`",
+        f"- Water mesh min largest component face ratio: `{metrics.get('largest_component_face_ratio_min', 'n/a')}`",
+        f"- Water mesh component filter removed faces: `{metrics.get('component_filter_removed_faces', 'n/a')}`",
         f"- GIF bytes: `{metrics.get('shot_gif_bytes', 'n/a')}`",
         f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
         f"- Camera auto framing: `{metrics.get('camera_framing', {}).get('enabled', False)}`",
@@ -2390,6 +2394,10 @@ def parse_args(argv):
                         help="implicit tetra isosurface threshold")
     parser.add_argument("--implicit-blur-iterations", type=int,
                         help="scalar-grid blur iterations for implicit tetra reconstruction")
+    parser.add_argument("--min-component-face-ratio", type=float,
+                        help="drop water mesh components smaller than this face-count ratio")
+    parser.add_argument("--component-detail-limit", type=int,
+                        help="largest water mesh components to record per reconstructed frame")
     parser.add_argument("--fps", type=float, help="output GIF frame rate")
     parser.add_argument("--samples", type=int, help="Blender render samples")
     parser.add_argument("--blender", help="explicit Blender executable path")
@@ -2438,6 +2446,12 @@ def parse_args(argv):
         parser.error("implicit-iso must be finite in (0, 1)")
     if args.implicit_blur_iterations is not None and args.implicit_blur_iterations < 0:
         parser.error("implicit-blur-iterations must be non-negative")
+    if args.min_component_face_ratio is not None and (
+            args.min_component_face_ratio < 0.0 or args.min_component_face_ratio >= 1.0 or
+            not math.isfinite(args.min_component_face_ratio)):
+        parser.error("min-component-face-ratio must be finite in [0, 1)")
+    if args.component_detail_limit is not None and args.component_detail_limit < 0:
+        parser.error("component-detail-limit must be non-negative")
     if args.fps is not None and (args.fps <= 0.0 or not math.isfinite(args.fps)):
         parser.error("fps must be finite and positive")
     if args.samples is not None and args.samples <= 0:
@@ -2598,6 +2612,12 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
         "implicit_blur_iterations": first_value(args.implicit_blur_iterations,
                                                 reconstruction.get("implicit_blur_iterations"),
                                                 0),
+        "min_component_face_ratio": first_value(args.min_component_face_ratio,
+                                                reconstruction.get("min_component_face_ratio"),
+                                                0.0),
+        "component_detail_limit": first_value(args.component_detail_limit,
+                                              reconstruction.get("component_detail_limit"),
+                                              4),
         "review_pack": not args.no_review_pack,
         "review_frames": args.review_frames,
         "compare_review_manifests": list(args.compare_review_manifest or []),
@@ -2784,6 +2804,8 @@ def run_pipeline(args):
             "--surface-mode", str(config["surface_mode"]),
             "--implicit-iso", str(config["implicit_iso"]),
             "--implicit-blur-iterations", str(config["implicit_blur_iterations"]),
+            "--min-component-face-ratio", str(config["min_component_face_ratio"]),
+            "--component-detail-limit", str(config["component_detail_limit"]),
         ]
         if config["write_normals"]:
             reconstruct_cmd.append("--write-normals")
@@ -2939,6 +2961,10 @@ def run_pipeline(args):
             "surface_mode": water.get("surface_mode", "voxel"),
             "implicit_iso": water.get("implicit_iso"),
             "implicit_blur_iterations": water.get("implicit_blur_iterations", 0),
+            "min_component_face_ratio": water.get("min_component_face_ratio", 0.0),
+            "component_count_max": summary.get("reconstruction_metrics", {}).get("component_count_max"),
+            "largest_component_face_ratio_min": summary.get("reconstruction_metrics", {}).get("largest_component_face_ratio_min"),
+            "component_filter_removed_faces": summary.get("reconstruction_metrics", {}).get("component_filter_removed_faces"),
             "converted_sequence_reused": bool(summary.get("convert_metrics", {}).get("reused", False)),
             "secondary_channels": secondary_channels,
             "secondary_volumes": secondary_volumes,

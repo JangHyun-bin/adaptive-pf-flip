@@ -212,7 +212,8 @@ def load_source(path):
 
 
 def reconstruction_options(frame_count, threshold, smooth_iterations, smooth_alpha,
-                           write_normals, surface_mode, implicit_iso, implicit_blur_iterations):
+                           write_normals, surface_mode, implicit_iso, implicit_blur_iterations,
+                           min_component_face_ratio, component_detail_limit):
     return {
         "frame_count": int(frame_count),
         "threshold": float(threshold),
@@ -222,6 +223,8 @@ def reconstruction_options(frame_count, threshold, smooth_iterations, smooth_alp
         "surface_mode": surface_mode,
         "implicit_iso": float(implicit_iso),
         "implicit_blur_iterations": int(implicit_blur_iterations),
+        "min_component_face_ratio": float(min_component_face_ratio),
+        "component_detail_limit": int(component_detail_limit),
     }
 
 
@@ -593,6 +596,127 @@ def smooth_vertices(vertices, faces, iterations, alpha):
     return current
 
 
+class DisjointSet:
+    def __init__(self, size):
+        self.parent = list(range(size))
+        self.rank = [0] * size
+
+    def find(self, item):
+        parent = self.parent[item]
+        if parent != item:
+            self.parent[item] = self.find(parent)
+        return self.parent[item]
+
+    def union(self, a, b):
+        ra = self.find(a)
+        rb = self.find(b)
+        if ra == rb:
+            return
+        if self.rank[ra] < self.rank[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        if self.rank[ra] == self.rank[rb]:
+            self.rank[ra] += 1
+
+
+def mesh_components(vertex_count, faces):
+    dsu = DisjointSet(vertex_count)
+    for face in faces:
+        zero = [idx - 1 for idx in face if 1 <= idx <= vertex_count]
+        if not zero:
+            continue
+        anchor = zero[0]
+        for vi in zero[1:]:
+            dsu.union(anchor, vi)
+
+    components = {}
+    for face_index, face in enumerate(faces):
+        zero = [idx - 1 for idx in face if 1 <= idx <= vertex_count]
+        if not zero:
+            continue
+        root = dsu.find(zero[0])
+        item = components.setdefault(root, {
+            "root": root,
+            "face_indices": [],
+            "vertices": set(),
+        })
+        item["face_indices"].append(face_index)
+        item["vertices"].update(zero)
+
+    out = []
+    face_count = max(1, len(faces))
+    for component in components.values():
+        component_faces = len(component["face_indices"])
+        component_vertices = len(component["vertices"])
+        out.append({
+            "root": component["root"],
+            "face_indices": component["face_indices"],
+            "face_count": component_faces,
+            "vertex_count": component_vertices,
+            "face_ratio": component_faces / float(face_count),
+            "vertex_ratio": component_vertices / float(max(1, vertex_count)),
+        })
+    out.sort(key=lambda item: (item["face_count"], item["vertex_count"]), reverse=True)
+    return out
+
+
+def component_summary(vertex_count, faces, detail_limit):
+    components = mesh_components(vertex_count, faces)
+    detail_limit = max(0, int(detail_limit))
+    return {
+        "component_count": len(components),
+        "largest_component_face_ratio": components[0]["face_ratio"] if components else 0.0,
+        "largest_component_vertex_ratio": components[0]["vertex_ratio"] if components else 0.0,
+        "components": [
+            {
+                "rank": index + 1,
+                "face_count": component["face_count"],
+                "vertex_count": component["vertex_count"],
+                "face_ratio": component["face_ratio"],
+                "vertex_ratio": component["vertex_ratio"],
+            }
+            for index, component in enumerate(components[:detail_limit])
+        ],
+    }
+
+
+def filter_mesh_components(vertices, faces, min_face_ratio, detail_limit):
+    min_face_ratio = max(0.0, min(1.0, float(min_face_ratio)))
+    before = component_summary(len(vertices), faces, detail_limit)
+    if min_face_ratio <= 0.0 or not faces:
+        return vertices, faces, before, {
+            "enabled": False,
+            "min_component_face_ratio": min_face_ratio,
+            "removed_faces": 0,
+            "removed_vertices": 0,
+        }
+
+    components = mesh_components(len(vertices), faces)
+    keep_face_indices = set()
+    kept_components = 0
+    for component in components:
+        if component["face_ratio"] >= min_face_ratio:
+            keep_face_indices.update(component["face_indices"])
+            kept_components += 1
+    if not keep_face_indices and components:
+        keep_face_indices.update(components[0]["face_indices"])
+        kept_components = 1
+
+    kept_faces_old = [face for index, face in enumerate(faces) if index in keep_face_indices]
+    used = sorted({idx for face in kept_faces_old for idx in face})
+    remap = {old_idx: new_idx + 1 for new_idx, old_idx in enumerate(used)}
+    filtered_vertices = [vertices[old_idx - 1] for old_idx in used]
+    filtered_faces = [[remap[idx] for idx in face] for face in kept_faces_old]
+    filter_info = {
+        "enabled": True,
+        "min_component_face_ratio": min_face_ratio,
+        "kept_components": kept_components,
+        "removed_faces": len(faces) - len(filtered_faces),
+        "removed_vertices": len(vertices) - len(filtered_vertices),
+    }
+    return filtered_vertices, filtered_faces, before, filter_info
+
+
 def compute_vertex_normals(vertices, faces):
     normals = [(0.0, 0.0, 0.0) for _ in vertices]
     for face in faces:
@@ -641,6 +765,7 @@ def select_source_frame(frames, out_index, out_count):
 def reconstruct(src, out_dir, frame_count, threshold,
                 smooth_iterations=0, smooth_alpha=0.18, write_normals=False,
                 surface_mode="voxel", implicit_iso=0.45, implicit_blur_iterations=0,
+                min_component_face_ratio=0.0, component_detail_limit=4,
                 reuse_if_fresh=False):
     out_dir = os.path.abspath(out_dir)
     options = reconstruction_options(frame_count,
@@ -650,7 +775,9 @@ def reconstruct(src, out_dir, frame_count, threshold,
                                      write_normals,
                                      surface_mode,
                                      implicit_iso,
-                                     implicit_blur_iterations)
+                                     implicit_blur_iterations,
+                                     min_component_face_ratio,
+                                     component_detail_limit)
     fingerprint = fast_reconstruction_fingerprint(src, options)
     if reuse_if_fresh:
         summary = load_reusable_reconstruction(out_dir, fingerprint)
@@ -672,6 +799,12 @@ def reconstruct(src, out_dir, frame_count, threshold,
             vertices, faces = build_implicit_tetra_mesh(frame, occupied, implicit_iso, implicit_blur_iterations)
         else:
             vertices, faces = build_surface_mesh(frame, occupied)
+        vertices, faces, pre_filter_components, component_filter = filter_mesh_components(
+            vertices,
+            faces,
+            min_component_face_ratio,
+            component_detail_limit)
+        components = component_summary(len(vertices), faces, component_detail_limit)
         vertices = smooth_vertices(vertices, faces, smooth_iterations, smooth_alpha)
         vertex_count, face_count, normal_count = write_obj(mesh_path, frame, vertices, faces, write_normals)
         output_frames.append({
@@ -685,6 +818,13 @@ def reconstruct(src, out_dir, frame_count, threshold,
             "vertex_count": vertex_count,
             "face_count": face_count,
             "normal_count": normal_count,
+            "component_count": components["component_count"],
+            "largest_component_face_ratio": components["largest_component_face_ratio"],
+            "largest_component_vertex_ratio": components["largest_component_vertex_ratio"],
+            "components": components["components"],
+            "pre_filter_component_count": pre_filter_components["component_count"],
+            "pre_filter_largest_component_face_ratio": pre_filter_components["largest_component_face_ratio"],
+            "component_filter": component_filter,
         })
 
     summary = {
@@ -696,6 +836,8 @@ def reconstruct(src, out_dir, frame_count, threshold,
         "surface_mode": surface_mode,
         "implicit_iso": implicit_iso,
         "implicit_blur_iterations": implicit_blur_iterations,
+        "min_component_face_ratio": min_component_face_ratio,
+        "component_detail_limit": component_detail_limit,
         "smooth_iterations": smooth_iterations,
         "smooth_alpha": smooth_alpha,
         "write_normals": write_normals,
@@ -728,6 +870,10 @@ def parse_args(argv):
                         help="implicit tetra isosurface threshold")
     parser.add_argument("--implicit-blur-iterations", type=int, default=0,
                         help="scalar-grid blur iterations for implicit tetra mode")
+    parser.add_argument("--min-component-face-ratio", type=float, default=0.0,
+                        help="drop water mesh components smaller than this face-count ratio; 0 disables filtering")
+    parser.add_argument("--component-detail-limit", type=int, default=4,
+                        help="number of largest mesh components to record per frame")
     parser.add_argument("--reuse-if-fresh", action="store_true",
                         help="reuse water_reconstruction.json if its input fingerprint still matches")
     args = parser.parse_args(argv)
@@ -743,6 +889,11 @@ def parse_args(argv):
         parser.error("implicit-iso must be finite in (0, 1)")
     if args.implicit_blur_iterations < 0:
         parser.error("implicit-blur-iterations must be non-negative")
+    if (args.min_component_face_ratio < 0.0 or args.min_component_face_ratio >= 1.0 or
+            not math.isfinite(args.min_component_face_ratio)):
+        parser.error("min-component-face-ratio must be finite in [0, 1)")
+    if args.component_detail_limit < 0:
+        parser.error("component-detail-limit must be non-negative")
     return args
 
 
@@ -759,6 +910,8 @@ def main(argv=None):
                                             surface_mode=args.surface_mode,
                                             implicit_iso=args.implicit_iso,
                                             implicit_blur_iterations=args.implicit_blur_iterations,
+                                            min_component_face_ratio=args.min_component_face_ratio,
+                                            component_detail_limit=args.component_detail_limit,
                                             reuse_if_fresh=args.reuse_if_fresh)
     except ReconstructionError as exc:
         print(f"status=fail error={exc}", file=sys.stderr)
@@ -766,6 +919,26 @@ def main(argv=None):
     print(f"frames={summary['frame_count']}")
     print(f"representation={summary['representation']}")
     print(f"surface_mode={summary['surface_mode']}")
+    print(f"min_component_face_ratio={summary.get('min_component_face_ratio', 0.0)}")
+    component_counts = [
+        frame.get("component_count")
+        for frame in summary.get("frames", [])
+        if isinstance(frame.get("component_count"), int)
+    ]
+    largest_ratios = [
+        frame.get("largest_component_face_ratio")
+        for frame in summary.get("frames", [])
+        if isinstance(frame.get("largest_component_face_ratio"), (int, float))
+    ]
+    removed_faces = sum(
+        int((frame.get("component_filter") or {}).get("removed_faces", 0))
+        for frame in summary.get("frames", [])
+    )
+    if component_counts:
+        print(f"component_count_max={max(component_counts)}")
+    if largest_ratios:
+        print(f"largest_component_face_ratio_min={min(largest_ratios):.9g}")
+    print(f"component_filter_removed_faces={removed_faces}")
     print(f"summary={summary_path}")
     reused = bool(summary.pop("_runtime_reused", False))
     print(f"reused={'true' if reused else 'false'}")
