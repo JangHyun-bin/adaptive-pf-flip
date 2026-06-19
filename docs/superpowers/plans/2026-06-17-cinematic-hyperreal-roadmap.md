@@ -556,17 +556,15 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S175.
+Continue with S176.
 
-The next implementation plan should package and publish the S173 metadata-depth
-render and S174 comparison artifacts for external inspection. The preferred
-route is:
+The next implementation plan should triage the S175 public gallery and select
+the next visible render pass. Use the public URL and the S174 comparison sheet
+as evidence:
 
-- package the S173 shot artifacts and S174 comparison sheet,
-- build a static gallery entry that includes the GIF, representative frames,
-  bridge metrics, and comparison image,
-- publish through the existing gallery/tunnel workflow.
+- Public gallery: `https://yearly-whereas-generated-alfred.trycloudflare.com`
+- Comparison report: `docs/reports/cinematic_metadata_depth_comparison_s174.md`
+- Publish report: `docs/reports/cinematic_gallery_publish_s175.md`
 
-The next success condition is a checked-in S175 report and a public gallery URL
-for the current S173/S174 visual state, plus a recommendation for the next
-render tuning pass.
+The next success condition is a checked-in S176 triage report that names one
+specific next visual improvement, with evidence from the public gallery.
