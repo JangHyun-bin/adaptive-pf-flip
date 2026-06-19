@@ -217,7 +217,8 @@ The missing work is not one feature. It is a pipeline:
 | S169 | S168 gallery refresh/publish | Package and publish the S168 depth-separation artifacts for public inspection before the next visual triage | Done in `docs: publish s168 cinematic gallery` |
 | S170 | S168 public gallery visual triage | Review the S168 public gallery and choose whether to continue render-side polish or move to render-data/export depth for the next cinematic milestone | Done in `docs: triage s168 public gallery` |
 | S171 | Render-data and depth export milestone | Add richer per-frame water volume/depth metadata for later cinematic render passes, preserving the current S168 visual baseline and gallery flow | Done in `tools: export cinematic render data summary` |
-| S172 | Render-data consumer diagnostics | Consume the S171 sidecar in a depth/profile diagnostic artifact before wiring it into new render behavior | Planned |
+| S172 | Render-data consumer diagnostics | Consume the S171 sidecar in a depth/profile diagnostic artifact before wiring it into new render behavior | Done in `tools: add render data profile diagnostics` |
+| S173 | Metadata-driven depth attenuation pass | Consume the S171/S172 render-data profile in the Blender bridge for a bounded depth/secondary attenuation render pass over S168 | Planned |
 
 ## Decision Gates
 
