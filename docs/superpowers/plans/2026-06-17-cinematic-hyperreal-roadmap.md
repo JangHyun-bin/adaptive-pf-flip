@@ -215,7 +215,8 @@ The missing work is not one feature. It is a pipeline:
 | S167 | S165 public gallery visual triage | Review the S165 public gallery and choose whether to tune remaining upper water band, depth readability, or advance to the next event-scale/render-data milestone | Done in `docs: triage s165 public gallery` |
 | S168 | Water depth and foreground separation pass | Tune render-side depth cues over S165 so foreground, midground, and background water do not collapse into one flat blue sheet | Done in `style: add water depth separation preset` |
 | S169 | S168 gallery refresh/publish | Package and publish the S168 depth-separation artifacts for public inspection before the next visual triage | Done in `docs: publish s168 cinematic gallery` |
-| S170 | S168 public gallery visual triage | Review the S168 public gallery and choose whether to continue render-side polish or move to render-data/export depth for the next cinematic milestone | Planned |
+| S170 | S168 public gallery visual triage | Review the S168 public gallery and choose whether to continue render-side polish or move to render-data/export depth for the next cinematic milestone | Done in `docs: triage s168 public gallery` |
+| S171 | Render-data and depth export milestone | Add richer per-frame water volume/depth metadata for later cinematic render passes, preserving the current S168 visual baseline and gallery flow | Planned |
 
 ## Decision Gates
 

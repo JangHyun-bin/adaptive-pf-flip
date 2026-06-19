@@ -33,3 +33,24 @@ milestone should continue render-side polish or move to render-data/export depth
 - A checked-in triage report records the public URL, gate metrics, visual
   findings, and one selected next milestone.
 - The roadmap is updated with the selected milestone.
+
+## Result
+
+S170 selected S171 render-data and depth export milestone.
+
+Report:
+
+- `docs/reports/cinematic_visual_review_s170.md`
+
+Key finding:
+
+- S168 modestly improves depth/readability over S165, but render-side preset
+  tuning is now showing diminishing returns.
+- The next blocker is the data contract: the renderer needs richer water
+  volume/depth metadata and secondary-channel handoff before more look-dev will
+  move the shot substantially.
+
+Next:
+
+- S171: add richer per-frame render/depth export metadata while preserving the
+  current S168 visual baseline and gallery flow.
