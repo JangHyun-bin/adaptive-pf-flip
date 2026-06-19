@@ -2659,3 +2659,22 @@ tunnel. Local and public `index.html` plus `assets/shot.gif` checks all returned
 HTTP `200`. The HTTP server PID is `167784`, and the Cloudflared PID is
 `49980`. Use S297 as the public larger-job preview endpoint while S292 remains
 active separately as the full32 Blender render proof endpoint.
+
+S298 connected the larger 48-frame job to the Blender adapter dry-run path:
+
+- S298 report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_adapter_s298.md`
+- S298 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-adapter.md`
+- S298 dry-run summary:
+  `build/shots/s298_larger_external_renderer_job_blender_adapter/dry/bridge_summary.json`
+- S298 scene spec:
+  `build/shots/s298_larger_external_renderer_job_blender_adapter/dry/blender_scene_spec.json`
+
+S298 runs `tools/render_bridge_blender.py` in dry-run mode from the S295 job,
+using source window `0..47`, `12` output frames, `960 x 540`, `12` samples, and
+the accepted `dam_break_water_mesh_smoothing` preset. The generated scene spec
+covers render-data source frames `20..55`, first/middle/last water mesh faces
+`20000`, `18576`, and `22300`, and first/last secondary totals `256` and `964`.
+Use S298 as the Blender adapter gate before rendering a bounded larger-job
+sample.
