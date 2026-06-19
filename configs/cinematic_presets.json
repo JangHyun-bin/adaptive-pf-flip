@@ -2157,6 +2157,54 @@
         }
       }
     },
+    "dam_break_water_depth_foreground_separation": {
+      "extends": "dam_break_source_slab_deemphasis",
+      "description": "S165 source-slab pass with stronger water-body depth tint and bounded foreground/midground separation cues.",
+      "materials": {
+        "water": {
+          "base_color": [0.085, 0.45, 0.76, 0.64],
+          "depth_color": [0.004, 0.06, 0.19, 0.86],
+          "depth_strength": 0.72,
+          "rim_color": [0.68, 0.94, 1.0, 0.92],
+          "rim_strength": 0.66,
+          "rim_width": 0.24,
+          "specular": 0.9,
+          "coat_weight": 0.36,
+          "roughness": 0.035,
+          "alpha": 0.64,
+          "transmission": 0.24
+        }
+      },
+      "renderer": {
+        "water_volume_scattering_pass": {
+          "layers": 18,
+          "region_min": [1.0, 0.9, 2.6],
+          "region_max": [34.2, 8.8, 24.5],
+          "inset": 0.72,
+          "alpha_scale": 0.21,
+          "emission_scale": 0.42
+        },
+        "water_surface_detail": {
+          "strength": 0.09,
+          "scale": 2.1,
+          "depth": 7
+        },
+        "water_surface_glint_pass": {
+          "count": 205,
+          "length": 1.5,
+          "width": 0.04,
+          "alpha_scale": 0.39,
+          "emission_scale": 0.9
+        },
+        "water_reflection_pass": {
+          "count": 76,
+          "length": 5.05,
+          "width": 0.12,
+          "alpha_scale": 0.41,
+          "emission_scale": 0.88
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",
