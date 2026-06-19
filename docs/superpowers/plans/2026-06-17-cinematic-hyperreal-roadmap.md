@@ -2735,3 +2735,27 @@ summary sources: the S295 larger renderer job, S299-vs-S291 comparison, S300
 publish manifest, and S297 preview publish manifest. Use S301 as the current
 handoff package for the larger-job Blender sample proof before longer
 larger-job renders or non-Blender external renderer adapters.
+
+S302 scaled the larger-job Blender proof to 24 sampled frames:
+
+- S302 render report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample24_s302.md`
+- S302 comparison report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample24_compare_s302.md`
+- S302 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample24_gallery_s302.md`
+- S302 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-sample24.md`
+- S302 gallery:
+  `build/shots/s302_larger_external_renderer_job_blender_sample24/gallery/index.html`
+
+S302 renders the S295 larger job through Blender for `24` frames at `960 x
+540`, `12` samples, using source window `0..47` and the accepted
+`dam_break_water_mesh_smoothing` preset. Blender elapsed time is `120208.43`
+ms, minimum nonblank ratio is `1.0`, minimum contrast is `128.0`, first/last
+water mesh face counts are `20000` and `22300`, and first/last secondary totals
+are `256` and `964`. Against a matched S291 sample, nonblank delta is `0.0`,
+mean luma p99 delta is `0.0833333333333286`, mean specular ratio delta is
+`-3.215020576131689e-06`, and mean frame contrast delta is `-0.25`. Use S302 as
+the stronger larger-job Blender proof before publish, package, or full
+48-frame render attempts.
