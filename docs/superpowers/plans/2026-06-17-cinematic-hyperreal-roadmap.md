@@ -194,7 +194,8 @@ The missing work is not one feature. It is a pipeline:
 | S146 | S145 gallery refresh/publish | Package and publish the S145 review artifacts for external inspection before the next visual triage | Done in `docs: publish s145 cinematic gallery` |
 | S147 | S145 public gallery visual triage | Review the S145 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s145 public gallery` |
 | S148 | Foreground water thickness/refraction pass | Add near-field water-body depth/refraction cues over S145 to reduce the thin-slab read while preserving current timing and gates | Done in `style: add foreground water thickness refraction` |
-| S149 | S148 gallery refresh/publish | Package and publish the S148 review artifacts for external inspection before the next visual triage | Planned |
+| S149 | S148 gallery refresh/publish | Package and publish the S148 review artifacts for external inspection before the next visual triage | Done in `docs: publish s148 cinematic gallery` |
+| S150 | S148 public gallery visual triage | Review the S148 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -532,18 +533,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S149.
+Continue with S150.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s148-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s148-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s148_foreground_water_thickness_refraction --out docs\reports\cinematic_artifact_package_s149.md
-python tools\build_cinematic_gallery.py build\shots\s148_foreground_water_thickness_refraction --package docs\reports\cinematic_artifact_package_s149.md --out build\shots\s148_foreground_water_thickness_refraction\gallery --report docs\reports\cinematic_static_gallery_s149.md
-python tools\publish_cinematic_gallery.py build\shots\s148_foreground_water_thickness_refraction\gallery --port 8804 --cftunnel --manifest build\shots\s148_foreground_water_thickness_refraction\gallery\publish_manifest_s149.json --report docs\reports\cinematic_gallery_publish_s149.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s148_foreground_water_thickness_refraction\gallery\gallery_manifest.json --publish build\shots\s148_foreground_water_thickness_refraction\gallery\publish_manifest_s149.json --out docs\reports\cinematic_visual_review_s150.md --finding "S148 strengthens foreground water-body depth/refraction cues while preserving S145 timing and review gates." --decision "Select the next visible adjustment from the S148 public gallery." --next "TBD by S150 triage."
 ```
 
-The next success condition is a checked-in S149 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
+The next success condition is a checked-in S150 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
