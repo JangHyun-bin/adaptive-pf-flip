@@ -664,3 +664,17 @@ S194 selected the stronger bounded smoothing probe:
 S195 should promote `dam_break_water_mesh_smoothing_strong_probe` into a
 full-shot preset, render a 36-frame S191-vs-S195 comparison, and only publish it
 if contrast/nonblank coverage stay inside the S194 gate.
+
+S195 rendered the stronger smoothing full-shot candidate:
+
+- S195 comparison report:
+  `docs/reports/cinematic_water_mesh_smoothing_strong_comparison_s195.md`
+- S195 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-smoothing-strong-fullshot.md`
+- S195 artifacts:
+  `build/shots/s195_water_mesh_smoothing_strong`
+
+S196 should package and publish the S195 gallery for visual review. The numeric
+gate is mixed: S195 preserves the S186 minimum contrast floor and nonblank
+coverage, but it is 5 contrast points below S191, so replacement needs visual
+confirmation.
