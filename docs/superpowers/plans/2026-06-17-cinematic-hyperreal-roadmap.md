@@ -1341,3 +1341,24 @@ preserved, minimum contrast rises by `9.0`, mean luminance rises by
 `-4.069010416666625e-07`, so keep the strong highlight probe opt-in. S234 should
 target highlight shape/threshold behavior instead of adding more broad overlay
 energy.
+
+S234 tested tighter overlay highlight shape/threshold behavior:
+
+- S234 comparison report:
+  `docs/reports/cinematic_highlight_shape_threshold_probe_s234.md`
+- S234 gallery report:
+  `docs/reports/cinematic_highlight_shape_threshold_gallery_s234.md`
+- S234 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-shape-threshold-probe.md`
+- S234 gallery:
+  `build/shots/s234_highlight_shape_threshold_probe/gallery/index.html`
+
+S234 adds `dam_break_highlight_shape_threshold_probe`, changing only
+glint/reflection overlay shape controls. It passes the 16-frame gate with
+`normal_rough: 2`, `stable: 14`, stable ratio `0.875`, and blocked labels `0`.
+Direct secondary counts match on all frames, nonblank coverage and minimum
+contrast are preserved, mean luminance rises by `0.20324544270832234`, and
+bright ratio improves by `2.441406249999975e-06`. Highlight ratio is still
+unchanged at `0.0` delta. Do not promote S234 to motion review; overlay-only
+strip tuning has likely reached the current aggregate metric ceiling, so the
+next useful step is render-metric calibration or a real material/specular pass.

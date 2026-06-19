@@ -2725,6 +2725,38 @@
         }
       }
     },
+    "dam_break_highlight_shape_threshold_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S234 bounded overlay-only highlight shape probe that uses tighter, brighter segmented strokes instead of broader glint density.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 238,
+          "length": 1.18,
+          "width": 0.032,
+          "alpha_scale": 0.5,
+          "emission_scale": 1.18,
+          "angle_jitter_degrees": 6.0,
+          "length_jitter": 0.26,
+          "width_jitter": 0.18,
+          "segment_count": 4,
+          "segment_gap": 0.08,
+          "dropout": 0.02
+        },
+        "water_reflection_pass": {
+          "count": 86,
+          "length": 4.45,
+          "width": 0.105,
+          "alpha_scale": 0.49,
+          "emission_scale": 1.16,
+          "angle_jitter_degrees": 4.0,
+          "length_jitter": 0.18,
+          "width_jitter": 0.12,
+          "segment_count": 4,
+          "segment_gap": 0.09,
+          "dropout": 0.025
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
