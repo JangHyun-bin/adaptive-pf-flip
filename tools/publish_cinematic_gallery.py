@@ -29,15 +29,16 @@ def posix_rel(path, root):
         return path.replace(os.sep, "/")
 
 
-def choose_port(start):
+def choose_port(start, bind="127.0.0.1"):
     import socket
 
     port = int(start)
     while True:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if os.name != "nt":
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                sock.bind(("127.0.0.1", port))
+                sock.bind((bind, port))
             except OSError:
                 port += 1
                 continue
@@ -75,8 +76,8 @@ def retry_check(url, method="GET", timeout_seconds=30, request_timeout=10):
 
 def start_process(command, stdout_log, stderr_log):
     os.makedirs(os.path.dirname(stdout_log), exist_ok=True)
-    stdout = open(stdout_log, "ab")
-    stderr = open(stderr_log, "ab")
+    stdout = open(stdout_log, "wb")
+    stderr = open(stderr_log, "wb")
     flags = 0
     if os.name == "nt":
         flags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -236,7 +237,7 @@ def main(argv=None):
     manifest_path = os.path.abspath(args.manifest or os.path.join(gallery_dir, "publish_manifest.json"))
     log_dir = os.path.join(gallery_dir, "publish_logs")
     os.makedirs(log_dir, exist_ok=True)
-    port = choose_port(args.port)
+    port = choose_port(args.port, args.bind)
     local_url = f"http://{args.bind}:{port}"
 
     server_stdout = os.path.join(log_dir, "http_stdout.log")

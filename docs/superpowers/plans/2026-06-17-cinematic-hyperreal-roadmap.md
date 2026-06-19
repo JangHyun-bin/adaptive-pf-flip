@@ -1189,3 +1189,18 @@ S225 verified HTTP `200` for the public `index.html`, `shot.gif`,
 S224 gallery assets, avoiding the stale-port collision that can occur when old
 local gallery servers are still listening. Next visual work should use S224 as
 the accepted baseline rather than opening another publish tunnel by default.
+
+S226 hardened the gallery publisher after the S225 stale-port/stale-log issue:
+
+- S226 report:
+  `docs/reports/cinematic_gallery_publish_tool_hardening_s226.md`
+- S226 plan:
+  `docs/superpowers/plans/2026-06-19-gallery-publish-tool-hardening.md`
+
+`tools/publish_cinematic_gallery.py` now truncates per-run process logs and
+avoids `SO_REUSEADDR` on Windows during port probing, so stale trycloudflare
+URLs and duplicate local listeners do not poison future publish checks. The
+inline regression smoke passed, and an actual local publish smoke skipped the
+occupied S225 port `18899` and selected `18900`. Continue visual work from the
+S224 accepted baseline; do not open another tunnel unless a fresh share URL is
+needed.
