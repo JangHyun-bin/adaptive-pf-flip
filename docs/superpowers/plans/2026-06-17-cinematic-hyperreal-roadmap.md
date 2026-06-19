@@ -692,3 +692,16 @@ S196 published the S195 gallery:
 S197 should triage the public S195 gallery against S191 and decide whether to
 accept S195 or keep S191 while shifting the next pass toward
 reconstruction/export smoothing.
+
+S197 kept S191 as the accepted baseline:
+
+- S197 triage report:
+  `docs/reports/cinematic_public_gallery_triage_s197.md`
+- S197 plan:
+  `docs/superpowers/plans/2026-06-19-s195-public-gallery-triage.md`
+- S197 review sheet:
+  `build/shots/s197_s195_public_triage/review_comparison/comparison_sheet.png`
+
+S198 should start a reconstruction/export smoothing pass. Renderer-side
+smoothing now has diminishing returns; the next visible gain should come from
+better water surface data or exported continuity/normal cues.
