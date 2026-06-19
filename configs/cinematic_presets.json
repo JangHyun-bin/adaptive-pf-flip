@@ -2205,6 +2205,33 @@
         }
       }
     },
+    "dam_break_metadata_depth_attenuation": {
+      "extends": "dam_break_water_depth_foreground_separation",
+      "description": "S168 depth separation with bounded render-data sidecar attenuation for far-water depth and late secondary density.",
+      "renderer": {
+        "metadata_depth_attenuation_pass": {
+          "enabled": true,
+          "depth_metric": "water_depth_z_span",
+          "secondary_metric": "secondary_total_count",
+          "water_alpha_at_low_depth": 0.88,
+          "water_alpha_at_high_depth": 1.28,
+          "water_emission_at_low_depth": 1.04,
+          "water_emission_at_high_depth": 0.68,
+          "water_layer_scale_at_low_depth": 0.86,
+          "water_layer_scale_at_high_depth": 1.18,
+          "secondary_alpha_at_low_count": 1.0,
+          "secondary_alpha_at_high_count": 0.72,
+          "secondary_channel_scale_at_low_count": 1.0,
+          "secondary_channel_scale_at_high_count": 0.78,
+          "secondary_particle_cap_at_low_count": 1.0,
+          "secondary_particle_cap_at_high_count": 0.72
+        },
+        "water_volume_scattering_pass": {
+          "alpha_scale": 0.24,
+          "emission_scale": 0.36
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

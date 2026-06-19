@@ -53,3 +53,35 @@ python tools\run_cinematic_shot.py --preset dam_break_metadata_depth_attenuation
 - Comparison sheet shows the sidecar-driven pass does not regress the S168 depth
   read and preferably reduces the flat sheet read.
 - Report records sidecar settings, metrics, and next recommendation.
+
+## Result
+
+S173 added `--render-data-summary` to `tools/render_bridge_blender.py` and the
+`dam_break_metadata_depth_attenuation` preset.
+
+Because this pass must not rerun simulation, the gate used the direct Blender
+bridge over the S168 converted cache instead of a fresh `run_cinematic_shot.py`
+output directory.
+
+Generated artifacts:
+
+- Report: `docs/reports/cinematic_metadata_depth_attenuation_s173.md`
+- Bridge summary: `build/shots/s173_metadata_depth_attenuation/blender/bridge_summary.json`
+- Render frames: `build/shots/s173_metadata_depth_attenuation/blender/frames`
+- GIF: `build/shots/s173_metadata_depth_attenuation/shot.gif`
+
+Gate summary:
+
+- Frames: `36`
+- Minimum nonblank ratio: `1.0`
+- Minimum contrast: `185`
+- Mean luminance: `84.78030921465084`
+- Metadata pass status: `active`
+- Water alpha multiplier: min `0.88`, max `1.28`
+- Secondary particle cap scale: min `0.72`, max `1.0`
+
+Next:
+
+- S174 should package/compare S173 against S168 and preferably add a source-shot
+  reuse path to the runner so review gates can run on existing converted caches
+  without simulation regeneration.

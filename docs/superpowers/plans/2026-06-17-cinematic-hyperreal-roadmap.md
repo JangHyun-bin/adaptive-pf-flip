@@ -556,16 +556,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S160.
+Continue with S174.
 
-The next implementation plan should be:
+The next implementation plan should package and compare the S173 metadata-depth
+render against S168 without rerunning simulation. The preferred route is either:
 
-`docs/superpowers/plans/2026-06-18-large-event-cinematic-scale-gate.md`
+- a lightweight review/comparison artifact that consumes the existing S168 and
+  S173 Blender frame directories, or
+- a source-shot reuse mode in `tools/run_cinematic_shot.py` that can run review
+  gates over an existing converted cache and water mesh directory.
 
-The next command target should start from:
-
-```powershell
-python tools\render_bridge_blender.py build\shots\s157_contact_foam_sheet_continuity\converted\sequence.json build\s160_large_event_scale_dry --frames 4 --width 640 --height 360 --dry-run --render-preset dam_break_large_event_scale_gate --preset-config configs\cinematic_presets.json --max-secondary-particles 512 --secondary-radius-scale 3.0
-```
-
-The next success condition is a checked-in S160 preset and Blender gate report that increases physical event scale while preserving the S157 renderer gates or records a measured scale-limit failure with next corrective action.
+The next success condition is a checked-in S174 report and inspectable
+comparison artifact that shows whether S173 improves depth/secondary read over
+S168, plus a recommendation for the next visual pass.

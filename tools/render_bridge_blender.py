@@ -129,6 +129,85 @@ def as_int(value, fallback=0):
         return fallback
 
 
+def finite_float(value, fallback=None):
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return out if math.isfinite(out) else fallback
+
+
+def clamp_range(value, lo, hi):
+    return max(lo, min(hi, float(value)))
+
+
+def lerp(a, b, t):
+    return float(a) * (1.0 - float(t)) + float(b) * float(t)
+
+
+def compact_render_data_summary(path):
+    if not path:
+        return {
+            "enabled": False,
+            "path": None,
+            "frame_count": 0,
+            "summary": {},
+            "simulation": {},
+            "frames": [],
+        }
+    resolved = os.path.abspath(path)
+    if not os.path.isfile(resolved):
+        fail(f"{resolved}: render data summary not found")
+    data = read_json(resolved)
+    if data.get("schema") != "lsfs_render_data_summary":
+        fail(f"{resolved}: expected lsfs_render_data_summary schema")
+    frames = []
+    for item in data.get("frames", []):
+        if not isinstance(item, dict):
+            continue
+        secondary_counts = item.get("secondary_counts")
+        if not isinstance(secondary_counts, dict):
+            secondary_counts = {}
+        frames.append({
+            "output_frame": as_int(item.get("output_frame"), len(frames)),
+            "source_frame": as_int(item.get("source_frame"), 0),
+            "source_time": finite_float(item.get("source_time"), 0.0),
+            "water_depth_y_span": finite_float(item.get("water_depth_y_span")),
+            "water_depth_z_span": finite_float(item.get("water_depth_z_span")),
+            "water_mesh_face_count": finite_float(item.get("water_mesh_face_count")),
+            "water_mesh_vertex_count": finite_float(item.get("water_mesh_vertex_count")),
+            "secondary_total_count": finite_float(secondary_counts.get("total")),
+            "secondary_spray_count": finite_float(secondary_counts.get("spray")),
+            "secondary_foam_count": finite_float(secondary_counts.get("foam")),
+            "secondary_bubble_count": finite_float(secondary_counts.get("bubble")),
+            "secondary_droplet_count": finite_float(secondary_counts.get("droplet")),
+        })
+    return {
+        "enabled": True,
+        "path": resolved,
+        "schema": data.get("schema"),
+        "status": data.get("status"),
+        "version": data.get("version"),
+        "frame_count": len(frames),
+        "summary": data.get("summary") if isinstance(data.get("summary"), dict) else {},
+        "simulation": data.get("simulation") if isinstance(data.get("simulation"), dict) else {},
+        "frames": frames,
+    }
+
+
+def render_data_summary_for_report(render_data_summary):
+    return {
+        "enabled": bool(render_data_summary.get("enabled", False)),
+        "path": render_data_summary.get("path"),
+        "schema": render_data_summary.get("schema"),
+        "status": render_data_summary.get("status"),
+        "version": render_data_summary.get("version"),
+        "frame_count": as_int(render_data_summary.get("frame_count"), 0),
+        "summary": render_data_summary.get("summary") if isinstance(render_data_summary.get("summary"), dict) else {},
+        "simulation": render_data_summary.get("simulation") if isinstance(render_data_summary.get("simulation"), dict) else {},
+    }
+
+
 def vec3(value, fallback=(0.0, 0.0, 0.0)):
     if isinstance(value, (list, tuple)) and len(value) == 3:
         return [as_float(value[0]), as_float(value[1]), as_float(value[2])]
@@ -894,6 +973,27 @@ def water_volume_scattering_pass_summary(render_preset):
     }
 
 
+def metadata_depth_attenuation_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "metadata_depth_attenuation_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "depth_metric": str(cfg.get("depth_metric", "water_depth_z_span")),
+        "secondary_metric": str(cfg.get("secondary_metric", "secondary_total_count")),
+        "water_alpha_at_low_depth": as_float(cfg.get("water_alpha_at_low_depth"), 1.0),
+        "water_alpha_at_high_depth": as_float(cfg.get("water_alpha_at_high_depth"), 1.0),
+        "water_emission_at_low_depth": as_float(cfg.get("water_emission_at_low_depth"), 1.0),
+        "water_emission_at_high_depth": as_float(cfg.get("water_emission_at_high_depth"), 1.0),
+        "water_layer_scale_at_low_depth": as_float(cfg.get("water_layer_scale_at_low_depth"), 1.0),
+        "water_layer_scale_at_high_depth": as_float(cfg.get("water_layer_scale_at_high_depth"), 1.0),
+        "secondary_alpha_at_low_count": as_float(cfg.get("secondary_alpha_at_low_count"), 1.0),
+        "secondary_alpha_at_high_count": as_float(cfg.get("secondary_alpha_at_high_count"), 1.0),
+        "secondary_channel_scale_at_low_count": as_float(cfg.get("secondary_channel_scale_at_low_count"), 1.0),
+        "secondary_channel_scale_at_high_count": as_float(cfg.get("secondary_channel_scale_at_high_count"), 1.0),
+        "secondary_particle_cap_at_low_count": as_float(cfg.get("secondary_particle_cap_at_low_count"), 1.0),
+        "secondary_particle_cap_at_high_count": as_float(cfg.get("secondary_particle_cap_at_high_count"), 1.0),
+    }
+
+
 def contact_mist_curtain_pass_summary(render_preset):
     cfg = preset_section(preset_section(render_preset, "renderer"), "contact_mist_curtain_pass")
     return {
@@ -1026,11 +1126,129 @@ def pick_water_mesh(frame, water_index, out_index, out_count, source_window=None
     }
 
 
+def metric_bounds(render_data_summary, frames, metric):
+    summary = render_data_summary.get("summary") if isinstance(render_data_summary.get("summary"), dict) else {}
+    stats = summary.get(metric)
+    lo = hi = None
+    if isinstance(stats, dict):
+        lo = finite_float(stats.get("min"))
+        hi = finite_float(stats.get("max"))
+    values = []
+    for frame in frames:
+        render_data = frame.get("render_data")
+        if isinstance(render_data, dict):
+            value = finite_float(render_data.get(metric))
+            if value is not None:
+                values.append(value)
+    if values:
+        lo = min(values) if lo is None else lo
+        hi = max(values) if hi is None else hi
+    return lo, hi
+
+
+def normalized_metric(value, bounds):
+    lo, hi = bounds
+    value = finite_float(value)
+    if value is None or lo is None or hi is None or hi <= lo:
+        return 0.0
+    return clamp_range((value - lo) / (hi - lo), 0.0, 1.0)
+
+
+def annotate_metadata_depth_attenuation(frames, render_data_summary, attenuation_pass):
+    effective = (
+        bool(attenuation_pass.get("enabled", False))
+        and bool(render_data_summary.get("enabled", False))
+        and bool(render_data_summary.get("frames"))
+    )
+    depth_metric = attenuation_pass.get("depth_metric", "water_depth_z_span")
+    secondary_metric = attenuation_pass.get("secondary_metric", "secondary_total_count")
+    depth_bounds = metric_bounds(render_data_summary, frames, depth_metric)
+    secondary_bounds = metric_bounds(render_data_summary, frames, secondary_metric)
+    applied = []
+    for frame in frames:
+        render_data = frame.get("render_data") if isinstance(frame.get("render_data"), dict) else {}
+        depth_factor = normalized_metric(render_data.get(depth_metric), depth_bounds) if effective else 0.0
+        secondary_factor = normalized_metric(render_data.get(secondary_metric), secondary_bounds) if effective else 0.0
+        values = {
+            "enabled": effective,
+            "depth_metric": depth_metric,
+            "secondary_metric": secondary_metric,
+            "depth_factor": depth_factor,
+            "secondary_factor": secondary_factor,
+            "water_alpha_multiplier": clamp_range(
+                lerp(attenuation_pass.get("water_alpha_at_low_depth", 1.0),
+                     attenuation_pass.get("water_alpha_at_high_depth", 1.0),
+                     depth_factor),
+                0.05,
+                4.0),
+            "water_emission_multiplier": clamp_range(
+                lerp(attenuation_pass.get("water_emission_at_low_depth", 1.0),
+                     attenuation_pass.get("water_emission_at_high_depth", 1.0),
+                     depth_factor),
+                0.0,
+                4.0),
+            "water_layer_scale": clamp_range(
+                lerp(attenuation_pass.get("water_layer_scale_at_low_depth", 1.0),
+                     attenuation_pass.get("water_layer_scale_at_high_depth", 1.0),
+                     depth_factor),
+                0.1,
+                4.0),
+            "secondary_alpha_multiplier": clamp_range(
+                lerp(attenuation_pass.get("secondary_alpha_at_low_count", 1.0),
+                     attenuation_pass.get("secondary_alpha_at_high_count", 1.0),
+                     secondary_factor),
+                0.05,
+                4.0),
+            "secondary_channel_scale": clamp_range(
+                lerp(attenuation_pass.get("secondary_channel_scale_at_low_count", 1.0),
+                     attenuation_pass.get("secondary_channel_scale_at_high_count", 1.0),
+                     secondary_factor),
+                0.0,
+                4.0),
+            "secondary_particle_cap_scale": clamp_range(
+                lerp(attenuation_pass.get("secondary_particle_cap_at_low_count", 1.0),
+                     attenuation_pass.get("secondary_particle_cap_at_high_count", 1.0),
+                     secondary_factor),
+                0.0,
+                1.0),
+        }
+        frame["metadata_depth_attenuation"] = values
+        applied.append(values)
+
+    def applied_range(key):
+        values = [finite_float(item.get(key)) for item in applied]
+        values = [value for value in values if value is not None]
+        if not values:
+            return {"min": None, "max": None}
+        return {"min": min(values), "max": max(values)}
+
+    status = "active" if effective else ("disabled" if not attenuation_pass.get("enabled", False) else "missing_sidecar")
+    return {
+        "enabled": effective,
+        "status": status,
+        "frame_count": len(applied),
+        "depth_metric": depth_metric,
+        "secondary_metric": secondary_metric,
+        "depth_bounds": {"min": depth_bounds[0], "max": depth_bounds[1]},
+        "secondary_bounds": {"min": secondary_bounds[0], "max": secondary_bounds[1]},
+        "depth_factor": applied_range("depth_factor"),
+        "secondary_factor": applied_range("secondary_factor"),
+        "water_alpha_multiplier": applied_range("water_alpha_multiplier"),
+        "water_emission_multiplier": applied_range("water_emission_multiplier"),
+        "water_layer_scale": applied_range("water_layer_scale"),
+        "secondary_alpha_multiplier": applied_range("secondary_alpha_multiplier"),
+        "secondary_channel_scale": applied_range("secondary_channel_scale"),
+        "secondary_particle_cap_scale": applied_range("secondary_particle_cap_scale"),
+    }
+
+
 def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruction_path,
                      engine, samples, max_secondary_particles, secondary_radius_scale,
-                     render_preset_name=None, render_preset=None, source_window_override=None):
+                     render_preset_name=None, render_preset=None, source_window_override=None,
+                     render_data_summary=None):
     sequence = load_sequence(src, water_reconstruction_path)
     render_preset = render_preset or {}
+    render_data_summary = render_data_summary or compact_render_data_summary(None)
     renderer_defaults = render_preset.get("renderer", {})
     engine = engine or renderer_defaults.get("engine", "eevee")
     samples = samples if samples is not None else as_int(renderer_defaults.get("samples"), 24)
@@ -1049,6 +1267,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
     water_reflection_pass = water_reflection_pass_summary(render_preset)
     water_volume_scattering_pass = water_volume_scattering_pass_summary(render_preset)
+    metadata_depth_attenuation_pass = metadata_depth_attenuation_pass_summary(render_preset)
     contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
@@ -1061,6 +1280,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     frames = []
     for out_index in range(frame_count):
         frame = select_resampled(sequence["frames"], out_index, frame_count, source_window)
+        render_data = select_resampled(render_data_summary.get("frames", []), out_index, frame_count)
         water_mesh = pick_water_mesh(frame,
                                      sequence.get("water_reconstruction"),
                                      out_index,
@@ -1096,6 +1316,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
             "water_mesh_vertex_count": as_int(water_mesh.get("vertex_count")),
             "water_mesh_face_count": as_int(water_mesh.get("face_count")),
             "water_mesh_occupied_cell_count": as_int(water_mesh.get("occupied_cell_count")),
+            "render_data": dict(render_data) if render_data else {},
             "particles_csv": frame["particles_csv"],
             "particle_count": frame.get("particle_count", 0),
             "secondary_counts": secondary_counts,
@@ -1107,6 +1328,11 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
 
     if any(as_int(frame["water_mesh_face_count"]) <= 0 for frame in frames):
         fail("water mesh face counts must be positive for Blender bridge rendering")
+
+    metadata_depth_attenuation = annotate_metadata_depth_attenuation(
+        frames,
+        render_data_summary,
+        metadata_depth_attenuation_pass)
 
     return {
         "bridge": "lsfs_blender_bridge",
@@ -1127,6 +1353,9 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "water_surface_glint_pass": water_surface_glint_pass,
         "water_reflection_pass": water_reflection_pass,
         "water_volume_scattering_pass": water_volume_scattering_pass,
+        "render_data_summary": render_data_summary_for_report(render_data_summary),
+        "metadata_depth_attenuation_pass": metadata_depth_attenuation_pass,
+        "metadata_depth_attenuation": metadata_depth_attenuation,
         "contact_mist_curtain_pass": contact_mist_curtain_pass,
         "water_impact_ripple_pass": water_impact_ripple_pass,
         "water_impact_ripple_counts": summarize_water_impact_ripple_counts(frames),
@@ -1322,6 +1551,79 @@ def scaled_overlay_values(values, alpha_scale=1.0, emission_scale=1.0):
     out["alpha"] = clamp01(out["alpha"] * max(0.0, alpha_scale))
     out["emission_strength"] = max(0.0, out["emission_strength"] * max(0.0, emission_scale))
     return out
+
+
+def update_principled_material(mat, values):
+    if not mat:
+        return
+    mat.diffuse_color = values["color"]
+    bsdf = mat.node_tree.nodes.get("Principled BSDF") if mat.use_nodes else None
+    if not bsdf:
+        return
+    set_input(bsdf, ("Base Color",), values["color"])
+    set_input(bsdf, ("Alpha",), values["alpha"])
+    set_input(bsdf, ("Roughness",), values["roughness"])
+    set_input(bsdf, ("Transmission Weight", "Transmission"), values["transmission"])
+    set_input(bsdf, ("Emission Color",), values.get("emission_color", values["color"]))
+    set_input(bsdf, ("Emission Strength",), values.get("emission_strength", 0.0))
+
+
+def update_material_or_list(materials, values):
+    if isinstance(materials, list):
+        for mat in materials:
+            update_principled_material(mat, values)
+    else:
+        update_principled_material(materials, values)
+
+
+def frame_metadata_depth_attenuation(frame):
+    values = frame.get("metadata_depth_attenuation")
+    if not isinstance(values, dict) or not values.get("enabled", False):
+        return {
+            "enabled": False,
+            "water_alpha_multiplier": 1.0,
+            "water_emission_multiplier": 1.0,
+            "water_layer_scale": 1.0,
+            "secondary_alpha_multiplier": 1.0,
+            "secondary_channel_scale": 1.0,
+            "secondary_particle_cap_scale": 1.0,
+        }
+    return {
+        "enabled": True,
+        "water_alpha_multiplier": max(0.05, scalar_value(values.get("water_alpha_multiplier"), 1.0)),
+        "water_emission_multiplier": max(0.0, scalar_value(values.get("water_emission_multiplier"), 1.0)),
+        "water_layer_scale": max(0.1, scalar_value(values.get("water_layer_scale"), 1.0)),
+        "secondary_alpha_multiplier": max(0.05, scalar_value(values.get("secondary_alpha_multiplier"), 1.0)),
+        "secondary_channel_scale": max(0.0, scalar_value(values.get("secondary_channel_scale"), 1.0)),
+        "secondary_particle_cap_scale": min(1.0, max(0.0, scalar_value(values.get("secondary_particle_cap_scale"), 1.0))),
+    }
+
+
+def attenuated_water_scattering_pass(scattering_pass, attenuation):
+    out = dict(scattering_pass)
+    if not out.get("enabled", False):
+        return out
+    layers = int(out.get("layers", 0))
+    if layers > 0:
+        out["layers"] = max(1, int(round(layers * attenuation.get("water_layer_scale", 1.0))))
+    return out
+
+
+def attenuated_secondary_pass(base_pass, attenuation):
+    out = dict(base_pass)
+    channels = out.get("channels") if isinstance(out.get("channels"), dict) else {}
+    channel_scale = attenuation.get("secondary_channel_scale", 1.0)
+    out["channels"] = {
+        key: max(0.0, float(value) * channel_scale)
+        for key, value in channels.items()
+    }
+    if "max_radius" in out:
+        out["max_radius"] = max(0.01, float(out["max_radius"]) * max(0.35, channel_scale))
+    return out
+
+
+def attenuated_secondary_cap(max_count, attenuation):
+    return max(0, int(round(max_count * attenuation.get("secondary_particle_cap_scale", 1.0))))
 
 
 def surface_detail_values(preset):
@@ -2399,6 +2701,11 @@ def main():
     scattering_pass = water_volume_scattering_pass_values(spec)
     curtain_pass = contact_mist_curtain_pass_values(spec)
     ripple_pass = water_impact_ripple_pass_values(spec)
+    water_volume_scatter_base = dict(water_volume_scatter)
+    soft_alpha_scale = spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35)
+    soft_emission_scale = spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5)
+    streak_alpha_scale = spec.get("secondary_streak_pass", {}).get("alpha_scale", 0.22)
+    streak_emission_scale = spec.get("secondary_streak_pass", {}).get("emission_scale", 0.9)
     water_glint = scaled_overlay_values(water_glint,
                                         glint_pass.get("alpha_scale", 0.22),
                                         glint_pass.get("emission_scale", 0.45))
@@ -2415,17 +2722,17 @@ def main():
                                          ripple_pass.get("alpha_scale", 0.26),
                                          ripple_pass.get("emission_scale", 0.42))
     spray_soft = scaled_particle_values(spray,
-                                        spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
-                                        spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
+                                        soft_alpha_scale,
+                                        soft_emission_scale)
     foam_soft = scaled_particle_values(foam,
-                                       spec.get("secondary_soft_pass", {}).get("alpha_scale", 0.35),
-                                       spec.get("secondary_soft_pass", {}).get("emission_scale", 0.5))
+                                       soft_alpha_scale,
+                                       soft_emission_scale)
     spray_streak = scaled_particle_values(spray,
-                                          spec.get("secondary_streak_pass", {}).get("alpha_scale", 0.22),
-                                          spec.get("secondary_streak_pass", {}).get("emission_scale", 0.9))
+                                          streak_alpha_scale,
+                                          streak_emission_scale)
     foam_streak = scaled_particle_values(foam,
-                                         spec.get("secondary_streak_pass", {}).get("alpha_scale", 0.22),
-                                         spec.get("secondary_streak_pass", {}).get("emission_scale", 0.9))
+                                         streak_alpha_scale,
+                                         streak_emission_scale)
     foam_contact = scaled_particle_values(foam,
                                           spec.get("surface_contact_foam_pass", {}).get("alpha_scale", 0.32),
                                           spec.get("surface_contact_foam_pass", {}).get("emission_scale", 0.35))
@@ -2455,15 +2762,40 @@ def main():
     if ripple_pass.get("material_falloff") == "edge_shader":
         particle_mats["water_ripple"] = make_edge_falloff_material("LSFS Impact Ripple Edge Falloff", water_ripple)
     channel_scales = spec.get("secondary_channel_radius_scales") or {}
+    base_max_secondary = int(spec.get("max_secondary_particles", 512))
     if spec.get("frames"):
         add_floor(spec["frames"][0], floor_mat, preset)
     for frame in spec["frames"]:
         remove_frame_assets()
         configure_camera(camera, frame, preset)
+        attenuation = frame_metadata_depth_attenuation(frame)
+        frame_scattering_pass = attenuated_water_scattering_pass(scattering_pass, attenuation)
+        frame_soft_pass = attenuated_secondary_pass(soft_pass, attenuation)
+        frame_streak_pass = attenuated_secondary_pass(streak_pass, attenuation)
+        frame_max_secondary = attenuated_secondary_cap(base_max_secondary, attenuation)
+        update_principled_material(
+            particle_mats["water_volume_scatter"],
+            scaled_overlay_values(
+                water_volume_scatter_base,
+                scattering_pass.get("alpha_scale", 0.22) * attenuation.get("water_alpha_multiplier", 1.0),
+                scattering_pass.get("emission_scale", 0.18) * attenuation.get("water_emission_multiplier", 1.0)))
+        secondary_alpha = attenuation.get("secondary_alpha_multiplier", 1.0)
+        update_principled_material(particle_mats["spray"], scaled_particle_values(spray, secondary_alpha, secondary_alpha))
+        update_principled_material(particle_mats["foam"], scaled_particle_values(foam, secondary_alpha, secondary_alpha))
+        frame_spray_soft = scaled_particle_values(spray, soft_alpha_scale * secondary_alpha, soft_emission_scale * secondary_alpha)
+        frame_foam_soft = scaled_particle_values(foam, soft_alpha_scale * secondary_alpha, soft_emission_scale * secondary_alpha)
+        frame_spray_streak = scaled_particle_values(spray, streak_alpha_scale * secondary_alpha, streak_emission_scale * secondary_alpha)
+        frame_foam_streak = scaled_particle_values(foam, streak_alpha_scale * secondary_alpha, streak_emission_scale * secondary_alpha)
+        update_principled_material(particle_mats["spray_soft"], frame_spray_soft)
+        update_principled_material(particle_mats["foam_soft"], frame_foam_soft)
+        update_material_or_list(particle_mats.get("spray_soft_falloff"), frame_spray_soft)
+        update_material_or_list(particle_mats.get("foam_soft_falloff"), frame_foam_soft)
+        update_principled_material(particle_mats["spray_streak"], frame_spray_streak)
+        update_principled_material(particle_mats["foam_streak"], frame_foam_streak)
         add_water_mesh(frame, water_mat, surface_detail)
         add_water_volume_scattering_pass(frame,
                                          particle_mats["water_volume_scatter"],
-                                         scattering_pass)
+                                         frame_scattering_pass)
         add_contact_mist_curtain_pass(frame,
                                       particle_mats["contact_mist_curtain"],
                                       curtain_pass)
@@ -2481,21 +2813,21 @@ def main():
                                       contact_foam_pass)
         add_secondary_particles(frame,
                                 particle_mats,
-                                int(spec.get("max_secondary_particles", 512)),
+                                frame_max_secondary,
                                 float(spec.get("secondary_radius_scale", 1.0)),
                                 channel_scales)
         add_secondary_streak_pass(frame,
                                   particle_mats,
-                                  int(spec.get("max_secondary_particles", 512)),
+                                  frame_max_secondary,
                                   float(spec.get("secondary_radius_scale", 1.0)),
                                   channel_scales,
-                                  streak_pass)
+                                  frame_streak_pass)
         add_secondary_soft_pass(frame,
                                 particle_mats,
-                                int(spec.get("max_secondary_particles", 512)),
+                                frame_max_secondary,
                                 float(spec.get("secondary_radius_scale", 1.0)),
                                 channel_scales,
-                                soft_pass)
+                                frame_soft_pass)
         bpy.context.scene.frame_set(int(frame["index"]))
         bpy.context.scene.render.filepath = frame["output_png"]
         bpy.ops.render.render(write_still=True)
@@ -2624,6 +2956,8 @@ def parse_args(argv):
     parser.add_argument("--preset-config", default=default_preset_config_path(),
                         help="cinematic preset config JSON")
     parser.add_argument("--render-preset", help="named render preset to apply")
+    parser.add_argument("--render-data-summary",
+                        help="optional lsfs_render_data_summary JSON sidecar for metadata-driven render passes")
     parser.add_argument("--frames", type=int, default=8, help="number of PNG frames to render")
     parser.add_argument("--width", type=int, default=1280, help="output image width")
     parser.add_argument("--height", type=int, default=720, help="output image height")
@@ -2680,6 +3014,7 @@ def main(argv=None):
     try:
         os.makedirs(args.out_dir, exist_ok=True)
         preset_config_path, render_preset = load_render_preset(args.preset_config, args.render_preset)
+        render_data_summary = compact_render_data_summary(args.render_data_summary)
         source_window_override = {
             "start_fraction": args.source_start_fraction,
             "end_fraction": args.source_end_fraction,
@@ -2698,7 +3033,8 @@ def main(argv=None):
                                 args.secondary_radius_scale,
                                 args.render_preset,
                                 render_preset,
-                                source_window_override)
+                                source_window_override,
+                                render_data_summary)
         spec_path = os.path.abspath(os.path.join(args.out_dir, "blender_scene_spec.json"))
         driver_path = os.path.abspath(os.path.join(args.out_dir, "blender_driver.py"))
         write_json(spec_path, spec)
@@ -2728,6 +3064,9 @@ def main(argv=None):
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
             "water_reflection_pass": spec["water_reflection_pass"],
             "water_volume_scattering_pass": spec["water_volume_scattering_pass"],
+            "render_data_summary": spec["render_data_summary"],
+            "metadata_depth_attenuation_pass": spec["metadata_depth_attenuation_pass"],
+            "metadata_depth_attenuation": spec["metadata_depth_attenuation"],
             "contact_mist_curtain_pass": spec["contact_mist_curtain_pass"],
             "water_impact_ripple_pass": spec["water_impact_ripple_pass"],
             "water_impact_ripple_counts": spec["water_impact_ripple_counts"],
@@ -2750,6 +3089,8 @@ def main(argv=None):
                 "secondary_streak_counts": frame["secondary_streak_counts"],
                 "surface_contact_foam_counts": frame["surface_contact_foam_counts"],
                 "water_impact_ripple_counts": frame["water_impact_ripple_counts"],
+                "render_data": frame.get("render_data", {}),
+                "metadata_depth_attenuation": frame.get("metadata_depth_attenuation", {}),
             } for frame in spec["frames"]],
         }
         summary_path = os.path.abspath(os.path.join(args.out_dir, "bridge_summary.json"))
