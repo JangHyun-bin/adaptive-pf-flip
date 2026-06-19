@@ -40,6 +40,22 @@ python tools\publish_cinematic_gallery.py build\shots\s162_establishing_scale_co
 - Local and public `index.html` return HTTP 200.
 - Local and public `assets/shot.gif` return HTTP 200 and nonzero bytes.
 
+## Result
+
+- Status: published.
+- Local URL: `http://127.0.0.1:8819`.
+- Public URL: `https://edmonton-prospect-cure-actions.trycloudflare.com`.
+- Manifest: `build/shots/s162_establishing_scale_composition/gallery/publish_manifest_s163.json`.
+- Reports:
+  - `docs/reports/cinematic_artifact_package_s163.md`
+  - `docs/reports/cinematic_static_gallery_s163.md`
+  - `docs/reports/cinematic_gallery_publish_s163.md`
+- Verification:
+  - `http://127.0.0.1:8819/index.html`: 200, 8158 bytes.
+  - `http://127.0.0.1:8819/assets/shot.gif`: 200, 26333525 bytes.
+  - `https://edmonton-prospect-cure-actions.trycloudflare.com/index.html`: 200, 8158 bytes.
+  - `https://edmonton-prospect-cure-actions.trycloudflare.com/assets/shot.gif`: 200, 26333525 bytes.
+
 ## Verification
 
 ```powershell
