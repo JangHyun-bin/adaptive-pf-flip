@@ -40,3 +40,30 @@ python tools\publish_cinematic_gallery.py build\shots\s168_water_depth_foregroun
 - Static gallery manifest and `index.html` are generated under the S168 shot output.
 - Local and public gallery URLs return HTTP 200 for `index.html` and `assets/shot.gif`.
 - The public URL is recorded in the S169 publish report.
+
+## Result
+
+Published S168 gallery:
+
+- Local: `http://127.0.0.1:8821`
+- Public: `https://vendor-continuing-substantial-giving.trycloudflare.com`
+- Server PID: `52816`
+- Cloudflared PID: `135116`
+
+Verified URLs:
+
+- `http://127.0.0.1:8821/` -> HTTP 200, `8161` bytes
+- `http://127.0.0.1:8821/assets/shot.gif` -> HTTP 200, `24468261` bytes
+- `https://vendor-continuing-substantial-giving.trycloudflare.com/` -> HTTP 200, `8161` bytes
+- `https://vendor-continuing-substantial-giving.trycloudflare.com/assets/shot.gif` -> HTTP 200, `24468261` bytes
+
+Reports:
+
+- `docs/reports/cinematic_artifact_package_s169.md`
+- `docs/reports/cinematic_static_gallery_s169.md`
+- `docs/reports/cinematic_gallery_publish_s169.md`
+
+Next:
+
+- S170: public gallery visual triage for S168, then select whether to continue
+  render-side polish or move to render-data/export depth.
