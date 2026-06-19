@@ -1927,6 +1927,114 @@
         }
       }
     },
+    "dam_break_large_event_scale_gate": {
+      "extends": "dam_break_contact_foam_sheet_continuity",
+      "description": "S157 render stack on a modestly larger source-breakup event for scale, framing, and runtime gate measurement.",
+      "simulation": {
+        "nx": 36,
+        "ny": 44,
+        "nz": 28,
+        "secondary_physical_particles": 256
+      },
+      "shot": {
+        "sim_steps": 56
+      },
+      "renderer": {
+        "source_window": {
+          "enabled": true,
+          "start_index": 16,
+          "end_index": 55
+        },
+        "water_volume_scattering_pass": {
+          "region_min": [1.0, 1.08, 2.6],
+          "region_max": [34.2, 9.4, 24.5],
+          "inset": 0.54,
+          "alpha_scale": 0.17,
+          "emission_scale": 0.54
+        },
+        "contact_mist_curtain_pass": {
+          "region_min": [3.8, 1.6, 6.2],
+          "region_max": [33.2, 17.8, 24.0],
+          "x_inset": 3.4,
+          "alpha_scale": 0.108,
+          "emission_scale": 0.4
+        },
+        "water_surface_glint_pass": {
+          "count": 82,
+          "region_min": [1.0, 4.9, 3.0],
+          "region_max": [31.4, 8.4, 21.4]
+        },
+        "water_reflection_pass": {
+          "count": 40,
+          "region_min": [1.0, 5.0, 3.4],
+          "region_max": [31.2, 8.5, 21.2]
+        },
+        "surface_contact_foam_pass": {
+          "max_count": 380,
+          "radius_x": 2.25,
+          "radius_z": 0.36,
+          "flow_center": [16.0, 0.0, 12.2],
+          "alpha_scale": 0.44,
+          "emission_scale": 0.52
+        },
+        "water_impact_ripple_pass": {
+          "max_count": 112,
+          "flow_center": [16.0, 0.0, 12.2],
+          "alpha_scale": 0.42,
+          "emission_scale": 0.72
+        },
+        "secondary_acceptance_qa": {
+          "min_total_fraction": 0.45,
+          "min_foam_fraction": 0.035
+        },
+        "secondary_depth_review": {
+          "min_mean_crop_particles": 90,
+          "min_mean_crop_ratio": 0.5
+        },
+        "secondary_framing_qa": {
+          "min_mean_inside_ratio": 0.75,
+          "min_frame_inside_ratio": 0.2,
+          "max_mean_screen_y": 0.98
+        },
+        "ripple_readability_review": {
+          "min_edge_mean": 8.0,
+          "min_edge_nonzero_ratio": 0.025,
+          "max_highlight_ratio": 0.012
+        }
+      },
+      "camera": {
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [15.2, 12.6, 38.8],
+              "target": [18.0, 7.8, 14.0],
+              "vertical_fov_degrees": 41.0
+            },
+            {
+              "t": 0.55,
+              "position": [16.2, 12.1, 37.2],
+              "target": [18.0, 7.45, 14.0],
+              "vertical_fov_degrees": 40.0
+            },
+            {
+              "t": 1.0,
+              "position": [17.2, 11.7, 35.8],
+              "target": [18.0, 7.1, 14.0],
+              "vertical_fov_degrees": 39.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 11.0,
+          "min_target_distance": 21.5,
+          "max_vertical_fov_degrees": 41.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

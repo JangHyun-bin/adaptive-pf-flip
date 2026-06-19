@@ -205,7 +205,9 @@ The missing work is not one feature. It is a pipeline:
 | S157 | Contact foam sheet continuity pass | Broaden and connect surface contact foam strokes/wakes around the impact region over S154 while preserving gates | Done in `style: add contact foam sheet continuity` |
 | S158 | S157 gallery refresh/publish | Package and publish the S157 review artifacts for external inspection before the next visual triage | Done in `docs: publish s157 cinematic gallery` |
 | S159 | S157 public gallery visual triage | Review the S157 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s157 public gallery` |
-| S160 | Large-event cinematic scale gate | Move beyond same-shot look-dev by piloting a larger physical event with the S157 render stack and measured gates | Planned |
+| S160 | Large-event cinematic scale gate | Move beyond same-shot look-dev by piloting a larger physical event with the S157 render stack and measured gates | Done in `test: add large event cinematic scale gate` |
+| S161 | S160 gallery refresh/publish | Package and publish the S160 large-event gate artifacts for public inspection before the next scale/composition adjustment | Planned |
+| S162 | Establishing scale composition pass | Use S160 as input evidence to widen the shot grammar so the larger physical event reads as a broad falling-water scene, not only a foreground surface/mist close-up | Planned |
 
 ## Decision Gates
 

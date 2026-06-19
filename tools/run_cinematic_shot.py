@@ -2231,6 +2231,9 @@ def render_report(summary, root):
         scene_note = "- The larger water-event scene is selected, with a wider falling sheet and lower impact pool, but it is still reconstructed from coarse sparse phase cells."
     elif scene in ("nonboxed-water-event", "nonboxed-falling-water", "organic-falling-water"):
         scene_note = "- The non-boxed water-event scene is selected, with a rounded/tapered falling source and lower impact pool, but it is still reconstructed from coarse sparse phase cells."
+    elif scene in ("source-breakup-water-event", "falling-source-breakup",
+                   "silhouette-breakup-water-event", "staggered-falling-water"):
+        scene_note = "- The source-breakup water-event scene is selected, with staggered falling-water lobes and a lower impact pool, but it is still reconstructed from coarse sparse phase cells."
     surface_mode = metrics.get("surface_mode", "voxel")
     surface_note = "- The current large gate still uses coarse voxel-derived OBJ water meshes, so silhouettes remain blocky."
     if surface_mode == "tetra":
@@ -2348,7 +2351,9 @@ def parse_args(argv):
                         choices=("bubble", "dam-break", "dambreak",
                                  "falling-water", "falling",
                                  "large-water-event", "water-event", "wide-falling-water",
-                                 "nonboxed-water-event", "nonboxed-falling-water", "organic-falling-water"),
+                                 "nonboxed-water-event", "nonboxed-falling-water", "organic-falling-water",
+                                 "source-breakup-water-event", "falling-source-breakup",
+                                 "silhouette-breakup-water-event", "staggered-falling-water"),
                         help="override preset simulation scene")
     parser.add_argument("--nx", type=lambda v: parse_positive_int(v, "nx"))
     parser.add_argument("--ny", type=lambda v: parse_positive_int(v, "ny"))
