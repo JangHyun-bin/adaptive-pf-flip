@@ -230,6 +230,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S141** | **S139 public gallery visual triage** - reviews the S139 public gallery and selects S142 impact-timed review windows to remove long calm-pool lead-in. | done |
 | **S142** | **Impact-timed review window** - Blender bridge source windows render later cache ranges, and `dam_break_low_angle_impact_timed` starts closer to visible impact while preserving review gates. | done |
 | **S143** | **S142 gallery refresh/publish** - packages and publishes the S142 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://val-upgrades-counters-nose.trycloudflare.com`. | done |
+| **S144** | **S142 public gallery visual triage** - reviews the S142 public gallery and selects S145 foreground surface-detail/foam-breakup look-dev. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 

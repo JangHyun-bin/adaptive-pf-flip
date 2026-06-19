@@ -189,7 +189,8 @@ The missing work is not one feature. It is a pipeline:
 | S141 | S139 public gallery visual triage | Review the S139 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s139 public gallery` |
 | S142 | Impact-timed review window | Let the Blender bridge render a later cache window so the shot starts closer to visible impact without changing the simulation | Done in `feat: add impact timed render window` |
 | S143 | S142 gallery refresh/publish | Package and publish the S142 review artifacts for external inspection before the next visual triage | Done in `docs: publish s142 cinematic gallery` |
-| S144 | S142 public gallery visual triage | Review the S142 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
+| S144 | S142 public gallery visual triage | Review the S142 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s142 public gallery` |
+| S145 | Foreground surface-detail/foam-breakup pass | Preserve S142 timing/framing while increasing close-up water detail, glint/ripple readability, and contact foam breakup | Planned |
 
 ## Decision Gates
 
@@ -527,16 +528,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S144.
+Continue with S145.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s142-public-gallery-triage.md`
+`docs/superpowers/plans/2026-06-18-foreground-surface-detail-foam-breakup.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\summarize_cinematic_gallery_review.py build\shots\s142_impact_timed_window\gallery\gallery_manifest.json --publish build\shots\s142_impact_timed_window\gallery\publish_manifest_s143.json --out docs\reports\cinematic_visual_review_s144.md --decision "Select the next visible shot adjustment from the S142 public gallery evidence." --next "S145 should implement the selected visual adjustment with a checked-in preset or scene change plus a 36-frame Blender comparison gate."
+python tools\run_cinematic_shot.py --preset dam_break_foreground_surface_detail_foam --out build\shots\s145_foreground_surface_detail_foam --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s142_impact_timed_window\review\review_manifest.json --report docs\reports\cinematic_foreground_surface_detail_foam_s145.md --no-build --timeout-seconds 1800
 ```
 
-The next success condition is a checked-in S144 visual triage report that records public gallery checks, numeric gates, visual findings, and the next concrete shot adjustment.
+The next success condition is a checked-in S145 Blender gate report that improves close-up surface/foam readability while preserving S142 timing and gates.
