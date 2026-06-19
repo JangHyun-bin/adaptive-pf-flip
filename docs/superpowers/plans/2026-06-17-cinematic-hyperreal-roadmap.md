@@ -2955,3 +2955,21 @@ Sample frames `0000`, `0024`, and `0047` each parse as XML and contain `1`
 water OBJ shape plus `160` proxy sphere shapes. Use S312 as the first
 non-Blender scene export where water mesh, secondary particles, and sparse phase
 volume are all represented as renderer scene geometry.
+
+S313 added a Mitsuba XML export validation gate:
+
+- S313 tool:
+  `tools/validate_mitsuba_xml_export.py`
+- S313 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_validation_s313.md`
+- S313 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-validation.md`
+- S313 validation JSON:
+  `build/shots/s313_larger_external_renderer_mitsuba_xml_validation/mitsuba_validation.json`
+
+S313 parses all `48` S312 XML scenes, verifies `48` Mitsuba command lines,
+counts `48` water OBJ shapes, `7680` proxy sphere shapes, and `288` BSDFs, and
+reports `0` failures. It records `1` expected warning:
+`mitsuba_executable_missing`, because `mitsuba` is not installed or not on PATH.
+Use S313 to distinguish the now-valid XML scene contract from the remaining
+external renderer executable dependency.
