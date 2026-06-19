@@ -283,39 +283,41 @@ def load_bundle_asset(entry, key, label):
     return resolved
 
 
-def load_external_bundle(path, requested_frames):
+def external_bundle_selected_entries(path, requested_frames):
     data = read_json(path)
     if data.get("schema") != "lsfs_bridge_external_render_bundle":
         fail(f"{path}: not an LSFS external render bundle")
     bundle_frames = data.get("frames", [])
     if not bundle_frames:
         fail(f"{path}: external render bundle has no frames")
-    frames = []
-    mesh_frames = []
     out_count = max(1, requested_frames)
+    entries = []
     for out_index in range(out_count):
-        entry = select_resampled(bundle_frames, out_index, out_count)
-        label = f"{path}: frames[{entry.get('output_frame', out_index)}]"
-        camera_path = load_bundle_asset(entry, "camera", label)
-        particles_path = load_bundle_asset(entry, "particles", label)
-        phase_path = load_bundle_asset(entry, "phase_cells", label)
-        mesh_path = load_bundle_asset(entry, "water_mesh", label)
-        payload = read_json(camera_path)
-        frame = {
-            "source": f"external_bundle:{entry.get('output_frame', out_index)}",
-            "header": payload.get("header", {}),
-            "camera": payload.get("camera", {}),
-            "cinematic": payload.get("cinematic_metadata"),
-            "phase_cells": read_phase_csv(phase_path),
-            "particles": read_particle_csv(particles_path),
-        }
-        frames.append(normalize_frame(frame))
-        mesh_frames.append({
-            "mesh": mesh_path,
-            "vertex_count": as_int(entry.get("water_mesh_vertex_count")),
-            "face_count": as_int(entry.get("water_mesh_face_count")),
-        })
-    return frames, mesh_frames
+        entries.append(select_resampled(bundle_frames, out_index, out_count))
+    return entries
+
+
+def load_external_bundle_frame(path, entry, fallback_index=0):
+    label = f"{path}: frames[{entry.get('output_frame', fallback_index)}]"
+    camera_path = load_bundle_asset(entry, "camera", label)
+    particles_path = load_bundle_asset(entry, "particles", label)
+    phase_path = load_bundle_asset(entry, "phase_cells", label)
+    mesh_path = load_bundle_asset(entry, "water_mesh", label)
+    payload = read_json(camera_path)
+    frame = {
+        "source": f"external_bundle:{entry.get('output_frame', fallback_index)}",
+        "header": payload.get("header", {}),
+        "camera": payload.get("camera", {}),
+        "cinematic": payload.get("cinematic_metadata"),
+        "phase_cells": read_phase_csv(phase_path),
+        "particles": read_particle_csv(particles_path),
+    }
+    mesh_frame = {
+        "mesh": mesh_path,
+        "vertex_count": as_int(entry.get("water_mesh_vertex_count")),
+        "face_count": as_int(entry.get("water_mesh_face_count")),
+    }
+    return normalize_frame(frame), mesh_frame
 
 
 def read_particle_csv(path):
@@ -633,27 +635,41 @@ def main(argv=None):
         source_data = None
         if os.path.isfile(args.src) and args.src.lower().endswith(".json"):
             source_data = read_json(args.src)
+        os.makedirs(args.out_dir, exist_ok=True)
+        summaries = []
         if source_data and source_data.get("schema") == "lsfs_bridge_external_render_bundle":
-            source_frames, bundle_mesh_frames = load_external_bundle(args.src, args.frames)
-            mesh_frames = load_water_reconstruction(args.water_reconstruction) or bundle_mesh_frames
+            bundle_entries = external_bundle_selected_entries(args.src, args.frames)
+            reconstruction_mesh_frames = load_water_reconstruction(args.water_reconstruction)
+            for i, entry in enumerate(bundle_entries):
+                frame, bundle_mesh_frame = load_external_bundle_frame(args.src, entry, i)
+                mesh_frame = (
+                    select_mesh_frame(reconstruction_mesh_frames, i, args.frames)
+                    if reconstruction_mesh_frames
+                    else bundle_mesh_frame
+                )
+                out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
+                summaries.append(render_frame(frame,
+                                              out_path,
+                                              args.width,
+                                              args.height,
+                                              args.secondary_channel,
+                                              mesh_frame))
         else:
             source_frames = load_source(args.src)
             mesh_frames = load_water_reconstruction(args.water_reconstruction)
-        os.makedirs(args.out_dir, exist_ok=True)
-        summaries = []
-        for i in range(args.frames):
-            if args.frames == 1:
-                src_index = 0
-            else:
-                src_index = round(i * (len(source_frames) - 1) / max(1, args.frames - 1))
-            frame = source_frames[src_index % len(source_frames)]
-            out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
-            summaries.append(render_frame(frame,
-                                          out_path,
-                                          args.width,
-                                          args.height,
-                                          args.secondary_channel,
-                                          select_mesh_frame(mesh_frames, i, args.frames)))
+            for i in range(args.frames):
+                if args.frames == 1:
+                    src_index = 0
+                else:
+                    src_index = round(i * (len(source_frames) - 1) / max(1, args.frames - 1))
+                frame = source_frames[src_index % len(source_frames)]
+                out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
+                summaries.append(render_frame(frame,
+                                              out_path,
+                                              args.width,
+                                              args.height,
+                                              args.secondary_channel,
+                                              select_mesh_frame(mesh_frames, i, args.frames)))
         min_occupancy = min(item["occupancy"] for item in summaries) if summaries else 0.0
         summary = {
             "renderer": "lsfs_cinematic_render_stub",

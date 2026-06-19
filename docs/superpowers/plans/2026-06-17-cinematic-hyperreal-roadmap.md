@@ -2260,3 +2260,22 @@ S276 serves the S275 gallery on local port `8901` and starts a separate
 Cloudflare quick tunnel, leaving the S270/S269 accepted gallery endpoint active.
 Local and public `index.html` plus `assets/shot.gif` checks all returned HTTP
 `200`. Use S276 as the lightweight external-bundle visual handoff endpoint.
+
+S277 upgraded the external-bundle preview to a 16-frame motion review:
+
+- S277 report:
+  `docs/reports/cinematic_external_bundle_motion_preview_s277.md`
+- S277 gallery report:
+  `docs/reports/cinematic_external_bundle_motion_preview_gallery_s277.md`
+- S277 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-motion-preview.md`
+- S277 gallery:
+  `build/shots/s277_external_bundle_motion_preview/gallery/index.html`
+
+S277 updates `tools/cinematic_render_stub.py` so external-bundle inputs are
+loaded lazily one selected frame at a time, avoiding retention of all selected
+particle/phase CSV payloads. The S273 bundle rendered a `16` frame `960 x 540`
+preview with minimum occupancy `0.05804398148148148` against the `0.01` gate,
+assembled a GIF, and built a preview gallery with `9` visual assets. Use S277
+as the preferred lightweight external-render handoff preview before heavier
+larger-shot or Blender work.
