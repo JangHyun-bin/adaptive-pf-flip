@@ -2805,6 +2805,54 @@
         }
       }
     },
+    "dam_break_foam_readability_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S240 bounded foam/readability probe that strengthens contact foam sheets and ripple cues without changing direct secondary particles.",
+      "renderer": {
+        "water_surface_continuity_pass": {
+          "contact_foam_count_scale": 0.78,
+          "contact_foam_alpha_scale": 0.82,
+          "contact_foam_radius_scale": 0.84,
+          "impact_ripple_count_scale": 0.65,
+          "impact_ripple_alpha_scale": 0.66,
+          "impact_ripple_radius_scale": 0.88,
+          "impact_ripple_width_scale": 0.78
+        },
+        "surface_contact_foam_pass": {
+          "max_count": 380,
+          "radius_x": 2.25,
+          "radius_z": 0.36,
+          "keep_ratio": 1.0,
+          "alpha_scale": 0.45,
+          "emission_scale": 0.58
+        },
+        "water_impact_ripple_pass": {
+          "max_count": 112,
+          "radius": 0.48,
+          "radius_step": 0.24,
+          "width": 0.045,
+          "alpha_scale": 0.44,
+          "emission_scale": 0.82
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 3.55,
+            "foam": 3.05
+          },
+          "alpha_scale": 0.37,
+          "emission_scale": 0.82,
+          "max_radius": 1.38
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 1.18,
+            "foam": 0.5
+          },
+          "alpha_scale": 0.18,
+          "emission_scale": 0.78
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

@@ -1470,3 +1470,26 @@ adds upper-tail energy in the intended glint/reflection regions without
 measurable upper-tail loss. S240 should move to a non-highlight visual pass,
 such as water/foam readability or contribution-mask rendering, rather than more
 broad highlight recovery.
+
+S240 tested foam/readability tuning on top of S238:
+
+- S240 comparison report:
+  `docs/reports/cinematic_foam_readability_probe_s240.md`
+- S240 gallery report:
+  `docs/reports/cinematic_foam_readability_gallery_s240.md`
+- S240 plan:
+  `docs/superpowers/plans/2026-06-19-foam-readability-probe.md`
+- S240 gallery:
+  `build/shots/s240_foam_readability_probe/gallery/index.html`
+
+S240 adds `dam_break_foam_readability_probe`, changing bounded contact foam,
+impact ripple, secondary soft, and secondary streak render controls while
+leaving direct secondary particles unchanged. Against a matched S238 accepted
+16-frame baseline, the surface-quality gate passes with `normal_rough: 2`,
+`stable: 14`, stable ratio `0.875`, and blocked labels `0`. Direct secondary
+counts match on all frames. Contact foam mean count rises from `42.75` to
+`52.4375`, impact ripple mean count rises from `62.0` to `73.0`, mean luminance
+rises by `0.15290771484374943`, bright ratio improves by
+`2.170138888888903e-06`, coverage/minimum contrast/hard highlight ratio are
+preserved, and calibration `luma_p99` rises by `0.3125`. Promote S240 to S241
+32-frame motion review before any accepted-preset change.
