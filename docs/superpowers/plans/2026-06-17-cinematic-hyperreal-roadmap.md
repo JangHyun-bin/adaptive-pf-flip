@@ -2100,3 +2100,29 @@ Mean luminance drops by `0.24766113281251023`, upper luma tail drops
 increases remain around `1e-7` to `5e-7`. The comparison sheet confirms the
 secondary particles remain visible while reading less like warm beads. Promote
 S267/S268 settings to S269 accepted-preset parity.
+
+S269 promoted the secondary de-warm settings into the accepted preset:
+
+- S269 parity report:
+  `docs/reports/cinematic_secondary_dewarm_acceptance_parity_s269.md`
+- S269 accepted delta report:
+  `docs/reports/cinematic_secondary_dewarm_acceptance_delta_s269.md`
+- S269 gallery report:
+  `docs/reports/cinematic_secondary_dewarm_acceptance_gallery_s269.md`
+- S269 plan:
+  `docs/superpowers/plans/2026-06-20-secondary-dewarm-acceptance.md`
+- S269 gallery:
+  `build/shots/s269_secondary_dewarm_acceptance/gallery/index.html`
+
+S269 folds the S267/S268 secondary channel radius, direct-pass, soft-pass,
+streak-pass, and spray/foam/bubble material overrides into
+`dam_break_water_mesh_smoothing`. `dam_break_secondary_dewarm_probe` is now a
+historical alias extending the accepted preset. The 32-frame gate passes with
+`normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Against S268, parity is exact except for mean luminance floating-point
+noise at `-5.425347211485132e-07`; all coverage, contrast, highlight, luma-tail,
+and specular deltas are `0`. Against S264, the reviewed secondary de-warm delta
+is preserved: coverage and contrast stay unchanged, mean luminance drops by
+`0.24766167534723138`, upper luma tail drops, and bright/highlight/specular
+increases remain negligible. S269 is the current accepted bridge-render visual
+baseline. Refresh the accepted review package and public gallery from S269.
