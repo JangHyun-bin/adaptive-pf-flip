@@ -3107,3 +3107,28 @@ worker records Windows exit code `3221226505` after valid artifact writes, so
 the ready manifest is the gate. Use S319 as the first proof that the external
 Mitsuba path can produce real rendered frames, not only XML or software preview
 geometry.
+
+S320 packaged and published the actual Mitsuba renderer probe:
+
+- S320 new tool:
+  `tools/build_mitsuba_render_gallery.py`
+- S320 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_render_gallery_s320.md`
+- S320 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_render_gallery_publish_s320.md`
+- S320 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-render-gallery-publish.md`
+- S320 gallery manifest:
+  `build/shots/s320_larger_external_renderer_mitsuba_render_gallery/gallery/gallery_manifest.json`
+- S320 publish manifest:
+  `build/shots/s320_larger_external_renderer_mitsuba_render_gallery_publish/publish_manifest.json`
+- S320 public URL:
+  `https://ordinary-millions-analytical-lib.trycloudflare.com`
+
+S320 reads the S319 `lsfs_mitsuba_xml_render` manifest, copies the `3` actual
+Mitsuba PNG preview frames into a static gallery, assembles a `165682` byte
+`assets/shot.gif`, and exposes the render/export JSON metadata. The Cloudflare
+publish gate verified public `index.html` with HTTP `200` and `3165` bytes plus
+public `assets/shot.gif` with HTTP `200` and `165682` bytes. Use S320 as the
+first externally shareable proof of actual Mitsuba renderer output. It is still
+a runtime proof (`spp=1`, `3` frames), not final cinematic look development.
