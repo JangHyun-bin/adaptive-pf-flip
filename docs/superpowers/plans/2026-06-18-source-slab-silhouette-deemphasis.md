@@ -51,3 +51,44 @@ python -m json.tool configs\cinematic_presets.json
 python -m py_compile tools\run_cinematic_shot.py tools\render_bridge_blender.py
 git diff --check
 ```
+
+## Result
+
+S165 landed as `source-slab-deemphasis-water-event` plus the inherited
+`dam_break_source_slab_deemphasis` cinematic preset.
+
+The full gate passed:
+
+```powershell
+python tools\run_cinematic_shot.py --preset dam_break_source_slab_deemphasis --out build\shots\s165_source_slab_deemphasis --frames 36 --sim-steps 56 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s162_establishing_scale_composition\review\review_manifest.json --report docs\reports\cinematic_source_slab_deemphasis_s165.md --no-build --timeout-seconds 2400 --reuse-export-cache --reuse-validation --reuse-water-mesh --reuse-converted
+```
+
+Key gate metrics:
+
+- Status: `ok`
+- Visual QA: `passed`, mean luminance `89.45182385103202`, mean bright ratio `0.002005901572145062`, min contrast `186.0`
+- Temporal highlight QA: `passed`, pair count `35`, max peak delta `138`
+- Camera stability: `passed`, min target distance `26.10153252205701`, max vertical FOV `38.0`
+- Secondary framing: `passed`, mean inside ratio `0.9185529911257326`
+- Secondary depth: `passed`, mean depth span `13.85923744136715`
+- Ripple readability: `passed`, mean edge value `34.58111849221724`
+
+Artifacts:
+
+- `docs/reports/cinematic_source_slab_deemphasis_s165.md`
+- `build/shots/s165_source_slab_deemphasis/shot.gif`
+- `build/shots/s165_source_slab_deemphasis/review/contact_sheet.png`
+- `build/shots/s165_source_slab_deemphasis/review/comparison_sheet.png`
+
+Visual read:
+
+- The large ceiling-like source slab from S162 is reduced by a lower/thinner
+  source initialization, a later source window, and a lower/narrower camera.
+- A thin upper water band remains visible in late frames because the shot is
+  still reconstructed from coarse sparse phase cells; this is now a smaller
+  composition artifact rather than the dominant first read.
+
+Next:
+
+- S166: package and publish the S165 artifacts through the static gallery and
+  Cloudflare tunnel path.

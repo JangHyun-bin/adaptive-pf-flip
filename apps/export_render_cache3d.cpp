@@ -45,7 +45,7 @@ const char* argString(int argc, char** argv, const char* key, const char* fallba
 void usage() {
   std::fprintf(stderr,
                "usage: export_render_cache3d [--kind sparse|mr] "
-               "[--scene bubble|dam-break|falling-water|large-water-event|nonboxed-water-event|source-breakup-water-event] "
+               "[--scene bubble|dam-break|falling-water|large-water-event|nonboxed-water-event|source-breakup-water-event|source-slab-deemphasis-water-event] "
                "[--nx N] [--ny N] [--nz N] "
                "[--steps N] [--every N] [--dt DT] [--cg-iters N] "
                "[--out-prefix NAME] [--manifest PATH] [--physics-preset] "
@@ -85,7 +85,14 @@ bool sceneIsSourceBreakupWaterEvent(const char* scene) {
          std::strcmp(scene, "staggered-falling-water") == 0;
 }
 
+bool sceneIsSourceSlabDeemphasisWaterEvent(const char* scene) {
+  return std::strcmp(scene, "source-slab-deemphasis-water-event") == 0 ||
+         std::strcmp(scene, "source-curtain-water-event") == 0 ||
+         std::strcmp(scene, "thin-source-breakup-water-event") == 0;
+}
+
 const char* canonicalScene(const char* scene) {
+  if (sceneIsSourceSlabDeemphasisWaterEvent(scene)) return "source-slab-deemphasis-water-event";
   if (sceneIsSourceBreakupWaterEvent(scene)) return "source-breakup-water-event";
   if (sceneIsNonBoxedWaterEvent(scene)) return "nonboxed-water-event";
   if (sceneIsLargeWaterEvent(scene)) return "large-water-event";
@@ -301,9 +308,12 @@ int main(int argc, char** argv) {
   const bool fallingWaterScene = sceneIsFallingWater(scene);
   const bool largeWaterEventScene = sceneIsLargeWaterEvent(scene);
   const bool nonBoxedWaterEventScene = sceneIsNonBoxedWaterEvent(scene);
+  const bool sourceSlabDeemphasisWaterEventScene =
+    sceneIsSourceSlabDeemphasisWaterEvent(scene);
   const bool sourceBreakupWaterEventScene = sceneIsSourceBreakupWaterEvent(scene);
   const bool validScene = bubbleScene || damBreakScene || fallingWaterScene ||
                           largeWaterEventScene || nonBoxedWaterEventScene ||
+                          sourceSlabDeemphasisWaterEventScene ||
                           sourceBreakupWaterEventScene;
   int nx = argInt(argc, argv, "--nx", 12);
   int ny = argInt(argc, argv, "--ny", 18);
@@ -360,7 +370,9 @@ int main(int argc, char** argv) {
     }
     sim.dt = dt;
     sim.cg_iters = cgIters;
-    if (sourceBreakupWaterEventScene) {
+    if (sourceSlabDeemphasisWaterEventScene) {
+      sim.initSourceSlabDeemphasisWaterEvent();
+    } else if (sourceBreakupWaterEventScene) {
       sim.initSourceBreakupWaterEvent();
     } else if (nonBoxedWaterEventScene) {
       sim.initNonBoxedLargeWaterEvent();

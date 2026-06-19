@@ -165,6 +165,7 @@ struct SparseSim3DTP {
   void initLargeWaterEvent();
   void initNonBoxedLargeWaterEvent();
   void initSourceBreakupWaterEvent();
+  void initSourceSlabDeemphasisWaterEvent();
   void initRayleighTaylor();
   void initBubbleTank();
   void applyNarrowBandAir();

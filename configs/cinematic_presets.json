@@ -2093,6 +2093,70 @@
         }
       }
     },
+    "dam_break_source_slab_deemphasis": {
+      "extends": "dam_break_establishing_scale_composition",
+      "description": "S162 composition using a lower, thinner source-breakup scene variant to reduce ceiling-like upper source mass.",
+      "simulation": {
+        "scene": "source-slab-deemphasis-water-event"
+      },
+      "renderer": {
+        "source_window": {
+          "enabled": true,
+          "start_index": 20,
+          "end_index": 55
+        },
+        "water_surface_glint_pass": {
+          "count": 190,
+          "length": 1.65,
+          "width": 0.042,
+          "alpha_scale": 0.38,
+          "emission_scale": 0.86,
+          "region_min": [1.0, 3.9, 3.0],
+          "region_max": [31.4, 8.2, 21.4]
+        },
+        "water_reflection_pass": {
+          "count": 72,
+          "length": 5.6,
+          "width": 0.13,
+          "alpha_scale": 0.42,
+          "emission_scale": 0.9,
+          "region_min": [1.0, 4.0, 3.4],
+          "region_max": [31.2, 8.3, 21.2]
+        }
+      },
+      "camera": {
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [16.4, 13.2, 42.0],
+              "target": [18.0, 5.0, 14.0],
+              "vertical_fov_degrees": 38.0
+            },
+            {
+              "t": 0.55,
+              "position": [17.6, 12.9, 40.2],
+              "target": [18.0, 4.8, 14.0],
+              "vertical_fov_degrees": 37.5
+            },
+            {
+              "t": 1.0,
+              "position": [18.8, 12.7, 38.8],
+              "target": [18.0, 4.6, 14.0],
+              "vertical_fov_degrees": 37.0
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 12.5,
+          "min_target_distance": 26.0,
+          "max_vertical_fov_degrees": 38.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

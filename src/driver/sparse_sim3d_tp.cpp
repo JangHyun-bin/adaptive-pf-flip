@@ -632,6 +632,110 @@ void SparseSim3DTP::initSourceBreakupWaterEvent() {
   resetVolumeCorrectionStats(*this);
 }
 
+void SparseSim3DTP::initSourceSlabDeemphasisWaterEvent() {
+  resetSceneState(*this);
+  const int sheetX0 = std::max(1, grid.nx / 8);
+  const int sheetX1 = std::min(grid.nx - 1, std::max(sheetX0 + 3, grid.nx * 7 / 8));
+  const int sheetY0 = std::max(2, grid.ny * 6 / 20);
+  const int sheetY1 = std::min(grid.ny - 1, std::max(sheetY0 + 3, grid.ny * 11 / 20));
+  const int sheetZ0 = std::max(1, grid.nz * 3 / 10);
+  const int sheetZ1 = std::min(grid.nz - 1, std::max(sheetZ0 + 2, grid.nz * 7 / 10));
+  const int poolX0 = std::max(1, grid.nx / 7);
+  const int poolX1 = std::min(grid.nx - 1, std::max(poolX0 + 4, grid.nx * 6 / 7));
+  const int poolY1 = std::min(grid.ny - 1, std::max(3, grid.ny / 6));
+  const int poolZ0 = std::max(1, grid.nz / 6);
+  const int poolZ1 = std::min(grid.nz - 1, std::max(poolZ0 + 4, grid.nz * 5 / 6));
+  const double cx = 0.5 * static_cast<double>(sheetX0 + sheetX1);
+  const double cz = 0.5 * static_cast<double>(sheetZ0 + sheetZ1);
+  const double rx = std::max(1.0, 0.5 * static_cast<double>(sheetX1 - sheetX0));
+  const double rz = std::max(1.0, 0.5 * static_cast<double>(sheetZ1 - sheetZ0));
+  const double ySpan = std::max(1.0, static_cast<double>(sheetY1 - sheetY0));
+  constexpr double pi = 3.14159265358979323846;
+
+  struct Lobe {
+    double x;
+    double z;
+    double rx;
+    double rz;
+    double y0;
+    double y1;
+    double phase;
+  };
+  const Lobe lobes[] = {
+    {-0.36, -0.14, 0.30, 0.38, 0.06, 0.82, 0.0},
+    { 0.02,  0.20, 0.36, 0.32, 0.00, 0.66, 1.7},
+    { 0.40, -0.06, 0.28, 0.34, 0.28, 0.86, 3.1},
+    {-0.12, -0.34, 0.22, 0.24, 0.16, 0.54, 4.2},
+    { 0.18, -0.28, 0.18, 0.22, 0.05, 0.48, 5.4},
+  };
+
+  for (int k = 1; k < grid.nz - 1; ++k) {
+    for (int j = 1; j < grid.ny - 1; ++j) {
+      for (int i = 1; i < grid.nx - 1; ++i) {
+        const double x = static_cast<double>(i) + 0.5;
+        const double y = static_cast<double>(j) + 0.5;
+        const double z = static_cast<double>(k) + 0.5;
+        bool fallingSource = false;
+        Vec3 velocity{0.0, 0.0, 0.0};
+
+        for (const Lobe& lobe : lobes) {
+          const double lcx = cx + lobe.x * rx;
+          const double lcz = cz + lobe.z * rz;
+          const double lrx = std::max(1.0, rx * lobe.rx);
+          const double lrz = std::max(1.0, rz * lobe.rz);
+          const double sx = (x - lcx) / lrx;
+          const double sz = (z - lcz) / lrz;
+          const double edge = sx * sx + sz * sz;
+          const double verticalT =
+            std::clamp((y - static_cast<double>(sheetY0)) / ySpan, 0.0, 1.0);
+          const double taper = 0.78 - 0.34 * verticalT;
+          if (edge >= taper) continue;
+          const double wave =
+            0.40 * std::sin((x - lcx) * 0.95 + (z - lcz) * 0.8 + lobe.phase);
+          const double y0 =
+            static_cast<double>(sheetY0) +
+            lobe.y0 * ySpan +
+            0.55 * std::max(0.0, edge - 0.18) + wave;
+          const double y1 =
+            static_cast<double>(sheetY0) +
+            lobe.y1 * ySpan -
+            0.85 * std::max(0.0, edge - 0.08) + 0.28 * wave;
+          const double breakup =
+            0.65 * std::sin((x - cx) * 1.42 + (z - cz) * 1.15 +
+                            y * 0.52 + lobe.phase) +
+            0.35 * std::sin((x + z) * 0.70 + y * 0.83);
+          if (breakup < 0.06 && y > y0 + 0.5 && y < y1 - 0.35) continue;
+          const double slot =
+            std::sin((x - cx) * 2.30 + lobe.phase) *
+            std::sin((z - cz) * 1.90 - lobe.phase);
+          if (slot < -0.30 && y > y0 + 0.35) continue;
+          if (verticalT > 0.58 && (slot < 0.16 || breakup < 0.28)) continue;
+          if (y >= y0 && y < y1 &&
+              i >= sheetX0 && i < sheetX1 &&
+              k >= sheetZ0 && k < sheetZ1) {
+            fallingSource = true;
+            velocity = {
+              0.22 * (x - lcx) + 0.28 * std::sin((z - lcz) * pi / lrz),
+              -14.6 - 0.55 * std::sin((x - lcx) * pi / lrx + lobe.phase),
+              0.16 * (z - lcz) - 0.22 * std::sin((x - lcx) * pi / lrx)
+            };
+            break;
+          }
+        }
+
+        const bool impactPool =
+          i >= poolX0 && i < poolX1 &&
+          j < poolY1 &&
+          k >= poolZ0 && k < poolZ1;
+        const bool liquid = fallingSource || impactPool;
+        seedCell(particles, i, j, k, grid.dx, liquid ? 0 : 1, velocity);
+      }
+    }
+  }
+  applyParticleAdaptivity();
+  resetVolumeCorrectionStats(*this);
+}
+
 void SparseSim3DTP::initRayleighTaylor() {
   resetSceneState(*this);
   int mid = grid.ny / 2;
