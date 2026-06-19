@@ -2792,3 +2792,26 @@ summary sources: the S295 larger renderer job, the S302-vs-S291 comparison,
 the S303 publish manifest, and the S301 12-frame proof package. Use S304 as
 the current larger-job 24-frame proof package before full 48-frame renders or
 non-Blender external renderer adapters.
+
+S305 rendered the full 48-frame larger-job Blender proof:
+
+- S305 render report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_full48_s305.md`
+- S305 comparison report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_full48_compare_s305.md`
+- S305 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_full48_gallery_s305.md`
+- S305 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-full48.md`
+- S305 gallery:
+  `build/shots/s305_larger_external_renderer_job_blender_full48/gallery/index.html`
+
+S305 renders all `48` frames from the S295 larger job at `960 x 540`, `12`
+samples, using the accepted `dam_break_water_mesh_smoothing` preset. Blender
+elapsed time is `238031.96` ms, minimum nonblank ratio is `1.0`, minimum
+contrast is `106`, first/last secondary totals are `256` and `964`, and the
+GIF is `17138447` bytes. Against S302 using `24` sampled frame pairs, nonblank
+delta is `0.0`, mean luminance delta is `0.021145431455749986`, and mean frame
+contrast delta is `-4.125`. Use S305 as the strongest local larger-job Blender
+visual proof before public publish, packaging, or non-Blender external renderer
+adapter work.
