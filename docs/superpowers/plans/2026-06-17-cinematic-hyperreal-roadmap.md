@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S189.
+Continue with S190.
 
 S183 is implemented and validated:
 
@@ -613,6 +613,17 @@ S188 accepted S186:
 - S188 plan:
   `docs/superpowers/plans/2026-06-19-s186-public-gallery-triage.md`
 
-S189 should generate measured diagnostics for water mesh continuity, water depth
-span, occupied-cell count, and per-frame discontinuity risk before the next
-render-look or reconstruction change.
+S189 is implemented and validated:
+
+- S189 diagnostics report:
+  `docs/reports/cinematic_surface_continuity_diagnostics_s189.md`
+- S189 plan:
+  `docs/superpowers/plans/2026-06-19-surface-reconstruction-continuity-diagnostics.md`
+- S189 diagnostics outputs:
+  `build/shots/s189_surface_continuity_diagnostics`
+
+S190 should strengthen the reconstruction/export metric path before the next
+look change: carry occupied-cell counts into bridge/report summaries where
+available, add continuity metrics to the exported render-data summary or a
+companion report, and use measured worst frames to choose mesh smoothing,
+reconstruction export changes, or renderer-side water-volume occlusion.
