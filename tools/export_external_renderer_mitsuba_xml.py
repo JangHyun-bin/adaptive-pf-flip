@@ -74,6 +74,11 @@ def selected_frames(frames, requested=None):
     return [frames[index] for index in indices]
 
 
+def render_command(command, mode, xml_scene, output_image):
+    mode_arg = f" -m {mode}" if mode else ""
+    return f'{command}{mode_arg} "{xml_scene}" -o "{output_image}"'
+
+
 def scene_ref_path(frame):
     ref = frame.get("scene_descriptor") or {}
     return resolve_path(ref.get("path") or ref.get("repo_path"))
@@ -482,7 +487,7 @@ def export_mitsuba(args):
             phase_volume_proxy,
         )
         exported.append(item)
-        commands.append(f'mitsuba render "{xml_scene}" -o "{output_image}"')
+        commands.append(render_command(args.mitsuba_command, args.mitsuba_mode, xml_scene, output_image))
 
     command_list_path = os.path.join(out_dir, "mitsuba_render_commands.txt")
     write_text(command_list_path, "\n".join(commands) + ("\n" if commands else ""))
@@ -503,6 +508,8 @@ def export_mitsuba(args):
         "render_settings": {
             "film": args.film,
             "output_format": args.output_format,
+            "mitsuba_command": args.mitsuba_command,
+            "mitsuba_mode": args.mitsuba_mode,
             "frames_requested": args.frames,
             "frames_exported": len(exported),
             "secondary_proxy_limit": args.secondary_proxy_limit,
@@ -552,6 +559,8 @@ def markdown_report(export, out_path, root):
         "",
         f"- Adapter manifest: `{export.get('adapter_manifest', {}).get('repo_path')}`",
         f"- Command list: `{export.get('command_list', {}).get('repo_path')}`",
+        f"- Mitsuba command: `{export.get('render_settings', {}).get('mitsuba_command')}`",
+        f"- Mitsuba mode: `{export.get('render_settings', {}).get('mitsuba_mode')}`",
         "",
         "## Checks",
         "",
@@ -601,6 +610,10 @@ def main(argv=None):
     parser.add_argument("--frames", type=int)
     parser.add_argument("--film", default="hdrfilm")
     parser.add_argument("--output-format", default="exr")
+    parser.add_argument("--mitsuba-command", default="mitsuba",
+                        help="command name or path used in the generated render command list")
+    parser.add_argument("--mitsuba-mode", default="scalar_rgb",
+                        help="Mitsuba -m variant used in the generated render command list")
     parser.add_argument("--secondary-proxy-limit", type=int, default=0,
                         help="maximum sampled secondary particle sphere proxies per frame")
     parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,

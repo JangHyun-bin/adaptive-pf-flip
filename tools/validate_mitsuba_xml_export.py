@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import shlex
 import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -30,6 +31,40 @@ def command_lines(path):
         return []
     with open(path, encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
+
+
+def command_tokens(command):
+    try:
+        return shlex.split(command, posix=False)
+    except ValueError:
+        return []
+
+
+def command_syntax_failures(commands, path):
+    failures = []
+    for index, command in enumerate(commands):
+        tokens = command_tokens(command)
+        if not tokens:
+            failures.append({
+                "kind": "command_parse_error",
+                "command_index": index,
+                "path": path,
+            })
+            continue
+        if len(tokens) >= 2 and tokens[1].lower() == "render":
+            failures.append({
+                "kind": "legacy_mitsuba_render_subcommand",
+                "command_index": index,
+                "path": path,
+            })
+            continue
+        if "-o" not in tokens:
+            failures.append({
+                "kind": "missing_output_option",
+                "command_index": index,
+                "path": path,
+            })
+    return failures
 
 
 def xml_shape_counts(path):
@@ -112,6 +147,7 @@ def validate_export(args):
             "actual": len(commands),
             "path": command_path,
         })
+    failures.extend(command_syntax_failures(commands, command_path))
 
     mitsuba_path = shutil.which(args.mitsuba_command)
     if not mitsuba_path:

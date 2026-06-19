@@ -3074,3 +3074,36 @@ and S306 Blender full48 publish manifest. Use S318 as the durable handoff
 package tying the non-Blender XML scene contract, validation gate, public
 preview endpoint, and Blender proof endpoint together before Mitsuba
 installation or another renderer backend integration.
+
+S319 added the first actual Mitsuba runtime render probe:
+
+- S319 updated tools:
+  `tools/export_external_renderer_mitsuba_xml.py`,
+  `tools/validate_mitsuba_xml_export.py`
+- S319 new tool:
+  `tools/render_mitsuba_xml_export.py`
+- S319 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_command_fix_s319.md`
+- S319 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_command_validation_s319.md`
+- S319 render report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_render_probe_s319.md`
+- S319 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-render-probe.md`
+- S319 export JSON:
+  `build/shots/s319_larger_external_renderer_mitsuba_render_probe/mitsuba_export.json`
+- S319 render JSON:
+  `build/shots/s319_larger_external_renderer_mitsuba_render_probe/actual_render/mitsuba_render.json`
+
+S319 fixes generated command lists from the invalid legacy
+`mitsuba render ...` shape to `mitsuba -m scalar_rgb scene.xml -o frame.exr`,
+adds command syntax validation for that regression, and introduces an opt-in
+Mitsuba Python API runner. On this machine the runner uses Mitsuba `3.8.0` from
+a build-local Python `3.11` venv and Visual Studio LLVM-C.dll through
+`DRJIT_LIBLLVM_PATH`. The actual probe renders `3` selected XML frames to EXR
+and PNG preview with `0` manifest failures, after validating all `48` XML
+frames with `48` water OBJ shapes and `7680` proxy sphere shapes. The supervised
+worker records Windows exit code `3221226505` after valid artifact writes, so
+the ready manifest is the gate. Use S319 as the first proof that the external
+Mitsuba path can produce real rendered frames, not only XML or software preview
+geometry.
