@@ -1261,3 +1261,22 @@ luminance by `0.6768454318576431`. Bright and highlight ratios drop only
 slightly (`-5.56098090277778e-06` and `-2.8483072916666647e-06`). Promote the
 S228 foreground-volume settings in S230, then run accepted-preset parity against
 S229.
+
+S230 promoted the foreground-volume settings into the accepted preset:
+
+- S230 acceptance report:
+  `docs/reports/cinematic_foreground_volume_acceptance_s230.md`
+- S230 gallery report:
+  `docs/reports/cinematic_foreground_volume_acceptance_gallery_s230.md`
+- S230 plan:
+  `docs/superpowers/plans/2026-06-19-foreground-volume-acceptance.md`
+- S230 gallery:
+  `build/shots/s230_foreground_volume_acceptance/gallery/index.html`
+
+S230 folds the S228/S229 rim, metadata-emission, and water-volume scattering
+settings into `dam_break_water_mesh_smoothing`. The 32-frame accepted render
+passes the surface-quality gate with `normal_rough: 3`, `stable: 29`, stable
+ratio `0.90625`, and blocked labels `0`. Against S229, parity holds within
+render noise: mean luminance delta is `-1.2207031261368684e-06`, all other
+aggregate deltas are `0.0`, and direct secondary counts match on all 32 frames.
+Use S230 as the accepted foreground-volume baseline.
