@@ -1173,3 +1173,19 @@ minimum contrast, and direct secondary counts on all 16 frames while improving
 mean luminance by `0.19168701171875568`. Keep S223 as the accepted baseline.
 The next practical choices are publishing the S224 gallery for remote review or
 running the next visual pass against this wider accepted proof.
+
+S225 published the S224 accepted wide-window gallery through a verified
+Cloudflare quick tunnel:
+
+- S225 publish report:
+  `docs/reports/cinematic_gallery_publish_s225.md`
+- Public URL:
+  `https://acdbentity-greetings-reflects-win.trycloudflare.com`
+- Publish manifest:
+  `build/shots/s224_wide_accepted_review/gallery_publish_s225_manifest.json`
+
+S225 verified HTTP `200` for the public `index.html`, `shot.gif`,
+`comparison.png`, and `keyframe_00.png`. The published file sizes match the
+S224 gallery assets, avoiding the stale-port collision that can occur when old
+local gallery servers are still listening. Next visual work should use S224 as
+the accepted baseline rather than opening another publish tunnel by default.
