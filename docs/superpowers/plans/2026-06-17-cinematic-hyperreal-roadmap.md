@@ -2553,3 +2553,22 @@ are `256` and `964`. Against S282, nonblank delta is `0.0`, mean frame contrast
 delta is `0.125`, mean luma p99 delta is `0.25`, and mean specular ratio delta
 is `3.6168981481481466e-06`. Use S291 as the full-length job-path Blender proof
 before publishing, packaging, larger-shot jobs, or external renderer adapters.
+
+S292 published the S291 full-length job-path Blender render gallery:
+
+- S292 publish report:
+  `docs/reports/cinematic_external_renderer_job_blender_full32_publish_s292.md`
+- S292 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-blender-full32-publish.md`
+- S292 manifest:
+  `build/shots/s292_external_renderer_job_blender_full32_publish/publish_manifest.json`
+- S292 public URL:
+  `https://shall-warnings-critical-quite.trycloudflare.com`
+
+S292 stops the S290 8-frame job-path render endpoint, serves the S291 full32
+gallery on local port `8902`, and starts a new Cloudflare quick tunnel. Local
+and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
+The HTTP server PID is `66504`, and the Cloudflared PID is `129180`. S292 is
+the current public full-length job-path Blender render endpoint; S283 and S281
+remain active separately for accepted high-resolution bridge review and
+external-bundle benchmark preview.
