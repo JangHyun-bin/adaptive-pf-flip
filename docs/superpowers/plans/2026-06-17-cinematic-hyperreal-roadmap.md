@@ -211,7 +211,8 @@ The missing work is not one feature. It is a pipeline:
 | S163 | S162 gallery refresh/publish | Package and publish the S162 establishing-scale artifacts for public inspection before the next visual triage | Done in `docs: publish s162 cinematic gallery` |
 | S164 | S162 public gallery visual triage | Review the S162 public gallery and choose whether to attack source-slab silhouette, wider event shape, or render-detail readability next | Done in `docs: triage s162 public gallery` |
 | S165 | Source-slab silhouette de-emphasis scene pass | Add a source-breakup scene/preset variant that reduces ceiling-like upper source mass while preserving the S162 impact-pool composition and gates | Done in `style: add source slab deemphasis scene` |
-| S166 | S165 gallery refresh/publish | Package and publish the S165 source-slab de-emphasis artifacts for public inspection before the next visual triage | Planned |
+| S166 | S165 gallery refresh/publish | Package and publish the S165 source-slab de-emphasis artifacts for public inspection before the next visual triage | Done in `docs: publish s165 cinematic gallery` |
+| S167 | S165 public gallery visual triage | Review the S165 public gallery and choose whether to tune remaining upper water band, depth readability, or advance to the next event-scale/render-data milestone | Planned |
 
 ## Decision Gates
 

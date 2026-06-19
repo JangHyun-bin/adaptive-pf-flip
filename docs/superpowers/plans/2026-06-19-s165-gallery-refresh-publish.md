@@ -29,9 +29,9 @@ the next visual triage.
 ## Candidate Commands
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s165_source_slab_deemphasis --report docs\reports\cinematic_artifact_package_s166.md
-python tools\build_cinematic_gallery.py build\shots\s165_source_slab_deemphasis --report docs\reports\cinematic_static_gallery_s166.md
-python tools\publish_cinematic_gallery.py build\shots\s165_source_slab_deemphasis\gallery --port 8820 --cloudflare --report docs\reports\cinematic_gallery_publish_s166.md
+python tools\package_cinematic_artifacts.py build\shots\s165_source_slab_deemphasis --out docs\reports\cinematic_artifact_package_s166.md
+python tools\build_cinematic_gallery.py build\shots\s165_source_slab_deemphasis --package docs\reports\cinematic_artifact_package_s166.md --out build\shots\s165_source_slab_deemphasis\gallery --report docs\reports\cinematic_static_gallery_s166.md
+python tools\publish_cinematic_gallery.py build\shots\s165_source_slab_deemphasis\gallery --port 8820 --cftunnel --manifest build\shots\s165_source_slab_deemphasis\gallery_publish_s166_manifest.json --report docs\reports\cinematic_gallery_publish_s166.md
 ```
 
 ## Acceptance Gate
@@ -40,3 +40,30 @@ python tools\publish_cinematic_gallery.py build\shots\s165_source_slab_deemphasi
 - Static gallery manifest and `index.html` are generated under the S165 shot output.
 - Local and public gallery URLs return HTTP 200 for `index.html` and `assets/shot.gif`.
 - The public URL is recorded in the S166 publish report.
+
+## Result
+
+Published S165 gallery:
+
+- Local: `http://127.0.0.1:8820`
+- Public: `https://england-susan-dos-swimming.trycloudflare.com`
+- Server PID: `69816`
+- Cloudflared PID: `85892`
+
+Verified URLs:
+
+- `http://127.0.0.1:8820/` -> HTTP 200, `8150` bytes
+- `http://127.0.0.1:8820/assets/shot.gif` -> HTTP 200, `25819124` bytes
+- `https://england-susan-dos-swimming.trycloudflare.com/` -> HTTP 200, `8150` bytes
+- `https://england-susan-dos-swimming.trycloudflare.com/assets/shot.gif` -> HTTP 200, `25819124` bytes
+
+Reports:
+
+- `docs/reports/cinematic_artifact_package_s166.md`
+- `docs/reports/cinematic_static_gallery_s166.md`
+- `docs/reports/cinematic_gallery_publish_s166.md`
+
+Next:
+
+- S167: public gallery visual triage for the remaining upper water band,
+  depth/readability tradeoffs, and next milestone selection.
