@@ -2887,3 +2887,23 @@ confirms sequential output frames. It reports `0` failures, `1` expected
 warning for the missing placeholder `generic_path_tracer` executable, `0`
 command mismatches, and a referenced asset footprint of `2.05 GB`. Use S309 as
 the backend dry-run gate before implementing a renderer-specific adapter.
+
+S310 added a concrete Mitsuba XML export backend:
+
+- S310 tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S310 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_s310.md`
+- S310 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-xml.md`
+- S310 export JSON:
+  `build/shots/s310_larger_external_renderer_mitsuba_xml/mitsuba_export.json`
+- S310 command list:
+  `build/shots/s310_larger_external_renderer_mitsuba_xml/mitsuba_render_commands.txt`
+
+S310 consumes the S308 adapter manifest and emits `48` Mitsuba XML scene files.
+Each scene connects the accepted camera and water OBJ mesh, while preserving
+phase-cell CSV and particle CSV paths as sidecar contracts. The export reports
+`0` failures, `80.07 MB` of referenced water meshes, and `74.38 KB` of XML
+scene files. Use S310 as the first concrete non-Blender scene format before
+Mitsuba executable validation, particle proxy expansion, or volume conversion.

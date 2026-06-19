@@ -1,0 +1,308 @@
+#!/usr/bin/env python
+"""Export LSFS external renderer scene descriptors to Mitsuba XML scenes."""
+
+import argparse
+import os
+from datetime import datetime, timezone
+from xml.sax.saxutils import escape
+
+from build_bridge_review_package import (
+    format_bytes,
+    posix_rel,
+    read_json,
+    require_file,
+    sha256_file,
+    write_json,
+    write_text,
+)
+
+
+def resolve_path(path):
+    if not path:
+        return None
+    if os.path.isabs(path):
+        return os.path.abspath(path)
+    return os.path.abspath(path.replace("/", os.sep))
+
+
+def xml_path(path):
+    return escape(resolve_path(path).replace(os.sep, "/")) if path else ""
+
+
+def csv3(values, default):
+    items = values if isinstance(values, list) and len(values) >= 3 else default
+    return ", ".join(f"{float(items[i]):.8g}" for i in range(3))
+
+
+def selected_frames(frames, requested=None):
+    if not frames:
+        return []
+    if requested is None or requested <= 0 or requested >= len(frames):
+        return frames
+    if requested == 1:
+        return [frames[0]]
+    indices = sorted(set(round(i * (len(frames) - 1) / float(requested - 1)) for i in range(requested)))
+    return [frames[index] for index in indices]
+
+
+def scene_ref_path(frame):
+    ref = frame.get("scene_descriptor") or {}
+    return resolve_path(ref.get("path") or ref.get("repo_path"))
+
+
+def asset_path(scene, name):
+    asset = (scene.get("assets") or {}).get(name) or {}
+    return resolve_path(asset.get("path") or asset.get("repo_path"))
+
+
+def write_mitsuba_scene(scene, out_path, output_image, film_format):
+    camera = scene.get("camera") or {}
+    settings = scene.get("render_settings") or {}
+    diagnostics = scene.get("diagnostics") or {}
+    water_mesh = asset_path(scene, "water_surface")
+    phase_cells = asset_path(scene, "phase_volume")
+    particles = asset_path(scene, "particle_stream")
+    width = int(settings.get("width") or 960)
+    height = int(settings.get("height") or 540)
+    samples = int(settings.get("samples") or 12)
+    fov = float(camera.get("vertical_fov_degrees") or camera.get("fov_degrees") or 45.0)
+    secondary = diagnostics.get("secondary_counts") or {}
+    water_faces = diagnostics.get("water_mesh_face_count")
+    time = scene.get("time")
+    lines = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<scene version="3.0.0">',
+        f'  <!-- LSFS output_frame={scene.get("output_frame")} sequence_frame={scene.get("sequence_frame")} time={time} -->',
+        f'  <!-- water_faces={water_faces} secondary_total={secondary.get("total")} -->',
+        f'  <!-- phase_cells_csv={xml_path(phase_cells)} -->',
+        f'  <!-- particles_csv={xml_path(particles)} -->',
+        '  <integrator type="path">',
+        '    <integer name="max_depth" value="12"/>',
+        '  </integrator>',
+        '  <sensor type="perspective">',
+        f'    <float name="fov" value="{fov:.8g}"/>',
+        '    <string name="fov_axis" value="y"/>',
+        '    <transform name="to_world">',
+        f'      <lookat origin="{csv3(camera.get("position"), [18.0, 30.8, 102.0])}" target="{csv3(camera.get("target"), [18.0, 22.0, 14.0])}" up="{csv3(camera.get("up"), [0.0, 1.0, 0.0])}"/>',
+        '    </transform>',
+        '    <sampler type="independent">',
+        f'      <integer name="sample_count" value="{samples}"/>',
+        '    </sampler>',
+        f'    <film type="{escape(film_format)}">',
+        f'      <integer name="width" value="{width}"/>',
+        f'      <integer name="height" value="{height}"/>',
+        '      <rfilter type="gaussian"/>',
+        '    </film>',
+        '  </sensor>',
+        '  <emitter type="constant">',
+        '    <rgb name="radiance" value="0.55, 0.62, 0.72"/>',
+        '  </emitter>',
+        '  <bsdf type="roughdielectric" id="lsfs_water_surface">',
+        '    <float name="alpha" value="0.035"/>',
+        '    <float name="int_ior" value="1.333"/>',
+        '    <float name="ext_ior" value="1.0"/>',
+        '  </bsdf>',
+        '  <shape type="obj">',
+        f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
+        '    <boolean name="face_normals" value="true"/>',
+        '    <ref name="bsdf" id="lsfs_water_surface"/>',
+        '  </shape>',
+        '</scene>',
+        '',
+    ]
+    write_text(out_path, "\n".join(lines))
+    return {
+        "output_frame": scene.get("output_frame"),
+        "source_output_frame": scene.get("source_output_frame"),
+        "sequence_frame": scene.get("sequence_frame"),
+        "time": time,
+        "xml_scene": {
+            "path": out_path,
+            "repo_path": posix_rel(out_path, os.getcwd()),
+            "sha256": sha256_file(out_path),
+            "size": os.path.getsize(out_path),
+        },
+        "expected_output": {
+            "path": output_image,
+            "repo_path": posix_rel(output_image, os.getcwd()),
+        },
+        "water_mesh": {
+            "path": water_mesh,
+            "repo_path": posix_rel(water_mesh, os.getcwd()) if water_mesh else None,
+            "size": os.path.getsize(water_mesh) if water_mesh and os.path.isfile(water_mesh) else 0,
+            "faces": water_faces,
+        },
+        "sidecar_assets": {
+            "phase_cells": posix_rel(phase_cells, os.getcwd()) if phase_cells else None,
+            "particles": posix_rel(particles, os.getcwd()) if particles else None,
+        },
+        "secondary_counts": secondary,
+    }
+
+
+def export_mitsuba(args):
+    root = os.getcwd()
+    manifest_path = require_file(args.manifest, "adapter manifest")
+    manifest = read_json(manifest_path)
+    if manifest.get("schema") != "lsfs_external_renderer_adapter_manifest":
+        raise SystemExit(f"{args.manifest}: expected lsfs_external_renderer_adapter_manifest schema")
+    if manifest.get("status") != "ready":
+        raise SystemExit(f"{args.manifest}: adapter manifest status is {manifest.get('status')!r}")
+
+    out_dir = os.path.abspath(args.out_dir)
+    scene_dir = os.path.join(out_dir, "scenes")
+    render_dir = os.path.join(out_dir, "renders")
+    os.makedirs(scene_dir, exist_ok=True)
+    os.makedirs(render_dir, exist_ok=True)
+
+    exported = []
+    failures = []
+    commands = []
+    for index, frame in enumerate(selected_frames(manifest.get("frames") or [], args.frames)):
+        scene_path = scene_ref_path(frame)
+        if not scene_path or not os.path.isfile(scene_path):
+            failures.append({
+                "kind": "missing_scene_descriptor",
+                "output_frame": frame.get("output_frame"),
+                "path": scene_path,
+            })
+            continue
+        scene = read_json(scene_path)
+        water_mesh = asset_path(scene, "water_surface")
+        if not water_mesh or not os.path.isfile(water_mesh):
+            failures.append({
+                "kind": "missing_water_mesh",
+                "output_frame": frame.get("output_frame"),
+                "path": water_mesh,
+            })
+            continue
+        xml_scene = os.path.abspath(os.path.join(scene_dir, f"frame_{index:04d}.xml"))
+        output_image = os.path.abspath(os.path.join(render_dir, f"frame_{index:04d}.{args.output_format}"))
+        item = write_mitsuba_scene(scene, xml_scene, output_image, args.film)
+        exported.append(item)
+        commands.append(f'mitsuba render "{xml_scene}" -o "{output_image}"')
+
+    command_list_path = os.path.join(out_dir, "mitsuba_render_commands.txt")
+    write_text(command_list_path, "\n".join(commands) + ("\n" if commands else ""))
+    status = "failed" if failures or not exported else "ready"
+    return {
+        "schema": "lsfs_mitsuba_xml_export",
+        "version": 1,
+        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "status": status,
+        "title": args.title,
+        "adapter_manifest": {
+            "path": manifest_path,
+            "repo_path": posix_rel(manifest_path, root),
+            "sha256": sha256_file(manifest_path),
+        },
+        "target_renderer": "mitsuba",
+        "execution_mode": "xml_export_only",
+        "render_settings": {
+            "film": args.film,
+            "output_format": args.output_format,
+            "frames_requested": args.frames,
+            "frames_exported": len(exported),
+        },
+        "command_list": {
+            "path": command_list_path,
+            "repo_path": posix_rel(command_list_path, root),
+            "sha256": sha256_file(command_list_path),
+        },
+        "checks": {
+            "frames_exported": len(exported),
+            "failures": len(failures),
+            "water_mesh_bytes": sum(item["water_mesh"]["size"] for item in exported),
+            "xml_scene_bytes": sum(item["xml_scene"]["size"] for item in exported),
+        },
+        "failures": failures,
+        "frames": exported,
+        "next": args.next,
+    }
+
+
+def markdown_report(export, out_path, root):
+    checks = export.get("checks", {})
+    lines = [
+        f"# {export['title']}",
+        "",
+        f"Generated UTC: `{export['generated_utc']}`",
+        f"Export JSON: `{posix_rel(out_path, root)}`",
+        f"Status: `{export['status']}`",
+        f"Target renderer: `{export['target_renderer']}`",
+        f"Execution mode: `{export['execution_mode']}`",
+        "",
+        "## Inputs",
+        "",
+        f"- Adapter manifest: `{export.get('adapter_manifest', {}).get('repo_path')}`",
+        f"- Command list: `{export.get('command_list', {}).get('repo_path')}`",
+        "",
+        "## Checks",
+        "",
+        f"- Frames exported: `{checks.get('frames_exported')}`",
+        f"- Failures: `{checks.get('failures')}`",
+        f"- Water mesh bytes: `{format_bytes(checks.get('water_mesh_bytes', 0))}`",
+        f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
+        "",
+        "## Frame Samples",
+        "",
+        "| Output | XML Scene | Sequence | Water Faces | Secondary Total |",
+        "| ---: | --- | ---: | ---: | ---: |",
+    ]
+    frames = export.get("frames", [])
+    sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
+    for index in sample_indices:
+        frame = frames[index]
+        lines.append(
+            f"| {frame.get('output_frame')} | `{frame.get('xml_scene', {}).get('repo_path')}` | "
+            f"{frame.get('sequence_frame')} | {frame.get('water_mesh', {}).get('faces')} | "
+            f"{(frame.get('secondary_counts') or {}).get('total')} |"
+        )
+    if export.get("failures"):
+        lines.extend(["", "## Failures", ""])
+        for failure in export["failures"][:12]:
+            lines.append(f"- `{failure.get('kind')}`")
+    lines.extend([
+        "",
+        "## Next",
+        "",
+        export.get("next", "Install Mitsuba or adapt this XML export into the selected renderer backend."),
+        "",
+    ])
+    return "\n".join(lines)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Export adapter manifest scenes to Mitsuba XML")
+    parser.add_argument("manifest")
+    parser.add_argument("out_dir")
+    parser.add_argument("--frames", type=int)
+    parser.add_argument("--film", default="hdrfilm")
+    parser.add_argument("--output-format", default="exr")
+    parser.add_argument("--manifest-name", default="mitsuba_export.json")
+    parser.add_argument("--report")
+    parser.add_argument("--title", default="Mitsuba XML Export")
+    parser.add_argument(
+        "--next",
+        default="Install Mitsuba or add a renderer invocation gate that consumes the exported XML scenes.",
+    )
+    args = parser.parse_args(argv)
+    if args.frames is not None and args.frames <= 0:
+        parser.error("frames must be positive")
+
+    export = export_mitsuba(args)
+    out_path = os.path.abspath(os.path.join(args.out_dir, args.manifest_name))
+    write_json(out_path, export)
+    report_path = os.path.abspath(args.report) if args.report else os.path.splitext(out_path)[0] + ".md"
+    write_text(report_path, markdown_report(export, out_path, os.getcwd()))
+    print(
+        f"status={export['status']} frames={export['checks']['frames_exported']} "
+        f"failures={export['checks']['failures']} export={out_path}"
+    )
+    print(f"report={report_path}")
+    if export["status"] != "ready":
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
