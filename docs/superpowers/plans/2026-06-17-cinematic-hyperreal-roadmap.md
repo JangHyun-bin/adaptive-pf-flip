@@ -2226,3 +2226,21 @@ uses the bundle water-mesh assets for mesh overlay. The S273 bundle rendered an
 8-frame `640 x 360` preview with minimum occupancy `0.0608984375` against the
 `0.01` gate, then assembled a GIF. Use S274 as the fast visual smoke gate for
 S273 before heavier external-render, larger-shot, or Blender work.
+
+S275 packaged the S274 preview as a lightweight static gallery:
+
+- S275 tool:
+  `tools/build_preview_gallery.py`
+- S275 report:
+  `docs/reports/cinematic_external_bundle_preview_gallery_s275.md`
+- S275 plan:
+  `docs/superpowers/plans/2026-06-20-preview-gallery-builder.md`
+- S275 gallery:
+  `build/shots/s275_external_bundle_preview_gallery/gallery/index.html`
+
+S275 emits `lsfs_preview_gallery` version `1`, copies the preview GIF to
+`assets/shot.gif` for compatibility with `tools/publish_cinematic_gallery.py`,
+copies `8` preview keyframes, and includes the S274 render summary. The gallery
+has `9` visual assets, `1` metadata file, and preserves the S274 minimum
+occupancy `0.0608984375`. Use S275 as the lightweight shareable visual page for
+the external-render handoff path.
