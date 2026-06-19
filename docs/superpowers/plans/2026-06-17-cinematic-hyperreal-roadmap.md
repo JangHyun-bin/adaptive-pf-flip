@@ -881,3 +881,18 @@ still gates as `stable: 4`, while the targeted source index `8..11` window
 selects `normal_rough: 4` in dry-run and `normal_rough: 2` in a Blender smoke
 render. S209 should compare S208 against an untreated normal-rough window before
 any baseline promotion.
+
+S209 compared untreated vs S208-treated normal-rough frames:
+
+- S209 report:
+  `docs/reports/cinematic_water_mesh_normal_rough_comparison_s209.md`
+- S209 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-normal-rough-comparison.md`
+- S209 artifacts:
+  `build/shots/s209_normal_rough_comparison`
+
+S209 is mixed but safe: treated minimum contrast improves by `4`, mean
+luminance rises by `0.18618055555555202`, and nonblank coverage is unchanged,
+but bright/highlight ratios drop and the visual delta is small. Keep S208 as an
+opt-in treatment for now. S210 should either run a wider normal-rough comparison
+or tune a less highlight-suppressing variant.
