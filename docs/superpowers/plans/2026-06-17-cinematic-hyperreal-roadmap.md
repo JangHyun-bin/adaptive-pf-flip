@@ -2607,3 +2607,20 @@ review metadata from older handoff manifests. The generated
 is `1.92 GB` particle CSV, `50.49 MB` phase-cell CSV, and `80.07 MB` water mesh
 OBJ. Use S294 as the larger-shot input bundle before building the next renderer
 job.
+
+S295 built the larger 48-frame renderer job contract:
+
+- S295 report:
+  `docs/reports/cinematic_larger_external_renderer_job_s295.md`
+- S295 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job.md`
+- S295 job JSON:
+  `build/shots/s295_larger_external_renderer_job_48/external_renderer_job.json`
+
+S295 emits `lsfs_external_renderer_job` version `1` from S294 and attaches S291
+bridge-look settings, S293 proof package evidence, S292 publish evidence, and
+S280 benchmark context. The job is `ready` with `48` frames, source sequence
+range `8..55`, `0` missing assets, `0` camera failures, monotonic frame order,
+minimum water mesh faces `17720`, quality labels `normal_rough: 4` and
+`stable: 44`, and a `2.05 GB` input footprint. Use S295 as the larger renderer
+job contract before preview or Blender gates.
