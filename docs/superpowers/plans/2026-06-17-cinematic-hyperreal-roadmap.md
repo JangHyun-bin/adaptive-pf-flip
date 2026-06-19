@@ -2931,3 +2931,27 @@ Sample frames `0000`, `0024`, and `0047` each parse as XML and contain `1`
 water OBJ shape plus `96` secondary sphere shapes. Use S311 as the first
 non-Blender scene export where secondary particles are actual renderer scene
 geometry rather than sidecar-only data.
+
+S312 added sparse phase-volume proxy expansion to the Mitsuba XML exporter:
+
+- S312 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S312 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_phase_proxy_s312.md`
+- S312 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-phase-proxy.md`
+- S312 export JSON:
+  `build/shots/s312_larger_external_renderer_mitsuba_phase_proxy/mitsuba_export.json`
+- S312 command list:
+  `build/shots/s312_larger_external_renderer_mitsuba_phase_proxy/mitsuba_render_commands.txt`
+
+S312 keeps phase proxy export opt-in via `--phase-volume-proxy-limit`, reads
+phase-cell CSV rows with positive `liquid_volume`, samples sparse phase-volume
+proxy spheres, and emits a phase-volume diffuse BSDF. The S312 full48 export
+emits `4608` secondary proxies and `3072` phase-volume proxies from `15413`
+available secondary particles and `261158` available phase-volume cells, with
+`0` failures, `80.07 MB` of water meshes, and `1.52 MB` of XML scene files.
+Sample frames `0000`, `0024`, and `0047` each parse as XML and contain `1`
+water OBJ shape plus `160` proxy sphere shapes. Use S312 as the first
+non-Blender scene export where water mesh, secondary particles, and sparse phase
+volume are all represented as renderer scene geometry.

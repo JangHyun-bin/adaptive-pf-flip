@@ -40,6 +40,10 @@ SECONDARY_BSDFS = {
         "default_radius_scale": 0.5,
     },
 }
+PHASE_VOLUME_BSDF = {
+    "id": "lsfs_phase_volume_proxy",
+    "reflectance": "0.12, 0.34, 0.62",
+}
 
 
 def resolve_path(path):
@@ -216,6 +220,56 @@ def build_secondary_proxy_payload(scene, limit, base_radius):
     return payload, []
 
 
+def build_phase_volume_proxy_payload(scene, limit, base_radius):
+    payload = {
+        "enabled": limit > 0,
+        "limit": limit,
+        "base_radius": base_radius,
+        "available_count": 0,
+        "proxy_count": 0,
+        "proxies": [],
+    }
+    if limit <= 0:
+        return payload, []
+    phase_cells = asset_path(scene, "phase_volume")
+    if not phase_cells or not os.path.isfile(phase_cells):
+        return payload, [{
+            "kind": "missing_phase_volume",
+            "output_frame": scene.get("output_frame"),
+            "path": phase_cells,
+        }]
+
+    liquid_cells = []
+    with open(phase_cells, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            liquid_volume = as_float(row.get("liquid_volume"), 0.0)
+            if liquid_volume <= 0.0:
+                continue
+            liquid_cells.append({
+                "x": as_float(row.get("i")) + 0.5,
+                "y": as_float(row.get("j")) + 0.5,
+                "z": as_float(row.get("k")) + 0.5,
+                "liquid_volume": liquid_volume,
+                "phi": as_float(row.get("phi"), 0.0),
+            })
+    proxies = []
+    for row in sample_items(liquid_cells, min(max(0, limit), len(liquid_cells))):
+        volume_scale = max(0.45, min(1.25, row["liquid_volume"] ** (1.0 / 3.0)))
+        proxies.append({
+            "x": row["x"],
+            "y": row["y"],
+            "z": row["z"],
+            "radius": base_radius * volume_scale,
+            "liquid_volume": row["liquid_volume"],
+            "phi": row["phi"],
+        })
+    payload["available_count"] = len(liquid_cells)
+    payload["proxies"] = proxies
+    payload["proxy_count"] = len(proxies)
+    return payload, []
+
+
 def secondary_bsdf_lines():
     lines = []
     for channel in SECONDARY_CHANNELS:
@@ -226,6 +280,14 @@ def secondary_bsdf_lines():
             '  </bsdf>',
         ])
     return lines
+
+
+def phase_volume_bsdf_lines():
+    return [
+        f'  <bsdf type="diffuse" id="{PHASE_VOLUME_BSDF["id"]}">',
+        f'    <rgb name="reflectance" value="{PHASE_VOLUME_BSDF["reflectance"]}"/>',
+        '  </bsdf>',
+    ]
 
 
 def secondary_proxy_shape_lines(proxy):
@@ -239,7 +301,17 @@ def secondary_proxy_shape_lines(proxy):
     ]
 
 
-def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_proxy):
+def phase_volume_proxy_shape_lines(proxy):
+    return [
+        '  <shape type="sphere">',
+        f'    <point name="center" x="{proxy["x"]:.8g}" y="{proxy["y"]:.8g}" z="{proxy["z"]:.8g}"/>',
+        f'    <float name="radius" value="{proxy["radius"]:.8g}"/>',
+        f'    <ref name="bsdf" id="{PHASE_VOLUME_BSDF["id"]}"/>',
+        '  </shape>',
+    ]
+
+
+def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_proxy, phase_volume_proxy):
     camera = scene.get("camera") or {}
     settings = scene.get("render_settings") or {}
     diagnostics = scene.get("diagnostics") or {}
@@ -259,6 +331,7 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_pr
         f'  <!-- LSFS output_frame={scene.get("output_frame")} sequence_frame={scene.get("sequence_frame")} time={time} -->',
         f'  <!-- water_faces={water_faces} secondary_total={secondary.get("total")} -->',
         f'  <!-- secondary_proxy_count={secondary_proxy.get("proxy_count", 0)} -->',
+        f'  <!-- phase_volume_proxy_count={phase_volume_proxy.get("proxy_count", 0)} -->',
         f'  <!-- phase_cells_csv={xml_path(phase_cells)} -->',
         f'  <!-- particles_csv={xml_path(particles)} -->',
         '  <integrator type="path">',
@@ -288,12 +361,15 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_pr
         '    <float name="ext_ior" value="1.0"/>',
         '  </bsdf>',
         *secondary_bsdf_lines(),
+        *phase_volume_bsdf_lines(),
         '  <shape type="obj">',
         f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
         '    <boolean name="face_normals" value="true"/>',
         '    <ref name="bsdf" id="lsfs_water_surface"/>',
         '  </shape>',
     ]
+    for proxy in phase_volume_proxy.get("proxies", []):
+        lines.extend(phase_volume_proxy_shape_lines(proxy))
     for proxy in secondary_proxy.get("proxies", []):
         lines.extend(secondary_proxy_shape_lines(proxy))
     lines.extend([
@@ -333,6 +409,12 @@ def write_mitsuba_scene(scene, out_path, output_image, film_format, secondary_pr
             "available_counts": secondary_proxy.get("available_counts", {}),
             "proxy_counts": secondary_proxy.get("proxy_counts", {}),
             "proxy_count": secondary_proxy.get("proxy_count", 0),
+        },
+        "phase_volume_proxy": {
+            "enabled": phase_volume_proxy.get("enabled", False),
+            "limit": phase_volume_proxy.get("limit", 0),
+            "available_count": phase_volume_proxy.get("available_count", 0),
+            "proxy_count": phase_volume_proxy.get("proxy_count", 0),
         },
     }
 
@@ -381,9 +463,24 @@ def export_mitsuba(args):
         if proxy_failures:
             failures.extend(proxy_failures)
             continue
+        phase_volume_proxy, phase_proxy_failures = build_phase_volume_proxy_payload(
+            scene,
+            args.phase_volume_proxy_limit,
+            args.phase_volume_proxy_radius,
+        )
+        if phase_proxy_failures:
+            failures.extend(phase_proxy_failures)
+            continue
         xml_scene = os.path.abspath(os.path.join(scene_dir, f"frame_{index:04d}.xml"))
         output_image = os.path.abspath(os.path.join(render_dir, f"frame_{index:04d}.{args.output_format}"))
-        item = write_mitsuba_scene(scene, xml_scene, output_image, args.film, secondary_proxy)
+        item = write_mitsuba_scene(
+            scene,
+            xml_scene,
+            output_image,
+            args.film,
+            secondary_proxy,
+            phase_volume_proxy,
+        )
         exported.append(item)
         commands.append(f'mitsuba render "{xml_scene}" -o "{output_image}"')
 
@@ -410,6 +507,8 @@ def export_mitsuba(args):
             "frames_exported": len(exported),
             "secondary_proxy_limit": args.secondary_proxy_limit,
             "secondary_proxy_radius": args.secondary_proxy_radius,
+            "phase_volume_proxy_limit": args.phase_volume_proxy_limit,
+            "phase_volume_proxy_radius": args.phase_volume_proxy_radius,
         },
         "command_list": {
             "path": command_list_path,
@@ -424,6 +523,11 @@ def export_mitsuba(args):
             "secondary_proxy_count": sum(item["secondary_proxy"]["proxy_count"] for item in exported),
             "secondary_proxy_available": sum(
                 sum(item["secondary_proxy"].get("available_counts", {}).values())
+                for item in exported
+            ),
+            "phase_volume_proxy_count": sum(item["phase_volume_proxy"]["proxy_count"] for item in exported),
+            "phase_volume_proxy_available": sum(
+                item["phase_volume_proxy"].get("available_count", 0)
                 for item in exported
             ),
         },
@@ -457,11 +561,13 @@ def markdown_report(export, out_path, root):
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         f"- Secondary proxies emitted: `{checks.get('secondary_proxy_count', 0)}`",
         f"- Secondary particles available: `{checks.get('secondary_proxy_available', 0)}`",
+        f"- Phase volume proxies emitted: `{checks.get('phase_volume_proxy_count', 0)}`",
+        f"- Phase volume cells available: `{checks.get('phase_volume_proxy_available', 0)}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Proxy Count |",
-        "| ---: | --- | ---: | ---: | ---: | ---: |",
+        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Phase Proxies |",
+        "| ---: | --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -471,7 +577,8 @@ def markdown_report(export, out_path, root):
             f"| {frame.get('output_frame')} | `{frame.get('xml_scene', {}).get('repo_path')}` | "
             f"{frame.get('sequence_frame')} | {frame.get('water_mesh', {}).get('faces')} | "
             f"{(frame.get('secondary_counts') or {}).get('total')} | "
-            f"{(frame.get('secondary_proxy') or {}).get('proxy_count', 0)} |"
+            f"{(frame.get('secondary_proxy') or {}).get('proxy_count', 0)} | "
+            f"{(frame.get('phase_volume_proxy') or {}).get('proxy_count', 0)} |"
         )
     if export.get("failures"):
         lines.extend(["", "## Failures", ""])
@@ -498,6 +605,10 @@ def main(argv=None):
                         help="maximum sampled secondary particle sphere proxies per frame")
     parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,
                         help="base radius for secondary particle sphere proxies in cell units")
+    parser.add_argument("--phase-volume-proxy-limit", type=int, default=0,
+                        help="maximum sampled phase-volume sphere proxies per frame")
+    parser.add_argument("--phase-volume-proxy-radius", type=float, default=0.11,
+                        help="base radius for phase-volume sphere proxies in cell units")
     parser.add_argument("--manifest-name", default="mitsuba_export.json")
     parser.add_argument("--report")
     parser.add_argument("--title", default="Mitsuba XML Export")
@@ -512,6 +623,10 @@ def main(argv=None):
         parser.error("secondary-proxy-limit must be non-negative")
     if args.secondary_proxy_radius <= 0.0:
         parser.error("secondary-proxy-radius must be positive")
+    if args.phase_volume_proxy_limit < 0:
+        parser.error("phase-volume-proxy-limit must be non-negative")
+    if args.phase_volume_proxy_radius <= 0.0:
+        parser.error("phase-volume-proxy-radius must be positive")
 
     export = export_mitsuba(args)
     out_path = os.path.abspath(os.path.join(args.out_dir, args.manifest_name))
