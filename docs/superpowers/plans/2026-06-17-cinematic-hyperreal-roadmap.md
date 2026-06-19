@@ -188,7 +188,8 @@ The missing work is not one feature. It is a pipeline:
 | S140 | S139 gallery refresh/publish | Package and publish the S139 review artifacts for external inspection before the next visual triage | Done in `docs: publish s139 cinematic gallery` |
 | S141 | S139 public gallery visual triage | Review the S139 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s139 public gallery` |
 | S142 | Impact-timed review window | Let the Blender bridge render a later cache window so the shot starts closer to visible impact without changing the simulation | Done in `feat: add impact timed render window` |
-| S143 | S142 gallery refresh/publish | Package and publish the S142 review artifacts for external inspection before the next visual triage | Planned |
+| S143 | S142 gallery refresh/publish | Package and publish the S142 review artifacts for external inspection before the next visual triage | Done in `docs: publish s142 cinematic gallery` |
+| S144 | S142 public gallery visual triage | Review the S142 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -526,18 +527,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S143.
+Continue with S144.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s142-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s142-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s142_impact_timed_window --out docs\reports\cinematic_artifact_package_s143.md
-python tools\build_cinematic_gallery.py build\shots\s142_impact_timed_window --package docs\reports\cinematic_artifact_package_s143.md --out build\shots\s142_impact_timed_window\gallery --report docs\reports\cinematic_static_gallery_s143.md
-python tools\publish_cinematic_gallery.py build\shots\s142_impact_timed_window\gallery --port 8802 --cftunnel --manifest build\shots\s142_impact_timed_window\gallery\publish_manifest_s143.json --report docs\reports\cinematic_gallery_publish_s143.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s142_impact_timed_window\gallery\gallery_manifest.json --publish build\shots\s142_impact_timed_window\gallery\publish_manifest_s143.json --out docs\reports\cinematic_visual_review_s144.md --decision "Select the next visible shot adjustment from the S142 public gallery evidence." --next "S145 should implement the selected visual adjustment with a checked-in preset or scene change plus a 36-frame Blender comparison gate."
 ```
 
-The next success condition is a checked-in S143 package/gallery/publish report with local and public `index.html` plus `assets/shot.gif` verification.
+The next success condition is a checked-in S144 visual triage report that records public gallery checks, numeric gates, visual findings, and the next concrete shot adjustment.
