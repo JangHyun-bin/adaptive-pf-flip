@@ -678,3 +678,17 @@ S196 should package and publish the S195 gallery for visual review. The numeric
 gate is mixed: S195 preserves the S186 minimum contrast floor and nonblank
 coverage, but it is 5 contrast points below S191, so replacement needs visual
 confirmation.
+
+S196 published the S195 gallery:
+
+- Public gallery:
+  `https://dicke-automotive-fitness-category.trycloudflare.com`
+- S196 gallery report:
+  `docs/reports/cinematic_water_mesh_smoothing_strong_gallery_s196.md`
+- S196 publish report: `docs/reports/cinematic_gallery_publish_s196.md`
+- S196 plan:
+  `docs/superpowers/plans/2026-06-19-s195-gallery-publish.md`
+
+S197 should triage the public S195 gallery against S191 and decide whether to
+accept S195 or keep S191 while shifting the next pass toward
+reconstruction/export smoothing.
