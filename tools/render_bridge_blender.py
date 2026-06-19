@@ -141,6 +141,11 @@ def clamp_range(value, lo, hi):
     return max(lo, min(hi, float(value)))
 
 
+def hash01(index, salt):
+    value = math.sin(index * 12.9898 + salt * 78.233) * 43758.5453
+    return value - math.floor(value)
+
+
 def lerp(a, b, t):
     return float(a) * (1.0 - float(t)) + float(b) * float(t)
 
@@ -940,6 +945,7 @@ def surface_contact_foam_pass_summary(render_preset):
         "material_falloff": str(cfg.get("material_falloff", "solid")),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.32),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.35),
+        "keep_ratio": as_float(cfg.get("keep_ratio"), 1.0),
     }
 
 
@@ -997,6 +1003,31 @@ def water_volume_scattering_pass_summary(render_preset):
         "inset": as_float(cfg.get("inset"), 0.15),
         "alpha_scale": as_float(cfg.get("alpha_scale"), 0.22),
         "emission_scale": as_float(cfg.get("emission_scale"), 0.18),
+    }
+
+
+def water_surface_continuity_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_surface_continuity_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "glint_count_scale": as_float(cfg.get("glint_count_scale"), 1.0),
+        "glint_alpha_scale": as_float(cfg.get("glint_alpha_scale"), 1.0),
+        "glint_width_scale": as_float(cfg.get("glint_width_scale"), 1.0),
+        "glint_dropout_add": as_float(cfg.get("glint_dropout_add"), 0.0),
+        "reflection_count_scale": as_float(cfg.get("reflection_count_scale"), 1.0),
+        "reflection_alpha_scale": as_float(cfg.get("reflection_alpha_scale"), 1.0),
+        "reflection_length_scale": as_float(cfg.get("reflection_length_scale"), 1.0),
+        "reflection_width_scale": as_float(cfg.get("reflection_width_scale"), 1.0),
+        "reflection_dropout_add": as_float(cfg.get("reflection_dropout_add"), 0.0),
+        "contact_foam_count_scale": as_float(cfg.get("contact_foam_count_scale"), 1.0),
+        "contact_foam_alpha_scale": as_float(cfg.get("contact_foam_alpha_scale"), 1.0),
+        "contact_foam_radius_scale": as_float(cfg.get("contact_foam_radius_scale"), 1.0),
+        "impact_ripple_count_scale": as_float(cfg.get("impact_ripple_count_scale"), 1.0),
+        "impact_ripple_alpha_scale": as_float(cfg.get("impact_ripple_alpha_scale"), 1.0),
+        "impact_ripple_radius_scale": as_float(cfg.get("impact_ripple_radius_scale"), 1.0),
+        "impact_ripple_width_scale": as_float(cfg.get("impact_ripple_width_scale"), 1.0),
+        "scattering_alpha_scale": as_float(cfg.get("scattering_alpha_scale"), 1.0),
+        "scattering_layer_scale": as_float(cfg.get("scattering_layer_scale"), 1.0),
     }
 
 
@@ -1067,13 +1098,116 @@ def estimate_surface_contact_foam_counts(path, contact_pass):
     max_count = max(0, as_int(contact_pass.get("max_count"), 256))
     if foam_scale <= 0.0 or max_count <= 0:
         return {"foam": 0, "total": 0}
+    keep_ratio = clamp_range(as_float(contact_pass.get("keep_ratio"), 1.0), 0.0, 1.0)
     with open(path, encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
+        for row_index, row in enumerate(csv.DictReader(f)):
             if count >= max_count:
                 break
             if secondary_render_channel(row) == "foam":
+                if keep_ratio < 1.0 and hash01(row_index, 151.0) > keep_ratio:
+                    continue
                 count += 1
     return {"foam": count, "total": count}
+
+
+def scaled_count(value, scale):
+    return max(0, int(round(as_int(value, 0) * max(0.0, as_float(scale, 1.0)))))
+
+
+def scaled_float(value, scale):
+    return as_float(value, 0.0) * max(0.0, as_float(scale, 1.0))
+
+
+def apply_water_surface_continuity_pass(glint_pass, reflection_pass, contact_pass,
+                                        scattering_pass, ripple_pass, continuity_pass):
+    if not continuity_pass.get("enabled", False):
+        return glint_pass, reflection_pass, contact_pass, scattering_pass, ripple_pass
+
+    glint = dict(glint_pass)
+    glint["count"] = scaled_count(glint.get("count"), continuity_pass.get("glint_count_scale", 1.0))
+    glint["alpha_scale"] = scaled_float(glint.get("alpha_scale"), continuity_pass.get("glint_alpha_scale", 1.0))
+    glint["width"] = scaled_float(glint.get("width"), continuity_pass.get("glint_width_scale", 1.0))
+    glint["dropout"] = clamp_range(as_float(glint.get("dropout"), 0.0) + as_float(continuity_pass.get("glint_dropout_add"), 0.0), 0.0, 0.95)
+
+    reflection = dict(reflection_pass)
+    reflection["count"] = scaled_count(reflection.get("count"), continuity_pass.get("reflection_count_scale", 1.0))
+    reflection["alpha_scale"] = scaled_float(reflection.get("alpha_scale"), continuity_pass.get("reflection_alpha_scale", 1.0))
+    reflection["length"] = scaled_float(reflection.get("length"), continuity_pass.get("reflection_length_scale", 1.0))
+    reflection["width"] = scaled_float(reflection.get("width"), continuity_pass.get("reflection_width_scale", 1.0))
+    reflection["dropout"] = clamp_range(as_float(reflection.get("dropout"), 0.0) + as_float(continuity_pass.get("reflection_dropout_add"), 0.0), 0.0, 0.95)
+
+    contact = dict(contact_pass)
+    contact["max_count"] = scaled_count(contact.get("max_count"), continuity_pass.get("contact_foam_count_scale", 1.0))
+    contact["alpha_scale"] = scaled_float(contact.get("alpha_scale"), continuity_pass.get("contact_foam_alpha_scale", 1.0))
+    contact["radius_x"] = scaled_float(contact.get("radius_x"), continuity_pass.get("contact_foam_radius_scale", 1.0))
+    contact["radius_z"] = scaled_float(contact.get("radius_z"), continuity_pass.get("contact_foam_radius_scale", 1.0))
+    contact["keep_ratio"] = clamp_range(
+        as_float(contact.get("keep_ratio"), 1.0) * as_float(continuity_pass.get("contact_foam_count_scale"), 1.0),
+        0.0,
+        1.0)
+
+    scattering = dict(scattering_pass)
+    scattering["layers"] = scaled_count(scattering.get("layers"), continuity_pass.get("scattering_layer_scale", 1.0))
+    scattering["alpha_scale"] = scaled_float(scattering.get("alpha_scale"), continuity_pass.get("scattering_alpha_scale", 1.0))
+
+    ripple = dict(ripple_pass)
+    ripple["max_count"] = scaled_count(ripple.get("max_count"), continuity_pass.get("impact_ripple_count_scale", 1.0))
+    ripple["alpha_scale"] = scaled_float(ripple.get("alpha_scale"), continuity_pass.get("impact_ripple_alpha_scale", 1.0))
+    ripple["radius"] = scaled_float(ripple.get("radius"), continuity_pass.get("impact_ripple_radius_scale", 1.0))
+    ripple["radius_step"] = scaled_float(ripple.get("radius_step"), continuity_pass.get("impact_ripple_radius_scale", 1.0))
+    ripple["width"] = scaled_float(ripple.get("width"), continuity_pass.get("impact_ripple_width_scale", 1.0))
+
+    return glint, reflection, contact, scattering, ripple
+
+
+def estimate_strip_overlay(pass_cfg):
+    if not pass_cfg.get("enabled", False):
+        return {
+            "enabled": False,
+            "configured_count": 0,
+            "estimated_strip_count": 0,
+            "estimated_segment_count": 0,
+            "estimated_area": 0.0,
+        }
+    count = max(0, as_int(pass_cfg.get("count"), 0))
+    dropout = clamp_range(as_float(pass_cfg.get("dropout"), 0.0), 0.0, 0.95)
+    segment_count = max(1, as_int(pass_cfg.get("segment_count"), 1))
+    segment_gap = clamp_range(as_float(pass_cfg.get("segment_gap"), 0.0), 0.0, 0.85)
+    active = count * (1.0 - dropout)
+    length = max(0.0, as_float(pass_cfg.get("length"), 0.0))
+    width = max(0.0, as_float(pass_cfg.get("width"), 0.0))
+    return {
+        "enabled": True,
+        "configured_count": count,
+        "estimated_strip_count": active,
+        "estimated_segment_count": active * segment_count,
+        "estimated_area": active * length * width * (1.0 - segment_gap),
+        "alpha_scale": as_float(pass_cfg.get("alpha_scale"), 0.0),
+        "emission_scale": as_float(pass_cfg.get("emission_scale"), 0.0),
+        "dropout": dropout,
+        "segment_count": segment_count,
+        "segment_gap": segment_gap,
+    }
+
+
+def summarize_water_surface_continuity(continuity_pass, glint_pass, reflection_pass,
+                                       contact_counts, scattering_pass, ripple_counts,
+                                       surface_detail):
+    return {
+        "status": "active" if continuity_pass.get("enabled", False) else "disabled",
+        "pass": continuity_pass,
+        "glint_overlay": estimate_strip_overlay(glint_pass),
+        "reflection_overlay": estimate_strip_overlay(reflection_pass),
+        "surface_contact_foam_counts": contact_counts,
+        "water_impact_ripple_counts": ripple_counts,
+        "water_volume_scattering": {
+            "enabled": bool(scattering_pass.get("enabled", False)),
+            "layers": as_int(scattering_pass.get("layers"), 0),
+            "alpha_scale": as_float(scattering_pass.get("alpha_scale"), 0.0),
+            "emission_scale": as_float(scattering_pass.get("emission_scale"), 0.0),
+        },
+        "water_surface_detail": surface_detail,
+    }
 
 
 def estimate_water_impact_ripple_counts(path, ripple_pass):
@@ -1295,9 +1429,19 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     water_surface_glint_pass = water_surface_glint_pass_summary(render_preset)
     water_reflection_pass = water_reflection_pass_summary(render_preset)
     water_volume_scattering_pass = water_volume_scattering_pass_summary(render_preset)
+    water_surface_continuity_pass = water_surface_continuity_pass_summary(render_preset)
     metadata_depth_attenuation_pass = metadata_depth_attenuation_pass_summary(render_preset)
     contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
+    water_surface_glint_pass, water_reflection_pass, surface_contact_foam_pass, water_volume_scattering_pass, water_impact_ripple_pass = (
+        apply_water_surface_continuity_pass(
+            water_surface_glint_pass,
+            water_reflection_pass,
+            surface_contact_foam_pass,
+            water_volume_scattering_pass,
+            water_impact_ripple_pass,
+            water_surface_continuity_pass)
+    )
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
     source_window = source_window_for_count(
         renderer_defaults,
@@ -1362,6 +1506,18 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         render_data_summary,
         metadata_depth_attenuation_pass)
 
+    surface_contact_foam_counts = summarize_surface_contact_foam_counts(frames)
+    water_impact_ripple_counts = summarize_water_impact_ripple_counts(frames)
+    water_surface_detail = water_surface_detail_summary(render_preset)
+    water_surface_continuity = summarize_water_surface_continuity(
+        water_surface_continuity_pass,
+        water_surface_glint_pass,
+        water_reflection_pass,
+        surface_contact_foam_counts,
+        water_volume_scattering_pass,
+        water_impact_ripple_counts,
+        water_surface_detail)
+
     return {
         "bridge": "lsfs_blender_bridge",
         "version": 1,
@@ -1378,10 +1534,12 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "secondary_streak_pass": secondary_streak_pass,
         "secondary_streak_counts": summarize_secondary_streak_counts(frames),
         "surface_contact_foam_pass": surface_contact_foam_pass,
-        "surface_contact_foam_counts": summarize_surface_contact_foam_counts(frames),
+        "surface_contact_foam_counts": surface_contact_foam_counts,
         "water_surface_glint_pass": water_surface_glint_pass,
         "water_reflection_pass": water_reflection_pass,
         "water_volume_scattering_pass": water_volume_scattering_pass,
+        "water_surface_continuity_pass": water_surface_continuity_pass,
+        "water_surface_continuity": water_surface_continuity,
         "render_data_summary": render_data_summary_for_report(render_data_summary),
         "metadata_depth_attenuation_pass": metadata_depth_attenuation_pass,
         "metadata_depth_attenuation": metadata_depth_attenuation,
@@ -1396,7 +1554,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "camera_framing": camera_framing_summary(render_preset, frames),
         "camera_path_metrics": camera_path_metrics(frames),
         "water_material": water_material_summary(render_preset),
-        "water_surface_detail": water_surface_detail_summary(render_preset),
+        "water_surface_detail": water_surface_detail,
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "source_window": source_window,
@@ -1936,6 +2094,7 @@ def surface_contact_foam_pass_values(spec):
         "flow_aligned": bool(cfg.get("flow_aligned", False)),
         "flow_center": vector_value(cfg.get("flow_center"), (14.0, 0.0, 11.0), 3),
         "material_falloff": str(cfg.get("material_falloff", "solid")),
+        "keep_ratio": min(1.0, max(0.0, scalar_value(cfg.get("keep_ratio"), 1.0))),
     }
 
 
@@ -2406,11 +2565,14 @@ def add_surface_contact_foam_pass(frame, material, contact_pass):
     radius_z = float(contact_pass.get("radius_z", 0.22))
     flow_aligned = bool(contact_pass.get("flow_aligned", False))
     flow_center = contact_pass.get("flow_center", (14.0, 0.0, 11.0))
+    keep_ratio = min(1.0, max(0.0, float(contact_pass.get("keep_ratio", 1.0))))
     with open(path, encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
+        for row_index, row in enumerate(csv.DictReader(f)):
             if len(patches) >= max_count:
                 break
             if secondary_channel(row) != "foam":
+                continue
+            if keep_ratio < 1.0 and hash01(row_index, 151.0) > keep_ratio:
                 continue
             volume = max(0.05, float(row.get("volume", 1.0)))
             scale = max(0.45, min(1.35, math.sqrt(volume) * 0.55)) * foam_scale
@@ -3209,6 +3371,8 @@ def main(argv=None):
             "water_surface_glint_pass": spec["water_surface_glint_pass"],
             "water_reflection_pass": spec["water_reflection_pass"],
             "water_volume_scattering_pass": spec["water_volume_scattering_pass"],
+            "water_surface_continuity_pass": spec["water_surface_continuity_pass"],
+            "water_surface_continuity": spec["water_surface_continuity"],
             "render_data_summary": spec["render_data_summary"],
             "metadata_depth_attenuation_pass": spec["metadata_depth_attenuation_pass"],
             "metadata_depth_attenuation": spec["metadata_depth_attenuation"],

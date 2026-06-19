@@ -2364,6 +2364,39 @@
         }
       }
     },
+    "dam_break_water_surface_continuity_stabilized": {
+      "extends": "dam_break_secondary_direct_visibility_gate",
+      "description": "S183 with bounded water-surface continuity stabilization for strip, sheet, and contact-ring artifacts.",
+      "renderer": {
+        "water_surface_continuity_pass": {
+          "enabled": true,
+          "glint_count_scale": 0.74,
+          "glint_alpha_scale": 0.82,
+          "glint_width_scale": 0.78,
+          "glint_dropout_add": 0.05,
+          "reflection_count_scale": 0.68,
+          "reflection_alpha_scale": 0.76,
+          "reflection_length_scale": 0.78,
+          "reflection_width_scale": 0.7,
+          "reflection_dropout_add": 0.08,
+          "contact_foam_count_scale": 0.66,
+          "contact_foam_alpha_scale": 0.74,
+          "contact_foam_radius_scale": 0.76,
+          "impact_ripple_count_scale": 0.55,
+          "impact_ripple_alpha_scale": 0.58,
+          "impact_ripple_radius_scale": 0.82,
+          "impact_ripple_width_scale": 0.68,
+          "scattering_alpha_scale": 1.08,
+          "scattering_layer_scale": 1.0
+        },
+        "water_surface_detail": {
+          "enabled": true,
+          "strength": 0.065,
+          "scale": 2.6,
+          "depth": 6
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

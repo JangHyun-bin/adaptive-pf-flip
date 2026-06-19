@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S186.
+Continue with S187.
 
 S183 is implemented and validated:
 
@@ -585,5 +585,17 @@ S185 accepted S183:
 - S185 plan:
   `docs/superpowers/plans/2026-06-19-s183-public-gallery-triage.md`
 
-S186 should add water surface continuity diagnostics and a first bounded
-stabilization preset, then compare S186 against S183.
+S186 is implemented and validated:
+
+- S186 gate report:
+  `docs/reports/cinematic_water_surface_continuity_s186.md`
+- S186 comparison report:
+  `docs/reports/cinematic_water_surface_continuity_comparison_s186.md`
+- S186 plan:
+  `docs/superpowers/plans/2026-06-19-water-surface-continuity-stabilization.md`
+- S186 shot artifacts:
+  `build/shots/s186_water_surface_continuity_stabilized`
+
+S187 should publish the S186 gallery through the existing static gallery and
+Cloudflare quick tunnel workflow, then triage whether to accept S186 or rebound
+surface overlay strength slightly.
