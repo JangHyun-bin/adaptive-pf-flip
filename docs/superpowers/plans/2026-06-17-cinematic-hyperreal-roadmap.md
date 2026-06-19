@@ -3373,3 +3373,32 @@ absolute diff `104.48981417181069`, and max gap max absolute diff `153`. The
 published gallery verifies public `index.html` and `assets/shot.gif` with HTTP
 `200`. Use S330 to judge whether renderer-native material, secondary, and grade
 changes actually move the Mitsuba output toward the accepted target.
+
+S331 added the first renderer-native Mitsuba gap-reduction pass:
+
+- S331 updated tool:
+  `tools/compare_mitsuba_renderer_target_gap.py`
+- S331 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_gap_export_s331.md`
+- S331 render report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_gap_render_s331.md`
+- S331 gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_target_gap_s331.md`
+- S331 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_target_gap_publish_s331.md`
+- S331 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-native-gap-pass.md`
+- S331 public URL:
+  `https://tan-afford-direct-wanting.trycloudflare.com`
+
+S331 extends the target-gap comparison tool with `--actual-render-manifest`,
+then exports and renders a calibrated actual Mitsuba pass with lower background
+radiance, lower water alpha, more secondary proxies, and masked secondary
+opacity. The new actual render is `ready` for `8` frames with `0` failures. The
+new gap gallery is `ready` for `8` frames with `0` missing references, mean gap
+mean absolute diff `55.544113136574076`, and max gap mean absolute diff
+`85.7207773919753`, improving over S330's `74.16963405028292` mean and
+`104.48981417181069` max. The published gallery verifies public `index.html`
+and `assets/shot.gif` with HTTP `200`. Use S331 as the first measured
+renderer-native improvement, while noting that the remaining gap still requires
+a non-sphere secondary representation and renderer-side grade/material work.

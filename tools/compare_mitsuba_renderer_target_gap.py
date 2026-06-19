@@ -48,6 +48,15 @@ def frame_map(frames):
     return {frame.get("frame"): frame for frame in frames if frame.get("frame") is not None}
 
 
+def output_frame_map(frames):
+    return {frame.get("output_frame"): frame for frame in frames if frame.get("output_frame") is not None}
+
+
+def render_preview_path(frame):
+    preview = (frame or {}).get("preview") or {}
+    return preview.get("path") or preview.get("repo_path")
+
+
 def copy_asset(src, assets_dir, name, label, root):
     dest = os.path.join(assets_dir, name)
     if os.path.abspath(src) != os.path.abspath(dest):
@@ -214,6 +223,24 @@ def markdown_report(summary, summary_path, root, next_text):
     return "\n".join(lines)
 
 
+def actual_frame_source(args, root):
+    if args.actual_render_manifest:
+        render_path = require_file(args.actual_render_manifest, "actual render manifest")
+        render = read_json(render_path)
+        if render.get("schema") != "lsfs_mitsuba_xml_render":
+            raise SystemExit(f"{args.actual_render_manifest}: expected lsfs_mitsuba_xml_render schema")
+        if render.get("status") != "ready":
+            raise SystemExit(f"{args.actual_render_manifest}: render status is {render.get('status')!r}")
+        return {
+            "kind": "mitsuba_render_manifest",
+            "path": render_path,
+            "repo_path": posix_rel(render_path, root),
+            "sha256": sha256_file(render_path),
+            "frames": output_frame_map(render.get("frames") or []),
+        }
+    return {"kind": "handoff_base_preview", "frames": None}
+
+
 def compare(args):
     require_pillow()
     root = os.getcwd()
@@ -225,6 +252,7 @@ def compare(args):
         raise SystemExit(f"{args.handoff_manifest}: expected lsfs_mitsuba_renderer_handoff_bundle schema")
     if target.get("schema") != "lsfs_mitsuba_renderer_target_preview":
         raise SystemExit(f"{args.target_summary}: expected lsfs_mitsuba_renderer_target_preview schema")
+    actual_source = actual_frame_source(args, root)
 
     out_dir = os.path.abspath(args.out_dir)
     diff_dir = os.path.join(out_dir, "diffs")
@@ -242,7 +270,11 @@ def compare(args):
     for index, target_frame in enumerate(target_frames):
         frame_id = target_frame.get("frame")
         handoff_frame = handoff_frames.get(frame_id)
-        actual_path = resolve_path(reference_path(handoff_frame or {}, "base_preview"))
+        if actual_source["kind"] == "mitsuba_render_manifest":
+            actual_render_frame = actual_source["frames"].get(target_frame.get("output_frame"))
+            actual_path = resolve_path(render_preview_path(actual_render_frame))
+        else:
+            actual_path = resolve_path(reference_path(handoff_frame or {}, "base_preview"))
         target_image_path = resolve_path(target_frame.get("renderer_target_repo_path"))
         if not actual_path or not os.path.isfile(actual_path) or not target_image_path or not os.path.isfile(target_image_path):
             missing.append({"frame": frame_id, "actual": actual_path, "target": target_image_path})
@@ -291,6 +323,11 @@ def compare(args):
         "source": {
             "handoff_manifest": posix_rel(handoff_path, root),
             "target_summary": posix_rel(target_path, root),
+            "actual_source": {
+                "kind": actual_source["kind"],
+                "repo_path": actual_source.get("repo_path"),
+                "sha256": actual_source.get("sha256"),
+            },
             "public_target_url": ((target.get("source") or {}).get("public_reference") or {}).get("url"),
         },
         "settings": {
@@ -351,6 +388,8 @@ def main(argv=None):
     parser.add_argument("handoff_manifest")
     parser.add_argument("target_summary")
     parser.add_argument("out_dir")
+    parser.add_argument("--actual-render-manifest",
+                        help="optional lsfs_mitsuba_xml_render manifest to compare instead of the handoff base previews")
     parser.add_argument("--fps", type=float, default=2.0)
     parser.add_argument("--keyframes", type=int, default=4)
     parser.add_argument("--title", default="Mitsuba Renderer Target Gap")
