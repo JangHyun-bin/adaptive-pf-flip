@@ -2404,6 +2404,22 @@
         "water": {
           "rim_strength": 0.72,
           "rim_width": 0.26
+        },
+        "water_glint": {
+          "base_color": [0.9, 0.98, 1.0, 1.0],
+          "emission_color": [0.86, 0.98, 1.0, 1.0],
+          "emission_strength": 0.7,
+          "roughness": 0.03,
+          "alpha": 1.0,
+          "transmission": 0.0
+        },
+        "water_reflection": {
+          "base_color": [0.72, 0.92, 1.0, 1.0],
+          "emission_color": [0.66, 0.9, 1.0, 1.0],
+          "emission_strength": 0.58,
+          "roughness": 0.035,
+          "alpha": 1.0,
+          "transmission": 0.0
         }
       },
       "renderer": {
@@ -2426,8 +2442,8 @@
         },
         "water_surface_glint_pass": {
           "count": 225,
-          "alpha_scale": 0.42,
-          "emission_scale": 0.84,
+          "alpha_scale": 0.44,
+          "emission_scale": 0.92,
           "segment_count": 3,
           "segment_gap": 0.12,
           "dropout": 0.045
@@ -2436,8 +2452,8 @@
           "count": 82,
           "length": 5.05,
           "width": 0.12,
-          "alpha_scale": 0.43,
-          "emission_scale": 0.85,
+          "alpha_scale": 0.44,
+          "emission_scale": 0.9,
           "segment_count": 3,
           "segment_gap": 0.14,
           "dropout": 0.04

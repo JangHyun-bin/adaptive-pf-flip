@@ -1424,3 +1424,27 @@ highlight ratio is non-negative at `0.0` delta, and calibration deltas remain
 strong (`luma_p99 +9.40625`, `luma_p995 +11.4375`). Promote the S236 material
 response into `dam_break_water_mesh_smoothing` in S238 and run accepted-preset
 parity against S237.
+
+S238 accepted the material highlight response:
+
+- S238 acceptance report:
+  `docs/reports/cinematic_highlight_material_acceptance_s238.md`
+- S238 gallery report:
+  `docs/reports/cinematic_highlight_material_acceptance_gallery_s238.md`
+- S238 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-material-acceptance.md`
+- S238 gallery:
+  `build/shots/s238_highlight_material_acceptance/gallery/index.html`
+
+S238 folds the S236/S237 `water_glint` and `water_reflection` material response
+plus bounded pass scale updates into `dam_break_water_mesh_smoothing`. The
+32-frame accepted render passes the surface-quality gate with `normal_rough: 3`,
+`stable: 29`, stable ratio `0.90625`, and blocked labels `0`. Against S237,
+parity holds within render noise: mean luminance delta is
+`-5.018446174176461e-06`, and bright ratio, highlight ratio, nonblank ratio,
+minimum contrast, calibration deltas, and direct secondary counts are unchanged.
+Against S230 accepted foreground-volume, S238 preserves coverage and hard
+highlight ratio while improving mean luminance by `0.5719794379340328`, minimum
+contrast by `16.0`, bright ratio by `2.943250868055555e-05`, `luma_p99` by
+`9.40625`, and `luma_p995` by `11.4375`. Use S238 as the current accepted
+cinematic water baseline.
