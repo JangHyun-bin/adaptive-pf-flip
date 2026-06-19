@@ -2973,3 +2973,27 @@ reports `0` failures. It records `1` expected warning:
 `mitsuba_executable_missing`, because `mitsuba` is not installed or not on PATH.
 Use S313 to distinguish the now-valid XML scene contract from the remaining
 external renderer executable dependency.
+
+S314 added a visual preview path for Mitsuba XML geometry before Mitsuba is
+installed:
+
+- S314 tool:
+  `tools/preview_mitsuba_xml_export.py`
+- S314 preview report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_preview_s314.md`
+- S314 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_preview_gallery_s314.md`
+- S314 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-xml-preview.md`
+- S314 preview summary:
+  `build/shots/s314_larger_external_renderer_mitsuba_xml_preview/frames/render_summary.json`
+- S314 gallery:
+  `build/shots/s314_larger_external_renderer_mitsuba_xml_preview/gallery/index.html`
+
+S314 parses the S312 XML scenes, projects water OBJ vertices plus phase/secondary
+proxy sphere geometry into `48` `960 x 540` top-down PNG frames, assembles a
+`1254704` byte GIF, and builds a static gallery. The preview reports minimum
+occupancy `0.07859760802469136`, `7680` total sphere shapes, and up to `7000`
+water vertices drawn per frame. This is not a physically rendered image, but it
+is the first inspectable visual artifact generated from the non-Blender XML
+scene bundle itself.
