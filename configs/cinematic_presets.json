@@ -2601,6 +2601,32 @@
         }
       }
     },
+    "dam_break_secondary_readability_strong_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S222 stronger soft/streak-only secondary readability probe for A/B before promotion.",
+      "renderer": {
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 3.55,
+            "foam": 2.95
+          },
+          "alpha_scale": 0.36,
+          "emission_scale": 0.84,
+          "max_radius": 1.34
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 1.18,
+            "foam": 0.45
+          },
+          "length_scale": 0.074,
+          "max_length": 1.42,
+          "width_scale": 0.33,
+          "alpha_scale": 0.17,
+          "emission_scale": 0.76
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

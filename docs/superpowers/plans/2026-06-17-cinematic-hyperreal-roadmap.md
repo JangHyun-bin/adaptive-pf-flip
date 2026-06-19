@@ -1109,3 +1109,25 @@ match S220 on all 8 review frames. Against S220, contrast, coverage, bright
 ratio, and highlight ratio remain unchanged while mean luminance rises by
 `0.0604996744791606`. S221 is safe but visually subtle; keep it as opt-in and
 run a stronger soft/streak-only A/B before promotion.
+
+S222 A/B tested a stronger secondary readability candidate:
+
+- S222 S220 comparison report:
+  `docs/reports/cinematic_secondary_readability_strong_probe_s222.md`
+- S222 S221 comparison report:
+  `docs/reports/cinematic_secondary_readability_s221_s222_comparison.md`
+- S222 gallery report:
+  `docs/reports/cinematic_secondary_readability_strong_gallery_s222.md`
+- S222 plan:
+  `docs/superpowers/plans/2026-06-19-secondary-readability-strong-probe.md`
+- S222 gallery:
+  `build/shots/s222_secondary_readability_strong_probe/gallery/index.html`
+
+S222 introduces `dam_break_secondary_readability_strong_probe`, still leaving
+`secondary_direct_pass` unchanged and tuning only soft mist/streak rendering.
+The mixed gate passed and direct secondary counts match S220/S221 on all review
+frames. Against S220, S222 preserves coverage, minimum contrast, bright ratio,
+and highlight ratio while improving mean luminance by `0.17864746093749773`.
+Against S221, it adds another `0.11814778645833712` mean luminance with the same
+bounded metrics. Prefer S222 as the secondary readability promotion candidate;
+S223 should fold it into the accepted preset and revalidate.
