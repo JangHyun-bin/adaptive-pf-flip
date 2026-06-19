@@ -2467,6 +2467,48 @@
         }
       }
     },
+    "dam_break_water_mesh_depth_reflection_contrast_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S217 contrast-preserving depth/reflection probe tuned between S214 accepted and S216.",
+      "materials": {
+        "water": {
+          "depth_strength": 0.74,
+          "rim_strength": 0.64,
+          "roughness": 0.038,
+          "alpha": 0.65,
+          "transmission": 0.23
+        }
+      },
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 184,
+          "alpha_scale": 0.325,
+          "emission_scale": 0.68,
+          "segment_count": 3,
+          "segment_gap": 0.17,
+          "dropout": 0.09
+        },
+        "water_reflection_pass": {
+          "count": 68,
+          "length": 4.45,
+          "width": 0.1,
+          "alpha_scale": 0.325,
+          "emission_scale": 0.68,
+          "segment_count": 4,
+          "segment_gap": 0.19,
+          "dropout": 0.085
+        },
+        "water_volume_scattering_pass": {
+          "alpha_scale": 0.285,
+          "emission_scale": 0.35
+        },
+        "water_surface_detail": {
+          "strength": 0.054,
+          "scale": 2.72,
+          "depth": 6
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

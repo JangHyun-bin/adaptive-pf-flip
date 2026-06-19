@@ -1005,3 +1005,22 @@ against S214 drops minimum contrast by `-8.0` and mean luminance by
 `-0.7349235026041754` despite higher bright/highlight ratios. Do not promote
 S216 yet. S217 should tune this probe to recover contrast while preserving the
 useful highlight increase.
+
+S217 tested a contrast-preserving depth/reflection tune:
+
+- S217 S214 comparison report:
+  `docs/reports/cinematic_water_depth_reflection_contrast_probe_s217.md`
+- S217 S216 comparison report:
+  `docs/reports/cinematic_water_depth_reflection_s216_s217_comparison.md`
+- S217 gallery report:
+  `docs/reports/cinematic_water_depth_reflection_contrast_gallery_s217.md`
+- S217 plan:
+  `docs/superpowers/plans/2026-06-19-water-depth-reflection-contrast-probe.md`
+- S217 gallery:
+  `build/shots/s217_depth_reflection_contrast_probe/gallery/index.html`
+
+S217 introduces `dam_break_water_mesh_depth_reflection_contrast_probe`, but it is
+not a promotion candidate. It recovers some luminance compared with S216
+(`+0.4082052951388988`) and preserves coverage, but against S214 the minimum
+contrast delta is `-13.0`, worse than S216's `-8.0`. S218 should stop changing
+the accepted water material and isolate reflection/glint overlay tuning only.
