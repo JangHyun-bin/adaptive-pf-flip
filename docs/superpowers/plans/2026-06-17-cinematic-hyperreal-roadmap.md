@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S192.
+Continue with S193.
 
 S183 is implemented and validated:
 
@@ -639,5 +639,13 @@ S191 is implemented and validated:
 - S191 plan: `docs/superpowers/plans/2026-06-19-water-mesh-smoothing.md`
 - S191 shot artifacts: `build/shots/s191_water_mesh_smoothing`
 
-S192 should publish the S191 gallery through the existing static gallery and
-Cloudflare quick tunnel workflow.
+S192 is published:
+
+- Public gallery: `https://emacs-bases-teens-health.trycloudflare.com`
+- S192 gallery report:
+  `docs/reports/cinematic_water_mesh_smoothing_gallery_s192.md`
+- S192 publish report: `docs/reports/cinematic_gallery_publish_s192.md`
+- S192 plan: `docs/superpowers/plans/2026-06-19-s191-gallery-publish.md`
+
+S193 should triage the public S191 gallery and decide whether to accept the
+mesh smoothing pass or reduce smoothing strength.
