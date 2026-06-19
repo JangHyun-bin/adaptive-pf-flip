@@ -37,3 +37,22 @@ milestone from current public evidence.
 - A checked-in triage report records the public URL, gate metrics, visual
   findings, and one selected next milestone.
 - The roadmap is updated with the selected milestone.
+
+## Result
+
+S167 selected S168 water depth and foreground separation pass.
+
+Report:
+
+- `docs/reports/cinematic_visual_review_s167.md`
+
+Key finding:
+
+- S165 sufficiently reduces the dominant S162 ceiling-like source slab.
+- The next visible blocker is that foreground, midground, and background water
+  still merge into a flat blue sheet.
+
+Next:
+
+- S168: add a bounded render-side depth/readability preset over the S165 cache
+  and compare against S165.
