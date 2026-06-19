@@ -203,7 +203,8 @@ The missing work is not one feature. It is a pipeline:
 | S155 | S154 gallery refresh/publish | Package and publish the S154 review artifacts for external inspection before the next visual triage | Done in `docs: publish s154 cinematic gallery` |
 | S156 | S154 public gallery visual triage | Review the S154 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s154 public gallery` |
 | S157 | Contact foam sheet continuity pass | Broaden and connect surface contact foam strokes/wakes around the impact region over S154 while preserving gates | Done in `style: add contact foam sheet continuity` |
-| S158 | S157 gallery refresh/publish | Package and publish the S157 review artifacts for external inspection before the next visual triage | Planned |
+| S158 | S157 gallery refresh/publish | Package and publish the S157 review artifacts for external inspection before the next visual triage | Done in `docs: publish s157 cinematic gallery` |
+| S159 | S157 public gallery visual triage | Review the S157 public gallery and choose the next concrete visible shot adjustment from current evidence | Planned |
 
 ## Decision Gates
 
@@ -541,18 +542,16 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S158.
+Continue with S159.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-s157-gallery-refresh-publish.md`
+`docs/superpowers/plans/2026-06-18-s157-public-gallery-triage.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\package_cinematic_artifacts.py build\shots\s157_contact_foam_sheet_continuity --out docs\reports\cinematic_artifact_package_s158.md
-python tools\build_cinematic_gallery.py build\shots\s157_contact_foam_sheet_continuity --package docs\reports\cinematic_artifact_package_s158.md --out build\shots\s157_contact_foam_sheet_continuity\gallery --report docs\reports\cinematic_static_gallery_s158.md
-python tools\publish_cinematic_gallery.py build\shots\s157_contact_foam_sheet_continuity\gallery --port 8817 --cftunnel --manifest build\shots\s157_contact_foam_sheet_continuity\gallery\publish_manifest_s158.json --report docs\reports\cinematic_gallery_publish_s158.md --timeout-seconds 120
+python tools\summarize_cinematic_gallery_review.py build\shots\s157_contact_foam_sheet_continuity\gallery\gallery_manifest.json --publish build\shots\s157_contact_foam_sheet_continuity\gallery\publish_manifest_s158.json --out docs\reports\cinematic_visual_review_s159.md --finding "S157 broadens flow-aligned contact foam strokes while preserving S154 mist integration and all review gates." --decision "Select the next visible adjustment from the S157 public gallery." --next "TBD by S159 triage."
 ```
 
-The next success condition is a checked-in S158 gallery publish report with local and public `index.html` plus `assets/shot.gif` verified.
+The next success condition is a checked-in S159 triage report that records public gallery coverage, visual findings, and the next concrete visible cinematic adjustment.
