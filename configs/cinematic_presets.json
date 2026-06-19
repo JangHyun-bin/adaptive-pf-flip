@@ -2878,6 +2878,51 @@
         }
       }
     },
+    "dam_break_water_body_thickness_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S244 bounded water-body thickness/refraction probe that keeps accepted foam/highlight overlays while deepening the main water volume.",
+      "materials": {
+        "water": {
+          "depth_strength": 0.76,
+          "rim_strength": 0.68,
+          "rim_width": 0.27,
+          "roughness": 0.04,
+          "alpha": 0.66,
+          "transmission": 0.22
+        },
+        "water_volume_scatter": {
+          "emission_strength": 0.06,
+          "roughness": 0.9,
+          "alpha": 0.16,
+          "transmission": 0.0
+        }
+      },
+      "renderer": {
+        "water_volume_scattering_pass": {
+          "enabled": true,
+          "layers": 20,
+          "region_min": [1.0, 0.9, 2.6],
+          "region_max": [34.2, 8.8, 24.5],
+          "inset": 0.76,
+          "alpha_scale": 0.32,
+          "emission_scale": 0.44
+        },
+        "water_volume_occlusion_pass": {
+          "enabled": false,
+          "layers": 0,
+          "region_min": [1.0, 0.9, 2.6],
+          "region_max": [34.2, 6.8, 24.5],
+          "inset": 0.88,
+          "alpha_scale": 0.0,
+          "emission_scale": 0.0
+        },
+        "water_surface_detail": {
+          "strength": 0.054,
+          "scale": 2.72,
+          "depth": 6
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",

@@ -1562,3 +1562,26 @@ strongest gain luma delta `55`. The sheet shows the S242 gain clustered around
 contact foam and ripple speckles, especially in the middle of the motion window,
 while loss is smaller and scattered. With foam/readability accepted and
 localized, move next to water-body thickness/refraction.
+
+S244 added a water-body thickness/refraction probe:
+
+- S244 report:
+  `docs/reports/cinematic_water_body_thickness_probe_s244.md`
+- S244 gallery report:
+  `docs/reports/cinematic_water_body_thickness_gallery_s244.md`
+- S244 plan:
+  `docs/superpowers/plans/2026-06-19-water-body-thickness-probe.md`
+- S244 gallery:
+  `build/shots/s244_water_body_thickness_probe/gallery/index.html`
+
+S244 adds `dam_break_water_body_thickness_probe`, a bounded probe that keeps
+accepted foam/ripple/glint/reflection overlays unchanged while tuning water
+material depth/alpha/transmission and slightly increasing water-volume
+scattering. The matched 16-frame gate passes with `normal_rough: 2`,
+`stable: 14`, stable ratio `0.875`, and blocked labels `0`. Against S242
+accepted 16-frame baseline, contact foam, impact ripple, and secondary streak
+mean counts are unchanged; mean luminance rises by `0.3961309136284683`, bright
+ratio by `3.065321180555552e-05`, highlight ratio by
+`1.6818576388888902e-05`, and `luma_p99` by `0.125`, with nonblank coverage
+unchanged. Remaining watch items are minimum contrast `-1.0` and `luma_p99.5`
+`-0.125`, so S244 should go to S245 32-frame motion review before acceptance.
