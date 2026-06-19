@@ -2376,3 +2376,21 @@ sharper. The local minimum contrast delta is `-9.0`, recorded as a resolution
 review note rather than an accepted-preset regression. Use S282 as the
 high-resolution bridge review artifact while keeping S269 as the accepted preset
 baseline.
+
+S283 published the S282 high-resolution bridge review gallery:
+
+- S283 publish report:
+  `docs/reports/cinematic_accepted_bridge_hires_publish_s283.md`
+- S283 plan:
+  `docs/superpowers/plans/2026-06-20-accepted-bridge-hires-publish.md`
+- S283 manifest:
+  `build/shots/s283_s282_bridge_hires_publish/publish_manifest.json`
+- S283 public URL:
+  `https://staff-held-cheese-organized.trycloudflare.com`
+
+S283 stops the previous S270/S269 accepted-gallery endpoint, serves the S282
+gallery on local port `8900`, and starts a new Cloudflare quick tunnel. Local
+and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
+The new HTTP server PID is `138664`, and the Cloudflared PID is `38632`. S283 is
+now the current high-resolution bridge-review endpoint; S281 remains active
+separately as the lightweight external-bundle benchmark preview endpoint.
