@@ -1280,3 +1280,22 @@ ratio `0.90625`, and blocked labels `0`. Against S229, parity holds within
 render noise: mean luminance delta is `-1.2207031261368684e-06`, all other
 aggregate deltas are `0.0`, and direct secondary counts match on all 32 frames.
 Use S230 as the accepted foreground-volume baseline.
+
+S231 tested overlay-only highlight recovery after S230:
+
+- S231 comparison report:
+  `docs/reports/cinematic_highlight_energy_recovery_probe_s231.md`
+- S231 gallery report:
+  `docs/reports/cinematic_highlight_energy_recovery_gallery_s231.md`
+- S231 plan:
+  `docs/superpowers/plans/2026-06-19-highlight-energy-recovery-probe.md`
+- S231 gallery:
+  `build/shots/s231_highlight_energy_recovery_probe/gallery/index.html`
+
+S231 introduces `dam_break_highlight_energy_recovery_probe`, changing only
+glint/reflection overlay controls. It is safe but insufficient: the 16-frame
+gate passes with `normal_rough: 2`, `stable: 14`, direct secondary counts match
+on all frames, nonblank coverage and minimum contrast are preserved, and mean
+luminance rises by `0.1705642361111046`, but bright/highlight ratio deltas are
+both `0.0`. Keep S231 opt-in and run a stronger S232 overlay-only candidate
+before any promotion.

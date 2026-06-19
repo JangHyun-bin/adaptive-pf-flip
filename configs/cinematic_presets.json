@@ -2677,6 +2677,30 @@
         }
       }
     },
+    "dam_break_highlight_energy_recovery_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S231 overlay-only highlight energy recovery probe after foreground-volume promotion.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 232,
+          "alpha_scale": 0.45,
+          "emission_scale": 0.9,
+          "segment_count": 3,
+          "segment_gap": 0.115,
+          "dropout": 0.04
+        },
+        "water_reflection_pass": {
+          "count": 86,
+          "length": 5.15,
+          "width": 0.122,
+          "alpha_scale": 0.46,
+          "emission_scale": 0.92,
+          "segment_count": 3,
+          "segment_gap": 0.13,
+          "dropout": 0.035
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
