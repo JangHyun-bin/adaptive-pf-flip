@@ -1024,3 +1024,24 @@ not a promotion candidate. It recovers some luminance compared with S216
 (`+0.4082052951388988`) and preserves coverage, but against S214 the minimum
 contrast delta is `-13.0`, worse than S216's `-8.0`. S218 should stop changing
 the accepted water material and isolate reflection/glint overlay tuning only.
+
+S218 isolated reflection/glint overlay tuning:
+
+- S218 comparison report:
+  `docs/reports/cinematic_water_overlay_highlight_probe_s218.md`
+- S218 gallery report:
+  `docs/reports/cinematic_water_overlay_highlight_gallery_s218.md`
+- S218 plan:
+  `docs/superpowers/plans/2026-06-19-water-overlay-highlight-probe.md`
+- S218 gallery:
+  `build/shots/s218_overlay_highlight_probe/gallery/index.html`
+
+S218 introduces `dam_break_water_mesh_overlay_highlight_probe`. It keeps the
+accepted water material, volume scattering, water surface detail, mesh smoothing,
+and label-gated `normal_rough` smoothing unchanged, then tunes only glint and
+reflection overlay controls. The mixed gate passed with `normal_rough: 1` and
+`stable: 7`. Against S214 accepted, nonblank coverage, minimum contrast,
+bright ratio, and highlight ratio are unchanged, while mean luminance improves
+by `0.1124663628472149`. S218 is the current safe overlay-highlight promotion
+candidate; S219 should either fold it into the accepted preset or A/B one
+slightly stronger overlay-only variant first.

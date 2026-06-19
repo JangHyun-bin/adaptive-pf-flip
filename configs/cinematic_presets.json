@@ -2509,6 +2509,30 @@
         }
       }
     },
+    "dam_break_water_mesh_overlay_highlight_probe": {
+      "extends": "dam_break_water_mesh_smoothing",
+      "description": "S218 overlay-only highlight probe that leaves accepted water material, scatter, and mesh smoothing unchanged.",
+      "renderer": {
+        "water_surface_glint_pass": {
+          "count": 202,
+          "alpha_scale": 0.36,
+          "emission_scale": 0.76,
+          "segment_count": 3,
+          "segment_gap": 0.14,
+          "dropout": 0.07
+        },
+        "water_reflection_pass": {
+          "count": 74,
+          "length": 4.78,
+          "width": 0.11,
+          "alpha_scale": 0.37,
+          "emission_scale": 0.78,
+          "segment_count": 3,
+          "segment_gap": 0.16,
+          "dropout": 0.055
+        }
+      }
+    },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with lighter water mesh smoothing.",
