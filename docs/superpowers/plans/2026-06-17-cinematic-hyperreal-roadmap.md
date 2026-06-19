@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S193.
+Continue with S194.
 
 S183 is implemented and validated:
 
@@ -647,5 +647,11 @@ S192 is published:
 - S192 publish report: `docs/reports/cinematic_gallery_publish_s192.md`
 - S192 plan: `docs/superpowers/plans/2026-06-19-s191-gallery-publish.md`
 
-S193 should triage the public S191 gallery and decide whether to accept the
-mesh smoothing pass or reduce smoothing strength.
+S193 accepted S191:
+
+- S193 triage report: `docs/reports/cinematic_public_gallery_triage_s193.md`
+- S193 plan: `docs/superpowers/plans/2026-06-19-s191-public-gallery-triage.md`
+
+S194 should build a probe matrix for bounded smoothing strength and
+renderer-side water-volume occlusion candidates, then select one candidate for a
+full render.
