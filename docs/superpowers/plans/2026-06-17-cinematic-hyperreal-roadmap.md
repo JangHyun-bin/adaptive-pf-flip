@@ -2777,3 +2777,18 @@ and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
 The HTTP server PID is `17836`, and the Cloudflared PID is `160000`. Use S303
 as the current public larger-job 24-frame Blender sample endpoint while S292
 remains active separately as the full32 job-path proof endpoint.
+
+S304 packaged the S302/S303 larger-job 24-frame Blender proof:
+
+- S304 package report:
+  `docs/reports/cinematic_larger_renderer_job_sample24_proof_package_s304.md`
+- S304 plan:
+  `docs/superpowers/plans/2026-06-20-larger-renderer-job-sample24-proof-package.md`
+- S304 package JSON:
+  `build/shots/s304_larger_renderer_job_sample24_proof_package/review_package.json`
+
+S304 collects `12` visual/metadata artifacts from the S302 gallery and `4`
+summary sources: the S295 larger renderer job, the S302-vs-S291 comparison,
+the S303 publish manifest, and the S301 12-frame proof package. Use S304 as
+the current larger-job 24-frame proof package before full 48-frame renders or
+non-Blender external renderer adapters.
