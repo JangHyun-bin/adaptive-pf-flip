@@ -2430,3 +2430,21 @@ payloads. The generated job is `ready` with `32` frames, `960 x 540`, `8` FPS,
 `12` samples, `0` missing assets, `0` camera failures, minimum water mesh faces
 `17720`, and a `1.37 GB` input footprint. Use S285 as the renderer handoff
 contract before writing a renderer-specific adapter or larger-shot job variant.
+
+S286 made S285 renderer jobs previewable:
+
+- S286 preview report:
+  `docs/reports/cinematic_external_renderer_job_preview_s286.md`
+- S286 gallery report:
+  `docs/reports/cinematic_external_renderer_job_preview_gallery_s286.md`
+- S286 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-preview.md`
+- S286 gallery:
+  `build/shots/s286_external_renderer_job_preview/gallery/index.html`
+
+S286 extends `tools/cinematic_render_stub.py` so `lsfs_external_renderer_job`
+inputs can drive the existing preview renderer directly. The S285 job rendered
+a `16` frame `960 x 540` preview with minimum occupancy
+`0.05804398148148148`, assembled a GIF, and built a `9` asset gallery. Use S286
+as the visual smoke test for the renderer job schema before publishing the
+gallery or writing a renderer-specific adapter.

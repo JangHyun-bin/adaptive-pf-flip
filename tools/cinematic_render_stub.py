@@ -3,11 +3,11 @@
 
 This is a preview renderer, not the final SPEC-4 renderer. It accepts a
 canonical render cache manifest, an S38 converted sequence.json bundle, an S273
-external render bundle, or a single JSONL frame, then writes frame_####.png
-images plus render_summary.json.
+external render bundle, an S285 external renderer job, or a single JSONL frame,
+then writes frame_####.png images plus render_summary.json.
 
 Usage:
-  python tools/cinematic_render_stub.py <manifest.json|sequence.json|external_render_bundle.json|frame.jsonl> <out_dir> --frames 12
+  python tools/cinematic_render_stub.py <manifest.json|sequence.json|external_render_bundle.json|external_renderer_job.json|frame.jsonl> <out_dir> --frames 12
 """
 
 import argparse
@@ -297,7 +297,23 @@ def external_bundle_selected_entries(path, requested_frames):
     return entries
 
 
-def load_external_bundle_frame(path, entry, fallback_index=0):
+def external_job_selected_entries(path, requested_frames):
+    data = read_json(path)
+    if data.get("schema") != "lsfs_external_renderer_job":
+        fail(f"{path}: not an LSFS external renderer job")
+    if data.get("status") != "ready":
+        fail(f"{path}: external renderer job status is {data.get('status')!r}")
+    job_frames = data.get("frames", [])
+    if not job_frames:
+        fail(f"{path}: external renderer job has no frames")
+    out_count = max(1, requested_frames)
+    entries = []
+    for out_index in range(out_count):
+        entries.append(select_resampled(job_frames, out_index, out_count))
+    return entries
+
+
+def load_external_bundle_frame(path, entry, fallback_index=0, source_prefix="external_bundle"):
     label = f"{path}: frames[{entry.get('output_frame', fallback_index)}]"
     camera_path = load_bundle_asset(entry, "camera", label)
     particles_path = load_bundle_asset(entry, "particles", label)
@@ -305,7 +321,7 @@ def load_external_bundle_frame(path, entry, fallback_index=0):
     mesh_path = load_bundle_asset(entry, "water_mesh", label)
     payload = read_json(camera_path)
     frame = {
-        "source": f"external_bundle:{entry.get('output_frame', fallback_index)}",
+        "source": f"{source_prefix}:{entry.get('output_frame', fallback_index)}",
         "header": payload.get("header", {}),
         "camera": payload.get("camera", {}),
         "cinematic": payload.get("cinematic_metadata"),
@@ -379,9 +395,11 @@ def load_source(path):
         return load_sequence(path)
     if data.get("schema") == "lsfs_bridge_external_render_bundle":
         fail(f"{path}: external render bundle input requires the selected-frame loader")
+    if data.get("schema") == "lsfs_external_renderer_job":
+        fail(f"{path}: external renderer job input requires the selected-frame loader")
     if data.get("lsfs_cache3d_manifest_version") == 1:
         return load_manifest(path)
-    fail(f"{path}: expected manifest, sequence.json, external render bundle, or JSONL frame")
+    fail(f"{path}: expected manifest, sequence.json, external render bundle, external renderer job, or JSONL frame")
 
 
 def make_background(width, height):
@@ -605,7 +623,7 @@ def count_nonzero(mask):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Render cinematic PNG previews from LSFS cache data")
-    parser.add_argument("src", help="render cache manifest, converted sequence.json, external render bundle, or JSONL frame")
+    parser.add_argument("src", help="render cache manifest, converted sequence.json, external render bundle, external renderer job, or JSONL frame")
     parser.add_argument("out_dir", help="output directory")
     parser.add_argument("--frames", type=int, default=12, help="number of preview frames to write")
     parser.add_argument("--width", type=int, default=1280, help="output image width")
@@ -646,6 +664,24 @@ def main(argv=None):
                     select_mesh_frame(reconstruction_mesh_frames, i, args.frames)
                     if reconstruction_mesh_frames
                     else bundle_mesh_frame
+                )
+                out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
+                summaries.append(render_frame(frame,
+                                              out_path,
+                                              args.width,
+                                              args.height,
+                                              args.secondary_channel,
+                                              mesh_frame))
+        elif source_data and source_data.get("schema") == "lsfs_external_renderer_job":
+            job_entries = external_job_selected_entries(args.src, args.frames)
+            reconstruction_mesh_frames = load_water_reconstruction(args.water_reconstruction)
+            for i, entry in enumerate(job_entries):
+                frame, job_mesh_frame = load_external_bundle_frame(
+                    args.src, entry, i, source_prefix="external_job")
+                mesh_frame = (
+                    select_mesh_frame(reconstruction_mesh_frames, i, args.frames)
+                    if reconstruction_mesh_frames
+                    else job_mesh_frame
                 )
                 out_path = os.path.join(args.out_dir, f"frame_{i:04d}.png")
                 summaries.append(render_frame(frame,
