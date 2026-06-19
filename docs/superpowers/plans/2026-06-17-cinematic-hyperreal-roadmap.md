@@ -1928,3 +1928,25 @@ minimum contrast by `5.0`, raises mean frame contrast by `7.34375`, and reduces
 bright, highlight, near-highlight, and specular ratios. S260 is now the current
 accepted bridge-render visual baseline. Refresh the accepted review package
 and public gallery from S260 next.
+
+S261 refreshed and published the S260 accepted review package:
+
+- S261 package report:
+  `docs/reports/cinematic_accepted_review_package_s261.md`
+- S261 publish report:
+  `docs/reports/cinematic_s260_gallery_publish_s261.md`
+- S261 plan:
+  `docs/superpowers/plans/2026-06-20-s260-review-package-publish.md`
+- S261 package JSON:
+  `build/shots/s261_accepted_review_package/review_package.json`
+- S261 public URL:
+  `https://permits-cat-tall-certainly.trycloudflare.com`
+
+S261 packages S260 with `12` artifacts and `4` summary sources:
+`s260_parity`, `s260_baseline_delta`, `s260_surface_gate`, and
+`s259_motion_review`. It also stops the previous S257/S255 tunnel and publishes
+the S260 gallery through a new Cloudflare quick tunnel. Local and public
+`index.html` plus `assets/shot.gif` return HTTP `200`. This supersedes S256/S257
+as the current external review package and public gallery endpoint. Continue
+with the next visible pass only after review, or move back to renderer-data/
+export schema work if the S260 shot is acceptable for now.
