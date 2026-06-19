@@ -1542,3 +1542,23 @@ the intended foam/ripple readability: contact foam mean count rises from
 mean luminance rises by `0.16201321072048813`, bright ratio improves by
 `2.3057725694444525e-06`, and coverage/minimum contrast/hard highlight ratio
 remain unchanged. Use S242 as the current accepted cinematic water baseline.
+
+S243 added foam/readability contribution diagnostics:
+
+- S243 report:
+  `docs/reports/cinematic_foam_readability_contribution_diagnostics_s243.md`
+- S243 plan:
+  `docs/superpowers/plans/2026-06-19-foam-readability-contribution-diagnostics.md`
+- S243 diagnostic sheet:
+  `build/shots/s243_foam_readability_contribution_diagnostics/diagnostic_sheet.png`
+- S243 masks:
+  `build/shots/s243_foam_readability_contribution_diagnostics/masks/`
+
+S243 compares S238 accepted highlight-material against S242 accepted
+foam/readability with upper-tail gain/loss masks. The diagnostic reports gain
+ratio `0.00255615234375`, loss ratio `0.0001691351996527778`, net gain ratio
+`0.0023870171440972224`, mean gain luma delta `12.237818422405875`, and
+strongest gain luma delta `55`. The sheet shows the S242 gain clustered around
+contact foam and ripple speckles, especially in the middle of the motion window,
+while loss is smaller and scattered. With foam/readability accepted and
+localized, move next to water-body thickness/refraction.
