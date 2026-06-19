@@ -3328,3 +3328,23 @@ reference. The generated `lsfs_mitsuba_renderer_target_preview` is `ready` for
 and max target mean absolute diff `0.0`. The published gallery verifies public
 `index.html` and `assets/shot.gif` with HTTP `200`. Use S328 as the visual target
 reference for moving secondary and grade work into the actual renderer.
+
+S329 added a validator for the S328 renderer target preview:
+
+- S329 new tool:
+  `tools/validate_mitsuba_renderer_target_preview.py`
+- S329 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_preview_validation_s329.md`
+- S329 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-target-preview-validation.md`
+- S329 validation JSON:
+  `build/shots/s329_mitsuba_renderer_target_preview_validation/validation.json`
+
+S329 checks the S328 summary schema/version/status, frame count, missing
+reference count, composite and target diff thresholds, per-frame renderer
+secondary, target, diff, and strip image paths, target image hashes, and the
+published public URL when requested. The committed validation run passed `62`
+checks with `0` failures and `0` skipped checks, including public HTTP `200`
+checks for `index.html` and `assets/shot.gif`. Use S329 as the gate before
+changing the renderer target preview or replacing it with a renderer-native
+secondary/grade implementation.
