@@ -505,6 +505,7 @@ def convert_frame(manifest,
         result["water_mesh"] = output_relpath(water_frame["_abs_mesh"], out_dir)
         result["water_mesh_vertex_count"] = water_frame.get("vertex_count", 0)
         result["water_mesh_face_count"] = water_frame.get("face_count", 0)
+        result["water_mesh_occupied_cell_count"] = water_frame.get("occupied_cell_count", 0)
     return result
 
 

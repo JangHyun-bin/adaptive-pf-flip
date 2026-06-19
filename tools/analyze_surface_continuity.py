@@ -187,7 +187,7 @@ def write_csv(path: Path, rows) -> None:
             writer.writerow(row)
 
 
-def build_summary(bridge_path: Path, rows, out_dir: Path):
+def build_summary(bridge_path: Path, rows, out_dir: Path, next_recommendation=None):
     checks = [
         {
             "name": "frames_present",
@@ -245,7 +245,7 @@ def build_summary(bridge_path: Path, rows, out_dir: Path):
             "Mesh face count rises late in the shot, which aligns with the remaining structural sheet and lobe artifacts.",
             "Secondary totals jump late in the shot, but S186 already reduces overlay density, so the next pass should measure or modify water reconstruction instead of only material alpha.",
         ],
-        "next_recommendation": "Use these diagnostics to choose S190: mesh smoothing/reconstruction continuity, renderer-side volume occlusion, or a reconstruction export change.",
+        "next_recommendation": next_recommendation or "Use these diagnostics to choose the next pass: mesh smoothing/reconstruction continuity, renderer-side volume occlusion, or a reconstruction export change.",
     }
 
 
@@ -270,11 +270,11 @@ def markdown_value(value):
     return str(value)
 
 
-def write_report(path: Path, summary) -> None:
+def write_report(path: Path, summary, title) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     trends = summary["trends"]
     lines = [
-        "# S189 Surface Reconstruction Continuity Diagnostics",
+        f"# {title}",
         "",
         f"Generated UTC: `{summary['generated_utc']}`",
         f"Status: `{summary['status']}`",
@@ -369,6 +369,10 @@ def parse_args():
     parser.add_argument("bridge_summary", help="Blender bridge_summary.json")
     parser.add_argument("--out-dir", required=True, help="Output diagnostic directory")
     parser.add_argument("--report", help="Optional Markdown report path")
+    parser.add_argument("--title", default="Surface Reconstruction Continuity Diagnostics",
+                        help="Markdown report title")
+    parser.add_argument("--next", dest="next_text",
+                        help="Override the Markdown/JSON next recommendation")
     return parser.parse_args()
 
 
@@ -381,10 +385,10 @@ def main() -> int:
     csv_path = out_dir / "surface_continuity_profile.csv"
     json_path = out_dir / "surface_continuity_summary.json"
     write_csv(csv_path, rows)
-    summary = build_summary(bridge_path, rows, out_dir)
+    summary = build_summary(bridge_path, rows, out_dir, args.next_text)
     write_json(json_path, summary)
     if args.report:
-        write_report(Path(args.report), summary)
+        write_report(Path(args.report), summary, args.title)
     print(f"status={summary['status']}")
     print(f"frames={summary['frame_count']}")
     print(f"csv={csv_path}")

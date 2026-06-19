@@ -118,6 +118,7 @@ def build_summary(shot_dir: Path):
     liquid_volumes = []
     phase_cells = []
     mesh_faces = []
+    mesh_occupied_cells = []
     secondary_totals = []
     source_frames = []
 
@@ -163,6 +164,8 @@ def build_summary(shot_dir: Path):
         phase_cells.append(water_volume.get("phase_field_cells"))
         face_count = render_frame.get("water_mesh_face_count", recon_frame.get("face_count"))
         mesh_faces.append(face_count)
+        occupied_cell_count = recon_frame.get("occupied_cell_count")
+        mesh_occupied_cells.append(occupied_cell_count)
         secondary_total = (
             render_frame.get("secondary_counts", {}).get("total")
             or secondary_channels.get("total_count")
@@ -181,7 +184,8 @@ def build_summary(shot_dir: Path):
             "water_mesh": render_frame.get("water_mesh") or recon_frame.get("mesh"),
             "water_mesh_face_count": face_count,
             "water_mesh_vertex_count": recon_frame.get("vertex_count"),
-            "occupied_cell_count": recon_frame.get("occupied_cell_count"),
+            "occupied_cell_count": occupied_cell_count,
+            "water_mesh_occupied_cell_count": occupied_cell_count,
             "water_bounds_min": wb_min,
             "water_bounds_max": wb_max,
             "water_depth_y_span": y_span,
@@ -273,6 +277,7 @@ def build_summary(shot_dir: Path):
             "phase_field_liquid_volume": stat_summary(liquid_volumes),
             "phase_field_cells": stat_summary(phase_cells),
             "water_mesh_face_count": stat_summary(mesh_faces),
+            "water_mesh_occupied_cell_count": stat_summary(mesh_occupied_cells),
             "secondary_total_count": stat_summary(secondary_totals),
         },
         "sanity_checks": sanity_checks,
@@ -312,6 +317,7 @@ def write_report(path: Path, summary) -> None:
         f"- Water Z-depth span: `{s.get('water_depth_z_span')}`",
         f"- Phase-field liquid volume: `{s.get('phase_field_liquid_volume')}`",
         f"- Water mesh face count: `{s.get('water_mesh_face_count')}`",
+        f"- Water mesh occupied cell count: `{s.get('water_mesh_occupied_cell_count')}`",
         f"- Secondary total count: `{s.get('secondary_total_count')}`",
         "",
         "## Sanity Checks",

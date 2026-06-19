@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S190.
+Continue with S191.
 
 S183 is implemented and validated:
 
@@ -622,8 +622,15 @@ S189 is implemented and validated:
 - S189 diagnostics outputs:
   `build/shots/s189_surface_continuity_diagnostics`
 
-S190 should strengthen the reconstruction/export metric path before the next
-look change: carry occupied-cell counts into bridge/report summaries where
-available, add continuity metrics to the exported render-data summary or a
-companion report, and use measured worst frames to choose mesh smoothing,
-reconstruction export changes, or renderer-side water-volume occlusion.
+S190 is implemented and validated:
+
+- S190 metric bridge report:
+  `docs/reports/cinematic_surface_metric_bridge_s190.md`
+- S190 plan:
+  `docs/superpowers/plans/2026-06-19-surface-metric-bridge.md`
+- S190 diagnostics outputs:
+  `build/shots/s190_surface_metric_bridge_diagnostics`
+
+S191 should use the complete metric set to choose and implement a bounded
+mesh-smoothing or renderer-side water-volume occlusion pass for the worst
+continuity frames.

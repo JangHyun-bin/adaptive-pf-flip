@@ -181,6 +181,9 @@ def compact_render_data_summary(path):
             "water_depth_z_span": finite_float(item.get("water_depth_z_span")),
             "water_mesh_face_count": finite_float(item.get("water_mesh_face_count")),
             "water_mesh_vertex_count": finite_float(item.get("water_mesh_vertex_count")),
+            "water_mesh_occupied_cell_count": finite_float(
+                item.get("water_mesh_occupied_cell_count"),
+                finite_float(item.get("occupied_cell_count"))),
             "secondary_total_count": finite_float(secondary_counts.get("total")),
             "secondary_spray_count": finite_float(secondary_counts.get("spray")),
             "secondary_foam_count": finite_float(secondary_counts.get("foam")),
@@ -471,6 +474,7 @@ def load_sequence(path, water_reconstruction_path=None):
             "water_mesh": mesh_path,
             "water_mesh_vertex_count": as_int(entry.get("water_mesh_vertex_count")),
             "water_mesh_face_count": as_int(entry.get("water_mesh_face_count")),
+            "water_mesh_occupied_cell_count": as_int(entry.get("water_mesh_occupied_cell_count")),
             "particle_count": as_int(entry.get("particle_count")),
             "secondary_channels": camera_payload.get("secondary_channels", {}),
         })
@@ -1283,7 +1287,7 @@ def pick_water_mesh(frame, water_index, out_index, out_count, source_window=None
         "source_time": frame.get("time", 0.0),
         "vertex_count": frame.get("water_mesh_vertex_count", 0),
         "face_count": frame.get("water_mesh_face_count", 0),
-        "occupied_cell_count": 0,
+        "occupied_cell_count": frame.get("water_mesh_occupied_cell_count", 0),
     }
 
 
@@ -3393,7 +3397,9 @@ def main(argv=None):
                 "index": frame["index"],
                 "output_png": frame["output_png"],
                 "water_mesh": frame["water_mesh"],
+                "water_mesh_vertex_count": frame["water_mesh_vertex_count"],
                 "water_mesh_face_count": frame["water_mesh_face_count"],
+                "water_mesh_occupied_cell_count": frame["water_mesh_occupied_cell_count"],
                 "secondary_counts": frame["secondary_counts"],
                 "secondary_streak_counts": frame["secondary_streak_counts"],
                 "surface_contact_foam_counts": frame["surface_contact_foam_counts"],
