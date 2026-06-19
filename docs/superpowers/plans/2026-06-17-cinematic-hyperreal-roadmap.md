@@ -1204,3 +1204,22 @@ inline regression smoke passed, and an actual local publish smoke skipped the
 occupied S225 port `18899` and selected `18900`. Continue visual work from the
 S224 accepted baseline; do not open another tunnel unless a fresh share URL is
 needed.
+
+S227 validated the accepted preset over a longer 32-frame motion window:
+
+- S227 comparison report:
+  `docs/reports/cinematic_accepted_motion_window_s227.md`
+- S227 gallery report:
+  `docs/reports/cinematic_accepted_motion_window_gallery_s227.md`
+- S227 plan:
+  `docs/superpowers/plans/2026-06-19-accepted-motion-window-review.md`
+- S227 gallery:
+  `build/shots/s227_accepted_motion_window/gallery/index.html`
+
+S227 uses the same source indices `8..55` but increases review density to
+32 frames. The surface-quality gate passed with `normal_rough: 3`,
+`stable: 29`, stable ratio `0.90625`, and blocked labels `0`. Against the
+S220-motion baseline, S227 preserves nonblank coverage, minimum contrast, and
+direct secondary counts on all 32 frames while improving mean luminance by
+`0.20133558485242986`. Use S227 as the accepted motion proof before the next
+actual visual improvement pass.
