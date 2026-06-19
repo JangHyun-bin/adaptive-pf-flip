@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S185.
+Continue with S186.
 
 S183 is implemented and validated:
 
@@ -578,5 +578,12 @@ S184 is published:
 - S184 plan:
   `docs/superpowers/plans/2026-06-19-s183-gallery-publish.md`
 
-S185 should triage the public S183 gallery and choose whether to accept the
-direct-secondary visibility gate or tune one more secondary material pass.
+S185 accepted S183:
+
+- S185 triage report:
+  `docs/reports/cinematic_public_gallery_triage_s185.md`
+- S185 plan:
+  `docs/superpowers/plans/2026-06-19-s183-public-gallery-triage.md`
+
+S186 should add water surface continuity diagnostics and a first bounded
+stabilization preset, then compare S186 against S183.
