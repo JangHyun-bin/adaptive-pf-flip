@@ -2146,3 +2146,24 @@ S270 packages S269 with `12` artifacts and `4` summary sources:
 the S269 gallery through a new Cloudflare quick tunnel. Local and public
 `index.html` plus `assets/shot.gif` checks all returned HTTP `200`. S270 is now
 the current external review package and public gallery endpoint.
+
+S271 added a machine-readable accepted bridge handoff manifest:
+
+- S271 tool:
+  `tools/build_bridge_handoff_manifest.py`
+- S271 report:
+  `docs/reports/cinematic_accepted_handoff_manifest_s271.md`
+- S271 plan:
+  `docs/superpowers/plans/2026-06-20-accepted-handoff-manifest.md`
+- S271 manifest:
+  `build/shots/s271_accepted_handoff/handoff_manifest.json`
+
+S271 consumes the S270 review package and publish manifest, plus the converted
+sequence, render-data summary, and `configs/cinematic_presets.json`. The output
+schema is `lsfs_bridge_cinematic_handoff_manifest` version `1`, with accepted
+preset `dam_break_water_mesh_smoothing`, git commit
+`b53576c548a45406757f6b3f2740bc528f8278ef`, public URL
+`https://rfc-empirical-match-outstanding.trycloudflare.com`, `12` artifacts,
+`4` summary digests, and `5` source fingerprints. Use S271 as the current
+machine-readable baseline pointer for external renderer schema work,
+larger-shot reruns, or large-scale benchmark gates.
