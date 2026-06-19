@@ -2409,3 +2409,24 @@ summary sources: S282-vs-S269 frame deltas, S282 surface-gate output, the S283
 publish manifest, and the S280 external-bundle preview benchmark summary. Use
 S284 as the current high-resolution bridge-review handoff package while keeping
 S269 as the accepted preset baseline.
+
+S285 added a renderer-facing job manifest:
+
+- S285 tool:
+  `tools/build_external_renderer_job.py`
+- S285 report:
+  `docs/reports/cinematic_external_renderer_job_s285.md`
+- S285 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-manifest.md`
+- S285 job JSON:
+  `build/shots/s285_external_renderer_job/external_renderer_job.json`
+
+S285 emits `lsfs_external_renderer_job` version `1` from the S273 external
+bundle and attaches S282 bridge-look settings, S284 review package evidence,
+the S283 accepted publish manifest, and the S280 external-bundle benchmark
+summary. It records a channel contract for camera JSON, water-surface OBJ,
+phase-volume CSV, and particle-stream CSV without loading the large CSV
+payloads. The generated job is `ready` with `32` frames, `960 x 540`, `8` FPS,
+`12` samples, `0` missing assets, `0` camera failures, minimum water mesh faces
+`17720`, and a `1.37 GB` input footprint. Use S285 as the renderer handoff
+contract before writing a renderer-specific adapter or larger-shot job variant.
