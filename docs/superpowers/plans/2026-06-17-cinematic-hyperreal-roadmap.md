@@ -2678,3 +2678,27 @@ covers render-data source frames `20..55`, first/middle/last water mesh faces
 `20000`, `18576`, and `22300`, and first/last secondary totals `256` and `964`.
 Use S298 as the Blender adapter gate before rendering a bounded larger-job
 sample.
+
+S299 rendered a bounded Blender sample from the larger 48-frame job path:
+
+- S299 render report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample12_s299.md`
+- S299 comparison report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample12_compare_s299.md`
+- S299 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_sample12_gallery_s299.md`
+- S299 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-sample12.md`
+- S299 gallery:
+  `build/shots/s299_larger_external_renderer_job_blender_sample12/gallery/index.html`
+
+S299 renders the S295 larger job through Blender for `12` frames at `960 x
+540`, `12` samples, using source window `0..47` and the accepted
+`dam_break_water_mesh_smoothing` preset. Blender elapsed time is `66438.96` ms,
+minimum nonblank ratio is `1.0`, minimum contrast is `159.0`, first/last water
+mesh face counts are `20000` and `22300`, and first/last secondary totals are
+`256` and `964`. Against a matched S291 sample, nonblank delta is `0.0`, mean
+luma p99 delta is `-0.1666666666666714`, mean specular ratio delta is
+`-1.1252572016460965e-06`, and mean frame contrast delta is
+`-4.166666666666657`. Use S299 as the bounded larger-job Blender render proof
+before public publish, package, or longer larger-job render attempts.
