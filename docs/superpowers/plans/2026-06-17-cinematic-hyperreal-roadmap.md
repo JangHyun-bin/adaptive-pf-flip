@@ -2869,3 +2869,21 @@ emits `48` renderer-neutral scene descriptor JSON files for
 water mesh faces `17720`, and a referenced asset footprint of `2.05 GB`. Use
 S308 as the non-Blender adapter contract before writing a renderer-specific
 backend or invoking a real offline renderer.
+
+S309 added a dry-run backend validator for the S308 adapter manifest:
+
+- S309 tool:
+  `tools/validate_external_renderer_adapter_manifest.py`
+- S309 report:
+  `docs/reports/cinematic_larger_external_renderer_generic_backend_validation_s309.md`
+- S309 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-generic-backend-validation.md`
+- S309 validation JSON:
+  `build/shots/s309_larger_external_renderer_generic_backend_validation/backend_validation.json`
+
+S309 reads all `48` S308 scene descriptors, verifies required `json_camera`,
+`obj`, and `csv` inputs, checks command-list count and path matching, and
+confirms sequential output frames. It reports `0` failures, `1` expected
+warning for the missing placeholder `generic_path_tracer` executable, `0`
+command mismatches, and a referenced asset footprint of `2.05 GB`. Use S309 as
+the backend dry-run gate before implementing a renderer-specific adapter.
