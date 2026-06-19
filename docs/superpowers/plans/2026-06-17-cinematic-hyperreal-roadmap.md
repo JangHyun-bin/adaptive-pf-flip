@@ -1950,3 +1950,25 @@ the S260 gallery through a new Cloudflare quick tunnel. Local and public
 as the current external review package and public gallery endpoint. Continue
 with the next visible pass only after review, or move back to renderer-data/
 export schema work if the S260 shot is acceptable for now.
+
+S262 added a subject-clarity probe:
+
+- S262 report:
+  `docs/reports/cinematic_subject_clarity_probe_s262.md`
+- S262 gallery report:
+  `docs/reports/cinematic_subject_clarity_gallery_s262.md`
+- S262 plan:
+  `docs/superpowers/plans/2026-06-20-subject-clarity-probe.md`
+- S262 gallery:
+  `build/shots/s262_subject_clarity_probe/gallery/index.html`
+
+S262 adds `dam_break_subject_clarity_probe`, extending S260 accepted
+`dam_break_water_mesh_smoothing` while reducing surface glint/reflection
+clutter and slightly strengthening water body volume/detail. The 16-frame gate
+passes with `normal_rough: 2`, `stable: 14`, stable ratio `0.875`, and blocked
+labels `0`. Effective glint count drops from `166` to `137`, reflection count
+from `56` to `46`, and volume scatter alpha rises from `0.3456` to `0.3672`.
+Against the S260 16-frame reference, nonblank coverage is unchanged, minimum
+contrast rises by `24.0`, mean frame contrast by `1.3125`, and bright/highlight
+ratios decrease. The upper luma tail drops (`luma_p99.5 -6.25`), so promote
+S262 to S263 32-frame motion review before any accepted-preset promotion.
