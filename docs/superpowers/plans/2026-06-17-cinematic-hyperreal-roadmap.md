@@ -556,18 +556,15 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S180.
+Continue with S181.
 
-The next implementation plan should implement the S179-selected secondary
-material/de-beading pass. Use these artifacts as inputs:
+The next implementation plan should package and publish S180 for public gallery
+review. Use these artifacts as inputs:
 
-- S177 gate report: `docs/reports/cinematic_surface_reflection_breakup_s177.md`
-- S177 comparison report:
-  `docs/reports/cinematic_surface_reflection_breakup_comparison_s177.md`
-- S178 public gallery: `https://alloy-mailman-right-gay.trycloudflare.com`
-- S178 publish report: `docs/reports/cinematic_gallery_publish_s178.md`
-- S179 triage report: `docs/reports/cinematic_public_gallery_triage_s179.md`
+- S180 gate report: `docs/reports/cinematic_secondary_mist_debeading_s180.md`
+- S180 comparison report:
+  `docs/reports/cinematic_secondary_mist_debeading_comparison_s180.md`
+- S180 shot directory: `build/shots/s180_secondary_mist_debeading`
 
-The next success condition is a checked-in S180 preset/render pass that reduces
-the tan/gold bead-like secondary particle read while preserving mist/foam
-visibility and S177 water-surface improvements.
+The next success condition is a checked-in S181 gallery/publish report and a
+public URL for S180, followed by public visual triage.

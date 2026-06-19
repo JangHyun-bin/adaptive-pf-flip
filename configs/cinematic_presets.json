@@ -2264,6 +2264,77 @@
         }
       }
     },
+    "dam_break_secondary_mist_debeading": {
+      "extends": "dam_break_surface_reflection_breakup",
+      "description": "S177 surface breakup with smaller, cooler direct secondaries and stronger soft spray/foam mist integration.",
+      "renderer": {
+        "secondary_radius_scale": 2.35,
+        "secondary_channel_radius_scales": {
+          "droplet": 0.55,
+          "spray": 0.64,
+          "foam": 0.88,
+          "bubble": 0.34
+        },
+        "secondary_soft_pass": {
+          "channels": {
+            "spray": 2.75,
+            "foam": 2.35
+          },
+          "alpha_scale": 0.26,
+          "emission_scale": 0.72,
+          "max_radius": 1.12,
+          "geometry": "billboard_disks",
+          "falloff": [0.78, 0.3, 0.1, 0.0],
+          "material_falloff": "radial_shader"
+        },
+        "secondary_streak_pass": {
+          "channels": {
+            "spray": 0.92,
+            "foam": 0.34
+          },
+          "length_scale": 0.058,
+          "max_length": 1.18,
+          "width_scale": 0.28,
+          "alpha_scale": 0.13,
+          "emission_scale": 0.68,
+          "min_speed": 0.34
+        }
+      },
+      "materials": {
+        "droplet": {
+          "base_color": [0.78, 0.94, 1.0, 0.46],
+          "emission_color": [0.82, 0.96, 1.0, 1.0],
+          "emission_strength": 0.018,
+          "roughness": 0.16,
+          "alpha": 0.46,
+          "transmission": 0.18
+        },
+        "spray": {
+          "base_color": [0.86, 0.97, 1.0, 0.52],
+          "emission_color": [0.84, 0.96, 1.0, 1.0],
+          "emission_strength": 0.034,
+          "roughness": 0.34,
+          "alpha": 0.52,
+          "transmission": 0.04
+        },
+        "foam": {
+          "base_color": [0.92, 0.97, 0.92, 0.7],
+          "emission_color": [0.92, 0.98, 0.9, 1.0],
+          "emission_strength": 0.042,
+          "roughness": 0.86,
+          "alpha": 0.7,
+          "transmission": 0.0
+        },
+        "bubble": {
+          "base_color": [0.62, 0.84, 1.0, 0.3],
+          "emission_color": [0.62, 0.84, 1.0, 1.0],
+          "emission_strength": 0.012,
+          "roughness": 0.24,
+          "alpha": 0.3,
+          "transmission": 0.18
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",
