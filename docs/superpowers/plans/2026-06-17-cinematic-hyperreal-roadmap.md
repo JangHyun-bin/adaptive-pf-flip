@@ -1493,3 +1493,25 @@ rises by `0.15290771484374943`, bright ratio improves by
 `2.170138888888903e-06`, coverage/minimum contrast/hard highlight ratio are
 preserved, and calibration `luma_p99` rises by `0.3125`. Promote S240 to S241
 32-frame motion review before any accepted-preset change.
+
+S241 validated S240 over the 32-frame accepted motion window:
+
+- S241 comparison report:
+  `docs/reports/cinematic_foam_readability_motion_review_s241.md`
+- S241 gallery report:
+  `docs/reports/cinematic_foam_readability_motion_gallery_s241.md`
+- S241 plan:
+  `docs/superpowers/plans/2026-06-19-foam-readability-motion-review.md`
+- S241 gallery:
+  `build/shots/s241_foam_readability_motion_review/gallery/index.html`
+
+Against S238 accepted highlight-material, S241 passes the surface-quality gate
+with `normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. Direct secondary counts match on all 32 frames. Contact foam mean count
+rises from `43.1875` to `54.5625`, impact ripple mean count rises from `62.0`
+to `73.0`, mean luminance rises by `0.16201470269096774`, bright ratio improves
+by `2.3057725694444525e-06`, coverage/minimum contrast/hard highlight ratio are
+preserved, and calibration `luma_p99` rises by `0.1875`. The tiny negative
+upper-mid/specular deltas are below practical significance for this foam-focused
+pass. Promote S240 into `dam_break_water_mesh_smoothing` in S242 and run parity
+against S241.
