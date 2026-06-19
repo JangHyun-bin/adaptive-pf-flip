@@ -2167,3 +2167,22 @@ preset `dam_break_water_mesh_smoothing`, git commit
 `4` summary digests, and `5` source fingerprints. Use S271 as the current
 machine-readable baseline pointer for external renderer schema work,
 larger-shot reruns, or large-scale benchmark gates.
+
+S272 added and ran a handoff manifest validator:
+
+- S272 tool:
+  `tools/validate_bridge_handoff_manifest.py`
+- S272 report:
+  `docs/reports/cinematic_accepted_handoff_validation_s272.md`
+- S272 plan:
+  `docs/superpowers/plans/2026-06-20-accepted-handoff-validation.md`
+- S272 validation JSON:
+  `build/shots/s272_handoff_validation/validation.json`
+
+S272 validates the `lsfs_bridge_cinematic_handoff_manifest` schema/version,
+accepted preset, `5` source fingerprints, `12` gallery artifact fingerprints,
+publish status, and public `index.html`/`assets/shot.gif` checks. The S271
+manifest passed `23` checks with `0` failures and `0` warnings, and both public
+URL checks returned HTTP `200`. Use the S271/S272 pair as the current
+machine-readable accepted baseline gate before external-render experiments,
+larger-shot reruns, or large-scale benchmark jobs consume S269.
