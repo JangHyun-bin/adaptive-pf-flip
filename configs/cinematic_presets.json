@@ -1802,6 +1802,49 @@
         }
       }
     },
+    "dam_break_source_edge_cleanup_framing": {
+      "extends": "dam_break_foreground_water_thickness_refraction",
+      "description": "S148 water-thickness look with a later source window and slightly lower, tighter camera to reduce upper source-edge distraction.",
+      "renderer": {
+        "source_window": {
+          "enabled": true,
+          "start_index": 12,
+          "end_index": 47
+        }
+      },
+      "camera": {
+        "motion": {
+          "enabled": true,
+          "easing": "smoothstep",
+          "path": [
+            {
+              "t": 0.0,
+              "position": [14.9, 12.2, 37.0],
+              "target": [16.0, 7.6, 13.0],
+              "vertical_fov_degrees": 39.0
+            },
+            {
+              "t": 0.55,
+              "position": [15.8, 11.8, 35.8],
+              "target": [16.0, 7.3, 13.0],
+              "vertical_fov_degrees": 38.0
+            },
+            {
+              "t": 1.0,
+              "position": [16.7, 11.4, 34.6],
+              "target": [16.0, 7.0, 13.0],
+              "vertical_fov_degrees": 37.5
+            }
+          ]
+        },
+        "stability": {
+          "enabled": true,
+          "min_position_y": 11.0,
+          "min_target_distance": 21.5,
+          "max_vertical_fov_degrees": 39.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

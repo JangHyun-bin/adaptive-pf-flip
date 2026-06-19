@@ -237,6 +237,7 @@ This is **SPEC-1** (the faithful core), decomposed into phases. Each phase produ
 | **S148** | **Foreground water thickness/refraction pass** - `dam_break_foreground_water_thickness_refraction` adds stronger water depth/rim material, 14-layer volume scattering, and broader softened reflections while preserving S145 gates. | done |
 | **S149** | **S148 gallery refresh/publish** - packages and publishes the S148 gallery, verifying local/public `index.html` plus `assets/shot.gif` at `https://defendant-enterprises-cloth-undefined.trycloudflare.com`. | done |
 | **S150** | **S148 public gallery visual triage** - reviews the S148 public gallery and selects S151 source-edge cleanup framing as the next visible composition pass. | done |
+| **S151** | **Source-edge cleanup framing pass** - `dam_break_source_edge_cleanup_framing` uses source frames 12-47 plus a tighter lower camera to reduce early upper-source distraction while preserving S148 gates. | done |
 
 Later specs (separate roadmaps): SPEC-2 dual adaptivity & stochastic coarsening · SPEC-3 adaptive high-contrast Poisson multigrid (§6) · SPEC-4 spray & full volumetric rendering.
 
