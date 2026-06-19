@@ -2587,3 +2587,23 @@ summary sources: the S285 renderer job, S291-vs-S282 comparison, S292 publish
 manifest, and S280 external-bundle benchmark summary. Use S293 as the current
 handoff package for the full-length external-renderer job proof before moving
 to larger-shot job generation or a non-Blender external renderer adapter.
+
+S294 created a larger 48-frame external render bundle:
+
+- S294 tool update:
+  `tools/build_bridge_external_render_bundle.py`
+- S294 report:
+  `docs/reports/cinematic_larger_external_render_bundle_s294.md`
+- S294 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-render-bundle.md`
+- S294 bundle:
+  `build/shots/s294_larger_external_render_bundle_48/external_render_bundle.json`
+
+S294 adds `--public-review-manifest` so new bundles can override stale public
+review metadata from older handoff manifests. The generated
+`lsfs_bridge_external_render_bundle` has `48` frames over source window `8..55`,
+`0` missing assets, and points at the current S292 public URL
+`https://shall-warnings-critical-quite.trycloudflare.com`. Its input footprint
+is `1.92 GB` particle CSV, `50.49 MB` phase-cell CSV, and `80.07 MB` water mesh
+OBJ. Use S294 as the larger-shot input bundle before building the next renderer
+job.

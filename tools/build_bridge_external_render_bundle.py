@@ -80,6 +80,10 @@ def build_bundle(args):
     root = os.getcwd()
     handoff_path = require_file(args.handoff_manifest, "handoff manifest")
     handoff = read_json(handoff_path)
+    public_review = handoff.get("public_review", {})
+    if args.public_review_manifest:
+        public_review_path = require_file(args.public_review_manifest, "public review manifest")
+        public_review = read_json(public_review_path)
 
     sequence_path = require_file(args.sequence or source_from_handoff(handoff, "sequence"), "converted sequence")
     render_data_path = args.render_data_summary or source_from_handoff(handoff, "render_data_summary")
@@ -154,7 +158,7 @@ def build_bundle(args):
         },
         "accepted_preset": handoff.get("accepted_preset"),
         "git": handoff.get("git", {}),
-        "public_review": handoff.get("public_review", {}),
+        "public_review": public_review,
         "source_window": window,
         "frame_count": out_count,
         "sequence": {
@@ -241,6 +245,8 @@ def main(argv=None):
     parser.add_argument("--source-start-index", type=int)
     parser.add_argument("--source-end-index", type=int)
     parser.add_argument("--hash-frame-files", action="store_true")
+    parser.add_argument("--public-review-manifest",
+                        help="optional publish manifest to override the handoff public_review block")
     parser.add_argument("--out", required=True)
     parser.add_argument("--report")
     parser.add_argument("--title", default="Accepted Bridge External Render Bundle")
