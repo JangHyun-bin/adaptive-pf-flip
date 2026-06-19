@@ -187,7 +187,8 @@ The missing work is not one feature. It is a pipeline:
 | S139 | Low-angle impact close-up framing | Move the camera lower and closer to the contact band so the upper source is mostly cropped while spray/ripple readability remains gated | Done in `style: add low angle impact closeup framing` |
 | S140 | S139 gallery refresh/publish | Package and publish the S139 review artifacts for external inspection before the next visual triage | Done in `docs: publish s139 cinematic gallery` |
 | S141 | S139 public gallery visual triage | Review the S139 public gallery and choose the next concrete visible shot adjustment from current evidence | Done in `docs: triage s139 public gallery` |
-| S142 | Impact-timed review window | Let the Blender bridge render a later cache window so the shot starts closer to visible impact without changing the simulation | Planned |
+| S142 | Impact-timed review window | Let the Blender bridge render a later cache window so the shot starts closer to visible impact without changing the simulation | Done in `feat: add impact timed render window` |
+| S143 | S142 gallery refresh/publish | Package and publish the S142 review artifacts for external inspection before the next visual triage | Planned |
 
 ## Decision Gates
 
@@ -525,16 +526,18 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S142.
+Continue with S143.
 
 The next implementation plan should be:
 
-`docs/superpowers/plans/2026-06-18-impact-timed-review-window.md`
+`docs/superpowers/plans/2026-06-18-s142-gallery-refresh-publish.md`
 
 The next command target should start from:
 
 ```powershell
-python tools\run_cinematic_shot.py --preset dam_break_low_angle_impact_timed --out build\shots\s142_impact_timed_window --frames 36 --sim-steps 48 --width 1280 --height 720 --renderer blender --samples 12 --review-frames 8 --compare-review-manifest build\shots\s139_low_angle_impact_closeup\review\review_manifest.json --report docs\reports\cinematic_impact_timed_window_s142.md --no-build --timeout-seconds 1800
+python tools\package_cinematic_artifacts.py build\shots\s142_impact_timed_window --out docs\reports\cinematic_artifact_package_s143.md
+python tools\build_cinematic_gallery.py build\shots\s142_impact_timed_window --package docs\reports\cinematic_artifact_package_s143.md --out build\shots\s142_impact_timed_window\gallery --report docs\reports\cinematic_static_gallery_s143.md
+python tools\publish_cinematic_gallery.py build\shots\s142_impact_timed_window\gallery --port 8802 --cftunnel --manifest build\shots\s142_impact_timed_window\gallery\publish_manifest_s143.json --report docs\reports\cinematic_gallery_publish_s143.md --timeout-seconds 120
 ```
 
-The next success condition is a checked-in S142 Blender gate report that renders a later source-cache window, starts closer to visible impact, and preserves visual/focus/secondary-depth/ripple/temporal/camera/secondary-framing gates.
+The next success condition is a checked-in S143 package/gallery/publish report with local and public `index.html` plus `assets/shot.gif` verification.

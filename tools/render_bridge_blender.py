@@ -289,13 +289,63 @@ def load_water_reconstruction(path):
     }
 
 
-def select_resampled(items, out_index, out_count):
+def select_resampled(items, out_index, out_count, window=None):
     if not items:
         return None
+    start_index = 0
+    end_index = len(items) - 1
+    if window:
+        start_index = max(0, min(len(items) - 1, as_int(window.get("start_index"), 0)))
+        end_index = max(0, min(len(items) - 1, as_int(window.get("end_index"), len(items) - 1)))
+        if end_index < start_index:
+            fail(f"invalid source window: start_index={start_index} end_index={end_index}")
     if out_count <= 1 or len(items) == 1:
-        return items[0]
-    src_index = round(out_index * (len(items) - 1) / max(1, out_count - 1))
+        return items[start_index]
+    src_index = start_index + round(out_index * (end_index - start_index) / max(1, out_count - 1))
     return items[src_index]
+
+
+def has_window_override(override):
+    return bool(override and any(value is not None for value in override.values()))
+
+
+def window_value(override, cfg, key):
+    if override and override.get(key) is not None:
+        return override.get(key)
+    return cfg.get(key)
+
+
+def source_window_for_count(renderer_defaults, item_count, override=None):
+    cfg = preset_section(renderer_defaults, "source_window")
+    override = override or {}
+    enabled = bool(cfg.get("enabled", bool(cfg)) or has_window_override(override))
+    if item_count <= 0:
+        fail("source window requires at least one source frame")
+    start_fraction = window_value(override, cfg, "start_fraction")
+    end_fraction = window_value(override, cfg, "end_fraction")
+    start_index_value = window_value(override, cfg, "start_index")
+    end_index_value = window_value(override, cfg, "end_index")
+    if start_index_value is not None:
+        start_index = as_int(start_index_value, 0)
+    else:
+        start_index = round(as_float(start_fraction, 0.0) * (item_count - 1))
+    if end_index_value is not None:
+        end_index = as_int(end_index_value, item_count - 1)
+    else:
+        end_index = round(as_float(end_fraction, 1.0) * (item_count - 1))
+    start_index = max(0, min(item_count - 1, start_index))
+    end_index = max(0, min(item_count - 1, end_index))
+    if end_index < start_index:
+        fail(f"invalid source window: start_index={start_index} end_index={end_index}")
+    return {
+        "enabled": enabled,
+        "start_index": start_index,
+        "end_index": end_index,
+        "source_frame_count": item_count,
+        "selected_frame_count": end_index - start_index + 1,
+        "start_fraction": 0.0 if item_count <= 1 else start_index / float(item_count - 1),
+        "end_fraction": 0.0 if item_count <= 1 else end_index / float(item_count - 1),
+    }
 
 
 def require_file(path, label):
@@ -947,9 +997,19 @@ def summarize_water_impact_ripple_counts(frames):
     }
 
 
-def pick_water_mesh(frame, water_index, out_index, out_count):
+def pick_water_mesh(frame, water_index, out_index, out_count, source_window=None):
     if water_index:
-        water_frame = select_resampled(water_index["frames"], out_index, out_count)
+        water_window = (
+            source_window_for_count(
+                {},
+                len(water_index["frames"]),
+                {
+                    "start_fraction": source_window.get("start_fraction"),
+                    "end_fraction": source_window.get("end_fraction"),
+                })
+            if source_window else None
+        )
+        water_frame = select_resampled(water_index["frames"], out_index, out_count, water_window)
         if water_frame:
             return dict(water_frame)
     mesh = frame.get("water_mesh")
@@ -968,7 +1028,7 @@ def pick_water_mesh(frame, water_index, out_index, out_count):
 
 def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruction_path,
                      engine, samples, max_secondary_particles, secondary_radius_scale,
-                     render_preset_name=None, render_preset=None):
+                     render_preset_name=None, render_preset=None, source_window_override=None):
     sequence = load_sequence(src, water_reconstruction_path)
     render_preset = render_preset or {}
     renderer_defaults = render_preset.get("renderer", {})
@@ -992,15 +1052,20 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
     secondary_framing_qa = secondary_framing_qa_summary(render_preset)
+    source_window = source_window_for_count(
+        renderer_defaults,
+        len(sequence["frames"]),
+        source_window_override)
     render_dir = os.path.join(out_dir, "frames")
     os.makedirs(render_dir, exist_ok=True)
     frames = []
     for out_index in range(frame_count):
-        frame = select_resampled(sequence["frames"], out_index, frame_count)
+        frame = select_resampled(sequence["frames"], out_index, frame_count, source_window)
         water_mesh = pick_water_mesh(frame,
                                      sequence.get("water_reconstruction"),
                                      out_index,
-                                     frame_count)
+                                     frame_count,
+                                     source_window)
         if not water_mesh:
             fail("sequence does not include water_mesh entries; run reconstruct_water.py and convert_render_cache.py first")
         mesh_path = require_file(water_mesh.get("mesh"), "water_mesh")
@@ -1076,6 +1141,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "water_surface_detail": water_surface_detail_summary(render_preset),
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
+        "source_window": source_window,
         "water_reconstruction": sequence.get("water_reconstruction", {}),
         "frames": frames,
     }
@@ -2567,6 +2633,14 @@ def parse_args(argv):
                         help="maximum secondary particles instantiated per frame")
     parser.add_argument("--secondary-radius-scale", type=float,
                         help="scale factor for rendered secondary particle sphere radii")
+    parser.add_argument("--source-start-fraction", type=float,
+                        help="inclusive source sequence start as a 0..1 fraction")
+    parser.add_argument("--source-end-fraction", type=float,
+                        help="inclusive source sequence end as a 0..1 fraction")
+    parser.add_argument("--source-start-index", type=int,
+                        help="inclusive source sequence start index")
+    parser.add_argument("--source-end-index", type=int,
+                        help="inclusive source sequence end index")
     parser.add_argument("--min-nonblank-ratio", type=float, default=0.05,
                         help="minimum nonblack pixel ratio required after rendering")
     parser.add_argument("--timeout-seconds", type=int, default=300, help="Blender process timeout")
@@ -2586,6 +2660,10 @@ def parse_args(argv):
     if args.secondary_radius_scale is not None and (
             args.secondary_radius_scale <= 0.0 or not math.isfinite(args.secondary_radius_scale)):
         parser.error("secondary-radius-scale must be finite and positive")
+    for name in ("source_start_fraction", "source_end_fraction"):
+        value = getattr(args, name)
+        if value is not None and (value < 0.0 or value > 1.0 or not math.isfinite(value)):
+            parser.error(f"{name.replace('_', '-')} must be finite and between 0 and 1")
     if args.min_nonblank_ratio < 0.0 or not math.isfinite(args.min_nonblank_ratio):
         parser.error("min-nonblank-ratio must be finite and non-negative")
     if args.timeout_seconds <= 0:
@@ -2602,6 +2680,12 @@ def main(argv=None):
     try:
         os.makedirs(args.out_dir, exist_ok=True)
         preset_config_path, render_preset = load_render_preset(args.preset_config, args.render_preset)
+        source_window_override = {
+            "start_fraction": args.source_start_fraction,
+            "end_fraction": args.source_end_fraction,
+            "start_index": args.source_start_index,
+            "end_index": args.source_end_index,
+        }
         spec = build_scene_spec(args.src,
                                 args.out_dir,
                                 args.frames,
@@ -2613,7 +2697,8 @@ def main(argv=None):
                                 args.max_secondary_particles,
                                 args.secondary_radius_scale,
                                 args.render_preset,
-                                render_preset)
+                                render_preset,
+                                source_window_override)
         spec_path = os.path.abspath(os.path.join(args.out_dir, "blender_scene_spec.json"))
         driver_path = os.path.abspath(os.path.join(args.out_dir, "blender_driver.py"))
         write_json(spec_path, spec)
@@ -2630,6 +2715,7 @@ def main(argv=None):
             "width": args.width,
             "height": args.height,
             "frame_count": len(spec["frames"]),
+            "source_window": spec["source_window"],
             "engine": spec["engine"],
             "samples": spec["samples"],
             "secondary_radius_scale": spec["secondary_radius_scale"],

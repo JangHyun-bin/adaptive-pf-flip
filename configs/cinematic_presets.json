@@ -1679,6 +1679,20 @@
         }
       }
     },
+    "dam_break_low_angle_impact_timed": {
+      "extends": "dam_break_low_angle_impact_closeup",
+      "description": "Low-angle impact close-up with a later render source window so the shot starts nearer visible impact.",
+      "shot": {
+        "sim_steps": 48
+      },
+      "renderer": {
+        "source_window": {
+          "enabled": true,
+          "start_fraction": 0.22,
+          "end_fraction": 1.0
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

@@ -2170,6 +2170,7 @@ def render_report(summary, root):
         f"- Camera motion: `{metrics.get('camera_motion', {}).get('enabled', False)}`",
         f"- Camera auto framing: `{metrics.get('camera_framing', {}).get('enabled', False)}`",
         f"- Camera frame scale: `{metrics.get('camera_framing', {}).get('max_scale', 1.0)}`",
+        f"- Source window: `{metrics.get('source_window', {})}`",
         f"- Camera path metrics: `{metrics.get('camera_path', {})}`",
         f"- Camera stability: `{metrics.get('camera_stability', {})}`",
         f"- Visual QA summary: `{metrics.get('visual_qa', {})}`",
@@ -2562,6 +2563,7 @@ def effective_config(args, shot_preset, render_preset_name, render_preset, prese
                                           renderer.get("min_nonblank_ratio"),
                                           0.05),
         "visual_qa": section(renderer, "visual_qa"),
+        "source_window": section(renderer, "source_window"),
         "temporal_highlight_qa": section(renderer, "temporal_highlight_qa"),
         "temporal_diff_review": section(renderer, "temporal_diff_review"),
         "secondary_framing_qa": section(renderer, "secondary_framing_qa"),
@@ -2975,6 +2977,7 @@ def run_pipeline(args):
         render_summary_path = summary["artifacts"].get("render_summary")
         if render_summary_path and os.path.isfile(render_summary_path):
             render_summary = read_json(render_summary_path)
+            summary["metrics"]["source_window"] = render_summary.get("source_window", {})
             summary["metrics"]["camera_motion"] = render_summary.get("camera_motion", {})
             summary["metrics"]["camera_framing"] = render_summary.get("camera_framing", {})
             summary["metrics"]["camera_path"] = render_summary.get("camera_path_metrics", {})
