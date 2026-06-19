@@ -1827,3 +1827,22 @@ minimum contrast `+1.0`, `luma_p95 +2.96875`, `luma_p99 +2.53125`, and
 `luma_p99.5 +2.53125`, while nonblank coverage is unchanged. S255 is now the
 current accepted bridge-render visual baseline. Refresh the accepted review
 package/gallery next.
+
+S256 refreshed the accepted review package for S255:
+
+- S256 report:
+  `docs/reports/cinematic_accepted_review_package_s256.md`
+- S256 plan:
+  `docs/superpowers/plans/2026-06-20-accepted-review-package-refresh.md`
+- S256 package JSON:
+  `build/shots/s256_accepted_review_package/review_package.json`
+- S255 accepted gallery:
+  `build/shots/s255_presentation_lift_acceptance/gallery/index.html`
+
+S256 packages the new S255 accepted visual baseline using the existing
+`lsfs_bridge_cinematic_review_package` schema. The package contains `12`
+artifacts and `4` summary sources: `s255_parity`, `s255_baseline_delta`,
+`s255_surface_gate`, and `s254_motion_review`. This supersedes S248 for current
+external review and publish handoff while preserving S248 as historical S246
+evidence. Publish the S255 gallery/package next, then continue with either
+shot-composition/camera polish or the next renderer-data/export milestone.
