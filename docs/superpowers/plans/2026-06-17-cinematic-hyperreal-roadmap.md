@@ -1972,3 +1972,22 @@ Against the S260 16-frame reference, nonblank coverage is unchanged, minimum
 contrast rises by `24.0`, mean frame contrast by `1.3125`, and bright/highlight
 ratios decrease. The upper luma tail drops (`luma_p99.5 -6.25`), so promote
 S262 to S263 32-frame motion review before any accepted-preset promotion.
+
+S263 reviewed subject clarity over the 32-frame accepted motion window:
+
+- S263 motion review report:
+  `docs/reports/cinematic_subject_clarity_motion_review_s263.md`
+- S263 gallery report:
+  `docs/reports/cinematic_subject_clarity_motion_gallery_s263.md`
+- S263 plan:
+  `docs/superpowers/plans/2026-06-20-subject-clarity-motion-review.md`
+- S263 gallery:
+  `build/shots/s263_subject_clarity_motion_review/gallery/index.html`
+
+Against S260 accepted, S263 passes the surface-quality gate with
+`normal_rough: 3`, `stable: 29`, stable ratio `0.90625`, and blocked labels
+`0`. S263 preserves nonblank coverage, raises minimum contrast by `47.0`,
+raises mean frame contrast by `2.4375`, reduces mean bright ratio by
+`1.925998263888889e-05`, and visibly lowers surface-line clutter. The luma
+tail drops and highlight/specular deltas rise slightly, but remain small enough
+to promote S262/S263 subject-clarity settings to S264 accepted-preset parity.
