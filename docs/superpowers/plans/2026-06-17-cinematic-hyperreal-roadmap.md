@@ -1653,3 +1653,22 @@ loss luma delta `9.951799090238987`. The sheet shows a mixed upper-tail
 redistribution rather than a purely localized overlay gain, which is expected
 for material/scattering tuning. Keep S246 accepted, but prioritize the
 render-export/review schema before more subtle secondary mist tuning.
+
+S248 added an accepted bridge-render review package:
+
+- S248 report:
+  `docs/reports/cinematic_accepted_review_package_s248.md`
+- S248 plan:
+  `docs/superpowers/plans/2026-06-19-accepted-review-package.md`
+- S248 package JSON:
+  `build/shots/s248_accepted_review_package/review_package.json`
+- S248 tool:
+  `tools/build_bridge_review_package.py`
+
+S248 introduces the `lsfs_bridge_cinematic_review_package` schema and packages
+the current S246 accepted baseline into one review manifest. The package indexes
+the S246 gallery assets, bridge summary, SHA-256 hashes, render metadata,
+comparison deltas, the S246 surface-quality gate, and S247 contribution
+diagnostics. The generated package contains `12` artifacts and `4` summary
+sources. Use this as the bridge-render review/export baseline before returning
+to secondary mist readability.
