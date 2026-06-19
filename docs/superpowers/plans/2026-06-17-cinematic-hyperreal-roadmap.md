@@ -1863,3 +1863,25 @@ with HTTP `200`. The tunnel is session-scoped; refresh it if the process exits
 or the machine restarts. After review, either start a shot-composition/camera
 polish pass or move back to renderer-data/export schema work for larger-scale
 handoff.
+
+S258 added a camera-only presentation composition probe:
+
+- S258 report:
+  `docs/reports/cinematic_presentation_composition_probe_s258.md`
+- S258 gallery report:
+  `docs/reports/cinematic_presentation_composition_gallery_s258.md`
+- S258 plan:
+  `docs/superpowers/plans/2026-06-20-presentation-composition-probe.md`
+- S258 gallery:
+  `build/shots/s258_presentation_composition_probe/gallery/index.html`
+
+S258 adds `dam_break_presentation_composition_probe`, extending S255 accepted
+`dam_break_water_mesh_smoothing` while changing only camera motion/stability.
+The 16-frame gate passes with `normal_rough: 2`, `stable: 14`, stable ratio
+`0.875`, and blocked labels `0`. Secondary framing remains safe with mean
+inside ratio `0.934460364976418` and min inside ratio `0.762962962962963`.
+Against the accepted 16-frame camera reference, mean luminance is effectively
+unchanged at `-0.032495117187508527`, minimum contrast rises by `57.0`, mean
+frame contrast by `10.9375`, nonblank coverage is unchanged, and bright/
+highlight ratios decrease. Promote S258 to S259 32-frame motion review before
+accepting or rejecting the camera path.
