@@ -781,3 +781,17 @@ S202 should not promote island pruning. The removed component is visible and
 large enough to look like part of the early water mass. S203 should add a
 component label/overlay diagnostic so component 2 can be classified before any
 pruning threshold becomes production behavior.
+
+S203 added component overlay diagnostics:
+
+- S203 report:
+  `docs/reports/cinematic_water_mesh_component_overlay_s203.md`
+- S203 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-component-overlay.md`
+- S203 overlay sheet:
+  `build/shots/s203_component_overlay/component_overlay_sheet.png`
+
+S203 shows component 2 is a broad visible upper/back water mass, not a tiny
+detached island. Do not promote face-ratio pruning. S204 should test
+component-aware render treatment instead: preserve component 2, but tune its
+depth/material contribution if it hurts readability.
