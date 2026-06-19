@@ -3263,3 +3263,22 @@ matched grade/composite/render frames, `0` missing frame assets, source hashes,
 artifact hashes, public review metadata, and renderer-facing expectations for
 promoting the secondary layer and grade settings out of ad hoc post-processing.
 Use S325 as the handoff contract for the next rendering stage.
+
+S326 added a validator for the S325 renderer-review contract:
+
+- S326 new tool:
+  `tools/validate_mitsuba_renderer_review_contract.py`
+- S326 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_review_contract_validation_s326.md`
+- S326 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-review-contract-validation.md`
+- S326 validation JSON:
+  `build/shots/s326_mitsuba_renderer_review_contract_validation/validation.json`
+
+S326 checks the contract schema/version/status, source JSON hashes and schemas,
+gallery artifact hashes/sizes, frame count consistency, per-frame base preview,
+secondary layer, composite, and graded frame paths, graded frame hashes,
+projected particle counts, and layer coverage bounds. The committed validation
+run also enabled public URL probing and passed `77` checks with `0` failures and
+`0` skipped checks. Use S326 as the regression gate before changing the
+external-renderer handoff, secondary representation, or review-grade path.
