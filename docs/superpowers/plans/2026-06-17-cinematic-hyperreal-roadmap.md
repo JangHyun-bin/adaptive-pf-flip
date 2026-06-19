@@ -3039,3 +3039,21 @@ vertices per frame, keeps `7680` proxy sphere shapes, reports minimum occupancy
 counts are `3072` phase-volume, `2937` spray, `1187` foam, `484` bubble, and
 `0` droplet proxies. Use S316 as the preferred non-Blender XML geometry review
 view before actual Mitsuba rendering.
+
+S317 published the S316 tuned Mitsuba XML geometry preview gallery:
+
+- S317 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_preview_tuned_publish_s317.md`
+- S317 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-xml-preview-tuned-publish.md`
+- S317 manifest:
+  `build/shots/s317_larger_external_renderer_mitsuba_xml_preview_tuned_publish/publish_manifest.json`
+- S317 public URL:
+  `https://became-dodge-personal-thoroughly.trycloudflare.com`
+
+S317 stops the S315 preview endpoint, serves the S316 tuned preview gallery on
+local port `8904`, and starts a new Cloudflare quick tunnel. Local and public
+`index.html` plus `assets/shot.gif` checks all returned HTTP `200`. The HTTP
+server PID is `157712`, and the Cloudflared PID is `130076`. Use S317 as the
+current public non-Blender XML geometry preview while S306 remains active
+separately as the public full48 Blender render proof endpoint.
