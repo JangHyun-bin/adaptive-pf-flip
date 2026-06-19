@@ -2511,3 +2511,22 @@ mesh face counts are `20000` and `22300`, and first/last secondary totals are
 `4.099151234567901e-06`, and aligned mean frame contrast delta is `-0.125`. Use
 S289 as the first actual Blender render proof from the external renderer job
 schema.
+
+S290 published the S289 job-path Blender render gallery:
+
+- S290 publish report:
+  `docs/reports/cinematic_external_renderer_job_blender_render_publish_s290.md`
+- S290 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-blender-render-publish.md`
+- S290 manifest:
+  `build/shots/s290_external_renderer_job_blender_render_publish/publish_manifest.json`
+- S290 public URL:
+  `https://mathematics-insert-hybrid-dozens.trycloudflare.com`
+
+S290 stops the S287 preview-smoke endpoint, serves the S289 actual Blender
+render gallery on local port `8902`, and starts a new Cloudflare quick tunnel.
+Local and public `index.html` plus `assets/shot.gif` checks all returned HTTP
+`200`. The HTTP server PID is `154780`, and the Cloudflared PID is `90764`.
+S290 is the current public job-path Blender render endpoint; S283 and S281
+remain active separately for accepted high-resolution bridge review and
+external-bundle benchmark preview.
