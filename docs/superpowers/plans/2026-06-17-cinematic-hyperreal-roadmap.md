@@ -947,3 +947,21 @@ minimum contrast against untreated while preserving nonblank coverage and
 bright/highlight energy much better than S210. S213 should package a small
 visual review artifact and decide whether to fold the label-gated smoothing pass
 into the main accepted render preset.
+
+S213 packaged the normal-rough smoothing review and folded it into the accepted
+water mesh smoothing preset:
+
+- S213 gallery report:
+  `docs/reports/cinematic_water_mesh_normal_rough_smoothing_gallery_s213.md`
+- S213 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-normal-rough-review-gallery.md`
+- S213 gallery:
+  `build/shots/s213_normal_rough_review/gallery/index.html`
+
+S213 adds `water_mesh_quality_smoothing_pass` to
+`dam_break_water_mesh_smoothing`, gated to `normal_rough` labels with
+`factor: 0.04` and `iterations: 1`. The accepted preset stable dry-run still
+gates as `stable: 4` with stable ratio `1.0`, while the targeted normal-rough
+dry-run selects `normal_rough: 4`. S214 should run a mixed-window accepted-preset
+visual review so stable and normal-rough frames are checked together before the
+next cinematic treatment.

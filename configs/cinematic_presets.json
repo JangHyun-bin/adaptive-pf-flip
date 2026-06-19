@@ -2407,6 +2407,13 @@
           "factor": 0.075,
           "iterations": 2
         },
+        "water_mesh_quality_smoothing_pass": {
+          "enabled": true,
+          "quality_labels": ["normal_rough"],
+          "shade_smooth": true,
+          "factor": 0.04,
+          "iterations": 1
+        },
         "water_surface_detail": {
           "strength": 0.052,
           "scale": 2.8,
