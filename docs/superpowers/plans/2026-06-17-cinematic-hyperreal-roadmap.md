@@ -2848,3 +2848,24 @@ summary sources: the S295 larger renderer job, the S305-vs-S302 sampled
 comparison, the S306 publish manifest, and the S304 sample24 proof package. Use
 S307 as the current full48 larger-job Blender proof package before non-Blender
 external renderer adapters or larger simulation-scale jobs.
+
+S308 added a renderer-neutral adapter manifest path for non-Blender renderers:
+
+- S308 tool:
+  `tools/build_external_renderer_adapter_manifest.py`
+- S308 report:
+  `docs/reports/cinematic_larger_external_renderer_generic_adapter_s308.md`
+- S308 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-generic-adapter.md`
+- S308 manifest:
+  `build/shots/s308_larger_external_renderer_generic_adapter/adapter_manifest.json`
+- S308 command list:
+  `build/shots/s308_larger_external_renderer_generic_adapter/render_commands.txt`
+
+S308 consumes the S295 `lsfs_external_renderer_job`, uses S305 as the look
+reference, and links S307/S306 as proof package and public manifest context. It
+emits `48` renderer-neutral scene descriptor JSON files for
+`generic_path_tracer`, with `0` missing assets, monotonic frame order, minimum
+water mesh faces `17720`, and a referenced asset footprint of `2.05 GB`. Use
+S308 as the non-Blender adapter contract before writing a renderer-specific
+backend or invoking a real offline renderer.
