@@ -3304,3 +3304,27 @@ bundle. The generated `lsfs_mitsuba_renderer_handoff_bundle` is `ready`, covers
 references. Use S327 as the renderer-facing reference package before replacing
 the post-composite secondary layer and review grade with renderer-side
 implementations.
+
+S328 added a renderer target preview from the S327 handoff bundle:
+
+- S328 new tool:
+  `tools/build_mitsuba_renderer_target_preview.py`
+- S328 target preview report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_preview_s328.md`
+- S328 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_preview_publish_s328.md`
+- S328 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-target-preview.md`
+- S328 target preview summary:
+  `build/shots/s328_mitsuba_renderer_target_preview/renderer_target_preview_summary.json`
+- S328 public URL:
+  `https://partnerships-cleaners-animals-gallery.trycloudflare.com`
+
+S328 recomposes each S327 frame from the copied base preview plus secondary
+layer, applies the accepted S324 grade settings from the handoff look intent,
+and compares the generated renderer target against the accepted graded
+reference. The generated `lsfs_mitsuba_renderer_target_preview` is `ready` for
+`8` frames with `0` missing references, max composite mean absolute diff `0.0`,
+and max target mean absolute diff `0.0`. The published gallery verifies public
+`index.html` and `assets/shot.gif` with HTTP `200`. Use S328 as the visual target
+reference for moving secondary and grade work into the actual renderer.
