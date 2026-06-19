@@ -3242,3 +3242,24 @@ crushed water detail. The committed soft grade publishes an `8` frame,
 HTTP `200`. Use S324 as the current most readable public proof, while noting
 that it is a review-grade post-process rather than physically based renderer
 look development.
+
+S325 added a renderer-review contract for the current public Mitsuba proof:
+
+- S325 new tool:
+  `tools/build_mitsuba_renderer_review_contract.py`
+- S325 contract report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_review_contract_s325.md`
+- S325 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-review-contract.md`
+- S325 contract JSON:
+  `build/shots/s325_mitsuba_renderer_review_contract/renderer_review_contract.json`
+- Current public proof URL:
+  `https://hydrocodone-becomes-attempted-unified.trycloudflare.com`
+
+S325 follows the S324 grade summary back through the S323 secondary composite,
+the S322 actual Mitsuba render manifest, and the S322 Mitsuba XML export
+manifest. It emits a `ready` `lsfs_mitsuba_renderer_review_contract` with `8`
+matched grade/composite/render frames, `0` missing frame assets, source hashes,
+artifact hashes, public review metadata, and renderer-facing expectations for
+promoting the secondary layer and grade settings out of ad hoc post-processing.
+Use S325 as the handoff contract for the next rendering stage.
