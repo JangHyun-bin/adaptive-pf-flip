@@ -2317,3 +2317,24 @@ and live public `index.html`/`assets/shot.gif`. It records the current input
 footprint as `1.37 GB`, projected `64`-frame input as `2.74 GB`, and projected
 `24`-frame preview sample input as `1.03 GB`. Use S279 as the preflight gate
 before bounded larger-shot dry-runs or benchmark jobs.
+
+S280 ran a bounded larger preview benchmark through the external-bundle path:
+
+- S280 tool:
+  `tools/run_external_bundle_preview_benchmark.py`
+- S280 report:
+  `docs/reports/cinematic_external_bundle_preview_benchmark_s280.md`
+- S280 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-preview-benchmark.md`
+- S280 summary:
+  `build/shots/s280_external_bundle_preview_benchmark/benchmark_summary.json`
+- S280 gallery:
+  `build/shots/s280_external_bundle_preview_benchmark/gallery/index.html`
+
+S280 requires the S279 preflight gate, renders the S273 bundle as a `24` frame
+`1280 x 720` preview, assembles a GIF, and builds a preview gallery. The run
+passed with minimum occupancy `0.056202256944444445` against the `0.01` gate,
+`9` gallery assets, `903.32 KB` GIF size, and total elapsed time `70.72s`
+(`69.25s` preview render, `1.28s` GIF assembly, `0.20s` gallery build). Use S280
+as the bounded larger preview benchmark before replacing the public preview
+endpoint or scaling further.
