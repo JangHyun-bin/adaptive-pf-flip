@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S188.
+Continue with S189.
 
 S183 is implemented and validated:
 
@@ -606,5 +606,13 @@ S187 is published:
 - S187 plan:
   `docs/superpowers/plans/2026-06-19-s186-gallery-publish.md`
 
-S188 should triage the public S186 gallery and choose whether to accept the
-surface continuity pass or rebound overlay strength.
+S188 accepted S186:
+
+- S188 triage report:
+  `docs/reports/cinematic_public_gallery_triage_s188.md`
+- S188 plan:
+  `docs/superpowers/plans/2026-06-19-s186-public-gallery-triage.md`
+
+S189 should generate measured diagnostics for water mesh continuity, water depth
+span, occupied-cell count, and per-frame discontinuity risk before the next
+render-look or reconstruction change.
