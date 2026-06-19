@@ -3015,3 +3015,27 @@ checks all returned HTTP `200`. The HTTP server PID is `112016`, and the
 Cloudflared PID is `156892`. Use S315 as the public non-Blender XML geometry
 preview while S306 remains active separately as the public full48 Blender render
 proof endpoint.
+
+S316 tuned the Mitsuba XML geometry preview for clearer channel review:
+
+- S316 updated tool:
+  `tools/preview_mitsuba_xml_export.py`
+- S316 preview report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_preview_tuned_s316.md`
+- S316 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_xml_preview_tuned_gallery_s316.md`
+- S316 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-xml-preview-tuned.md`
+- S316 preview summary:
+  `build/shots/s316_larger_external_renderer_mitsuba_xml_preview_tuned/frames/render_summary.json`
+- S316 gallery:
+  `build/shots/s316_larger_external_renderer_mitsuba_xml_preview_tuned/gallery/index.html`
+
+S316 adds opt-in review look controls to the XML preview renderer: water alpha,
+water point scale, phase proxy scale, secondary proxy scale, material counts,
+and an optional frame legend. The tuned full48 preview uses `3600` water
+vertices per frame, keeps `7680` proxy sphere shapes, reports minimum occupancy
+`0.03595293209876543`, and produces a `1241823` byte GIF. The sphere material
+counts are `3072` phase-volume, `2937` spray, `1187` foam, `484` bubble, and
+`0` droplet proxies. Use S316 as the preferred non-Blender XML geometry review
+view before actual Mitsuba rendering.

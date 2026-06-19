@@ -24,6 +24,8 @@ SPRAY = (230, 250, 255, 220)
 FOAM = (245, 245, 225, 225)
 BUBBLE = (255, 210, 126, 220)
 DROPLET = (190, 230, 255, 220)
+LEGEND_BG = (6, 10, 14, 178)
+LEGEND_TEXT = (225, 237, 244, 235)
 
 
 def fail(message):
@@ -109,16 +111,52 @@ def read_obj_vertices(path, max_vertices):
     return vertices
 
 
-def color_for_material(material):
+def sphere_kind(material):
     if "phase_volume" in material:
-        return PHASE
+        return "phase_volume"
     if "foam" in material:
-        return FOAM
+        return "foam"
     if "bubble" in material:
-        return BUBBLE
+        return "bubble"
     if "droplet" in material:
+        return "droplet"
+    return "spray"
+
+
+def color_for_kind(kind):
+    if kind == "phase_volume":
+        return PHASE
+    if kind == "foam":
+        return FOAM
+    if kind == "bubble":
+        return BUBBLE
+    if kind == "droplet":
         return DROPLET
     return SPRAY
+
+
+def apply_alpha(color, scale):
+    return color[:3] + (max(0, min(255, int(round(color[3] * scale)))),)
+
+
+def sphere_radius_scale(kind, args):
+    if kind == "phase_volume":
+        return args.phase_proxy_scale
+    return args.secondary_proxy_scale
+
+
+def sphere_material_counts(spheres):
+    counts = {
+        "phase_volume": 0,
+        "spray": 0,
+        "foam": 0,
+        "bubble": 0,
+        "droplet": 0,
+    }
+    for sphere in spheres:
+        kind = sphere_kind(sphere.get("material", ""))
+        counts[kind] = counts.get(kind, 0) + 1
+    return counts
 
 
 def make_background(width, height):
@@ -153,6 +191,32 @@ def draw_circle(draw, mask, x, y, radius, fill):
     mask.ellipse(box, fill=255)
 
 
+def draw_legend(draw, frame_index, counts, args):
+    if not args.draw_legend:
+        return
+    items = [
+        ("water mesh", apply_alpha(WATER_RIM, args.water_alpha_scale)),
+        ("phase", color_for_kind("phase_volume")),
+        ("spray", color_for_kind("spray")),
+        ("foam", color_for_kind("foam")),
+        ("bubble", color_for_kind("bubble")),
+    ]
+    x = 18
+    y = 16
+    row_h = 20
+    width = 222
+    height = 34 + row_h * len(items)
+    draw.rounded_rectangle((x - 8, y - 8, x + width, y + height), radius=6, fill=LEGEND_BG)
+    draw.text((x, y), f"frame {frame_index:04d}", fill=LEGEND_TEXT)
+    y += 26
+    for label, color in items:
+        draw.ellipse((x, y + 3, x + 10, y + 13), fill=color)
+        value = counts.get(label.replace("water mesh", "water").replace("phase", "phase_volume"), "")
+        suffix = f" {value}" if isinstance(value, int) and value > 0 else ""
+        draw.text((x + 18, y), f"{label}{suffix}", fill=LEGEND_TEXT)
+        y += row_h
+
+
 def render_frame(scene, vertices, out_path, args):
     width = args.width
     height = args.height
@@ -165,14 +229,23 @@ def render_frame(scene, vertices, out_path, args):
 
     for index, (x, _y, z) in enumerate(vertices):
         px, py, scale = project(x, z)
-        radius = 1.2 if index % 8 else 1.8
-        draw_circle(draw, mask, px, py, radius, WATER_RIM if index % 8 == 0 else WATER)
+        radius = (1.2 if index % 8 else 1.8) * args.water_point_scale
+        water_color = WATER_RIM if index % 8 == 0 else WATER
+        draw_circle(draw, mask, px, py, radius, apply_alpha(water_color, args.water_alpha_scale))
 
-    for sphere in scene["spheres"]:
+    ordered_spheres = sorted(scene["spheres"], key=lambda item: sphere_kind(item.get("material", "")) != "phase_volume")
+    material_counts = sphere_material_counts(scene["spheres"])
+    material_counts["water"] = len(vertices)
+    for sphere in ordered_spheres:
+        kind = sphere_kind(sphere.get("material", ""))
         px, py, scale = project(sphere["x"], sphere["z"])
-        radius = max(1.4, sphere["radius"] * scale * args.proxy_pixel_scale)
-        draw_circle(draw, mask, px, py, radius, color_for_material(sphere["material"]))
+        radius = max(1.4, sphere["radius"] * scale * args.proxy_pixel_scale * sphere_radius_scale(kind, args))
+        color = color_for_kind(kind)
+        if args.look == "review" and kind != "phase_volume":
+            draw_circle(draw, mask, px, py, radius * 1.55, apply_alpha(color, 0.34))
+        draw_circle(draw, mask, px, py, radius, color)
 
+    draw_legend(draw, scene.get("source_output_frame", 0), material_counts, args)
     img = Image.alpha_composite(img, overlay)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     img.convert("RGB").save(out_path)
@@ -202,6 +275,7 @@ def render_preview(args):
     for index, frame in enumerate(selected_items(export.get("frames") or [], args.frames)):
         xml_path = resolve_path((frame.get("xml_scene") or {}).get("path") or (frame.get("xml_scene") or {}).get("repo_path"))
         scene = parse_scene(xml_path)
+        scene["source_output_frame"] = frame.get("output_frame")
         mesh = scene.get("water_mesh")
         if mesh not in mesh_cache:
             mesh_cache[mesh] = read_obj_vertices(mesh, args.max_water_vertices)
@@ -209,6 +283,7 @@ def render_preview(args):
         occupancy = render_frame(scene, mesh_cache[mesh], out_path, args)
         min_occupancy = occupancy if min_occupancy is None else min(min_occupancy, occupancy)
         total_spheres += len(scene["spheres"])
+        counts = sphere_material_counts(scene["spheres"])
         frames.append({
             "frame": index,
             "source_output_frame": frame.get("output_frame"),
@@ -216,6 +291,7 @@ def render_preview(args):
             "png": posix_rel(out_path, root),
             "water_vertices_drawn": len(mesh_cache[mesh]),
             "sphere_shapes": len(scene["spheres"]),
+            "sphere_material_counts": counts,
             "occupancy": occupancy,
         })
 
@@ -232,6 +308,7 @@ def render_preview(args):
         "width": args.width,
         "height": args.height,
         "projection": "xz_topdown",
+        "look": args.look,
         "bounds": {
             "x_min": args.x_min,
             "x_max": args.x_max,
@@ -242,7 +319,17 @@ def render_preview(args):
         "secondary_channel": "all",
         "water_reconstruction": True,
         "max_water_vertices": args.max_water_vertices,
+        "water_alpha_scale": args.water_alpha_scale,
+        "water_point_scale": args.water_point_scale,
+        "proxy_pixel_scale": args.proxy_pixel_scale,
+        "phase_proxy_scale": args.phase_proxy_scale,
+        "secondary_proxy_scale": args.secondary_proxy_scale,
+        "draw_legend": args.draw_legend,
         "total_sphere_shapes": total_spheres,
+        "sphere_material_counts": {
+            key: sum((frame.get("sphere_material_counts") or {}).get(key, 0) for frame in frames)
+            for key in ("phase_volume", "spray", "foam", "bubble", "droplet")
+        },
         "frames": frames,
     }
     summary_path = os.path.join(out_dir, "render_summary.json")
@@ -266,9 +353,11 @@ def markdown_report(summary, summary_path, root, next_text):
         f"- Frames: `{summary.get('frame_count')}`",
         f"- Resolution: `{summary.get('width')} x {summary.get('height')}`",
         f"- Projection: `{summary.get('projection')}`",
+        f"- Look: `{summary.get('look')}`",
         f"- Minimum occupancy: `{summary.get('min_occupancy')}`",
         f"- Total sphere shapes: `{summary.get('total_sphere_shapes')}`",
         f"- Max water vertices per frame: `{summary.get('max_water_vertices')}`",
+        f"- Sphere material counts: `{summary.get('sphere_material_counts')}`",
         "",
         "## Frame Samples",
         "",
@@ -300,6 +389,12 @@ def main(argv=None):
     parser.add_argument("--z-max", type=float, default=28.0)
     parser.add_argument("--max-water-vertices", type=int, default=7000)
     parser.add_argument("--proxy-pixel-scale", type=float, default=0.85)
+    parser.add_argument("--look", choices=("technical", "review"), default="technical")
+    parser.add_argument("--water-alpha-scale", type=float, default=1.0)
+    parser.add_argument("--water-point-scale", type=float, default=1.0)
+    parser.add_argument("--phase-proxy-scale", type=float, default=1.0)
+    parser.add_argument("--secondary-proxy-scale", type=float, default=1.0)
+    parser.add_argument("--draw-legend", action="store_true")
     parser.add_argument("--report")
     parser.add_argument("--next", default="Use this preview to inspect Mitsuba XML geometry before offline rendering.")
     args = parser.parse_args(argv)
@@ -313,6 +408,14 @@ def main(argv=None):
         parser.error("max-water-vertices must be positive")
     if args.proxy_pixel_scale <= 0.0:
         parser.error("proxy-pixel-scale must be positive")
+    if args.water_alpha_scale < 0.0:
+        parser.error("water-alpha-scale must be non-negative")
+    if args.water_point_scale <= 0.0:
+        parser.error("water-point-scale must be positive")
+    if args.phase_proxy_scale <= 0.0:
+        parser.error("phase-proxy-scale must be positive")
+    if args.secondary_proxy_scale <= 0.0:
+        parser.error("secondary-proxy-scale must be positive")
     render_preview(args)
 
 
