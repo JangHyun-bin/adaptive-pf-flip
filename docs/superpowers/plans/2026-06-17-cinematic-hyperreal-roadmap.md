@@ -2815,3 +2815,21 @@ delta is `0.0`, mean luminance delta is `0.021145431455749986`, and mean frame
 contrast delta is `-4.125`. Use S305 as the strongest local larger-job Blender
 visual proof before public publish, packaging, or non-Blender external renderer
 adapter work.
+
+S306 published the S305 full48 Blender gallery:
+
+- S306 publish report:
+  `docs/reports/cinematic_larger_external_renderer_job_blender_full48_publish_s306.md`
+- S306 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-job-blender-full48-publish.md`
+- S306 manifest:
+  `build/shots/s306_larger_external_renderer_job_blender_full48_publish/publish_manifest.json`
+- S306 public URL:
+  `https://combined-ion-bowl-ted.trycloudflare.com`
+
+S306 stops the S303 24-frame larger-job endpoint, serves the S305 full48
+gallery on local port `8903`, and starts a new Cloudflare quick tunnel. Local
+and public `index.html` plus `assets/shot.gif` checks all returned HTTP `200`.
+The HTTP server PID is `59524`, and the Cloudflared PID is `44484`. Use S306
+as the current public larger-job full48 Blender proof endpoint while S292
+remains active separately as the full32 job-path proof endpoint.
