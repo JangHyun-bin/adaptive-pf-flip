@@ -1090,3 +1090,22 @@ noise (`-4.340277769188106e-06` mean luminance delta, all other aggregate deltas
 `0.0`). Use S220 as the accepted baseline for the next visual pass. A practical
 next target is secondary particle readability without increasing direct particle
 clutter.
+
+S221 tested secondary readability without increasing direct secondary particles:
+
+- S221 comparison report:
+  `docs/reports/cinematic_secondary_readability_probe_s221.md`
+- S221 gallery report:
+  `docs/reports/cinematic_secondary_readability_gallery_s221.md`
+- S221 plan:
+  `docs/superpowers/plans/2026-06-19-secondary-readability-probe.md`
+- S221 gallery:
+  `build/shots/s221_secondary_readability_probe/gallery/index.html`
+
+S221 introduces `dam_break_secondary_readability_probe`, leaving
+`secondary_direct_pass` unchanged while strengthening only `secondary_soft_pass`
+and `secondary_streak_pass`. The mixed gate passed and direct secondary counts
+match S220 on all 8 review frames. Against S220, contrast, coverage, bright
+ratio, and highlight ratio remain unchanged while mean luminance rises by
+`0.0604996744791606`. S221 is safe but visually subtle; keep it as opt-in and
+run a stronger soft/streak-only A/B before promotion.
