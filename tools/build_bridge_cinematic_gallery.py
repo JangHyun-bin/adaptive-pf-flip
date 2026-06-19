@@ -140,7 +140,7 @@ def html_page(title, bridge_summary, comparison_summary, assets, metadata_files)
         for label, value in metric_tiles(bridge_summary, comparison_summary)
     )
     hero = next(item for item in assets if item["label"] == "Shot GIF")
-    comparison = next(item for item in assets if item["label"] == "S168 vs S173 Comparison")
+    comparison = next(item for item in assets if item["label"] != "Shot GIF" and not item["label"].startswith("Keyframe"))
     frames = [item for item in assets if item["label"].startswith("Keyframe")]
     frame_blocks = "\n".join(image_block(item) for item in frames)
     file_links = "\n".join(
@@ -308,7 +308,7 @@ def html_page(title, bridge_summary, comparison_summary, assets, metadata_files)
 
 def markdown_report(title, out_dir, manifest_path, assets, metadata_files, root):
     lines = [
-        "# S175 Metadata Depth Gallery",
+        f"# {title} Gallery",
         "",
         f"Generated UTC: `{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}`",
         f"Title: `{title}`",
@@ -345,6 +345,7 @@ def main(argv=None):
     parser.add_argument("--out", required=True)
     parser.add_argument("--comparison-sheet", required=True)
     parser.add_argument("--comparison-summary", required=True)
+    parser.add_argument("--comparison-label", default="Comparison")
     parser.add_argument("--title", default="S173 Metadata Depth Attenuation")
     parser.add_argument("--keyframes", type=int, default=3)
     parser.add_argument("--report")
@@ -363,7 +364,7 @@ def main(argv=None):
 
     assets = [
         copy_asset(gif_path, out_dir, "shot.gif", "Shot GIF"),
-        copy_asset(comparison_sheet, out_dir, "s168_s173_comparison.png", "S168 vs S173 Comparison"),
+        copy_asset(comparison_sheet, out_dir, "comparison.png", args.comparison_label),
     ]
     for index, frame in enumerate(frames):
         assets.append(copy_asset(frame, out_dir, f"keyframe_{index:02d}.png", f"Keyframe {index + 1}"))
