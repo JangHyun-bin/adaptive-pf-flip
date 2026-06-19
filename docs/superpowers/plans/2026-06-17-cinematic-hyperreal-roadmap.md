@@ -3348,3 +3348,28 @@ checks with `0` failures and `0` skipped checks, including public HTTP `200`
 checks for `index.html` and `assets/shot.gif`. Use S329 as the gate before
 changing the renderer target preview or replacing it with a renderer-native
 secondary/grade implementation.
+
+S330 added an actual-Mitsuba versus target gap baseline:
+
+- S330 new tool:
+  `tools/compare_mitsuba_renderer_target_gap.py`
+- S330 gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_gap_s330.md`
+- S330 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_gap_publish_s330.md`
+- S330 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-target-gap.md`
+- S330 gap summary:
+  `build/shots/s330_mitsuba_renderer_target_gap/renderer_target_gap_summary.json`
+- S330 public URL:
+  `https://dealt-sudden-mustang-grove.trycloudflare.com`
+
+S330 compares the current actual Mitsuba baseline frames from the S327 handoff
+bundle against the accepted S328 target preview, emits per-frame diff/strip
+images, and publishes a gap gallery. The generated
+`lsfs_mitsuba_renderer_target_gap` is `ready` for `8` frames with `0` missing
+references, mean gap mean absolute diff `74.16963405028292`, max gap mean
+absolute diff `104.48981417181069`, and max gap max absolute diff `153`. The
+published gallery verifies public `index.html` and `assets/shot.gif` with HTTP
+`200`. Use S330 to judge whether renderer-native material, secondary, and grade
+changes actually move the Mitsuba output toward the accepted target.
