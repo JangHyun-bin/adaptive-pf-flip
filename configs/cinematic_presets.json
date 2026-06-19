@@ -2397,6 +2397,27 @@
         }
       }
     },
+    "dam_break_water_mesh_smoothing": {
+      "extends": "dam_break_water_surface_continuity_stabilized",
+      "description": "S186 with bounded Smooth modifier support on imported water meshes to soften structural sheet seams.",
+      "renderer": {
+        "water_mesh_smoothing_pass": {
+          "enabled": true,
+          "shade_smooth": true,
+          "factor": 0.075,
+          "iterations": 2
+        },
+        "water_surface_detail": {
+          "strength": 0.052,
+          "scale": 2.8,
+          "depth": 6
+        },
+        "water_volume_scattering_pass": {
+          "alpha_scale": 0.27,
+          "emission_scale": 0.36
+        }
+      }
+    },
     "dam_break_large_grid_warm_cache_preview": {
       "extends": "dam_break_large_grid_render_quality_followup",
       "description": "Large-grid warm-cache preview benchmark preset with preview-friendly temporal threshold.",

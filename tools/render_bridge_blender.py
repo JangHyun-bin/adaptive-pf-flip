@@ -868,6 +868,16 @@ def water_surface_detail_summary(render_preset):
     }
 
 
+def water_mesh_smoothing_pass_summary(render_preset):
+    cfg = preset_section(preset_section(render_preset, "renderer"), "water_mesh_smoothing_pass")
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "shade_smooth": bool(cfg.get("shade_smooth", True)),
+        "factor": as_float(cfg.get("factor"), 0.08),
+        "iterations": as_int(cfg.get("iterations"), 1),
+    }
+
+
 def secondary_channel_radius_summary(render_preset):
     scales = preset_section(preset_section(render_preset, "renderer"), "secondary_channel_radius_scales")
     return {
@@ -1437,6 +1447,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     metadata_depth_attenuation_pass = metadata_depth_attenuation_pass_summary(render_preset)
     contact_mist_curtain_pass = contact_mist_curtain_pass_summary(render_preset)
     water_impact_ripple_pass = water_impact_ripple_pass_summary(render_preset)
+    water_mesh_smoothing_pass = water_mesh_smoothing_pass_summary(render_preset)
     water_surface_glint_pass, water_reflection_pass, surface_contact_foam_pass, water_volume_scattering_pass, water_impact_ripple_pass = (
         apply_water_surface_continuity_pass(
             water_surface_glint_pass,
@@ -1559,6 +1570,7 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
         "camera_path_metrics": camera_path_metrics(frames),
         "water_material": water_material_summary(render_preset),
         "water_surface_detail": water_surface_detail,
+        "water_mesh_smoothing_pass": water_mesh_smoothing_pass,
         "world_units": "cell",
         "sequence_frame_count": len(sequence["frames"]),
         "source_window": source_window,
@@ -1957,15 +1969,39 @@ def apply_surface_detail(obj, detail, frame_index):
         return
 
 
-def add_water_mesh(frame, material, detail):
+def water_mesh_smoothing_values(spec):
+    cfg = spec.get("water_mesh_smoothing_pass") or {}
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "shade_smooth": bool(cfg.get("shade_smooth", True)),
+        "factor": min(1.0, max(0.0, scalar_value(cfg.get("factor"), 0.08))),
+        "iterations": max(0, int(scalar_value(cfg.get("iterations"), 1))),
+    }
+
+
+def apply_water_mesh_smoothing(obj, smoothing):
+    try:
+        shade_smooth = bool(smoothing.get("shade_smooth", True)) if smoothing.get("enabled", False) else True
+        if shade_smooth and hasattr(obj.data, "polygons"):
+            for poly in obj.data.polygons:
+                poly.use_smooth = True
+        factor = float(smoothing.get("factor", 0.0))
+        iterations = int(smoothing.get("iterations", 0))
+        if smoothing.get("enabled", False) and factor > 0.0 and iterations > 0:
+            mod = obj.modifiers.new("LSFS surface smoothing", type="SMOOTH")
+            mod.factor = factor
+            mod.iterations = iterations
+    except Exception:
+        return
+
+
+def add_water_mesh(frame, material, detail, smoothing):
     objects = import_obj(frame["water_mesh"])
     for obj in objects:
         obj.name = "LSFS Water"
         obj["lsfs_frame_asset"] = True
         obj.rotation_euler[0] = math.radians(90.0)
-        if hasattr(obj.data, "polygons"):
-            for poly in obj.data.polygons:
-                poly.use_smooth = True
+        apply_water_mesh_smoothing(obj, smoothing)
         apply_surface_detail(obj, detail, int(frame.get("index", 0)))
         obj.data.materials.append(material)
     return len(objects)
@@ -2995,6 +3031,7 @@ def main():
     foam = material_values(preset, "foam", (0.95, 0.94, 0.82, 1.0), 0.55, 1.0, 0.0)
     bubble = material_values(preset, "bubble", (1.0, 0.78, 0.34, 0.78), 0.15, 0.78, 0.15)
     surface_detail = surface_detail_values(preset)
+    mesh_smoothing = water_mesh_smoothing_values(spec)
     water_mat = make_water_material("LSFS Water Glass", water)
     floor_mat = make_principled_material("LSFS Dark Floor",
                                          floor["color"],
@@ -3101,7 +3138,7 @@ def main():
         update_material_or_list(particle_mats.get("foam_soft_falloff"), frame_foam_soft)
         update_principled_material(particle_mats["spray_streak"], frame_spray_streak)
         update_principled_material(particle_mats["foam_streak"], frame_foam_streak)
-        add_water_mesh(frame, water_mat, surface_detail)
+        add_water_mesh(frame, water_mat, surface_detail, mesh_smoothing)
         add_water_volume_scattering_pass(frame,
                                          particle_mats["water_volume_scatter"],
                                          frame_scattering_pass)
@@ -3390,6 +3427,7 @@ def main(argv=None):
             "camera_path_metrics": spec["camera_path_metrics"],
             "water_material": spec["water_material"],
             "water_surface_detail": spec["water_surface_detail"],
+            "water_mesh_smoothing_pass": spec["water_mesh_smoothing_pass"],
             "render_preset_name": args.render_preset,
             "preset_config": preset_config_path,
             "dependency": report,

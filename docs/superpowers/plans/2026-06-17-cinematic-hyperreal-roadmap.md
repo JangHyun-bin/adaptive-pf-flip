@@ -556,7 +556,7 @@ Do not combine renderer bridge decisions, simulation solver changes, and cache s
 
 ## Next Immediate Action
 
-Continue with S191.
+Continue with S192.
 
 S183 is implemented and validated:
 
@@ -631,6 +631,13 @@ S190 is implemented and validated:
 - S190 diagnostics outputs:
   `build/shots/s190_surface_metric_bridge_diagnostics`
 
-S191 should use the complete metric set to choose and implement a bounded
-mesh-smoothing or renderer-side water-volume occlusion pass for the worst
-continuity frames.
+S191 is implemented and validated:
+
+- S191 gate report: `docs/reports/cinematic_water_mesh_smoothing_s191.md`
+- S191 comparison report:
+  `docs/reports/cinematic_water_mesh_smoothing_comparison_s191.md`
+- S191 plan: `docs/superpowers/plans/2026-06-19-water-mesh-smoothing.md`
+- S191 shot artifacts: `build/shots/s191_water_mesh_smoothing`
+
+S192 should publish the S191 gallery through the existing static gallery and
+Cloudflare quick tunnel workflow.
