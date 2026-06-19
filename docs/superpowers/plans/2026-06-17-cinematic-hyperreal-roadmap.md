@@ -2466,3 +2466,23 @@ checks all returned HTTP `200`. The HTTP server PID is `61388`, and the
 Cloudflared PID is `153412`. S287 is the public smoke-test endpoint for the
 external renderer job schema path; S283 and S281 remain active separately for
 accepted bridge review and external-bundle benchmark preview.
+
+S288 connected external renderer jobs to the Blender bridge dry-run path:
+
+- S288 report:
+  `docs/reports/cinematic_external_renderer_job_blender_adapter_s288.md`
+- S288 plan:
+  `docs/superpowers/plans/2026-06-20-external-renderer-job-blender-adapter.md`
+- S288 dry-run summary:
+  `build/shots/s288_external_renderer_job_blender_adapter/dry/bridge_summary.json`
+- S288 scene spec:
+  `build/shots/s288_external_renderer_job_blender_adapter/dry/blender_scene_spec.json`
+
+S288 extends `tools/render_bridge_blender.py` so `src` can be either the older
+S38 converted `sequence.json` or a `lsfs_external_renderer_job`. The S285 job
+dry-run produced an `8` frame Blender scene spec at `960 x 540`, `12` samples,
+using source window `0..31` and the accepted
+`dam_break_water_mesh_smoothing` preset. First/last water mesh face counts are
+`20000` and `22300`, and secondary totals are `256` and `964`. Use S288 as the
+renderer-specific adapter gate before running a bounded Blender render through
+the job path.

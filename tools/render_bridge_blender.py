@@ -2,9 +2,9 @@
 """Render LSFS converted cache bundles through Blender.
 
 This S42 bridge keeps the simulation cache and renderer integration separated:
-it reads an S38 converted sequence bundle, consumes S41 OBJ water meshes, writes
-a Blender scene spec, then optionally runs Blender in background mode to render
-PNG frames.
+it reads an S38 converted sequence bundle or an external renderer job, consumes
+OBJ water meshes, writes a Blender scene spec, then optionally runs Blender in
+background mode to render PNG frames.
 
 Usage:
   python tools/render_bridge_blender.py --check
@@ -456,12 +456,80 @@ def require_file(path, label):
     return path
 
 
+def asset_path(asset):
+    path = (asset or {}).get("path") or (asset or {}).get("repo_path")
+    if not isinstance(path, str) or not path:
+        return None
+    if os.path.isabs(path):
+        return os.path.abspath(path)
+    return os.path.abspath(path.replace("/", os.sep))
+
+
+def load_external_renderer_job(path):
+    data = read_json(path)
+    if data.get("schema") != "lsfs_external_renderer_job":
+        fail(f"{path}: expected lsfs_external_renderer_job schema")
+    if data.get("status") != "ready":
+        fail(f"{path}: external renderer job status is {data.get('status')!r}")
+    frames = []
+    dims = [1, 1, 1]
+    dx = 1.0
+    for entry in data.get("frames", []):
+        assets = entry.get("assets") or {}
+        camera_path = require_file(asset_path(assets.get("camera")), "camera")
+        particles_path = require_file(asset_path(assets.get("particles")), "particles")
+        mesh_path = require_file(asset_path(assets.get("water_mesh")), "water_mesh")
+        camera_payload = read_json(camera_path)
+        header = camera_payload.get("header", {})
+        if frames == []:
+            dims = header.get("dims", dims)
+            dx = as_float(header.get("dx"), dx)
+        frames.append({
+            "camera_path": camera_path,
+            "particles_csv": particles_path,
+            "source_cache": f"external_renderer_job:{entry.get('output_frame', len(frames))}",
+            "frame": as_int(entry.get("sequence_frame"), as_int(entry.get("output_frame"), len(frames))),
+            "time": as_float(entry.get("time"), 0.0),
+            "camera": camera_payload.get("camera", {}),
+            "header": header,
+            "cinematic": camera_payload.get("cinematic_metadata", {}),
+            "water_mesh": mesh_path,
+            "water_mesh_vertex_count": as_int(entry.get("water_mesh_vertex_count")),
+            "water_mesh_face_count": as_int(entry.get("water_mesh_face_count")),
+            "water_mesh_occupied_cell_count": as_int((entry.get("render_data") or {}).get("water_mesh_occupied_cell_count")),
+            "water_mesh_surface_quality": (
+                dict(entry.get("water_mesh_surface_quality"))
+                if isinstance(entry.get("water_mesh_surface_quality"), dict)
+                else {}
+            ),
+            "render_data": dict(entry.get("render_data")) if isinstance(entry.get("render_data"), dict) else {},
+            "particle_count": as_int(entry.get("particle_count")),
+            "secondary_channels": camera_payload.get("secondary_channels", {}),
+        })
+    if not frames:
+        fail(f"{path}: external renderer job contains no frames")
+    return {
+        "source": os.path.abspath(path),
+        "base_dir": os.path.dirname(os.path.abspath(path)),
+        "sequence": {
+            "schema": data.get("schema"),
+            "version": data.get("version"),
+            "dims": dims,
+            "dx": dx,
+        },
+        "frames": frames,
+        "water_reconstruction": None,
+    }
+
+
 def load_sequence(path, water_reconstruction_path=None):
     if not os.path.isfile(path):
-        fail(f"{path}: source sequence not found")
+        fail(f"{path}: source sequence or renderer job not found")
     data = read_json(path)
+    if data.get("schema") == "lsfs_external_renderer_job":
+        return load_external_renderer_job(path)
     if data.get("converter") != "lsfs_render_cache_converter":
-        fail(f"{path}: expected an S38 converted sequence.json bundle")
+        fail(f"{path}: expected an S38 converted sequence.json bundle or lsfs_external_renderer_job")
     base_dir = os.path.dirname(os.path.abspath(path))
     water_index_path = water_reconstruction_path
     if not water_index_path:
@@ -1542,6 +1610,8 @@ def build_scene_spec(src, out_dir, frame_count, width, height, water_reconstruct
     for out_index in range(frame_count):
         frame = select_resampled(sequence["frames"], out_index, frame_count, source_window)
         render_data = select_resampled(render_data_summary.get("frames", []), out_index, frame_count)
+        if not render_data and isinstance(frame.get("render_data"), dict):
+            render_data = frame.get("render_data")
         water_mesh = pick_water_mesh(frame,
                                      sequence.get("water_reconstruction"),
                                      out_index,
@@ -3609,7 +3679,7 @@ def run_blender(blender_path, driver_path, spec_path, out_dir, timeout_seconds):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Render LSFS converted cache assets through Blender")
-    parser.add_argument("src", nargs="?", help="S38 converted sequence.json")
+    parser.add_argument("src", nargs="?", help="S38 converted sequence.json or lsfs_external_renderer_job JSON")
     parser.add_argument("out_dir", nargs="?", help="output directory")
     parser.add_argument("--check", action="store_true", help="print Blender dependency report and exit")
     parser.add_argument("--blender", help="explicit blender executable path")
