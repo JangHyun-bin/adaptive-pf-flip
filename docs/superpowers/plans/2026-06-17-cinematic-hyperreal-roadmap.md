@@ -2207,3 +2207,22 @@ bundle has `0` missing assets and records the accepted input footprint:
 `1.28 GB` particle CSV, `33.66 MB` phase-cell CSV, and `53.39 MB` water OBJ.
 Use S273 as the frame-level input list for external renderer prototypes,
 larger-shot reruns, or large-scale benchmark input-size gates.
+
+S274 made the external render bundle directly previewable:
+
+- S274 report:
+  `docs/reports/cinematic_external_bundle_preview_s274.md`
+- S274 plan:
+  `docs/superpowers/plans/2026-06-20-external-bundle-preview-gate.md`
+- S274 preview GIF:
+  `build/shots/s274_external_bundle_preview/preview.gif`
+- S274 preview summary:
+  `build/shots/s274_external_bundle_preview/preview/render_summary.json`
+
+S274 extends `tools/cinematic_render_stub.py` to accept
+`lsfs_bridge_external_render_bundle` inputs. Bundle mode samples only the
+requested preview frames before reading large particle/phase CSV assets, and it
+uses the bundle water-mesh assets for mesh overlay. The S273 bundle rendered an
+8-frame `640 x 360` preview with minimum occupancy `0.0608984375` against the
+`0.01` gate, then assembled a GIF. Use S274 as the fast visual smoke gate for
+S273 before heavier external-render, larger-shot, or Blender work.

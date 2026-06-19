@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """Render a local cinematic preview from LSFS 3D render cache data.
 
-This is a preview renderer, not the final SPEC-4 renderer. It accepts either a
-canonical render cache manifest or an S38 converted sequence.json bundle, then
-writes frame_####.png images plus render_summary.json.
+This is a preview renderer, not the final SPEC-4 renderer. It accepts a
+canonical render cache manifest, an S38 converted sequence.json bundle, an S273
+external render bundle, or a single JSONL frame, then writes frame_####.png
+images plus render_summary.json.
 
 Usage:
-  python tools/cinematic_render_stub.py <manifest.json|sequence.json|frame.jsonl> <out_dir> --frames 12
+  python tools/cinematic_render_stub.py <manifest.json|sequence.json|external_render_bundle.json|frame.jsonl> <out_dir> --frames 12
 """
 
 import argparse
@@ -262,6 +263,61 @@ def load_sequence(path):
     return frames
 
 
+def select_resampled(items, out_index, out_count):
+    if not items:
+        return None
+    if out_count <= 1 or len(items) == 1:
+        return items[0]
+    src_index = round(out_index * (len(items) - 1) / max(1, out_count - 1))
+    return items[src_index]
+
+
+def load_bundle_asset(entry, key, label):
+    asset = (entry.get("assets") or {}).get(key) or {}
+    path = asset.get("path") or asset.get("repo_path")
+    if not path:
+        fail(f"{label}: missing {key} asset path")
+    resolved = os.path.abspath(path) if os.path.isabs(path) else os.path.abspath(path.replace("/", os.sep))
+    if not os.path.isfile(resolved):
+        fail(f"{label}: missing {key} asset {path!r}")
+    return resolved
+
+
+def load_external_bundle(path, requested_frames):
+    data = read_json(path)
+    if data.get("schema") != "lsfs_bridge_external_render_bundle":
+        fail(f"{path}: not an LSFS external render bundle")
+    bundle_frames = data.get("frames", [])
+    if not bundle_frames:
+        fail(f"{path}: external render bundle has no frames")
+    frames = []
+    mesh_frames = []
+    out_count = max(1, requested_frames)
+    for out_index in range(out_count):
+        entry = select_resampled(bundle_frames, out_index, out_count)
+        label = f"{path}: frames[{entry.get('output_frame', out_index)}]"
+        camera_path = load_bundle_asset(entry, "camera", label)
+        particles_path = load_bundle_asset(entry, "particles", label)
+        phase_path = load_bundle_asset(entry, "phase_cells", label)
+        mesh_path = load_bundle_asset(entry, "water_mesh", label)
+        payload = read_json(camera_path)
+        frame = {
+            "source": f"external_bundle:{entry.get('output_frame', out_index)}",
+            "header": payload.get("header", {}),
+            "camera": payload.get("camera", {}),
+            "cinematic": payload.get("cinematic_metadata"),
+            "phase_cells": read_phase_csv(phase_path),
+            "particles": read_particle_csv(particles_path),
+        }
+        frames.append(normalize_frame(frame))
+        mesh_frames.append({
+            "mesh": mesh_path,
+            "vertex_count": as_int(entry.get("water_mesh_vertex_count")),
+            "face_count": as_int(entry.get("water_mesh_face_count")),
+        })
+    return frames, mesh_frames
+
+
 def read_particle_csv(path):
     out = []
     with open(path, encoding="utf-8", newline="") as f:
@@ -319,9 +375,11 @@ def load_source(path):
     data = read_json(path)
     if data.get("converter") == "lsfs_render_cache_converter":
         return load_sequence(path)
+    if data.get("schema") == "lsfs_bridge_external_render_bundle":
+        fail(f"{path}: external render bundle input requires the selected-frame loader")
     if data.get("lsfs_cache3d_manifest_version") == 1:
         return load_manifest(path)
-    fail(f"{path}: expected manifest, sequence.json, or JSONL frame")
+    fail(f"{path}: expected manifest, sequence.json, external render bundle, or JSONL frame")
 
 
 def make_background(width, height):
@@ -545,7 +603,7 @@ def count_nonzero(mask):
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Render cinematic PNG previews from LSFS cache data")
-    parser.add_argument("src", help="render cache manifest, converted sequence.json, or JSONL frame")
+    parser.add_argument("src", help="render cache manifest, converted sequence.json, external render bundle, or JSONL frame")
     parser.add_argument("out_dir", help="output directory")
     parser.add_argument("--frames", type=int, default=12, help="number of preview frames to write")
     parser.add_argument("--width", type=int, default=1280, help="output image width")
@@ -572,8 +630,15 @@ def main(argv=None):
         return 1
     args = parse_args(sys.argv[1:] if argv is None else argv)
     try:
-        source_frames = load_source(args.src)
-        mesh_frames = load_water_reconstruction(args.water_reconstruction)
+        source_data = None
+        if os.path.isfile(args.src) and args.src.lower().endswith(".json"):
+            source_data = read_json(args.src)
+        if source_data and source_data.get("schema") == "lsfs_bridge_external_render_bundle":
+            source_frames, bundle_mesh_frames = load_external_bundle(args.src, args.frames)
+            mesh_frames = load_water_reconstruction(args.water_reconstruction) or bundle_mesh_frames
+        else:
+            source_frames = load_source(args.src)
+            mesh_frames = load_water_reconstruction(args.water_reconstruction)
         os.makedirs(args.out_dir, exist_ok=True)
         summaries = []
         for i in range(args.frames):
