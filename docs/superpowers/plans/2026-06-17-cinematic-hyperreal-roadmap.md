@@ -2186,3 +2186,24 @@ manifest passed `23` checks with `0` failures and `0` warnings, and both public
 URL checks returned HTTP `200`. Use the S271/S272 pair as the current
 machine-readable accepted baseline gate before external-render experiments,
 larger-shot reruns, or large-scale benchmark jobs consume S269.
+
+S273 added a frame-level external render bundle manifest:
+
+- S273 tool:
+  `tools/build_bridge_external_render_bundle.py`
+- S273 report:
+  `docs/reports/cinematic_external_render_bundle_s273.md`
+- S273 plan:
+  `docs/superpowers/plans/2026-06-20-external-render-bundle.md`
+- S273 bundle:
+  `build/shots/s273_external_render_bundle/external_render_bundle.json`
+
+S273 consumes the S271 handoff manifest and emits
+`lsfs_bridge_external_render_bundle` version `1`. It reuses the bridge
+renderer's source-window resampling rule, producing `32` accepted output frames
+from source window `8..55` with camera JSON, particle CSV, phase-cell CSV,
+water-mesh OBJ, surface-quality, and render-data references. The generated
+bundle has `0` missing assets and records the accepted input footprint:
+`1.28 GB` particle CSV, `33.66 MB` phase-cell CSV, and `53.39 MB` water OBJ.
+Use S273 as the frame-level input list for external renderer prototypes,
+larger-shot reruns, or large-scale benchmark input-size gates.
