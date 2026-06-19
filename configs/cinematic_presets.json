@@ -2400,6 +2400,28 @@
     "dam_break_water_mesh_smoothing": {
       "extends": "dam_break_water_surface_continuity_stabilized",
       "description": "S186 with bounded Smooth modifier support on imported water meshes to soften structural sheet seams.",
+      "tone_mapping": {
+        "view_transform": "Filmic",
+        "look": "Medium High Contrast",
+        "exposure": 0.09,
+        "gamma": 1.0
+      },
+      "lighting": {
+        "world_color": [0.036, 0.041, 0.044],
+        "key_area": {
+          "location": [-5.0, -14.0, 22.0],
+          "energy": 800.0,
+          "size": 15.0
+        },
+        "sun": {
+          "rotation_degrees": [50.0, 0.0, -26.0],
+          "energy": 0.76
+        },
+        "floor": {
+          "enabled": true,
+          "scale": 2.25
+        }
+      },
       "materials": {
         "water": {
           "depth_strength": 0.76,
@@ -3011,29 +3033,7 @@
     },
     "dam_break_presentation_lift_probe": {
       "extends": "dam_break_water_mesh_smoothing",
-      "description": "S253 presentation probe that keeps accepted simulation/material overlays but slightly lifts exposure and scene illumination for review readability.",
-      "tone_mapping": {
-        "view_transform": "Filmic",
-        "look": "Medium High Contrast",
-        "exposure": 0.09,
-        "gamma": 1.0
-      },
-      "lighting": {
-        "world_color": [0.036, 0.041, 0.044],
-        "key_area": {
-          "location": [-5.0, -14.0, 22.0],
-          "energy": 800.0,
-          "size": 15.0
-        },
-        "sun": {
-          "rotation_degrees": [50.0, 0.0, -26.0],
-          "energy": 0.76
-        },
-        "floor": {
-          "enabled": true,
-          "scale": 2.25
-        }
-      }
+      "description": "S253 historical alias for the presentation lift now promoted into dam_break_water_mesh_smoothing."
     },
     "dam_break_water_mesh_smoothing_soft_probe": {
       "extends": "dam_break_water_mesh_smoothing",

@@ -1800,3 +1800,30 @@ Against S246 accepted, S254 passes the surface-quality gate with
 `1.6875`, but hard highlight/specular deltas remain tiny and visual comparison
 does not show broad washout. Promote the S253 tone/lighting lift to S255
 accepted-preset parity.
+
+S255 promoted the presentation lift into the accepted preset:
+
+- S255 parity report:
+  `docs/reports/cinematic_presentation_lift_acceptance_parity_s255.md`
+- S255 accepted delta report:
+  `docs/reports/cinematic_presentation_lift_acceptance_delta_s255.md`
+- S255 gallery report:
+  `docs/reports/cinematic_presentation_lift_acceptance_gallery_s255.md`
+- S255 plan:
+  `docs/superpowers/plans/2026-06-20-presentation-lift-acceptance.md`
+- S255 gallery:
+  `build/shots/s255_presentation_lift_acceptance/gallery/index.html`
+
+S255 moves the S253 tone mapping and lighting values into
+`dam_break_water_mesh_smoothing` and keeps `dam_break_presentation_lift_probe`
+as a historical alias. The 32-frame gate passes with `normal_rough: 3`,
+`stable: 29`, stable ratio `0.90625`, and blocked labels `0`. Against S254,
+bright ratio, highlight ratio, minimum contrast, nonblank coverage, luma
+percentiles, upper-mid ratio, near-highlight ratio, specular ratio, and frame
+contrast all have `0.0` delta; mean luminance differs only by
+`-3.390842010730921e-06`. Against the previous S246 accepted baseline, S255
+keeps the intended presentation lift with mean luminance `+2.5770240614149316`,
+minimum contrast `+1.0`, `luma_p95 +2.96875`, `luma_p99 +2.53125`, and
+`luma_p99.5 +2.53125`, while nonblank coverage is unchanged. S255 is now the
+current accepted bridge-render visual baseline. Refresh the accepted review
+package/gallery next.
