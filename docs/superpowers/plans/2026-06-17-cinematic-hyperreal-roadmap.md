@@ -2355,3 +2355,24 @@ S281 stops the S278/S277 preview endpoint, serves the S280 gallery on local port
 plus `assets/shot.gif` checks all returned HTTP `200`. S281 is now the current
 lightweight external-render benchmark preview endpoint; the S270/S269 accepted
 gallery endpoint remains active separately.
+
+S282 validated the accepted bridge render at higher presentation resolution:
+
+- S282 review report:
+  `docs/reports/cinematic_accepted_bridge_hires_review_s282.md`
+- S282 gallery report:
+  `docs/reports/cinematic_accepted_bridge_hires_gallery_s282.md`
+- S282 plan:
+  `docs/superpowers/plans/2026-06-20-accepted-bridge-hires-review.md`
+- S282 gallery:
+  `build/shots/s282_accepted_bridge_hires_review/gallery/index.html`
+
+S282 renders the accepted `dam_break_water_mesh_smoothing` preset at `32`
+frames, source window `8..55`, `960 x 540`, and `12` samples. The dry-run and
+surface-quality gate pass with `normal_rough: 3`, `stable: 29`. Against S269
+`640 x 360`, S282 preserves nonblank coverage, reduces broad bright/highlight
+ratios by about `2e-5`, raises mean frame contrast by `1.65625`, and is visibly
+sharper. The local minimum contrast delta is `-9.0`, recorded as a resolution
+review note rather than an accepted-preset regression. Use S282 as the
+high-resolution bridge review artifact while keeping S269 as the accepted preset
+baseline.
