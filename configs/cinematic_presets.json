@@ -2535,6 +2535,19 @@
         }
       }
     },
+    "dam_break_water_normal_rough_smoothing_probe": {
+      "extends": "dam_break_water_component_material_labeled_probe",
+      "description": "S212 label-gated mesh smoothing probe for normal_rough frames without water material suppression.",
+      "renderer": {
+        "water_mesh_quality_smoothing_pass": {
+          "enabled": true,
+          "quality_labels": ["normal_rough"],
+          "shade_smooth": true,
+          "factor": 0.04,
+          "iterations": 1
+        }
+      }
+    },
     "dam_break_water_volume_occlusion_probe": {
       "extends": "dam_break_water_mesh_smoothing",
       "description": "S194 probe candidate with renderer-side dark water-volume occlusion sheets.",

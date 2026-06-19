@@ -929,3 +929,21 @@ S211 rejects S210 for baseline promotion. The 4-frame 640x360 review preserves
 nonblank coverage, but minimum contrast drops by `8` and bright/highlight ratios
 drop. The next `normal_rough` pass should stop suppressing water material and
 instead test label-gated mesh smoothing or normal-continuity treatment.
+
+S212 added label-gated normal-rough mesh smoothing:
+
+- S212 untreated comparison report:
+  `docs/reports/cinematic_water_mesh_normal_rough_smoothing_comparison_s212.md`
+- S212 S210 comparison report:
+  `docs/reports/cinematic_water_mesh_normal_rough_s210_s212_comparison.md`
+- S212 plan:
+  `docs/superpowers/plans/2026-06-19-water-mesh-normal-rough-smoothing.md`
+- S212 artifacts:
+  `build/shots/s212_normal_rough_smoothing`
+
+S212 is the preferred `normal_rough` route. It keeps the accepted S191 window
+stable-only/no-op, then improves the 4-frame normal-rough review by `+45`
+minimum contrast against untreated while preserving nonblank coverage and
+bright/highlight energy much better than S210. S213 should package a small
+visual review artifact and decide whether to fold the label-gated smoothing pass
+into the main accepted render preset.
