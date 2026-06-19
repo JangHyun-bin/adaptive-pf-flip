@@ -1131,3 +1131,26 @@ and highlight ratio while improving mean luminance by `0.17864746093749773`.
 Against S221, it adds another `0.11814778645833712` mean luminance with the same
 bounded metrics. Prefer S222 as the secondary readability promotion candidate;
 S223 should fold it into the accepted preset and revalidate.
+
+S223 promoted the S222 secondary readability settings into the accepted water
+mesh smoothing preset:
+
+- S223 acceptance report:
+  `docs/reports/cinematic_secondary_readability_acceptance_s223.md`
+- S223 S222 parity report:
+  `docs/reports/cinematic_secondary_readability_s222_s223_parity.md`
+- S223 gallery report:
+  `docs/reports/cinematic_secondary_readability_acceptance_gallery_s223.md`
+- S223 plan:
+  `docs/superpowers/plans/2026-06-19-secondary-readability-acceptance.md`
+- S223 gallery:
+  `build/shots/s223_accepted_secondary_readability/gallery/index.html`
+
+S223 adds the S222 `secondary_soft_pass` and `secondary_streak_pass` overrides
+directly to `dam_break_water_mesh_smoothing`, while leaving direct secondary
+thinning unchanged. The mixed gate passed with `normal_rough: 1` and `stable: 7`.
+Against S220, S223 preserves coverage, minimum contrast, bright ratio, and
+highlight ratio while improving mean luminance by `0.17866536458332405`.
+Against S222, parity holds within render noise (`1.7903645826322645e-05` mean
+luminance delta, all other aggregate deltas `0.0`). Use S223 as the accepted
+baseline for a wider-window review or external gallery publish.
