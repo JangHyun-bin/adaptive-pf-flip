@@ -3057,3 +3057,20 @@ local port `8904`, and starts a new Cloudflare quick tunnel. Local and public
 server PID is `157712`, and the Cloudflared PID is `130076`. Use S317 as the
 current public non-Blender XML geometry preview while S306 remains active
 separately as the public full48 Blender render proof endpoint.
+
+S318 packaged the tuned non-Blender XML preview proof chain:
+
+- S318 package report:
+  `docs/reports/cinematic_mitsuba_xml_preview_tuned_proof_package_s318.md`
+- S318 plan:
+  `docs/superpowers/plans/2026-06-20-mitsuba-xml-preview-tuned-proof-package.md`
+- S318 package JSON:
+  `build/shots/s318_mitsuba_xml_preview_tuned_proof_package/review_package.json`
+
+S318 collects `10` visual/metadata artifacts from the S316 tuned gallery and
+`5` summary sources: the S312 Mitsuba phase-proxy XML export, S313 XML
+validation, S316 tuned preview summary, S317 tuned preview publish manifest,
+and S306 Blender full48 publish manifest. Use S318 as the durable handoff
+package tying the non-Blender XML scene contract, validation gate, public
+preview endpoint, and Blender proof endpoint together before Mitsuba
+installation or another renderer backend integration.
