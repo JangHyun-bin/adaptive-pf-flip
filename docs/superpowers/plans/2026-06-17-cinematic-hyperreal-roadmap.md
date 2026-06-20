@@ -4033,3 +4033,21 @@ over MW7 by a very small hard-gate margin, but visually they remain much dimmer
 and lower contrast than the target and C1E reference. Continue with a
 target-informed native secondary visibility pass, not another broad opacity
 sweep.
+
+S359 added the secondary visibility bridge diagnostic:
+
+- S359 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-visibility.md`
+- S359 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_sweep_summary_s359.md`
+- S359 updated tool:
+  `tools/compare_mitsuba_renderer_target_gap.py`
+- S359 public quick-tunnel preview:
+  `https://reductions-kde-panels-wrote.trycloudflare.com/index.html`
+
+S359 extends target-gap comparison to accept `lsfs_mitsuba_secondary_composite`
+outputs and ranks `SS1`, `SV1`, `SV2`, and `SV3`. SV1 is the best diagnostic
+visibility bridge: max target MAD improves from SS1 `23.951853137860084` to
+`23.72217142489712`, while stronger/sharper bridges regress the gate. This is a
+useful appearance target, but it is still a screen-space bridge. The next step is
+to port the SV1 profile into renderer-facing secondary cache/pass data.

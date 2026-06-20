@@ -57,6 +57,10 @@ def render_preview_path(frame):
     return preview.get("path") or preview.get("repo_path")
 
 
+def composite_preview_path(frame):
+    return (frame or {}).get("composite_path") or (frame or {}).get("composite_repo_path")
+
+
 def copy_asset(src, assets_dir, name, label, root):
     dest = os.path.join(assets_dir, name)
     if os.path.abspath(src) != os.path.abspath(dest):
@@ -238,6 +242,18 @@ def actual_frame_source(args, root):
             "sha256": sha256_file(render_path),
             "frames": output_frame_map(render.get("frames") or []),
         }
+    if args.actual_composite_summary:
+        composite_path = require_file(args.actual_composite_summary, "actual composite summary")
+        composite = read_json(composite_path)
+        if composite.get("schema") != "lsfs_mitsuba_secondary_composite":
+            raise SystemExit(f"{args.actual_composite_summary}: expected lsfs_mitsuba_secondary_composite schema")
+        return {
+            "kind": "secondary_composite_summary",
+            "path": composite_path,
+            "repo_path": posix_rel(composite_path, root),
+            "sha256": sha256_file(composite_path),
+            "frames": output_frame_map(composite.get("frames") or []),
+        }
     return {"kind": "handoff_base_preview", "frames": None}
 
 
@@ -273,6 +289,9 @@ def compare(args):
         if actual_source["kind"] == "mitsuba_render_manifest":
             actual_render_frame = actual_source["frames"].get(target_frame.get("output_frame"))
             actual_path = resolve_path(render_preview_path(actual_render_frame))
+        elif actual_source["kind"] == "secondary_composite_summary":
+            actual_render_frame = actual_source["frames"].get(target_frame.get("output_frame"))
+            actual_path = resolve_path(composite_preview_path(actual_render_frame))
         else:
             actual_path = resolve_path(reference_path(handoff_frame or {}, "base_preview"))
         target_image_path = resolve_path(target_frame.get("renderer_target_repo_path"))
@@ -390,6 +409,8 @@ def main(argv=None):
     parser.add_argument("out_dir")
     parser.add_argument("--actual-render-manifest",
                         help="optional lsfs_mitsuba_xml_render manifest to compare instead of the handoff base previews")
+    parser.add_argument("--actual-composite-summary",
+                        help="optional lsfs_mitsuba_secondary_composite summary to compare instead of the handoff base previews")
     parser.add_argument("--fps", type=float, default=2.0)
     parser.add_argument("--keyframes", type=int, default=4)
     parser.add_argument("--title", default="Mitsuba Renderer Target Gap")
@@ -403,6 +424,8 @@ def main(argv=None):
         parser.error("fps must be positive")
     if args.keyframes <= 0:
         parser.error("keyframes must be positive")
+    if args.actual_render_manifest and args.actual_composite_summary:
+        parser.error("actual-render-manifest and actual-composite-summary are mutually exclusive")
     compare(args)
 
 
