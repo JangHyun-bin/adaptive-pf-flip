@@ -3821,3 +3821,25 @@ max `14.571005658436214`. Treat sprite mode as useful renderer-native
 infrastructure, but shift the next pass to native tone/background calibration
 because the remaining gap is no longer explained by secondary mask placement
 alone.
+
+S348 calibrated native Mitsuba background/tone around the MB2 secondary setup:
+
+- S348 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-tone-background-sweep.md`
+- S348 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_tone_bg_tb*_export_s348.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_tone_bg_tb*_render_s348.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_tone_bg_tb*_candidate_gap_s348.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_tb*_s348.md`
+
+S348 keeps camera, water alpha, secondary proxy, halo, mist, and billboard
+settings pinned, then sweeps background radiance from TB1 to TB7. This is the
+largest native-render improvement so far. S347 SC4 had mean target MAD
+`37.13381309477881` and max target MAD `66.33893840020576`; TB6 lowers that to
+mean target MAD `19.411650913065845` and max target MAD
+`24.390221193415638`. TB1 has the best mean target MAD at
+`16.39866785622428`, but TB6 has the best max target MAD and should be treated
+as the current native replacement baseline. It still does not beat the S335
+contract max `18.040229552469135` or S341 C3 bridge max
+`14.571005658436214`. Continue from TB6 rather than the brighter S345/S347
+baseline.
