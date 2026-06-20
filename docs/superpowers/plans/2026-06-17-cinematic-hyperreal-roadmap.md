@@ -4298,3 +4298,30 @@ still rejected: RR6 worsens the hard max gate to `24.22597222222222`, and
 RR1/RR2/RR3 are worse. Next work should port the bounded response away from
 target pixels into renderer-native water crest/highlight masks, secondary
 darkening masks, and eventually surface-normal/material reconstruction.
+
+S372 moved the response from target pixels to source-evidence masks:
+
+- S372 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-source-region-response.md`
+- S372 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_region_response_sweep_summary_s372.md`
+- S372 SR6 region report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_region_response_sr6_regions_s372.md`
+- S372 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_region_response_review_s372.md`
+- S372 public quick-tunnel preview:
+  `https://met-installations-habits-selections.trycloudflare.com/index.html`
+- S372 new tool:
+  `tools/apply_mitsuba_source_region_response.py`
+
+The best target-free source-evidence candidate is `SR6`, a conservative
+highlight-only response. It improves the active baseline slightly: max target
+MAD goes from `SV1-cache` at `23.72217142489712` to
+`23.703670267489713`. The S371 RR5 target-fit diagnostic remains the ceiling at
+`23.459497813786008`. Source-luma dark-secondary rules are rejected for now:
+SR1/SR2/SR3 worsen the hard gate. SR6 still leaves target highlights too dark
+by about `-76.279920` luma and target-dark secondary pixels too bright by about
+`51.392797` luma. The next useful step is to derive better renderer-native masks
+from render-cache geometry, projected secondary channel metadata, or
+surface-normal/material evidence instead of making screen-space source luma
+rules stronger.
