@@ -4084,3 +4084,23 @@ The validator checks schema, layer file existence, sha256/size, alpha coverage,
 projected particle totals, aggregate layer bytes, and max layer coverage. The
 S360 SV1 cache passes with `0` failures across `8` frames and `2877` projected
 particles. Use this gate before any native renderer pass consumes the cache.
+
+S362 added a direct secondary visibility cache consumer:
+
+- S362 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-visibility-cache-apply.md`
+- S362 apply report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_cache_apply_sv1_s362.md`
+- S362 gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_cache_apply_sv1_gap_s362.md`
+- S362 tool:
+  `tools/apply_mitsuba_secondary_visibility_cache.py`
+- S362 public quick-tunnel preview:
+  `https://must-lightweight-develops-sign.trycloudflare.com/index.html`
+
+The consumer reads `lsfs_mitsuba_secondary_visibility_cache`, applies cached
+RGBA layers to the matching rendered preview frames by `output_frame`, and
+writes a `lsfs_mitsuba_secondary_composite` summary compatible with the existing
+gap harness. It preserves the S359/S360 SV1 result exactly: mean target MAD
+`19.103672839506174`, max target MAD `23.72217142489712`. This is now the stable
+renderer-facing review path before true native cache import.
