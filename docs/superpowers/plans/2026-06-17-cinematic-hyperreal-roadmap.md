@@ -3658,3 +3658,31 @@ contribution from the S338 M1 render. Use C3 as the current post-render bridge
 baseline. The next step should add a validator for the
 `lsfs_mitsuba_depth_aware_secondary_composite` schema and publish/package the
 C3 gallery for visual review.
+
+S342 added a validation gate for the Mitsuba depth-aware secondary composite:
+
+- S342 updated tool:
+  `tools/build_mitsuba_depth_aware_secondary_composite.py`
+- S342 new tool:
+  `tools/validate_mitsuba_depth_aware_secondary_composite.py`
+- S342 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_validation_s342.md`
+- S342 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-depth-aware-secondary-composite-validation.md`
+- S342 validation JSON:
+  `build/shots/s342_mitsuba_depth_aware_composite_validation/validation.json`
+
+S342 validates the S341 C3
+`lsfs_mitsuba_depth_aware_secondary_composite` without changing the bridge
+metrics. It checks schema/version/status, source manifests and schemas, gallery
+files, required per-frame assets, composite hashes, target/contract MAD gates,
+output-frame ordering, and native-weight bounds. The run passed `129` checks
+with `0` failures and `0` skipped checks. C3 remains ready with mean target MAD
+`11.423722591949588`, max target MAD `14.571005658436214`, max contract MAD
+`8.268018904320988`, and mean native weight `0.13702558967259743`. The builder
+now marks the gallery copy of its own summary JSON as
+`hash_policy: self_referential_json`, while the validator still records the
+top-level composite summary SHA and validates all non-self-referential gallery
+metadata hashes. The next step should package or publish the C3 gallery for
+visual review, then continue toward a renderer-native depth/secondary pass that
+can replace the post-render bridge.

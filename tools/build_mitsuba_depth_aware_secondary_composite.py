@@ -363,6 +363,8 @@ def build_composite(args):
     }
     write_json(summary_path, summary)
     summary_asset = copy_asset(summary_path, assets_dir, "depth_aware_secondary_composite_summary.json", "Composite summary", root)
+    summary_asset.pop("sha256", None)
+    summary_asset["hash_policy"] = "self_referential_json"
     render_asset = copy_asset(render_path, assets_dir, "native_mitsuba_render.json", "Native render manifest", root)
     contract_asset = copy_asset(contract_path, assets_dir, "secondary_pass_contract.json", "Secondary pass contract", root)
     metadata_files = [summary_asset, render_asset, contract_asset]
