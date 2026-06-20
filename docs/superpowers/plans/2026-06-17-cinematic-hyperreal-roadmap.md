@@ -3479,3 +3479,26 @@ diff `214`. This is the closest current visual bridge to the accepted target,
 but it remains a hybrid post-render overlay. The next step should turn this
 screen-space layer into a renderer-native screen-space pass or volumetric
 secondary representation rather than stopping at the overlay.
+
+S335 added a renderer-facing secondary pass contract:
+
+- S335 new tool:
+  `tools/build_mitsuba_secondary_pass_contract.py`
+- S335 contract report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_pass_contract_s335.md`
+- S335 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-pass-contract.md`
+- S335 contract JSON:
+  `build/shots/s335_mitsuba_secondary_pass_contract/secondary_pass_contract.json`
+- S335 public URL:
+  `https://laundry-tanks-prot-until.trycloudflare.com`
+
+S335 reads the S334 overlay summary, follows the source chain to the S333 H2
+actual Mitsuba render, S327 handoff bundle, and S328 target preview, and emits a
+`ready` `lsfs_mitsuba_secondary_pass_contract`. The contract covers `8` frames,
+has `0` missing frame assets, preserves source/artifact hashes, stores
+per-frame overlay/target/diff mappings, and records mean overlay mean absolute
+diff `12.566030735596708` plus max overlay mean absolute diff
+`18.040229552469135`. Use S335 as the bridge contract for replacing the hybrid
+screen-space overlay with a renderer-native secondary pass without losing the
+current visual target gates.
