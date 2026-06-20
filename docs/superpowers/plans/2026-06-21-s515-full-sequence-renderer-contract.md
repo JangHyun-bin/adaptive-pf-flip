@@ -79,6 +79,10 @@ replace.
 - S581 consumed the S580 sidecar into CSV/SVG profile diagnostics and verified
   monotonic source/output frame mappings plus depth, mesh, and secondary trend
   coverage.
+- S582 used S580/S581 controls to apply a bounded scene-depth material preview
+  over the accepted S577 composite frames, producing a GIF and per-frame
+  original/mask/preview/diff strips without exceeding the configured image-diff
+  tolerance.
 
 ## Key Artifacts
 
@@ -150,6 +154,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_render_data_s580.md`
 - Renderer scene render-data profile:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_render_data_profile_s581.md`
+- Renderer scene depth/material preview:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_preview_s582.md`
 
 ## Verification
 
@@ -311,6 +317,17 @@ replace.
     and output mapping checks all passed
   - SVG profile:
     `build/shots/s581_mitsuba_renderer_scene_render_data_profile/render_data_profile.svg`
+- S582 renderer scene depth/material preview:
+  - `status=ready`
+  - frames: `48`
+  - missing references: `0`
+  - max absolute delta: `3`
+  - max mean absolute delta: `0.2585140174897119`
+  - max changed coverage: `0.2705073302469136`
+  - GIF:
+    `build/shots/s582_mitsuba_renderer_scene_depth_material_preview/depth_material_preview.gif`
+  - representative strip:
+    `build/shots/s582_mitsuba_renderer_scene_depth_material_preview/strips/frame_0024_depth_material_preview.png`
 
 ## Current Meaning
 
@@ -326,7 +343,9 @@ now reproducible through:
    texture contract to real camera, phase-field, water mesh, primary particle,
    and secondary particle data,
 7. a renderer-data sidecar/profile that turns the handoff into reusable
-   depth/material control metrics.
+   depth/material control metrics,
+8. a bounded depth/material visual preview that proves those controls can drive
+   an inspectable image-space renderer probe without broad exposure drift.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -339,7 +358,9 @@ full48 texture/cache boundary with lossless reconstruction and has a validated
 handoff into the current large-grid scene-data cache. The handoff now also has
 an `lsfs_render_data_summary` sidecar and trend profile, so the next pass can
 drive renderer-side depth/material behavior from measured scene metadata rather
-than by hand-tuning only the final image.
+than by hand-tuning only the final image. S582 shows that this metadata can
+produce a bounded visual probe, but it is not yet promoted as an accepted look
+replacement; it needs a direct S577-vs-S582 comparison/triage first.
 
 ## Next
 
@@ -349,5 +370,7 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Promote a native renderer sample only if it reduces the accepted-reference
+4. Compare S582 against S577 with the same visual review/comparison tooling
+   before promoting any depth/material settings.
+5. Promote a native renderer sample only if it reduces the accepted-reference
    gap before attempting full48.
