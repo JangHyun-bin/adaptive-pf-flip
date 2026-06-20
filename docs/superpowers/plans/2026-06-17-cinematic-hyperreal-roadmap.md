@@ -4416,3 +4416,26 @@ still worsens the hard gate to `23.576880787037037`. Wider TB3/TB4 bands are
 clearly bad at `23.827061471193417` and `24.032675540123456`. Keep DS6 as the
 baseline and move next to geometry/depth-native mask evidence instead of wider
 screen-space luma bands.
+
+S377 tested projected secondary 3D sidecar masks as geometry-native evidence:
+
+- S377 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-projected-secondary-mask-candidates.md`
+- S377 mask report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_projected_secondary_mask_candidates_sv1_s377.md`
+- S377 new tool:
+  `tools/analyze_mitsuba_projected_secondary_masks.py`
+- S377 public quick-tunnel preview:
+  `https://resident-adds-associate-isbn.trycloudflare.com/index.html`
+
+The projected sidecar path is rejected as the next response mask for this shot.
+The current layer/source-luma mask `layer_secondary_source_luma_0_75` remains
+better for target-dark secondary detail, with precision `0.858780`, recall
+`0.475602`, and F1 `0.612175`. The best default projected candidate,
+`projected_all_source_luma_0_75`, reaches only F1 `0.536552`; a small
+radius/blur sweep improves this to `0.577442` at `r060_b24`, still below the
+DS6 evidence mask. Projected masks also fail as highlight evidence:
+`projected_depth_far_33` reaches only F1 `0.083346` while `source_highlight_120`
+stays at F1 `0.888140`. Next work should move to local visibility-layer
+density, surface normal, or water-contact evidence rather than another global
+point-projection mask.
