@@ -115,6 +115,8 @@ replace.
 - S592 re-ran the promotion gate on the S591 full48 backend output, confirming
   exact backend-target parity and the same bounded movement against the S577
   accepted visual gate.
+- S593 published the S592 full48 backend-output promotion gate through a
+  Cloudflare quick tunnel for direct external visual review.
 
 ## Key Artifacts
 
@@ -210,6 +212,10 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_scene_cache_backend_full48_s591.md`
 - Renderer scene depth/material backend output compare:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_backend_output_compare_s592.md`
+- Public S592 backend output compare review:
+  `https://outputs-murray-phil-beads.trycloudflare.com`
+- Renderer scene depth/material backend output compare publish:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_backend_output_compare_publish_s593.md`
 
 ## Verification
 
@@ -496,6 +502,12 @@ replace.
     `build/shots/s592_mitsuba_renderer_scene_depth_material_backend_output_compare/gallery/index.html`
   - compare GIF:
     `build/shots/s592_mitsuba_renderer_scene_depth_material_backend_output_compare/gallery/assets/backend_compare_strips.gif`
+- S593 public backend output compare review:
+  - public URL:
+    `https://outputs-murray-phil-beads.trycloudflare.com`
+  - `GET /index.html`: `200`
+  - `HEAD /assets/backend_compare_strips.gif`: `200`
+  - GIF bytes: `30572999`
 
 ## Current Meaning
 
@@ -532,7 +544,8 @@ now reproducible through:
 16. a full48 scene-cache direct backend run with exact S585 target parity
    through the same external backend process boundary,
 17. a full48 backend promotion gate that compares the S591 output against both
-   the S585 target and S577 accepted visual gate.
+   the S585 target and S577 accepted visual gate,
+18. a public visual review URL for that full48 backend promotion gate.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -564,6 +577,7 @@ scene-cache direct backend path holds across all 48 frames. S592 confirms that
 the full48 backend result is ready to feed the next renderer-native material
 implementation step: backend-target parity is exact, and accepted-gate movement
 is still bounded to max abs diff `5` and max mean diff `0.4139242541152263`.
+S593 publishes the full48 backend gate for direct inspection.
 
 ## Next
 
