@@ -28,6 +28,9 @@ from validate_mitsuba_visual_cache_bundle import reference_path, resolve_path
 
 
 AOV_NAMES = [
+    "base_rgb",
+    "target_rgb",
+    "composite_rgb",
     "base_luma",
     "target_luma",
     "composite_luma",
@@ -289,6 +292,9 @@ def build(args):
         response_luma = response_rgb.convert("L")
         mask = layer_mask(alpha)
         channels = {
+            "base_rgb": base,
+            "target_rgb": target,
+            "composite_rgb": composite,
             "base_luma": base.convert("L"),
             "target_luma": target.convert("L"),
             "composite_luma": composite.convert("L"),
