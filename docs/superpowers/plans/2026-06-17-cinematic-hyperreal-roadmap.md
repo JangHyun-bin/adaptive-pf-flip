@@ -3525,3 +3525,29 @@ lifetime as external to the contract. Use S336 as the regression gate for the
 next step: replacing the S334 screen-space secondary overlay with a
 renderer-native Mitsuba secondary pass while preserving the S335 target-diff
 contract.
+
+S337 added a native Mitsuba secondary candidate gap gate:
+
+- S337 new tool:
+  `tools/compare_mitsuba_secondary_native_candidate.py`
+- S337 candidate gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_native_candidate_gap_s337.md`
+- S337 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-native-candidate-gap.md`
+- S337 candidate gap summary:
+  `build/shots/s337_mitsuba_secondary_native_candidate_gap/secondary_native_candidate_gap_summary.json`
+- S337 gallery:
+  `build/shots/s337_mitsuba_secondary_native_candidate_gap/gallery/index.html`
+
+S337 compares the current best native Mitsuba candidate, S333 H2, against the
+S335 secondary-pass contract. It matches frames by `output_frame` and compares
+the candidate preview against both the contract `overlay_graded` frame and the
+accepted target frame. The run is `ready` for `8` frames with `0` missing
+references, but the verdict is `candidate_needs_work`: S333 H2 has mean
+candidate-to-target MAD `37.58172702867798` and max candidate-to-target MAD
+`67.40660365226337`, while the S335 overlay contract is much tighter at mean
+MAD `12.566030735596708` and max MAD `18.040229552469135`. Use S337 as the
+replacement gate: a renderer-native secondary pass should not replace the
+screen-space overlay contract until it beats both the mean and max target MAD.
+The next renderer pass should focus on a screen-facing or soft-density
+secondary representation instead of more opaque sphere/halo proxy tuning.
