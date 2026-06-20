@@ -3761,3 +3761,33 @@ native-to-C3 mean MAD `40.225236062885806`, and native-to-C3 max MAD
 `14.571005658436214`. Treat this as evidence that more sphere/mist/billboard
 proxy strength alone is not enough. The next renderer-native pass should use a
 more direct depth/secondary representation guided by C3/S335 masks.
+
+S346 added a renderer-side secondary screen-card insertion path:
+
+- S346 new tool:
+  `tools/add_mitsuba_secondary_screen_cards.py`
+- S346 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-screen-card.md`
+- S346 SC1 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_card_sc1_export_s346.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_card_sc1_render_s346.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_card_sc1_candidate_gap_s346.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_sc1_s346.md`
+- S346 SC2 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_card_sc2_export_s346.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_card_sc2_render_s346.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_card_sc2_candidate_gap_s346.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_sc2_s346.md`
+
+S346 takes the S345 MB2 native export as a base and inserts per-frame
+camera-facing rectangle cards using bitmap opacity masks generated from the
+S341 C3 secondary layers. The output remains a valid
+`lsfs_mitsuba_xml_export`, so the existing Mitsuba render tool can render it.
+SC1 uses weak mask gain `0.6`; SC2 uses stronger mask gain `8.0` and emits `8`
+screen cards plus `73.76 KB` of mask textures with `0` missing references.
+Neither improves the S344 gate: SC2 mean target MAD is `37.13389475630144` and
+max target MAD is `66.33952031893004`, effectively tied with MB2 and still far
+from C3 bridge max `14.571005658436214`. Keep the screen-card tool as the next
+renderer-native representation path, but tune depth placement, material
+response, facing/orientation, and possibly multi-card placement before another
+native replacement attempt.
