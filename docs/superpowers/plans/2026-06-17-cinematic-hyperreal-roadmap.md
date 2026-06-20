@@ -4693,3 +4693,20 @@ does not change the renderer output; it makes the S388 decision inspectable at
 the affected pixels. Keep CR21 as the current target-free visual baseline unless
 visual review flags objectionable over-darkening. Next work can either publish
 the gallery for review or move the CR21 cue into renderer/material parameters.
+
+S390 published the S389 crop/zoom review package:
+
+- S390 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-response-crop-review-publish.md`
+- S390 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_response_crop_review_publish_s390.md`
+- S390 public quick-tunnel preview:
+  `https://hardcover-avatar-arbitration-physician.trycloudflare.com/index.html`
+- S390 updated tool:
+  `tools/publish_cinematic_gallery.py`
+
+The publish tool now supports `--gif-name` so galleries whose animated asset is
+not named `shot.gif` can still use the same local-server and quick-tunnel
+verification flow. The S389 crop review responded with HTTP `200` for both the
+public index page and `assets/crop_review.gif`. Because the tunnel URL is
+session-scoped, refresh it if the recorded processes exit.

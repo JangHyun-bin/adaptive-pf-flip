@@ -166,6 +166,7 @@ def markdown_report(manifest, root):
         f"Generated UTC: `{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}`",
         f"Gallery directory: `{posix_rel(manifest['gallery_dir'], root)}`",
         f"Manifest: `{posix_rel(manifest['manifest_path'], root)}`",
+        f"GIF asset: `{manifest.get('gif_asset', 'assets/shot.gif')}`",
         "",
         "## URLs",
         "",
@@ -214,6 +215,7 @@ def main(argv=None):
     parser.add_argument("--bind", default="127.0.0.1", help="Local bind address")
     parser.add_argument("--cftunnel", action="store_true", help="Start a Cloudflare quick tunnel")
     parser.add_argument("--cloudflared", help="Path to cloudflared executable")
+    parser.add_argument("--gif-name", default="shot.gif", help="GIF filename under gallery assets/")
     parser.add_argument("--manifest", help="Output publish manifest path")
     parser.add_argument("--report", help="Optional Markdown publish report path")
     parser.add_argument("--stop-manifest", help="Stop server/tunnel PIDs recorded in a publish manifest")
@@ -228,7 +230,11 @@ def main(argv=None):
         raise SystemExit("gallery_dir is required unless --stop-manifest is used")
     gallery_dir = os.path.abspath(args.gallery_dir)
     index_path = os.path.join(gallery_dir, "index.html")
-    gif_path = os.path.join(gallery_dir, "assets", "shot.gif")
+    gif_name = args.gif_name.replace("\\", "/").lstrip("/")
+    if not gif_name or any(part in ("", ".", "..") for part in gif_name.split("/")):
+        raise SystemExit("--gif-name must be a relative filename under assets/")
+    gif_path = os.path.join(gallery_dir, "assets", *gif_name.split("/"))
+    gif_url_path = "assets/" + gif_name
     if not os.path.isfile(index_path):
         raise SystemExit(f"Missing gallery index: {index_path}")
     if not os.path.isfile(gif_path):
@@ -253,7 +259,7 @@ def main(argv=None):
 
     try:
         checks.append(retry_check(f"{local_url}/index.html", timeout_seconds=args.timeout_seconds))
-        checks.append(retry_check(f"{local_url}/assets/shot.gif", method="HEAD", timeout_seconds=args.timeout_seconds))
+        checks.append(retry_check(f"{local_url}/{gif_url_path}", method="HEAD", timeout_seconds=args.timeout_seconds))
 
         cloud_stdout = None
         cloud_stderr = None
@@ -269,13 +275,15 @@ def main(argv=None):
             )
             public_url = wait_for_tunnel_url([cloud_stdout, cloud_stderr], args.timeout_seconds)
             checks.append(retry_check(f"{public_url}/index.html", timeout_seconds=args.timeout_seconds))
-            checks.append(retry_check(f"{public_url}/assets/shot.gif", method="HEAD", timeout_seconds=args.timeout_seconds))
+            checks.append(retry_check(f"{public_url}/{gif_url_path}", method="HEAD", timeout_seconds=args.timeout_seconds))
 
         manifest = {
             "status": "running",
             "started_utc": now_iso(),
             "gallery_dir": gallery_dir,
             "index_path": index_path,
+            "gif_asset": gif_url_path,
+            "gif_path": gif_path,
             "manifest_path": manifest_path,
             "local_url": local_url,
             "public_url": public_url,
