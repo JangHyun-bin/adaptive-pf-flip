@@ -3861,3 +3861,24 @@ the C3 secondary mask. TS1 is slightly worse than TB6: mean target MAD
 screen-sprite path on top of the calibrated TB6 baseline. Continue from TB6 and
 move to native material/water/secondary tuning or a TB6-based post-render bridge
 refresh.
+
+S350 refreshed the depth-aware post-render bridge using S348 TB6 as the native
+base input:
+
+- S350 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-tb6-depth-aware-composite.md`
+- S350 best candidate report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_tb6_c1e_s350.md`
+- S350 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_tb6_validation_s350.md`
+
+S350 sweeps TB6-based depth-aware blend weights around the old S341 C3 bridge.
+The best candidate is TB6 C1E with `native_base_strength=0.135` and
+`secondary_native_strength=0.0185`. It lowers max target MAD from the old S341
+C3 `14.571005658436214` to `14.389824459876543` and lowers max contract MAD
+from `8.268018904320988` to `8.002740483539094`, while mean target MAD is
+slightly worse (`11.464264805169753` versus `11.423722591949588`). Treat C1E
+as the current bridge target when max-frame stability is the gate, but do not
+count it as a native renderer replacement. The next large visual-quality step
+should return to native material/secondary representation or export a proper
+depth-aware 3D secondary cache instead of increasing post-render blend tuning.
