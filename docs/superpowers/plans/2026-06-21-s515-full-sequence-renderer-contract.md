@@ -132,6 +132,10 @@ replace.
   path, exported and rendered an 8-frame `MS1` face-split native-material
   sample, and compared it against S573/S577/S585/S596. The path is renderable
   but still too broad for promotion.
+- S598 tightened the localized split path to high-confidence mask faces
+  (`mask_threshold=128`, `face_limit=3000`) and rendered an 8-frame `MS2`
+  sample. Legacy S328 target gap increased, but direct S577/S585 MAD dropped
+  sharply, making S598 the current native-material tuning baseline.
 
 ## Key Artifacts
 
@@ -257,6 +261,20 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_target_gap_s328_s597.md`
 - Renderer scene depth/material localized split material sequence compare:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_sequence_compare_s597.md`
+- Renderer scene depth/material tight split material export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_export_s598.md`
+- Renderer scene depth/material tight split material validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_validate_s598.md`
+- Renderer scene depth/material tight split material render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_render_s598.md`
+- Renderer scene depth/material tight split material gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_gallery_s598.md`
+- Renderer scene depth/material tight split material target gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_target_gap_s328_s598.md`
+- Renderer scene depth/material tight split material sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_sequence_compare_s598.md`
+- Renderer scene depth/material tight split direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_direct_metrics_s598.md`
 
 ## Verification
 
@@ -621,6 +639,32 @@ replace.
   - sequence compare candidates: `5`
   - sequence compare frames: `8`
   - sequence compare missing references: `0`
+- S598 renderer scene depth/material localized split material MS2:
+  - export `status=ready`
+  - frames exported: `8`
+  - response faces: `24000`
+  - remainder faces: `132764`
+  - water shape replacements: `8`
+  - response BSDF insertions: `8`
+  - XML validation `status=ready`
+  - XML parsed: `8`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `8`
+  - render failures: `0`
+  - total elapsed ms: `1667`
+  - image bytes: `23.24 MB`
+  - preview bytes: `2.91 MB`
+  - S328 target gap `status=ready`
+  - S328 target gap max mean abs diff: `100.68966885288066`
+  - S328 target gap max abs diff: `219`
+  - S573/S577/S585/S596/S597 sequence compare `status=ready`
+  - sequence compare candidates: `6`
+  - sequence compare frames: `8`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.87780647183642`
+  - direct S585 mean MAD: `3.875843139146091`
 
 ## Current Meaning
 
@@ -667,7 +711,9 @@ now reproducible through:
 21. an actual SPP4 Mitsuba render of that native-material XML sample plus
    S573/S577/S585 visual comparison artifacts,
 22. a renderable localized water-face material split path that consumes the
-   low-frequency response mask through alpha-aware mesh partitioning.
+   low-frequency response mask through alpha-aware mesh partitioning,
+23. a tighter localized split baseline that is much closer to S577/S585 than
+   the previous native-material renders on direct 8-frame MAD.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -710,6 +756,10 @@ S577/S585 accepted gate, so it should be tuned before any full48 promotion.
 S597 fixes a concrete mask-ingestion bug in the face-split path and proves a
 localized native-material split can render, but the selected response region is
 still broad enough to increase the legacy S328 target gap relative to S596.
+S598 reduces the selected region to 24k response faces and, despite a worse
+legacy S328 gap, directly matches the current S577/S585 gates much more closely
+than S596 or S597. This makes S598 the current tuning baseline, not yet a full48
+promotion.
 
 ## Next
 
@@ -719,9 +769,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Tune the S597 localized split response with tighter threshold/face-limit
-   sweeps before full48 rendering. The next sweep should reduce selected faces
-   and cool down tint/roughness while keeping the alpha-aware mask ingestion.
+4. Use S598 as the current native-material tuning baseline. The next sweep
+   should stay near the MS2 selected-face range, reduce tint/contrast, and
+   rank candidates by direct S577/S585 MAD before full48 rendering.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
