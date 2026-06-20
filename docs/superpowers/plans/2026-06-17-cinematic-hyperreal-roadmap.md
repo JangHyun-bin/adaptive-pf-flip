@@ -5052,3 +5052,22 @@ It improves over SS1 on both mean and max target MAD: SS1 max target MAD
 `23.951853137860084`; SF18 max target MAD `23.77382137345679`; S401 CR21 remains
 ahead at `23.552905092592592`. S408 should tune around SF18 while keeping source
 highlight work separate.
+
+S408 tuned the spray/foam AOV attenuation probe:
+
+- S408 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-aov-attenuation-tune.md`
+- S408 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_aov_attenuation_tune_summary_s408.md`
+- S408 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_aov_attenuation_tune_compare_s408.md`
+- S408 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_aov_attenuation_tune_compare_publish_s408.md`
+- S408 public quick-tunnel URL:
+  `https://avoiding-ipod-settled-involve.trycloudflare.com/index.html`
+
+`SF12_SprayFoam` is now the best AOV attenuation probe: mean target MAD
+`19.120776588220163`, max target MAD `23.755951646090534`, max diff `170`.
+It improves over both SS1 and S407 `SF18`, but still does not solve source
+highlights. S409 should preserve SF12 for the dark/secondary response and add a
+separate target-free source-highlight pass.
