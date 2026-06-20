@@ -130,7 +130,17 @@ def candidate_masks(source_luma, alpha, native_weight, args):
         ]
     for threshold in (4, 16, 32, 64):
         masks[f"secondary_alpha_{threshold}"] = [alpha_value >= threshold for alpha_value in alpha]
-    ranges = ((20, 105), (30, 125), (55, 130), (70, 150))
+    ranges = (
+        (0, 65),
+        (0, 75),
+        (0, 85),
+        (20, 75),
+        (40, 75),
+        (20, 105),
+        (30, 125),
+        (55, 130),
+        (70, 150),
+    )
     for low, high in ranges:
         masks[f"secondary_source_luma_{low}_{high}"] = [
             alpha_value >= args.secondary_alpha_threshold and low <= value <= high
@@ -397,8 +407,9 @@ def analyze(args):
             masks = {
                 "target_highlight": regions["target_highlight"],
                 "target_dark_secondary": regions["target_dark_secondary"],
-                "source_highlight_135": candidates.get("source_highlight_135"),
-                "source_highlight_135_nonsecondary": candidates.get("source_highlight_135_nonsecondary"),
+                "source_highlight_120": candidates.get("source_highlight_120"),
+                "source_highlight_120_nonsecondary": candidates.get("source_highlight_120_nonsecondary"),
+                "secondary_source_luma_0_75": candidates.get("secondary_source_luma_0_75"),
                 "native_weight_32": candidates.get("native_weight_32"),
                 "secondary_source_luma_20_105": candidates.get("secondary_source_luma_20_105"),
             }

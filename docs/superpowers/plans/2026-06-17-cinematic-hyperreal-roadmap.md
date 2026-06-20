@@ -4367,3 +4367,28 @@ MAD from `76.064585` to `35.361356`. However, target-dark-secondary remains
 unchanged at MAD `51.263450`, so further highlight tuning is no longer the main
 path. Use SR19 as the target-free highlight baseline and add a selective
 dark-secondary evidence mask next.
+
+S375 added a selective target-free dark-secondary response:
+
+- S375 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-selective-dark-secondary-response.md`
+- S375 mask report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_selective_dark_secondary_mask_candidates_sv1_s375.md`
+- S375 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_selective_dark_secondary_response_sweep_summary_s375.md`
+- S375 DS6 region report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_selective_dark_secondary_response_ds6_regions_s375.md`
+- S375 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_selective_dark_secondary_response_review_s375.md`
+- S375 public quick-tunnel preview:
+  `https://studying-elegant-solar-unlike.trycloudflare.com/index.html`
+
+The key mask is `secondary_source_luma_0_75`, which raises dark-secondary mask
+F1 from S373's `0.159599` to `0.612175` with precision `0.858780` and recall
+`0.475602`. The best combined target-free candidate is `DS6`: max target MAD
+improves from `SR19` at `23.651716820987655` to `23.56051440329218`, while
+target-dark-secondary signed luma drops from `+51.392797` to `+22.254368`.
+`RR5` remains the target-fit diagnostic ceiling at `23.459497813786008`. Use
+DS6 as the current target-free combined highlight/dark-secondary baseline. The
+remaining gap is mostly mask recall, so next work should try a two-band
+dark-secondary response or add geometry/depth-native evidence.
