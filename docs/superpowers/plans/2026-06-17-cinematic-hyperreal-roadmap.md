@@ -4346,3 +4346,24 @@ S372 highlight-only helped but source-luma darkening hurt the hard gate. Next
 work should add richer secondary-dark evidence from projected secondary channel
 metadata, local layer density/shape, depth ordering, or surface/normal contact
 signals.
+
+S374 tuned the target-free highlight response using the S373 mask diagnosis:
+
+- S374 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-source-highlight-response.md`
+- S374 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_highlight_response_sweep_summary_s374.md`
+- S374 SR19 region report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_highlight_response_sr19_regions_s374.md`
+- S374 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_highlight_response_review_s374.md`
+- S374 public quick-tunnel preview:
+  `https://trail-leasing-participated-keyboard.trycloudflare.com/index.html`
+
+`SR19` is now the best target-free highlight candidate. It improves max target
+MAD from `SV1-cache` at `23.72217142489712` and S372 `SR6` at
+`23.703670267489713` to `23.651716820987655`. It also reduces target-highlight
+MAD from `76.064585` to `35.361356`. However, target-dark-secondary remains
+unchanged at MAD `51.263450`, so further highlight tuning is no longer the main
+path. Use SR19 as the target-free highlight baseline and add a selective
+dark-secondary evidence mask next.
