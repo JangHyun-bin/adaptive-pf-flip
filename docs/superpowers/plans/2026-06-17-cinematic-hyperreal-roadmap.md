@@ -5180,3 +5180,29 @@ target MAD `23.990219907407408`, worse than S411 `23.988294110082304` and SS1
 the S409/S401 localized center splash/highlight response. The patcher should be
 kept, but S413/MR2 should avoid broad key-light lifting and test a tighter
 localized material/AOV response.
+
+S413 used the S412 patcher for a no-key-light MR2 isolation test:
+
+- S413 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-material-response-mr2.md`
+- S413 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr2_summary_s413.md`
+- S413 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr2_export_s413.md`
+- S413 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr2_validation_s413.md`
+- S413 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr2_sweep_summary_s413.md`
+- S413 compare publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr2_compare_publish_s413.md`
+- S413 public quick-tunnel URL:
+  `https://zinc-birth-deleted-wales.trycloudflare.com/index.html`
+
+MR2 disables broad key-light lifting and water-alpha modulation, leaving only
+secondary `spray,foam` material attenuation. It is slightly better than MR1 but
+still should not be promoted: MR2 max target MAD `23.98916859567901`, worse
+than SS1 `23.951853137860084` and far behind S409 `SF12_H18`
+`23.687431841563786`. This isolates the failure: the renderer path needs
+localized response data, not whole-frame per-channel material scaling. S414
+should test a native projected mask, per-particle material grouping, or
+texture/volume mask that affects only the S410 evidence regions.
