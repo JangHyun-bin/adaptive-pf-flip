@@ -5028,3 +5028,27 @@ material. `DarkSecondary` and `ResponseUnion` correlate best with broad
 all-channel or spray/foam density, but precision is low (`DarkSecondary` best F1
 `0.179764`). S407 should therefore test a bounded local attenuation/AOV
 candidate and avoid another broad material brightness/radius sweep.
+
+S407 tested the bounded AOV attenuation candidate:
+
+- S407 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-aov-attenuation.md`
+- S407 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_aov_attenuation_summary_s407.md`
+- S407 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_aov_attenuation_compare_s407.md`
+- S407 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_aov_attenuation_compare_publish_s407.md`
+- S407 public quick-tunnel URL:
+  `https://battery-sister-radius-career.trycloudflare.com/index.html`
+- S407 updated tool:
+  `tools/apply_mitsuba_source_region_response.py`
+
+`apply_mitsuba_source_region_response.py` now supports
+`--channel-mask-channels`, preserving default all-channel behavior and S401 CR21
+pixel parity. The best S407 candidate, `SF18_SprayFoam`, uses only projected
+`spray,foam` masks with luma band `0..95`, strength `0.18`, and max delta `24`.
+It improves over SS1 on both mean and max target MAD: SS1 max target MAD
+`23.951853137860084`; SF18 max target MAD `23.77382137345679`; S401 CR21 remains
+ahead at `23.552905092592592`. S408 should tune around SF18 while keeping source
+highlight work separate.

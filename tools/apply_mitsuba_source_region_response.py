@@ -144,15 +144,23 @@ def channel_union_mask(export_frame, size, args):
     scene_path = require_file(xml_path(export_frame), "xml scene")
     particles = particle_rows(particles_path)
     draw_args = ChannelDensityArgs(args.channel_radius_scale, args.channel_density_blur_radius)
-    _masks, _density, union, _density_union, projected_counts = draw_channel_density(
+    masks, _density, union, _density_union, projected_counts = draw_channel_density(
         particles, scene_path, size, draw_args
     )
+    selected_channels = getattr(args, "channel_mask_channels_set", None)
+    if selected_channels:
+        selected_union = None
+        for channel in selected_channels:
+            channel_mask = masks[channel] > 0
+            selected_union = channel_mask if selected_union is None else (selected_union | channel_mask)
+        union = selected_union
     flat = [bool(value) for value in union.ravel()]
     flat = dilate_bool_mask(flat, size, args.channel_band_dilate_radius)
     return flat, {
         "particles_repo_path": posix_rel(particles_path, os.getcwd()),
         "xml_scene_repo_path": posix_rel(scene_path, os.getcwd()),
         "projected_counts": projected_counts,
+        "selected_channels": sorted(selected_channels) if selected_channels else ["bubble", "droplet", "foam", "spray"],
     }
 
 
@@ -466,6 +474,7 @@ def apply_source_response(args):
             "channel_band_strength": args.channel_band_strength,
             "channel_band_max_delta": args.channel_band_max_delta,
             "channel_band_dilate_radius": args.channel_band_dilate_radius,
+            "channel_mask_channels": sorted(args.channel_mask_channels_set),
             "channel_radius_scale": args.channel_radius_scale,
             "channel_density_blur_radius": args.channel_density_blur_radius,
             "dark_secondary_soft_source_luma_min": args.dark_secondary_soft_source_luma_min,
@@ -552,6 +561,8 @@ def parse_args():
     parser.add_argument("--channel-band-strength", type=float, default=0.0)
     parser.add_argument("--channel-band-max-delta", type=float, default=24.0)
     parser.add_argument("--channel-band-dilate-radius", type=int, default=0)
+    parser.add_argument("--channel-mask-channels", default="spray,foam,bubble,droplet",
+                        help="comma-separated projected secondary channels used by channel-band response")
     parser.add_argument("--channel-radius-scale", type=float, default=1.0)
     parser.add_argument("--channel-density-blur-radius", type=float, default=2.0)
     parser.add_argument("--dark-secondary-soft-source-luma-min", type=float, default=75.0)
@@ -596,6 +607,17 @@ def parse_args():
         parser.error("channel band luma min cannot exceed max")
     if args.channel_band_dilate_radius < 0:
         parser.error("channel band dilate radius must be non-negative")
+    valid_channels = {"spray", "foam", "bubble", "droplet"}
+    args.channel_mask_channels_set = {
+        item.strip()
+        for item in args.channel_mask_channels.split(",")
+        if item.strip()
+    }
+    if not args.channel_mask_channels_set:
+        parser.error("channel mask channels must include at least one channel")
+    unknown_channels = args.channel_mask_channels_set - valid_channels
+    if unknown_channels:
+        parser.error(f"unknown channel mask channels: {', '.join(sorted(unknown_channels))}")
     if args.channel_radius_scale <= 0.0:
         parser.error("channel radius scale must be positive")
     if args.channel_density_blur_radius < 0.0:
