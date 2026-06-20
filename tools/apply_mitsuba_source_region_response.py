@@ -7,7 +7,7 @@ import shutil
 from datetime import datetime, timezone
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageFilter
 except ImportError:  # pragma: no cover - reported at runtime.
     Image = None
 
@@ -53,9 +53,29 @@ def darken(value, strength, max_delta):
     return value - delta
 
 
+def dilated_ring_mask(mask, size, radius):
+    if radius <= 0:
+        return None
+    filter_size = radius * 2 + 1
+    mask_bytes = bytes(255 if value else 0 for value in mask)
+    mask_img = Image.frombytes("L", size, mask_bytes)
+    dilated = mask_img.filter(ImageFilter.MaxFilter(filter_size)).tobytes()
+    return [value > 0 and not mask[index] for index, value in enumerate(dilated)]
+
+
 def apply_response(actual_img, layer_img, args):
     actual_bytes = actual_img.convert("RGB").tobytes()
     alpha_bytes = layer_img.convert("RGBA").split()[3].tobytes()
+    source_luma_values = [
+        luminance_from_rgb(actual_bytes[index], actual_bytes[index + 1], actual_bytes[index + 2])
+        for index in range(0, len(actual_bytes), 3)
+    ]
+    primary_dark_mask = [
+        alpha >= args.secondary_alpha_threshold
+        and args.dark_secondary_source_luma_min <= source_luma <= args.dark_secondary_source_luma_max
+        for alpha, source_luma in zip(alpha_bytes, source_luma_values)
+    ]
+    ring_mask = dilated_ring_mask(primary_dark_mask, actual_img.size, args.dark_secondary_ring_radius)
     out = bytearray(len(actual_bytes))
     stats = {
         "pixels": len(alpha_bytes),
@@ -63,6 +83,7 @@ def apply_response(actual_img, layer_img, args):
         "dark_secondary_pixels": 0,
         "dark_secondary_primary_pixels": 0,
         "dark_secondary_soft_pixels": 0,
+        "dark_secondary_ring_pixels": 0,
         "nonsecondary_pixels": 0,
         "changed_pixels": 0,
     }
@@ -70,20 +91,25 @@ def apply_response(actual_img, layer_img, args):
         base = pixel_index * 3
         ar, ag, ab = actual_bytes[base], actual_bytes[base + 1], actual_bytes[base + 2]
         nr, ng, nb = float(ar), float(ag), float(ab)
-        source_luma = luminance_from_rgb(ar, ag, ab)
+        source_luma = source_luma_values[pixel_index]
         is_secondary = alpha >= args.secondary_alpha_threshold
         is_highlight = (
             source_luma >= args.highlight_source_luma_threshold
             and alpha <= args.highlight_alpha_max
         )
-        is_dark_secondary = (
-            is_secondary
-            and source_luma >= args.dark_secondary_source_luma_min
-            and source_luma <= args.dark_secondary_source_luma_max
+        is_dark_secondary = primary_dark_mask[pixel_index]
+        is_ring_dark_secondary = (
+            ring_mask is not None
+            and ring_mask[pixel_index]
+            and is_secondary
+            and args.dark_secondary_ring_strength > 0.0
+            and source_luma >= args.dark_secondary_ring_source_luma_min
+            and source_luma <= args.dark_secondary_ring_source_luma_max
         )
         is_soft_dark_secondary = (
             is_secondary
             and not is_dark_secondary
+            and not is_ring_dark_secondary
             and args.dark_secondary_soft_strength > 0.0
             and source_luma >= args.dark_secondary_soft_source_luma_min
             and source_luma <= args.dark_secondary_soft_source_luma_max
@@ -104,6 +130,12 @@ def apply_response(actual_img, layer_img, args):
             nb = darken(nb, args.dark_secondary_strength, args.dark_secondary_max_delta)
             stats["dark_secondary_pixels"] += 1
             stats["dark_secondary_primary_pixels"] += 1
+        if is_ring_dark_secondary:
+            nr = darken(nr, args.dark_secondary_ring_strength, args.dark_secondary_ring_max_delta)
+            ng = darken(ng, args.dark_secondary_ring_strength, args.dark_secondary_ring_max_delta)
+            nb = darken(nb, args.dark_secondary_ring_strength, args.dark_secondary_ring_max_delta)
+            stats["dark_secondary_pixels"] += 1
+            stats["dark_secondary_ring_pixels"] += 1
         if is_soft_dark_secondary:
             nr = darken(nr, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
             ng = darken(ng, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
@@ -119,6 +151,7 @@ def apply_response(actual_img, layer_img, args):
     stats["dark_secondary_coverage"] = stats["dark_secondary_pixels"] / float(max(1, stats["pixels"]))
     stats["dark_secondary_primary_coverage"] = stats["dark_secondary_primary_pixels"] / float(max(1, stats["pixels"]))
     stats["dark_secondary_soft_coverage"] = stats["dark_secondary_soft_pixels"] / float(max(1, stats["pixels"]))
+    stats["dark_secondary_ring_coverage"] = stats["dark_secondary_ring_pixels"] / float(max(1, stats["pixels"]))
     stats["nonsecondary_coverage"] = stats["nonsecondary_pixels"] / float(max(1, stats["pixels"]))
     stats["changed_coverage"] = stats["changed_pixels"] / float(max(1, stats["pixels"]))
     return image, stats
@@ -266,6 +299,11 @@ def apply_source_response(args):
             "dark_secondary_source_luma_max": args.dark_secondary_source_luma_max,
             "dark_secondary_strength": args.dark_secondary_strength,
             "dark_secondary_max_delta": args.dark_secondary_max_delta,
+            "dark_secondary_ring_radius": args.dark_secondary_ring_radius,
+            "dark_secondary_ring_source_luma_min": args.dark_secondary_ring_source_luma_min,
+            "dark_secondary_ring_source_luma_max": args.dark_secondary_ring_source_luma_max,
+            "dark_secondary_ring_strength": args.dark_secondary_ring_strength,
+            "dark_secondary_ring_max_delta": args.dark_secondary_ring_max_delta,
             "dark_secondary_soft_source_luma_min": args.dark_secondary_soft_source_luma_min,
             "dark_secondary_soft_source_luma_max": args.dark_secondary_soft_source_luma_max,
             "dark_secondary_soft_strength": args.dark_secondary_soft_strength,
@@ -334,6 +372,11 @@ def parse_args():
     parser.add_argument("--dark-secondary-source-luma-max", type=float, default=105.0)
     parser.add_argument("--dark-secondary-strength", type=float, default=0.35)
     parser.add_argument("--dark-secondary-max-delta", type=float, default=55.0)
+    parser.add_argument("--dark-secondary-ring-radius", type=int, default=0)
+    parser.add_argument("--dark-secondary-ring-source-luma-min", type=float, default=0.0)
+    parser.add_argument("--dark-secondary-ring-source-luma-max", type=float, default=95.0)
+    parser.add_argument("--dark-secondary-ring-strength", type=float, default=0.0)
+    parser.add_argument("--dark-secondary-ring-max-delta", type=float, default=35.0)
     parser.add_argument("--dark-secondary-soft-source-luma-min", type=float, default=75.0)
     parser.add_argument("--dark-secondary-soft-source-luma-max", type=float, default=95.0)
     parser.add_argument("--dark-secondary-soft-strength", type=float, default=0.0)
@@ -349,12 +392,26 @@ def parse_args():
         parser.error("secondary-alpha-threshold must be in [0, 255]")
     if args.highlight_alpha_max < 0 or args.highlight_alpha_max > 255:
         parser.error("highlight-alpha-max must be in [0, 255]")
-    if args.highlight_strength < 0.0 or args.dark_secondary_strength < 0.0 or args.dark_secondary_soft_strength < 0.0:
+    if (
+        args.highlight_strength < 0.0
+        or args.dark_secondary_strength < 0.0
+        or args.dark_secondary_ring_strength < 0.0
+        or args.dark_secondary_soft_strength < 0.0
+    ):
         parser.error("strength values must be non-negative")
-    if args.highlight_max_delta < 0.0 or args.dark_secondary_max_delta < 0.0 or args.dark_secondary_soft_max_delta < 0.0:
+    if (
+        args.highlight_max_delta < 0.0
+        or args.dark_secondary_max_delta < 0.0
+        or args.dark_secondary_ring_max_delta < 0.0
+        or args.dark_secondary_soft_max_delta < 0.0
+    ):
         parser.error("max delta values must be non-negative")
     if args.dark_secondary_source_luma_min > args.dark_secondary_source_luma_max:
         parser.error("dark secondary luma min cannot exceed max")
+    if args.dark_secondary_ring_radius < 0:
+        parser.error("dark secondary ring radius must be non-negative")
+    if args.dark_secondary_ring_source_luma_min > args.dark_secondary_ring_source_luma_max:
+        parser.error("dark secondary ring luma min cannot exceed max")
     if args.dark_secondary_soft_source_luma_min > args.dark_secondary_soft_source_luma_max:
         parser.error("dark secondary soft luma min cannot exceed max")
     if args.fps <= 0.0:

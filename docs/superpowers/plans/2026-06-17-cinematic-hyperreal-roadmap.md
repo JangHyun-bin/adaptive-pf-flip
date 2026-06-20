@@ -4545,3 +4545,27 @@ mask, but also visualizes the remaining recall gap. The clearest sample is
 output `34`, where DS6 coverage is only `0.000150` while the target-dark
 diagnostic coverage is `0.007041`. Use this as the current evidence board for a
 bounded visual response or a richer renderer AOV export.
+
+S383 tested a bounded DS6 ring response:
+
+- S383 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-ds6-ring-response.md`
+- S383 DR2 response report:
+  `docs/reports/2026-06-20-s383-mitsuba-ds6-ring-response-dr2.md`
+- S383 DR2 gap report:
+  `docs/reports/2026-06-20-s383-mitsuba-ds6-ring-response-dr2-gap.md`
+- S383 DR2 region report:
+  `docs/reports/2026-06-20-s383-mitsuba-ds6-ring-response-dr2-regions.md`
+- S383 visual review:
+  `docs/reports/2026-06-20-s383-mitsuba-ds6-ring-response-review.md`
+- S383 updated tool:
+  `tools/apply_mitsuba_source_region_response.py`
+
+This pass rejects simple DS6 dilation as a default visual response. DR2 improves
+the narrow `secondary_dark_target` signed-luma diagnostic from DS6's
+`+22.254368` to `+19.188976`, but the global target gap worsens from DS6 max
+target MAD `23.56051440329218` to `23.57608281893004`. Wider rings worsen it
+further: DR3 reaches `23.579101080246913`, and DR5 reaches
+`23.580107317386833`. Keep DS6 as the current target-free baseline, keep the
+ring response disabled by default, and move next to richer renderer-side AOVs
+or material/volume evidence rather than broader screen-space darkening.
