@@ -5096,3 +5096,31 @@ reference at max target MAD `23.552905092592592`. S410 should migrate the split
 response toward renderer-native controls: keep SF12 for spray/foam dark
 attenuation and represent H18 nonsecondary source highlights through material,
 export, or light-response data rather than another broad post-composite grade.
+
+S410 packaged the accepted split response as renderer-migration inputs:
+
+- S410 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-sf12-h18-renderer-native-inputs.md`
+- S410 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_renderer_native_inputs_summary_s410.md`
+- S410 highlight mask report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_highlight_mask_source_s410.md`
+- S410 channel-band mask report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_channel_band_mask_source_s410.md`
+- S410 AOV package report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_screen_evidence_aov_package_s410.md`
+- S410 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_screen_evidence_aov_package_publish_s410.md`
+- S410 public quick-tunnel URL:
+  `https://isbn-brussels-raise-luxury.trycloudflare.com/index.html`
+
+`tools/build_mitsuba_source_response_mask_source.py` now accepts
+`--channel-mask-channels` and records classifier settings. The S410
+`SF12_ChannelBand` mask uses channels `spray,foam`, source luma `0..95`,
+strength `0.12`, and max delta `18`, with max coverage
+`0.0132445987654321`. The `SF12_H18_Highlight` mask uses source luma `>=120`
+and alpha `<=3`, with max coverage `0.014924768518518518`.
+`tools/build_mitsuba_screen_evidence_aov_package.py` now includes explicit
+`Source Highlight` and `Target Highlight` panels. S411 should consume these two
+mask sources in a conservative renderer-native candidate and compare it against
+S409 `SF12_H18`, SS1, and S401 CR21.

@@ -218,6 +218,13 @@ def markdown_report(summary, summary_path, root, next_text):
         f"- Alpha value: `{summary['settings']['alpha_value']}`",
         f"- Blur radius: `{summary['settings']['blur_radius']}`",
         f"- Dilate radius: `{summary['settings']['dilate_radius']}`",
+        f"- Channel mask channels: `{summary['settings'].get('channel_mask_channels')}`",
+        f"- Secondary alpha threshold: `{summary['settings'].get('secondary_alpha_threshold')}`",
+        f"- Highlight source luma threshold: `{summary['settings'].get('highlight_source_luma_threshold')}`",
+        f"- Highlight alpha max: `{summary['settings'].get('highlight_alpha_max')}`",
+        f"- Channel band source luma: `{summary['settings'].get('channel_band_source_luma_min')}..{summary['settings'].get('channel_band_source_luma_max')}`",
+        f"- Channel band strength: `{summary['settings'].get('channel_band_strength')}`",
+        f"- Channel band max delta: `{summary['settings'].get('channel_band_max_delta')}`",
         "",
         "## Checks",
         "",
@@ -370,6 +377,21 @@ def build(args):
             "dilate_radius": args.dilate_radius,
             "fps": args.fps,
             "keyframes": args.keyframes,
+            "channel_mask_channels": sorted(args.channel_mask_channels_set),
+            "secondary_alpha_threshold": args.secondary_alpha_threshold,
+            "highlight_source_luma_threshold": args.highlight_source_luma_threshold,
+            "highlight_alpha_max": args.highlight_alpha_max,
+            "highlight_strength": args.highlight_strength,
+            "highlight_max_delta": args.highlight_max_delta,
+            "dark_secondary_source_luma_min": args.dark_secondary_source_luma_min,
+            "dark_secondary_source_luma_max": args.dark_secondary_source_luma_max,
+            "dark_secondary_strength": args.dark_secondary_strength,
+            "dark_secondary_max_delta": args.dark_secondary_max_delta,
+            "channel_band_source_luma_min": args.channel_band_source_luma_min,
+            "channel_band_source_luma_max": args.channel_band_source_luma_max,
+            "channel_band_strength": args.channel_band_strength,
+            "channel_band_max_delta": args.channel_band_max_delta,
+            "channel_band_dilate_radius": args.channel_band_dilate_radius,
         },
         "checks": {
             "frames": len(frames),
@@ -451,6 +473,8 @@ def parse_args(argv=None):
     parser.add_argument("--channel-band-strength", type=float, default=0.0)
     parser.add_argument("--channel-band-max-delta", type=float, default=48.0)
     parser.add_argument("--channel-band-dilate-radius", type=int, default=0)
+    parser.add_argument("--channel-mask-channels", default="spray,foam,bubble,droplet",
+                        help="comma-separated projected secondary channels used by channel-band response")
     parser.add_argument("--channel-radius-scale", type=float, default=1.0)
     parser.add_argument("--channel-density-blur-radius", type=float, default=2.0)
     parser.add_argument("--dark-secondary-soft-source-luma-min", type=float, default=75.0)
@@ -473,6 +497,17 @@ def parse_args(argv=None):
         parser.error("secondary-alpha-threshold must be in [0, 255]")
     if args.highlight_alpha_max < 0 or args.highlight_alpha_max > 255:
         parser.error("highlight-alpha-max must be in [0, 255]")
+    valid_channels = {"spray", "foam", "bubble", "droplet"}
+    args.channel_mask_channels_set = {
+        item.strip().lower()
+        for item in str(args.channel_mask_channels).split(",")
+        if item.strip()
+    }
+    if not args.channel_mask_channels_set:
+        parser.error("channel-mask-channels must contain at least one channel")
+    invalid_channels = sorted(args.channel_mask_channels_set - valid_channels)
+    if invalid_channels:
+        parser.error(f"unknown channel-mask-channels: {', '.join(invalid_channels)}")
     return args
 
 

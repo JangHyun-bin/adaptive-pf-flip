@@ -237,6 +237,8 @@ def build(args):
         "Actual",
         "Layer Alpha",
         "Source Luma",
+        "Source Highlight",
+        "Target Highlight",
         "DS6 Mask",
         "Target Dark Diagnostic",
         "Water Mask",
@@ -262,6 +264,11 @@ def build(args):
         target_luma = luma_array(target_img)
         source_luma = luma_array(actual_img)
         alpha = np.asarray(layer_img.split()[3], dtype=np.uint8)
+        source_highlight = np.logical_and(
+            source_luma >= args.highlight_source_luma_threshold,
+            alpha <= args.highlight_alpha_max,
+        )
+        target_highlight = target_luma >= args.target_highlight_luma_threshold
         ds6_mask = np.logical_and(alpha >= args.secondary_alpha_threshold, source_luma <= 75.0)
         target_dark = np.logical_and(alpha >= args.secondary_alpha_threshold, target_luma <= args.dark_luma_threshold)
         water_masks, _mesh_stats = draw_water_masks(mesh_path, xml_path, target_img.size, args)
@@ -275,6 +282,8 @@ def build(args):
                 (water_mask, (70, 120, 180), 0.18),
                 (contact_mask, (255, 220, 80), 0.55),
                 (ds6_mask, (70, 230, 240), 0.42),
+                (source_highlight, (245, 245, 250), 0.58),
+                (target_highlight, (235, 90, 220), 0.24),
                 (target_dark, (255, 70, 80), 0.42),
             ],
         )
@@ -283,6 +292,8 @@ def build(args):
             actual_img,
             grayscale_image(alpha),
             grayscale_image(source_luma),
+            mask_image(source_highlight, on=(245, 245, 250)),
+            mask_image(target_highlight, on=(235, 90, 220)),
             mask_image(ds6_mask, on=(90, 235, 245)),
             mask_image(target_dark, on=(250, 80, 90)),
             mask_image(water_mask, on=(90, 150, 220)),
@@ -307,6 +318,8 @@ def build(args):
             "grid_dimensions": list(grid_size),
             "ds6_coverage": float(ds6_mask.sum()) / float(max(1, ds6_mask.size)),
             "target_dark_coverage": float(target_dark.sum()) / float(max(1, target_dark.size)),
+            "source_highlight_coverage": float(source_highlight.sum()) / float(max(1, source_highlight.size)),
+            "target_highlight_coverage": float(target_highlight.sum()) / float(max(1, target_highlight.size)),
             "water_coverage": float(water_mask.sum()) / float(max(1, water_mask.size)),
             "contact_coverage": float(contact_mask.sum()) / float(max(1, contact_mask.size)),
         })
@@ -343,6 +356,9 @@ def build(args):
             "fps": args.fps,
             "secondary_alpha_threshold": args.secondary_alpha_threshold,
             "dark_luma_threshold": args.dark_luma_threshold,
+            "highlight_source_luma_threshold": args.highlight_source_luma_threshold,
+            "highlight_alpha_max": args.highlight_alpha_max,
+            "target_highlight_luma_threshold": args.target_highlight_luma_threshold,
         },
         "aovs": aov_names,
         "checks": {
@@ -398,6 +414,9 @@ def parse_args():
     parser.add_argument("--fps", type=float, default=2.0)
     parser.add_argument("--secondary-alpha-threshold", type=int, default=4)
     parser.add_argument("--dark-luma-threshold", type=float, default=55.0)
+    parser.add_argument("--highlight-source-luma-threshold", type=float, default=120.0)
+    parser.add_argument("--highlight-alpha-max", type=int, default=3)
+    parser.add_argument("--target-highlight-luma-threshold", type=float, default=150.0)
     parser.add_argument("--mask-threshold", type=int, default=1)
     parser.add_argument("--min-face-area", type=float, default=1.0e-12)
     parser.add_argument("--blur-radius", type=float, default=1.2)
@@ -415,6 +434,12 @@ def parse_args():
         parser.error("fps must be positive")
     if args.secondary_alpha_threshold < 0 or args.secondary_alpha_threshold > 255:
         parser.error("secondary-alpha-threshold must be in [0, 255]")
+    if args.highlight_alpha_max < 0 or args.highlight_alpha_max > 255:
+        parser.error("highlight-alpha-max must be in [0, 255]")
+    if args.highlight_source_luma_threshold < 0.0 or args.highlight_source_luma_threshold > 255.0:
+        parser.error("highlight-source-luma-threshold must be in [0, 255]")
+    if args.target_highlight_luma_threshold < 0.0 or args.target_highlight_luma_threshold > 255.0:
+        parser.error("target-highlight-luma-threshold must be in [0, 255]")
     if args.mask_threshold < 0 or args.mask_threshold > 255:
         parser.error("mask-threshold must be in [0, 255]")
     if args.blur_radius < 0.0:
