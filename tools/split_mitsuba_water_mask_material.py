@@ -10,9 +10,11 @@ from datetime import datetime, timezone
 from add_mitsuba_water_mask_highlights import (
     MASK_SCHEMAS,
     add_response_comment,
+    csv3,
     fmt,
     mask_layer_ref,
     output_frame_map,
+    parse_vec3,
     resolve_path,
     selected_frames,
     source_entry,
@@ -54,8 +56,16 @@ def response_bsdf_block(args):
         f'    <float name="alpha" value="{fmt(args.response_alpha)}"/>',
         f'    <float name="int_ior" value="{fmt(args.int_ior)}"/>',
         f'    <float name="ext_ior" value="{fmt(args.ext_ior)}"/>',
-        "  </bsdf>",
     ])
+    if args.response_specular_reflectance_vec is not None:
+        lines.append(
+            f'    <rgb name="specular_reflectance" value="{csv3(args.response_specular_reflectance_vec)}"/>'
+        )
+    if args.response_specular_transmittance_vec is not None:
+        lines.append(
+            f'    <rgb name="specular_transmittance" value="{csv3(args.response_specular_transmittance_vec)}"/>'
+        )
+    lines.append("  </bsdf>")
     return "\n".join(lines)
 
 
@@ -140,6 +150,8 @@ def markdown_report(export, export_path, root, next_text):
         f"- Response alpha: `{settings.get('response_alpha')}`",
         f"- Distribution: `{settings.get('distribution')}`",
         f"- IOR: `{settings.get('ext_ior')} -> {settings.get('int_ior')}`",
+        f"- Specular reflectance: `{settings.get('response_specular_reflectance')}`",
+        f"- Specular transmittance: `{settings.get('response_specular_transmittance')}`",
         f"- Mask threshold: `{settings.get('mask_threshold')}`",
         f"- Source luma gate: `{settings.get('source_luma_min')}..{settings.get('source_luma_max')}`",
         "",
@@ -354,6 +366,8 @@ def split_material(args):
             "distribution": args.distribution,
             "int_ior": args.int_ior,
             "ext_ior": args.ext_ior,
+            "response_specular_reflectance": args.response_specular_reflectance_vec,
+            "response_specular_transmittance": args.response_specular_transmittance_vec,
             "reverse_faces": args.reverse_faces,
             "mask_threshold": args.mask_threshold,
             "mask_sample_radius": args.mask_sample_radius,
@@ -401,6 +415,8 @@ def main(argv=None):
     parser.add_argument("--distribution", choices=["ggx", "beckmann", "none"], default="ggx")
     parser.add_argument("--int-ior", type=float, default=1.333)
     parser.add_argument("--ext-ior", type=float, default=1.0)
+    parser.add_argument("--response-specular-reflectance")
+    parser.add_argument("--response-specular-transmittance")
     parser.add_argument("--reverse-faces", action="store_true")
     parser.add_argument("--depth-penalty", type=float, default=0.01)
     parser.add_argument("--report")
@@ -428,6 +444,20 @@ def main(argv=None):
         parser.error("int-ior and ext-ior must be positive")
     if args.depth_penalty < 0.0:
         parser.error("depth-penalty must be non-negative")
+    args.response_specular_reflectance_vec = None
+    args.response_specular_transmittance_vec = None
+    if args.response_specular_reflectance:
+        args.response_specular_reflectance_vec = parse_vec3(args.response_specular_reflectance, "response-specular-reflectance")
+    if args.response_specular_transmittance:
+        args.response_specular_transmittance_vec = parse_vec3(args.response_specular_transmittance, "response-specular-transmittance")
+    for label, vec in (
+        ("response-specular-reflectance", args.response_specular_reflectance_vec),
+        ("response-specular-transmittance", args.response_specular_transmittance_vec),
+    ):
+        if vec is not None and min(vec) < 0.0:
+            parser.error(f"{label} values must be non-negative")
+        if vec is not None and max(vec) > 1.0:
+            parser.error(f"{label} values must be in [0, 1]")
     split_material(args)
 
 
