@@ -61,6 +61,8 @@ def apply_response(actual_img, layer_img, args):
         "pixels": len(alpha_bytes),
         "highlight_pixels": 0,
         "dark_secondary_pixels": 0,
+        "dark_secondary_primary_pixels": 0,
+        "dark_secondary_soft_pixels": 0,
         "nonsecondary_pixels": 0,
         "changed_pixels": 0,
     }
@@ -79,6 +81,13 @@ def apply_response(actual_img, layer_img, args):
             and source_luma >= args.dark_secondary_source_luma_min
             and source_luma <= args.dark_secondary_source_luma_max
         )
+        is_soft_dark_secondary = (
+            is_secondary
+            and not is_dark_secondary
+            and args.dark_secondary_soft_strength > 0.0
+            and source_luma >= args.dark_secondary_soft_source_luma_min
+            and source_luma <= args.dark_secondary_soft_source_luma_max
+        )
         if not is_secondary and args.nonsecondary_lift != 0.0:
             nr += args.nonsecondary_lift
             ng += args.nonsecondary_lift
@@ -94,6 +103,13 @@ def apply_response(actual_img, layer_img, args):
             ng = darken(ng, args.dark_secondary_strength, args.dark_secondary_max_delta)
             nb = darken(nb, args.dark_secondary_strength, args.dark_secondary_max_delta)
             stats["dark_secondary_pixels"] += 1
+            stats["dark_secondary_primary_pixels"] += 1
+        if is_soft_dark_secondary:
+            nr = darken(nr, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
+            ng = darken(ng, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
+            nb = darken(nb, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
+            stats["dark_secondary_pixels"] += 1
+            stats["dark_secondary_soft_pixels"] += 1
         rr, gg, bb = clamp(nr), clamp(ng), clamp(nb)
         out[base], out[base + 1], out[base + 2] = rr, gg, bb
         if rr != ar or gg != ag or bb != ab:
@@ -101,6 +117,8 @@ def apply_response(actual_img, layer_img, args):
     image = Image.frombytes("RGB", actual_img.size, bytes(out))
     stats["highlight_coverage"] = stats["highlight_pixels"] / float(max(1, stats["pixels"]))
     stats["dark_secondary_coverage"] = stats["dark_secondary_pixels"] / float(max(1, stats["pixels"]))
+    stats["dark_secondary_primary_coverage"] = stats["dark_secondary_primary_pixels"] / float(max(1, stats["pixels"]))
+    stats["dark_secondary_soft_coverage"] = stats["dark_secondary_soft_pixels"] / float(max(1, stats["pixels"]))
     stats["nonsecondary_coverage"] = stats["nonsecondary_pixels"] / float(max(1, stats["pixels"]))
     stats["changed_coverage"] = stats["changed_pixels"] / float(max(1, stats["pixels"]))
     return image, stats
@@ -248,6 +266,10 @@ def apply_source_response(args):
             "dark_secondary_source_luma_max": args.dark_secondary_source_luma_max,
             "dark_secondary_strength": args.dark_secondary_strength,
             "dark_secondary_max_delta": args.dark_secondary_max_delta,
+            "dark_secondary_soft_source_luma_min": args.dark_secondary_soft_source_luma_min,
+            "dark_secondary_soft_source_luma_max": args.dark_secondary_soft_source_luma_max,
+            "dark_secondary_soft_strength": args.dark_secondary_soft_strength,
+            "dark_secondary_soft_max_delta": args.dark_secondary_soft_max_delta,
             "nonsecondary_lift": args.nonsecondary_lift,
             "fps": args.fps,
             "keyframes": args.keyframes,
@@ -312,6 +334,10 @@ def parse_args():
     parser.add_argument("--dark-secondary-source-luma-max", type=float, default=105.0)
     parser.add_argument("--dark-secondary-strength", type=float, default=0.35)
     parser.add_argument("--dark-secondary-max-delta", type=float, default=55.0)
+    parser.add_argument("--dark-secondary-soft-source-luma-min", type=float, default=75.0)
+    parser.add_argument("--dark-secondary-soft-source-luma-max", type=float, default=95.0)
+    parser.add_argument("--dark-secondary-soft-strength", type=float, default=0.0)
+    parser.add_argument("--dark-secondary-soft-max-delta", type=float, default=35.0)
     parser.add_argument("--nonsecondary-lift", type=float, default=0.0)
     parser.add_argument("--fps", type=float, default=2.0)
     parser.add_argument("--keyframes", type=int, default=4)
@@ -323,12 +349,14 @@ def parse_args():
         parser.error("secondary-alpha-threshold must be in [0, 255]")
     if args.highlight_alpha_max < 0 or args.highlight_alpha_max > 255:
         parser.error("highlight-alpha-max must be in [0, 255]")
-    if args.highlight_strength < 0.0 or args.dark_secondary_strength < 0.0:
+    if args.highlight_strength < 0.0 or args.dark_secondary_strength < 0.0 or args.dark_secondary_soft_strength < 0.0:
         parser.error("strength values must be non-negative")
-    if args.highlight_max_delta < 0.0 or args.dark_secondary_max_delta < 0.0:
+    if args.highlight_max_delta < 0.0 or args.dark_secondary_max_delta < 0.0 or args.dark_secondary_soft_max_delta < 0.0:
         parser.error("max delta values must be non-negative")
     if args.dark_secondary_source_luma_min > args.dark_secondary_source_luma_max:
         parser.error("dark secondary luma min cannot exceed max")
+    if args.dark_secondary_soft_source_luma_min > args.dark_secondary_soft_source_luma_max:
+        parser.error("dark secondary soft luma min cannot exceed max")
     if args.fps <= 0.0:
         parser.error("fps must be positive")
     if args.keyframes <= 0:

@@ -4392,3 +4392,27 @@ target-dark-secondary signed luma drops from `+51.392797` to `+22.254368`.
 DS6 as the current target-free combined highlight/dark-secondary baseline. The
 remaining gap is mostly mask recall, so next work should try a two-band
 dark-secondary response or add geometry/depth-native evidence.
+
+S376 tested the two-band screen-space dark-secondary path:
+
+- S376 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-two-band-dark-secondary-response.md`
+- S376 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_two_band_dark_secondary_response_sweep_summary_s376.md`
+- S376 TB1 region report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_two_band_dark_secondary_response_tb1_regions_s376.md`
+- S376 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_two_band_dark_secondary_response_review_s376.md`
+- S376 public quick-tunnel preview:
+  `https://flow-mel-min-mostly.trycloudflare.com/index.html`
+- S376 updated tool:
+  `tools/apply_mitsuba_source_region_response.py`
+
+The optional second dark-secondary band is implemented, but this experiment
+rejects it for the current shot. DS6 remains the best target-free candidate at
+max target MAD `23.56051440329218`. The best two-band candidate TB1 improves
+target-dark-secondary signed luma from DS6's `+22.254368` to `+19.288754`, but
+still worsens the hard gate to `23.576880787037037`. Wider TB3/TB4 bands are
+clearly bad at `23.827061471193417` and `24.032675540123456`. Keep DS6 as the
+baseline and move next to geometry/depth-native mask evidence instead of wider
+screen-space luma bands.
