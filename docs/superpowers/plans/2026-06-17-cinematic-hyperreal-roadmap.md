@@ -4823,3 +4823,31 @@ source compatibility, but do not continue broad diffuse screen-card overlays as
 the CR21 replacement. Next work should attach the local response to actual
 secondary/material/AOV data or convert residual-mask analysis into a single
 alpha mask for a narrower native render experiment.
+
+S397 converted residual-mask analysis into a reusable mask source and tested it
+with a residual-local screen-card candidate:
+
+- S397 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-residual-mask-source.md`
+- S397 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_local_screen_card_summary_s397.md`
+- S397 new tool:
+  `tools/build_mitsuba_residual_mask_source.py`
+- S397 mask source report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_mask_source_best_s397.md`
+- S397 screen-card reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_local_screen_card_*_s397.md`
+
+The new tool reads
+`lsfs_mitsuba_secondary_channel_residual_mask_analysis`, rebuilds the selected
+per-frame residual candidate, and exports a `lsfs_mitsuba_secondary_composite`
+compatible mask source with `layer_repo_path` pointing at generated RGBA alpha
+masks. The selected residual candidate was
+`ds6_or_channel_union_r0_source_luma_75_85`, with max mask coverage
+`0.00818479938271605` and mean coverage `0.002732687114197531`. The S397
+screen-card export/render path completed `8` frames with `0` missing references
+and `0` render failures, but still did not beat SS1: max target MAD was
+`23.988894675925927` and mean target MAD was `19.222715486754115`, matching the
+S396 failure profile. Keep the residual mask-source bridge, but move the next
+native replacement attempt into real secondary material/pass/AOV response rather
+than another camera-facing diffuse overlay.
