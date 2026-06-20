@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import time
@@ -48,12 +49,17 @@ def image_entry(path, root):
     return entry
 
 
-def summary_metadata_entry(summary_path, assets_dir, root):
-    dest = os.path.join(assets_dir, "backend_process_stub_summary.json")
+def slugify(value):
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", value.strip().lower()).strip("_")
+    return slug or "backend_process"
+
+
+def summary_metadata_entry(summary_path, assets_dir, root, label, slug):
+    dest = os.path.join(assets_dir, f"{slug}_summary.json")
     return {
-        "label": "Backend Process Stub Summary",
+        "label": f"{label} Summary",
         "repo_path": posix_rel(dest, root),
-        "href": "assets/backend_process_stub_summary.json",
+        "href": f"assets/{slug}_summary.json",
         "source_repo_path": posix_rel(summary_path, root),
     }
 
@@ -82,7 +88,7 @@ def run_frame(args, frame, root, out_dir):
     frame_id = frame.get("frame")
     scene_path = require_file(resolve_path((frame.get("scene_descriptor") or {}).get("repo_path"), root), "backend scene descriptor")
     scene = read_json(scene_path)
-    strip_path = os.path.abspath(os.path.join(out_dir, "strips", f"frame_{job_index:04d}_backend_process_stub.png"))
+    strip_path = os.path.abspath(os.path.join(out_dir, "strips", f"frame_{job_index:04d}_{args.backend_slug}.png"))
     result_path = os.path.abspath(os.path.join(out_dir, "results", f"frame_{job_index:04d}_backend_process_result.json"))
     stdout_path = os.path.abspath(os.path.join(out_dir, "logs", f"frame_{job_index:04d}_stdout.log"))
     stderr_path = os.path.abspath(os.path.join(out_dir, "logs", f"frame_{job_index:04d}_stderr.log"))
@@ -133,7 +139,9 @@ def run_frame(args, frame, root, out_dir):
             "stderr": log_entry(stderr_path, root, "stderr"),
         },
         "result_json": log_entry(result_path, root, "backend result"),
+        "result_schema": result.get("schema"),
         "result_status": result.get("status"),
+        "backend_kind": result.get("backend_kind"),
         "output_image_repo_path": posix_rel(output_image, root) if output_image else None,
         "metadata_repo_path": posix_rel(output_metadata, root) if output_metadata else None,
         "validation_repo_path": posix_rel(output_validation, root) if output_validation else None,
@@ -151,8 +159,9 @@ def run_frame(args, frame, root, out_dir):
 
 
 def html_page(title, summary, assets, metadata_files):
-    shot = next((item for item in assets if item.get("label") == "Backend Process Stub GIF"), None)
-    strips = [item for item in assets if item.get("label", "").startswith("Backend Process Stub Strip")]
+    label = (summary.get("settings") or {}).get("backend_label") or "Backend Process Stub"
+    shot = next((item for item in assets if item.get("label") == f"{label} GIF"), None)
+    strips = [item for item in assets if item.get("label", "").startswith(f"{label} Strip")]
     checks = summary.get("checks") or {}
     links = "\n".join(f'<a href="{item["href"]}">{item["label"]}</a>' for item in metadata_files)
     tiles = [
@@ -164,7 +173,7 @@ def html_page(title, summary, assets, metadata_files):
         ("Mean Diff", checks.get("max_mean_abs_diff")),
     ]
     metrics = "\n".join(f"<div><span>{label}</span><strong>{value}</strong></div>" for label, value in tiles)
-    hero = f'<section class="hero"><img src="{shot["href"]}" alt="Backend process stub GIF"></section>' if shot else ""
+    hero = f'<section class="hero"><img src="{shot["href"]}" alt="{label} GIF"></section>' if shot else ""
     frame_html = "\n".join(
         f'<figure><a href="{item["href"]}"><img src="{item["href"]}" alt="{item["label"]}"></a><figcaption>{item["label"]}</figcaption></figure>'
         for item in strips
@@ -267,7 +276,9 @@ def run_process_stub(args):
     output_paths = [resolve_path(item.get("output_image_repo_path"), root) for item in passed]
     strip_paths = [resolve_path(item.get("strip_repo_path"), root) for item in passed]
     gif_path = os.path.join(assets_dir, "shot.gif")
-    strip_gif_path = os.path.join(assets_dir, "backend_process_stub_strips.gif")
+    label = args.backend_label
+    slug = args.backend_slug
+    strip_gif_path = os.path.join(assets_dir, f"{slug}_strips.gif")
     if output_paths:
         write_gif(output_paths, gif_path, args.fps)
     if strip_paths:
@@ -275,14 +286,14 @@ def run_process_stub(args):
 
     assets = []
     if os.path.isfile(gif_path):
-        assets.append(copy_asset(gif_path, assets_dir, "shot.gif", "Backend Process Stub GIF", root))
+        assets.append(copy_asset(gif_path, assets_dir, "shot.gif", f"{label} GIF", root))
     if os.path.isfile(strip_gif_path):
-        assets.append(copy_asset(strip_gif_path, assets_dir, "backend_process_stub_strips.gif", "Backend Process Stub Strip GIF", root))
+        assets.append(copy_asset(strip_gif_path, assets_dir, f"{slug}_strips.gif", f"{label} Strip GIF", root))
     keyframes = max(1, min(args.keyframes, len(passed)))
     key_indices = sorted(set(round(i * (len(passed) - 1) / float(max(1, keyframes - 1))) for i in range(keyframes))) if passed else []
     for out_index, frame_index in enumerate(key_indices):
-        assets.append(copy_asset(passed[frame_index]["output_image_repo_path"], assets_dir, f"keyframe_{out_index:02d}.png", f"Backend Process Stub Keyframe {out_index + 1}", root))
-        assets.append(copy_asset(passed[frame_index]["strip_repo_path"], assets_dir, f"backend_process_stub_strip_{out_index:02d}.png", f"Backend Process Stub Strip {out_index + 1}", root))
+        assets.append(copy_asset(passed[frame_index]["output_image_repo_path"], assets_dir, f"keyframe_{out_index:02d}.png", f"{label} Keyframe {out_index + 1}", root))
+        assets.append(copy_asset(passed[frame_index]["strip_repo_path"], assets_dir, f"{slug}_strip_{out_index:02d}.png", f"{label} Strip {out_index + 1}", root))
 
     summary_path = os.path.abspath(args.summary)
     checks = {
@@ -308,7 +319,7 @@ def run_process_stub(args):
         and checks["max_mean_abs_diff"] == 0.0
     ) else "failed"
     summary = {
-        "schema": "lsfs_mitsuba_low_frequency_backend_process_stub",
+        "schema": args.summary_schema,
         "version": 1,
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "title": args.title,
@@ -325,6 +336,10 @@ def run_process_stub(args):
             "keyframes": args.keyframes,
             "frame_timeout": args.frame_timeout,
             "backend_script": posix_rel(backend_script, root),
+            "backend_label": label,
+            "backend_slug": slug,
+            "backend_result_schemas": sorted(set(item.get("result_schema") for item in results if item.get("result_schema"))),
+            "backend_kinds": sorted(set(item.get("backend_kind") for item in results if item.get("backend_kind"))),
             "stage": "renderer_post_tonemap_low_frequency_runtime_consumer",
         },
         "checks": checks,
@@ -334,9 +349,9 @@ def run_process_stub(args):
     }
     write_json(summary_path, summary)
     metadata_files = [
-        summary_metadata_entry(summary_path, assets_dir, root),
+        summary_metadata_entry(summary_path, assets_dir, root, label, slug),
         copy_asset(manifest_path, assets_dir, "backend_adapter_manifest.json", "Backend Adapter Manifest", root),
-        copy_asset(backend_script, assets_dir, "mitsuba_low_frequency_backend_stub.py", "Backend Process Stub Script", root),
+        copy_asset(backend_script, assets_dir, os.path.basename(backend_script), f"{label} Script", root),
     ]
     index_path = os.path.join(gallery_dir, "index.html")
     summary["gallery"] = {
@@ -352,7 +367,7 @@ def run_process_stub(args):
     write_json(summary_asset, summary)
     write_text(index_path, html_page(args.title, summary, assets, metadata_files))
     write_json(os.path.join(gallery_dir, "gallery_manifest.json"), {
-        "schema": "lsfs_mitsuba_low_frequency_backend_process_stub_gallery",
+        "schema": args.gallery_schema or f"{args.summary_schema}_gallery",
         "version": 1,
         "generated_utc": summary["generated_utc"],
         "title": args.title,
@@ -378,6 +393,9 @@ def main(argv=None):
     parser.add_argument("--summary", required=True)
     parser.add_argument("--report")
     parser.add_argument("--backend-script", default="tools/mitsuba_low_frequency_backend_stub.py")
+    parser.add_argument("--backend-label", default="Backend Process Stub")
+    parser.add_argument("--summary-schema", default="lsfs_mitsuba_low_frequency_backend_process_stub")
+    parser.add_argument("--gallery-schema")
     parser.add_argument("--fps", type=float, default=2.0)
     parser.add_argument("--keyframes", type=int, default=4)
     parser.add_argument("--frame-timeout", type=float, default=60.0)
@@ -391,6 +409,7 @@ def main(argv=None):
         parser.error("keyframes must be positive")
     if args.frame_timeout <= 0.0:
         parser.error("frame-timeout must be positive")
+    args.backend_slug = slugify(args.backend_label)
     run_process_stub(args)
 
 

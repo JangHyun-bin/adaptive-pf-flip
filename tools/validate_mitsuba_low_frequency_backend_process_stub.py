@@ -15,6 +15,17 @@ from build_bridge_review_package import (
 )
 
 
+ALLOWED_SUMMARY_SCHEMAS = {
+    "lsfs_mitsuba_low_frequency_backend_process_stub",
+    "lsfs_mitsuba_low_frequency_backend_process",
+}
+
+ALLOWED_RESULT_SCHEMAS = {
+    "lsfs_mitsuba_low_frequency_backend_stub_result",
+    "lsfs_mitsuba_low_frequency_post_tonemap_backend_result",
+}
+
+
 def resolve_path(value, root):
     if not value:
         return None
@@ -133,8 +144,10 @@ def validate_result_json(checks, frame, root):
     add_check(
         checks,
         f"frame:{frame_id}:result_schema",
-        result.get("schema") == "lsfs_mitsuba_low_frequency_backend_stub_result",
+        result.get("schema") in ALLOWED_RESULT_SCHEMAS,
         "result schema",
+        sorted(ALLOWED_RESULT_SCHEMAS),
+        result.get("schema"),
     )
     add_check(checks, f"frame:{frame_id}:result_status", result.get("status") == "passed", "result status")
     add_check(checks, f"frame:{frame_id}:result_max_abs", result.get("max_abs_diff") == 0, "result max abs")
@@ -197,13 +210,14 @@ def validate_frames(checks, summary, adapter, root):
 
 def validate_gallery(checks, summary, root):
     gallery = summary.get("gallery") or {}
+    backend_label = (summary.get("settings") or {}).get("backend_label") or "Backend Process Stub"
     file_check(checks, "gallery:index", gallery.get("index_repo_path") or gallery.get("index_path"), root)
     labels = set()
     for asset in gallery.get("assets") or []:
         labels.add(asset.get("label"))
         file_check(checks, f"gallery:asset:{asset.get('label')}", asset, root)
-    add_check(checks, "gallery:process_stub_gif", "Backend Process Stub GIF" in labels, "process stub GIF present")
-    add_check(checks, "gallery:process_stub_strip_gif", "Backend Process Stub Strip GIF" in labels, "process stub strip GIF present")
+    add_check(checks, "gallery:process_gif", f"{backend_label} GIF" in labels, "process GIF present")
+    add_check(checks, "gallery:process_strip_gif", f"{backend_label} Strip GIF" in labels, "process strip GIF present")
     for item in gallery.get("metadata_files") or []:
         file_check(checks, f"gallery:metadata:{item.get('label')}", item, root, require_hash=False)
 
@@ -247,9 +261,9 @@ def validate(args):
     add_check(
         checks,
         "summary:schema",
-        summary.get("schema") == "lsfs_mitsuba_low_frequency_backend_process_stub",
+        summary.get("schema") in ALLOWED_SUMMARY_SCHEMAS,
         "schema",
-        "lsfs_mitsuba_low_frequency_backend_process_stub",
+        sorted(ALLOWED_SUMMARY_SCHEMAS),
         summary.get("schema"),
     )
     add_check(checks, "summary:version", summary.get("version") == 1, "version", 1, summary.get("version"))

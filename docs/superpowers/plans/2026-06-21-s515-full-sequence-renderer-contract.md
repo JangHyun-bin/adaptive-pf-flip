@@ -34,6 +34,12 @@ replace.
   image diff and no process failures.
 - S563 published the S562 backend process proof gallery through Cloudflare quick
   tunnel.
+- S564 replaced the process stub with
+  `tools/mitsuba_low_frequency_post_tonemap_backend.py`, preserving the same
+  descriptor/process CLI while emitting a non-stub backend result schema.
+- S565 published the S564 post-tonemap backend proof gallery through Cloudflare
+  quick tunnel.
+- S566 compared S562 and S564 and confirmed identical GIF SHA256/byte size.
 
 ## Key Artifacts
 
@@ -55,6 +61,14 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_backend_process_stub_validation_s562.md`
 - Public S562 backend process proof:
   `https://passport-ground-excerpt-equipped.trycloudflare.com`
+- Post-tonemap backend script:
+  `tools/mitsuba_low_frequency_post_tonemap_backend.py`
+- Post-tonemap backend validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_post_tonemap_backend_process_validation_s564.md`
+- Public S564/S565 backend proof:
+  `https://providence-secrets-stats-last.trycloudflare.com`
+- Stub/backend comparison:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_post_tonemap_backend_comparison_s566.md`
 
 ## Verification
 
@@ -95,6 +109,24 @@ replace.
 - S563 public checks:
   - `GET /index.html`: `200`
   - `HEAD /assets/shot.gif`: `200`
+- S564 post-tonemap backend process validation:
+  - `status=passed`
+  - `total=1481`
+  - `failed=0`
+  - backend kind: `post_tonemap_texture_backend`
+  - backend result schema:
+    `lsfs_mitsuba_low_frequency_post_tonemap_backend_result`
+  - process failures: `0`
+  - max image diff: `0`
+- S565 public checks:
+  - `GET /index.html`: `200`
+  - `HEAD /assets/shot.gif`: `200`
+- S566 stub/backend parity:
+  - S562 GIF SHA256:
+    `8C6E621C4656B3F5D7AA85C44418CA3CFC455B4E03F5BD07892C62A14B544ACF`
+  - S564 GIF SHA256:
+    `8C6E621C4656B3F5D7AA85C44418CA3CFC455B4E03F5BD07892C62A14B544ACF`
+  - result: `identical`
 
 ## Current Meaning
 
@@ -107,20 +139,18 @@ now reproducible through:
 4. a process-level execution interface,
 5. zero-diff validation against accepted references.
 
-This gives the next renderer step a stable boundary: replace the process stub
-with a real backend implementation while preserving the descriptor schema and
-validation gates.
+This gives the next renderer step a stable boundary. The first non-stub backend
+is now in place and still produces the same accepted full48 visual output.
 
 ## Next
 
-Build the real backend bridge for this contract. The practical next slice is:
+Move the same descriptor/process boundary toward renderer-native response:
 
-1. Add a backend executable/script that consumes one
-   `lsfs_mitsuba_low_frequency_backend_scene_descriptor` and writes the declared
-   output image, metadata, validation, and strip artifacts.
-2. Keep the current process-stub CLI shape so `run_mitsuba_low_frequency_backend_process_stub.py`
-   can call either the stub or the real backend script.
-3. First target can still be a post-tonemap image backend; after that, move the
-   correction into renderer-native material/light/volume response instead of
-   using accepted-reference deltas.
-4. Publish the first real-backend gallery and compare it against S563.
+1. Add a renderer-native response descriptor that maps the S515 low-frequency
+   correction into material, light, or volume parameters instead of accepted
+   post-tonemap deltas.
+2. Generate a candidate Mitsuba XML export from that response descriptor.
+3. Render a short sample through the real Mitsuba XML command adapter.
+4. Compare the renderer-native sample against the S564 post-tonemap backend
+   proof, and only promote it if it improves visual realism without breaking the
+   current full48 contract gates.
