@@ -4627,3 +4627,27 @@ diagnostic: F1 rises from DS6 `0.6121749824314828` to
 remains usable at `0.751346`. This is the first post-DS6 target-free mask that
 improves the diagnostic. Next work should apply it as a bounded visual response
 and compare the full target-gap gate against DS6.
+
+S387 promoted the S386 mask into a visual response:
+
+- S387 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-channel-response.md`
+- S387 CR2 response report:
+  `docs/reports/2026-06-20-s387-mitsuba-secondary-channel-response-cr2.md`
+- S387 CR2 gap report:
+  `docs/reports/2026-06-20-s387-mitsuba-secondary-channel-response-cr2-gap.md`
+- S387 CR2 region report:
+  `docs/reports/2026-06-20-s387-mitsuba-secondary-channel-response-cr2-regions.md`
+- S387 visual review:
+  `docs/reports/2026-06-20-s387-mitsuba-secondary-channel-response-review.md`
+- S387 updated tool:
+  `tools/apply_mitsuba_source_region_response.py`
+
+CR2 keeps DS6 as the primary dark-secondary response and adds a weak
+channel-local source-luma `75..85` band. It improves the hard max target MAD
+from DS6 `23.56051440329218` to `23.556300`, while reducing
+`secondary_dark_target` MAD from `32.980914` to `29.172706`. The improvement is
+small but real, and unlike broad DS6 ring dilation it does not visibly darken
+the whole water body. Treat CR2 as the current best target-free visual response.
+Next work can either fine-tune this channel-local band or move the same cue into
+a renderer/material parameter instead of post-composite darkening.

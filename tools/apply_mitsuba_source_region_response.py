@@ -11,6 +11,8 @@ try:
 except ImportError:  # pragma: no cover - reported at runtime.
     Image = None
 
+from analyze_mitsuba_contact_particle_masks import particle_rows
+from build_mitsuba_secondary_channel_aov_package import draw_channel_density
 from apply_mitsuba_target_region_response import (
     clamp,
     composite_path,
@@ -63,7 +65,58 @@ def dilated_ring_mask(mask, size, radius):
     return [value > 0 and not mask[index] for index, value in enumerate(dilated)]
 
 
-def apply_response(actual_img, layer_img, args):
+def dilate_bool_mask(mask, size, radius):
+    if radius <= 0:
+        return mask
+    filter_size = radius * 2 + 1
+    mask_bytes = bytes(255 if value else 0 for value in mask)
+    mask_img = Image.frombytes("L", size, mask_bytes)
+    dilated = mask_img.filter(ImageFilter.MaxFilter(filter_size)).tobytes()
+    return [value > 0 for value in dilated]
+
+
+def export_frame_map(summary):
+    return {
+        int(frame.get("output_frame")): frame
+        for frame in summary.get("frames") or []
+        if frame.get("output_frame") is not None
+    }
+
+
+def particle_path(frame):
+    return (frame.get("sidecar_assets") or {}).get("particles")
+
+
+def xml_path(frame):
+    return (frame.get("xml_scene") or {}).get("path") or (frame.get("xml_scene") or {}).get("repo_path")
+
+
+class ChannelDensityArgs:
+    def __init__(self, radius_scale, density_blur_radius):
+        self.radius_scale = radius_scale
+        self.density_blur_radius = density_blur_radius
+
+
+def channel_union_mask(export_frame, size, args):
+    if export_frame is None:
+        return None, None
+    particles_path = require_file(particle_path(export_frame), "particle stream")
+    scene_path = require_file(xml_path(export_frame), "xml scene")
+    particles = particle_rows(particles_path)
+    draw_args = ChannelDensityArgs(args.channel_radius_scale, args.channel_density_blur_radius)
+    _masks, _density, union, _density_union, projected_counts = draw_channel_density(
+        particles, scene_path, size, draw_args
+    )
+    flat = [bool(value) for value in union.ravel()]
+    flat = dilate_bool_mask(flat, size, args.channel_band_dilate_radius)
+    return flat, {
+        "particles_repo_path": posix_rel(particles_path, os.getcwd()),
+        "xml_scene_repo_path": posix_rel(scene_path, os.getcwd()),
+        "projected_counts": projected_counts,
+    }
+
+
+def apply_response(actual_img, layer_img, args, channel_mask=None):
     actual_bytes = actual_img.convert("RGB").tobytes()
     alpha_bytes = layer_img.convert("RGBA").split()[3].tobytes()
     source_luma_values = [
@@ -84,6 +137,7 @@ def apply_response(actual_img, layer_img, args):
         "dark_secondary_primary_pixels": 0,
         "dark_secondary_soft_pixels": 0,
         "dark_secondary_ring_pixels": 0,
+        "dark_secondary_channel_band_pixels": 0,
         "nonsecondary_pixels": 0,
         "changed_pixels": 0,
     }
@@ -106,10 +160,19 @@ def apply_response(actual_img, layer_img, args):
             and source_luma >= args.dark_secondary_ring_source_luma_min
             and source_luma <= args.dark_secondary_ring_source_luma_max
         )
+        is_channel_band_dark_secondary = (
+            channel_mask is not None
+            and channel_mask[pixel_index]
+            and is_secondary
+            and args.channel_band_strength > 0.0
+            and source_luma > args.channel_band_source_luma_min
+            and source_luma <= args.channel_band_source_luma_max
+        )
         is_soft_dark_secondary = (
             is_secondary
             and not is_dark_secondary
             and not is_ring_dark_secondary
+            and not is_channel_band_dark_secondary
             and args.dark_secondary_soft_strength > 0.0
             and source_luma >= args.dark_secondary_soft_source_luma_min
             and source_luma <= args.dark_secondary_soft_source_luma_max
@@ -136,6 +199,12 @@ def apply_response(actual_img, layer_img, args):
             nb = darken(nb, args.dark_secondary_ring_strength, args.dark_secondary_ring_max_delta)
             stats["dark_secondary_pixels"] += 1
             stats["dark_secondary_ring_pixels"] += 1
+        if is_channel_band_dark_secondary:
+            nr = darken(nr, args.channel_band_strength, args.channel_band_max_delta)
+            ng = darken(ng, args.channel_band_strength, args.channel_band_max_delta)
+            nb = darken(nb, args.channel_band_strength, args.channel_band_max_delta)
+            stats["dark_secondary_pixels"] += 1
+            stats["dark_secondary_channel_band_pixels"] += 1
         if is_soft_dark_secondary:
             nr = darken(nr, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
             ng = darken(ng, args.dark_secondary_soft_strength, args.dark_secondary_soft_max_delta)
@@ -152,6 +221,7 @@ def apply_response(actual_img, layer_img, args):
     stats["dark_secondary_primary_coverage"] = stats["dark_secondary_primary_pixels"] / float(max(1, stats["pixels"]))
     stats["dark_secondary_soft_coverage"] = stats["dark_secondary_soft_pixels"] / float(max(1, stats["pixels"]))
     stats["dark_secondary_ring_coverage"] = stats["dark_secondary_ring_pixels"] / float(max(1, stats["pixels"]))
+    stats["dark_secondary_channel_band_coverage"] = stats["dark_secondary_channel_band_pixels"] / float(max(1, stats["pixels"]))
     stats["nonsecondary_coverage"] = stats["nonsecondary_pixels"] / float(max(1, stats["pixels"]))
     stats["changed_coverage"] = stats["changed_pixels"] / float(max(1, stats["pixels"]))
     return image, stats
@@ -225,6 +295,14 @@ def apply_source_response(args):
     if composite_summary.get("schema") != "lsfs_mitsuba_secondary_composite":
         raise SystemExit(f"{args.composite_summary}: expected lsfs_mitsuba_secondary_composite schema")
     composite_frames = output_frame_map(composite_summary.get("frames") or [])
+    export_frames = {}
+    export_summary_path = None
+    if args.mitsuba_export:
+        export_summary_path = require_file(args.mitsuba_export, "Mitsuba export")
+        export_summary = read_json(export_summary_path)
+        if export_summary.get("schema") != "lsfs_mitsuba_xml_export":
+            raise SystemExit(f"{args.mitsuba_export}: expected lsfs_mitsuba_xml_export schema")
+        export_frames = export_frame_map(export_summary)
     out_dir = os.path.abspath(args.out_dir)
     frames_dir = os.path.join(out_dir, "frames")
     strip_dir = os.path.join(out_dir, "strips")
@@ -245,7 +323,13 @@ def apply_source_response(args):
         layer_img = Image.open(layer_img_path).convert("RGBA")
         if actual_img.size != layer_img.size:
             raise SystemExit(f"image size mismatch for output_frame={output_frame}")
-        graded_img, response = apply_response(actual_img, layer_img, args)
+        channel_mask = None
+        channel_metadata = None
+        if args.channel_band_strength > 0.0:
+            if output_frame not in export_frames:
+                raise SystemExit(f"missing Mitsuba export frame for output_frame={output_frame}")
+            channel_mask, channel_metadata = channel_union_mask(export_frames[output_frame], actual_img.size, args)
+        graded_img, response = apply_response(actual_img, layer_img, args, channel_mask=channel_mask)
         out_path = os.path.join(frames_dir, f"frame_{index:04d}.png")
         graded_img.save(out_path)
         strip_path = os.path.join(strip_dir, f"frame_{index:04d}_source_response.png")
@@ -267,6 +351,8 @@ def apply_source_response(args):
             "dimensions": image_dimensions(out_path),
             "response": response,
         })
+        if channel_metadata:
+            results[-1]["channel_band"] = channel_metadata
 
     if not results:
         raise SystemExit("no composite frames to process")
@@ -304,6 +390,14 @@ def apply_source_response(args):
             "dark_secondary_ring_source_luma_max": args.dark_secondary_ring_source_luma_max,
             "dark_secondary_ring_strength": args.dark_secondary_ring_strength,
             "dark_secondary_ring_max_delta": args.dark_secondary_ring_max_delta,
+            "mitsuba_export": posix_rel(export_summary_path, root) if export_summary_path else None,
+            "channel_band_source_luma_min": args.channel_band_source_luma_min,
+            "channel_band_source_luma_max": args.channel_band_source_luma_max,
+            "channel_band_strength": args.channel_band_strength,
+            "channel_band_max_delta": args.channel_band_max_delta,
+            "channel_band_dilate_radius": args.channel_band_dilate_radius,
+            "channel_radius_scale": args.channel_radius_scale,
+            "channel_density_blur_radius": args.channel_density_blur_radius,
             "dark_secondary_soft_source_luma_min": args.dark_secondary_soft_source_luma_min,
             "dark_secondary_soft_source_luma_max": args.dark_secondary_soft_source_luma_max,
             "dark_secondary_soft_strength": args.dark_secondary_soft_strength,
@@ -318,6 +412,7 @@ def apply_source_response(args):
             "max_changed_coverage": max((item["response"].get("changed_coverage") or 0.0 for item in results), default=0.0),
             "max_highlight_coverage": max((item["response"].get("highlight_coverage") or 0.0 for item in results), default=0.0),
             "max_dark_secondary_coverage": max((item["response"].get("dark_secondary_coverage") or 0.0 for item in results), default=0.0),
+            "max_dark_secondary_channel_band_coverage": max((item["response"].get("dark_secondary_channel_band_coverage") or 0.0 for item in results), default=0.0),
         },
         "frames": results,
         "gallery": {},
@@ -326,6 +421,8 @@ def apply_source_response(args):
     metadata_files = [
         copy_json_asset(composite_summary_path, assets_dir, "composite_summary.json", "Composite summary", root),
     ]
+    if export_summary_path:
+        metadata_files.append(copy_json_asset(export_summary_path, assets_dir, "mitsuba_export.json", "Mitsuba export", root))
     index_path = os.path.join(gallery_dir, "index.html")
     summary["gallery"] = {
         "path": gallery_dir,
@@ -377,6 +474,14 @@ def parse_args():
     parser.add_argument("--dark-secondary-ring-source-luma-max", type=float, default=95.0)
     parser.add_argument("--dark-secondary-ring-strength", type=float, default=0.0)
     parser.add_argument("--dark-secondary-ring-max-delta", type=float, default=35.0)
+    parser.add_argument("--mitsuba-export")
+    parser.add_argument("--channel-band-source-luma-min", type=float, default=75.0)
+    parser.add_argument("--channel-band-source-luma-max", type=float, default=85.0)
+    parser.add_argument("--channel-band-strength", type=float, default=0.0)
+    parser.add_argument("--channel-band-max-delta", type=float, default=24.0)
+    parser.add_argument("--channel-band-dilate-radius", type=int, default=0)
+    parser.add_argument("--channel-radius-scale", type=float, default=1.0)
+    parser.add_argument("--channel-density-blur-radius", type=float, default=2.0)
     parser.add_argument("--dark-secondary-soft-source-luma-min", type=float, default=75.0)
     parser.add_argument("--dark-secondary-soft-source-luma-max", type=float, default=95.0)
     parser.add_argument("--dark-secondary-soft-strength", type=float, default=0.0)
@@ -396,6 +501,7 @@ def parse_args():
         args.highlight_strength < 0.0
         or args.dark_secondary_strength < 0.0
         or args.dark_secondary_ring_strength < 0.0
+        or args.channel_band_strength < 0.0
         or args.dark_secondary_soft_strength < 0.0
     ):
         parser.error("strength values must be non-negative")
@@ -403,6 +509,7 @@ def parse_args():
         args.highlight_max_delta < 0.0
         or args.dark_secondary_max_delta < 0.0
         or args.dark_secondary_ring_max_delta < 0.0
+        or args.channel_band_max_delta < 0.0
         or args.dark_secondary_soft_max_delta < 0.0
     ):
         parser.error("max delta values must be non-negative")
@@ -412,6 +519,16 @@ def parse_args():
         parser.error("dark secondary ring radius must be non-negative")
     if args.dark_secondary_ring_source_luma_min > args.dark_secondary_ring_source_luma_max:
         parser.error("dark secondary ring luma min cannot exceed max")
+    if args.channel_band_source_luma_min > args.channel_band_source_luma_max:
+        parser.error("channel band luma min cannot exceed max")
+    if args.channel_band_dilate_radius < 0:
+        parser.error("channel band dilate radius must be non-negative")
+    if args.channel_radius_scale <= 0.0:
+        parser.error("channel radius scale must be positive")
+    if args.channel_density_blur_radius < 0.0:
+        parser.error("channel density blur radius must be non-negative")
+    if args.channel_band_strength > 0.0 and not args.mitsuba_export:
+        parser.error("mitsuba-export is required when channel band strength is positive")
     if args.dark_secondary_soft_source_luma_min > args.dark_secondary_soft_source_luma_max:
         parser.error("dark secondary soft luma min cannot exceed max")
     if args.fps <= 0.0:
