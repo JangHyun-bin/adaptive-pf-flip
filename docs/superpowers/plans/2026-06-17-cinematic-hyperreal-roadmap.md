@@ -4138,3 +4138,21 @@ max target MAD `23.72217142489712`, while G3/G1/G2 regress to
 `31.732736625514402`, `36.446965663580244`, and `46.3463850308642`. Stop broad
 post-grade tuning; move tone matching into renderer-facing background,
 camera, and material parameters.
+
+S365 tested renderer-facing background radiance changes with the SV1 visibility
+cache held fixed:
+
+- S365 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-renderer-background-sweep.md`
+- S365 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_renderer_background_sweep_summary_s365.md`
+- S365 candidates:
+  `B1` darker/cooler background, `B2` slightly brighter background.
+
+S365 renders the candidates with the Python 3.11 Mitsuba runtime, applies the
+S360 SV1 visibility cache, and compares with the same target-gap harness. The
+baseline still wins by hard max target MAD: `SV1-cache` is
+`23.72217142489712`, while B2 is `27.901911651234567` and B1 is
+`29.499659850823047`. B2 improves mean target MAD but breaks the hard gate.
+Stop background-only sweeps and move next to camera/framing or material/
+secondary integration.
