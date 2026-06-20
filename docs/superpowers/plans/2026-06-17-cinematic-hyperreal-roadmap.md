@@ -4609,3 +4609,21 @@ current channel positions are reliable where they exist, but too sparse to
 cover the residual. Next work should build a residual clustering or
 shadow/occlusion diagnostic around DS6 misses and high-precision channel hits
 before applying another visual response.
+
+S386 found a post-DS6 target-free residual mask candidate:
+
+- S386 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-channel-residual-masks.md`
+- S386 report:
+  `docs/reports/2026-06-20-s386-mitsuba-secondary-channel-residual-masks-sv1.md`
+- S386 new tool:
+  `tools/analyze_mitsuba_secondary_channel_residual_masks.py`
+
+This pass uses the high-precision secondary-channel union from S385 without
+global dilation. It sweeps 109 channel-local luminance masks and finds that
+`ds6_or_channel_union_r0_source_luma_75_85` beats the DS6 target-dark-secondary
+diagnostic: F1 rises from DS6 `0.6121749824314828` to
+`0.6553528823212499`, recall rises from `0.475602` to `0.581110`, and precision
+remains usable at `0.751346`. This is the first post-DS6 target-free mask that
+improves the diagnostic. Next work should apply it as a bounded visual response
+and compare the full target-gap gate against DS6.
