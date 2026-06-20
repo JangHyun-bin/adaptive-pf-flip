@@ -4526,3 +4526,22 @@ and `r400` reaches `0.402618`. Existing secondary/contact geometry has now been
 exhausted as a better target-free dark-secondary mask. Next practical work
 should either apply a bounded visual/material response using DS6, or export
 renderer AOVs for richer screen-space shading state.
+
+S382 consolidated the useful screen-space evidence into an AOV package:
+
+- S382 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-screen-evidence-aov-package.md`
+- S382 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_screen_evidence_aov_package_sv1_s382.md`
+- S382 new tool:
+  `tools/build_mitsuba_screen_evidence_aov_package.py`
+- S382 public quick-tunnel preview:
+  `https://jill-will-open-aids.trycloudflare.com/index.html`
+
+The package builds a 3x3 evidence board per selected frame: Target, Actual,
+Layer Alpha, Source Luma, DS6 Mask, Target Dark Diagnostic, Water Mask, Contact
+Mask, and Overlay. It confirms that DS6 is still the best available target-free
+mask, but also visualizes the remaining recall gap. The clearest sample is
+output `34`, where DS6 coverage is only `0.000150` while the target-dark
+diagnostic coverage is `0.007041`. Use this as the current evidence board for a
+bounded visual response or a richer renderer AOV export.
