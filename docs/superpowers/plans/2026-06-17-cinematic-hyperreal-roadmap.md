@@ -5071,3 +5071,28 @@ S408 tuned the spray/foam AOV attenuation probe:
 It improves over both SS1 and S407 `SF18`, but still does not solve source
 highlights. S409 should preserve SF12 for the dark/secondary response and add a
 separate target-free source-highlight pass.
+
+S409 added the separate SF12 source-highlight pass:
+
+- S409 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-sf12-source-highlight.md`
+- S409 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_source_highlight_summary_s409.md`
+- S409 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_source_highlight_sweep_summary_s409.md`
+- S409 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_source_highlight_compare_s409.md`
+- S409 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_source_highlight_compare_publish_s409.md`
+- S409 public quick-tunnel URL:
+  `https://angela-postcard-cooperation-hosting.trycloudflare.com/index.html`
+
+`SF12_H18` is now the bounded source-highlight probe: mean target MAD
+`18.756908677340533`, max target MAD `23.687431841563786`, max diff `170`.
+`SF12_H19` is a useful saturated ceiling (`23.68549704218107` max target MAD)
+but should not be the first renderer-native migration target because it uses an
+unbounded highlight max delta. S401 CR21 remains the overall target-free visual
+reference at max target MAD `23.552905092592592`. S410 should migrate the split
+response toward renderer-native controls: keep SF12 for spray/foam dark
+attenuation and represent H18 nonsecondary source highlights through material,
+export, or light-response data rather than another broad post-composite grade.
