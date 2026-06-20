@@ -4933,3 +4933,18 @@ matches S388 CR21 exactly at pixel level (`maxdiff=0`, mean channel diff `0.0`)
 and reproduces the CR21 target-gap score: max target MAD
 `23.552905092592592`, mean target MAD `18.657217962319958`. This gives the
 project a stable visual baseline while native BSDF work continues.
+
+S402 published the S401 CR21 profile gallery:
+
+- S402 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-source-response-profile-publish.md`
+- S402 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_response_profile_cr21_publish_s402.md`
+- S402 manifest:
+  `build/shots/s402_mitsuba_source_response_profile_cr21_publish/publish_manifest.json`
+- S402 public quick-tunnel URL:
+  `https://leone-southwest-prot-newer.trycloudflare.com/index.html`
+
+The public page and `assets/shot.gif` both returned HTTP `200`; local checks
+also returned HTTP `200`. The URL is session-scoped and should be refreshed if
+the recorded HTTP server or `cloudflared` process exits.
