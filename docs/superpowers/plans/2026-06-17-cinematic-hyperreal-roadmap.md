@@ -5150,3 +5150,33 @@ worse than SS1: S411 max target MAD `23.988294110082304`, SS1 max target MAD
 and S401 CR21 max target MAD `23.552905092592592`. S412 should stop pursuing
 camera-plane card/sprite migration and move the accepted split response into
 real export/material/light-response controls.
+
+S412 added the first export/material response patcher and tested MR1:
+
+- S412 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-material-response.md`
+- S412 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr1_summary_s412.md`
+- S412 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr1_export_s412.md`
+- S412 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr1_validation_s412.md`
+- S412 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr1_sweep_summary_s412.md`
+- S412 compare publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_response_mr1_compare_publish_s412.md`
+- S412 public quick-tunnel URL:
+  `https://barcelona-prevent-respect-sticker.trycloudflare.com/index.html`
+- S412 new tool:
+  `tools/modulate_mitsuba_material_response.py`
+
+The new tool consumes the S410 channel/highlight mask sources and emits a new
+ready `lsfs_mitsuba_xml_export` by modulating water roughdielectric alpha,
+secondary spray/foam reflectance and opacity, and a bounded Mitsuba area light.
+The path is renderer/export-side, not a camera-plane screen insert. MR1 rendered
+successfully and XML validation passed, but it should not be promoted: MR1 max
+target MAD `23.990219907407408`, worse than S411 `23.988294110082304` and SS1
+`23.951853137860084`. Visual review shows MR1 remains close to SS1 and misses
+the S409/S401 localized center splash/highlight response. The patcher should be
+kept, but S413/MR2 should avoid broad key-light lifting and test a tighter
+localized material/AOV response.
