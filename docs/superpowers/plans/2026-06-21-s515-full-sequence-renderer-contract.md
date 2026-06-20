@@ -124,6 +124,10 @@ replace.
 - S595 bound the S594 material package into an 8-frame Mitsuba XML sample by
   inserting frame-local scene-depth material snippets and redirecting the water
   surface BSDF references. The resulting XML export validated cleanly.
+- S596 rendered that 8-frame native-material XML sample through Mitsuba at SPP4
+  using the validated Python 3.11 + VS18 LLVM runtime, packaged a review
+  gallery, and compared the result against the S573, S577, S585, and legacy
+  S328 visual references.
 
 ## Key Artifacts
 
@@ -229,6 +233,14 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_s595.md`
 - Renderer scene depth/material native material XML validation:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_validate_s595.md`
+- Renderer scene depth/material native material XML SPP4 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_spp4_vs18_s596.md`
+- Renderer scene depth/material native material XML SPP4 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_spp4_gallery_s596.md`
+- Renderer scene depth/material native material XML target gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_spp4_target_gap_s328_s596.md`
+- Renderer scene depth/material native material XML sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_spp4_sequence_compare_s596.md`
 
 ## Verification
 
@@ -549,6 +561,26 @@ replace.
   - validation warnings: `0`
   - sample export:
     `build/shots/s595_mitsuba_scene_depth_native_material_xml_sample/mitsuba_export.json`
+- S596 renderer scene depth/material native material XML SPP4 render:
+  - render `status=ready`
+  - frames rendered: `8`
+  - failures: `0`
+  - total elapsed ms: `2156`
+  - image bytes: `24.60 MB`
+  - preview bytes: `3.29 MB`
+  - runtime:
+    `C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\Llvm\x64\bin\LLVM-C.dll`
+  - gallery:
+    `build/shots/s596_mitsuba_scene_depth_native_material_xml_sample_spp4/gallery/index.html`
+  - review GIF:
+    `build/shots/s596_mitsuba_scene_depth_native_material_xml_sample_spp4/gallery/assets/shot.gif`
+  - S328 target gap `status=ready`
+  - S328 target gap max mean abs diff: `82.66423161008231`
+  - S328 target gap max abs diff: `245`
+  - S573/S577/S585 sequence compare `status=ready`
+  - sequence compare candidates: `4`
+  - sequence compare frames: `8`
+  - sequence compare missing references: `0`
 
 ## Current Meaning
 
@@ -591,7 +623,9 @@ now reproducible through:
    snippets and localized texture bindings derived from the validated S591/S592
    contract,
 20. a validated 8-frame Mitsuba XML sample that binds those material snippets
-   into real water-surface BSDF references.
+   into real water-surface BSDF references,
+21. an actual SPP4 Mitsuba render of that native-material XML sample plus
+   S573/S577/S585 visual comparison artifacts.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -627,7 +661,10 @@ S593 publishes the full48 backend gate for direct inspection. S594 turns the
 validated backend/gate contract into renderer-native material inputs, so the
 next step can patch or generate Mitsuba XML scenes instead of hand-translating
 image-space controls. S595 performs that first binding into real XML scenes and
-passes XML validation.
+passes XML validation. S596 proves the bound XML sample is renderable in the
+native Mitsuba path and produces a much more refractive/renderer-native water
+look; the sequence compare also shows this is a major visual move from the
+S577/S585 accepted gate, so it should be tuned before any full48 promotion.
 
 ## Next
 
@@ -637,9 +674,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Render the S595 native-material XML sample through the Mitsuba backend and
-   compare it against the earlier S573 material/tone sample plus the S577/S585
-   gates.
+4. Tune the S596 native XML material response against the S573/S577/S585
+   comparison, especially refractive strength, roughness, tint, and mask
+   localization.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.

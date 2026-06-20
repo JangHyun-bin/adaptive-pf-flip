@@ -80,10 +80,35 @@ def frame_map_from_sequence_adapter(payload):
     return frames
 
 
+def frame_map_from_secondary_composite(payload):
+    frames = {}
+    for frame in payload.get("frames") or []:
+        output = frame.get("output_frame")
+        path = resolve_path(frame.get("composite_path") or frame.get("composite_repo_path"))
+        if output is not None and path:
+            frames[int(output)] = {"path": path, "source": "secondary_composite"}
+    return frames
+
+
+def frame_map_from_scene_depth_material_target(payload):
+    frames = {}
+    for frame in payload.get("frames") or []:
+        output = frame.get("output_frame")
+        target = ((frame.get("references") or {}).get("target_preview") or {})
+        path = resolve_path(target.get("path") or target.get("repo_path"))
+        if output is not None and path:
+            frames[int(output)] = {"path": path, "source": "scene_depth_material_target"}
+    return frames
+
+
 def frame_map_from_candidate(payload, path):
     schema = payload.get("schema")
     if schema == "lsfs_mitsuba_xml_render":
         return frame_map_from_render(payload)
+    if schema == "lsfs_mitsuba_secondary_composite":
+        return frame_map_from_secondary_composite(payload)
+    if schema == "lsfs_mitsuba_renderer_scene_depth_material_target":
+        return frame_map_from_scene_depth_material_target(payload)
     if schema in {
         "lsfs_mitsuba_low_frequency_runtime_render_adapter",
         "lsfs_mitsuba_low_frequency_runtime_render_sequence_adapter",
