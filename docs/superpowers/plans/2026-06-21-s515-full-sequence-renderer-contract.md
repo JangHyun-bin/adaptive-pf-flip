@@ -40,6 +40,11 @@ replace.
 - S565 published the S564 post-tonemap backend proof gallery through Cloudflare
   quick tunnel.
 - S566 compared S562 and S564 and confirmed identical GIF SHA256/byte size.
+- S567 converted the S555 low-frequency correction masks into
+  `lsfs_mitsuba_source_response_mask_source`, producing RGBA alpha layers and
+  gallery strips that existing renderer-response tooling can consume.
+- S568 built a renderer-neutral light-response contract from S567, turning the
+  correction evidence into bounded per-frame response anchors.
 
 ## Key Artifacts
 
@@ -69,6 +74,10 @@ replace.
   `https://providence-secrets-stats-last.trycloudflare.com`
 - Stub/backend comparison:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_post_tonemap_backend_comparison_s566.md`
+- Low-frequency response mask source:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_response_mask_source_s567.md`
+- Low-frequency light response contract:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_light_response_contract_s568.md`
 
 ## Verification
 
@@ -127,6 +136,20 @@ replace.
   - S564 GIF SHA256:
     `8C6E621C4656B3F5D7AA85C44418CA3CFC455B4E03F5BD07892C62A14B544ACF`
   - result: `identical`
+- S567 response mask source:
+  - `status=ready`
+  - `frames=48`
+  - missing references: `0`
+  - dimension mismatches: `0`
+  - mean mask coverage: `0.10284999517746914`
+  - max mask coverage: `0.18578510802469136`
+- S568 light response contract:
+  - `status=ready`
+  - `frames=48`
+  - anchors: `384`
+  - max anchors per frame: `8`
+  - mean mask coverage: `0.08506385834619341`
+  - max mask coverage: `0.1625829475308642`
 
 ## Current Meaning
 
@@ -140,15 +163,18 @@ now reproducible through:
 5. zero-diff validation against accepted references.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
-is now in place and still produces the same accepted full48 visual output.
+is now in place and still produces the same accepted full48 visual output. The
+low-frequency correction evidence has also been lifted into response-mask and
+light-response contract formats, so the next step can drive renderer-native
+parameters instead of only replaying accepted post-tonemap deltas.
 
 ## Next
 
-Move the same descriptor/process boundary toward renderer-native response:
+Move the same descriptor/process boundary from renderer-neutral anchors into a
+candidate renderer-native implementation:
 
-1. Add a renderer-native response descriptor that maps the S515 low-frequency
-   correction into material, light, or volume parameters instead of accepted
-   post-tonemap deltas.
+1. Map the S568 response anchors onto candidate Mitsuba XML light, caustic, or
+   volume-control parameters.
 2. Generate a candidate Mitsuba XML export from that response descriptor.
 3. Render a short sample through the real Mitsuba XML command adapter.
 4. Compare the renderer-native sample against the S564 post-tonemap backend
