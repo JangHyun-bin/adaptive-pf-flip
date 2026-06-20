@@ -4013,3 +4013,23 @@ SS1 is now the best native sidecar-soft candidate by max target MAD:
 `23.951992669753086`. Stronger billboard candidates SS2/SS5 and mist candidate
 SS3 do not preserve the hard gate. Use SS1 as the current sidecar-soft baseline,
 but inspect actual frames before increasing secondary visibility further.
+
+S358 added the native candidate visual review package:
+
+- S358 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-native-visual-review.md`
+- S358 review report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_visual_review_s358.md`
+- S358 tool:
+  `tools/build_mitsuba_candidate_compare_gallery.py`
+- S358 gallery:
+  `build/shots/s358_mitsuba_native_visual_review/gallery/index.html`
+- S358 public quick-tunnel preview:
+  `https://cash-equity-weekend-statutes.trycloudflare.com/index.html`
+
+The S358 strips compare `Target | C1E | MW7 | SD4 | SS1` across four frames.
+They confirm the numeric read from S356/S357: SD4 and SS1 are safe improvements
+over MW7 by a very small hard-gate margin, but visually they remain much dimmer
+and lower contrast than the target and C1E reference. Continue with a
+target-informed native secondary visibility pass, not another broad opacity
+sweep.
