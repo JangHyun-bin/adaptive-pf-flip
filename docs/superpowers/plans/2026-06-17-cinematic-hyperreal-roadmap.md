@@ -5124,3 +5124,29 @@ and alpha `<=3`, with max coverage `0.014924768518518518`.
 `Source Highlight` and `Target Highlight` panels. S411 should consume these two
 mask sources in a conservative renderer-native candidate and compare it against
 S409 `SF12_H18`, SS1, and S401 CR21.
+
+S411 consumed the S410 mask sources in a conservative renderer-native candidate:
+
+- S411 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-sf12-h18-split-native.md`
+- S411 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_split_native_summary_s411.md`
+- S411 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_split_native_sweep_summary_s411.md`
+- S411 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_split_native_compare_s411.md`
+- S411 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sf12_h18_split_native_compare_publish_s411.md`
+- S411 public quick-tunnel URL:
+  `https://thereby-talented-jerry-acute.trycloudflare.com/index.html`
+
+S411 rendered successfully through the project Mitsuba runtime
+`build/s319_mitsuba_venv/Scripts/python.exe`, but it should not be promoted.
+The candidate used the S410 `SF12_ChannelBand` mask as a low-reflectance dark
+card and the `SF12_H18_Highlight` mask as bounded highlight sprites. It proves
+that S410 masks can be consumed by native XML inputs, but the target gap is
+worse than SS1: S411 max target MAD `23.988294110082304`, SS1 max target MAD
+`23.951853137860084`, S409 `SF12_H18` max target MAD `23.687431841563786`,
+and S401 CR21 max target MAD `23.552905092592592`. S412 should stop pursuing
+camera-plane card/sprite migration and move the accepted split response into
+real export/material/light-response controls.
