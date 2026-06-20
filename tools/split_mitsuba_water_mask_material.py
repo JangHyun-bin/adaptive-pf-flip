@@ -46,6 +46,28 @@ def normalized_path(path):
     return os.path.normcase(os.path.abspath(str(path).replace("/", os.sep)))
 
 
+def current_water_shape_mesh(xml_text):
+    pattern = re.compile(r'(?P<block>\s*<shape\s+type="obj"(?:\s+id="[^"]+")?>.*?</shape>)', re.DOTALL)
+    candidates = []
+    for match in pattern.finditer(xml_text):
+        block = match.group("block")
+        if '<ref name="bsdf" id="lsfs_water_surface"' not in block:
+            continue
+        filename = re.search(r'<string\s+name="filename"\s+value="([^"]+)"\s*/>', block)
+        if not filename:
+            continue
+        score = 0
+        if "water_remainder" in block:
+            score += 2
+        if 'id="lsfs_water_surface"' in block:
+            score += 1
+        candidates.append((score, filename.group(1)))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return resolve_path(candidates[0][1])
+
+
 def response_bsdf_block(
     args,
     bsdf_id=RESPONSE_BSDF_ID,
@@ -121,7 +143,7 @@ def resolved_bin_specs(args):
         t = index / float(max(1, count - 1))
         specs.append({
             "index": index,
-            "bsdf_id": RESPONSE_BSDF_ID if count == 1 else f"{RESPONSE_BSDF_ID}_{index:02d}",
+            "bsdf_id": args.response_bsdf_id_prefix if count == 1 else f"{args.response_bsdf_id_prefix}_{index:02d}",
             "alpha": lerp(strong_alpha, weak_alpha, t),
             "specular_reflectance": lerp_vec3(strong_reflectance, weak_reflectance, t),
             "specular_transmittance": lerp_vec3(strong_transmittance, weak_transmittance, t),
@@ -160,7 +182,7 @@ def shape_block(shape_id, mesh_path, bsdf_id):
     ])
 
 
-def replace_water_shape(xml_text, source_mesh, remainder_mesh, response_shapes, frame_index):
+def replace_water_shape(xml_text, source_mesh, remainder_mesh, response_shapes, frame_index, args):
     source_norm = normalized_path(source_mesh)
     pattern = re.compile(r'(?P<block>\s*<shape\s+type="obj"(?:\s+id="[^"]+")?>.*?</shape>)', re.DOTALL)
     for match in pattern.finditer(xml_text):
@@ -173,12 +195,12 @@ def replace_water_shape(xml_text, source_mesh, remainder_mesh, response_shapes, 
         if normalized_path(filename.group(1)) != source_norm:
             continue
         replacement_shapes = [
-            shape_block(f"lsfs_s421_water_remainder_{frame_index:04d}", remainder_mesh, "lsfs_water_surface"),
+            shape_block(f"{args.remainder_shape_id_prefix}_{frame_index:04d}", remainder_mesh, "lsfs_water_surface"),
         ]
         for response_shape in response_shapes:
             replacement_shapes.append(
                 shape_block(
-                    f"lsfs_s421_water_mask_material_{frame_index:04d}_{response_shape['bin_index']:02d}",
+                    f"{args.response_shape_id_prefix}_{frame_index:04d}_{response_shape['bin_index']:02d}",
                     response_shape["mesh_path"],
                     response_shape["bsdf_id"],
                 )
@@ -233,11 +255,15 @@ def markdown_report(export, export_path, root, next_text):
         f"- Specular transmittance: `{settings.get('response_specular_transmittance')}`",
         f"- Mask threshold: `{settings.get('mask_threshold')}`",
         f"- Source luma gate: `{settings.get('source_luma_min')}..{settings.get('source_luma_max')}`",
+        f"- Use current water shape: `{settings.get('use_current_water_shape')}`",
+        f"- Response shape ID prefix: `{settings.get('response_shape_id_prefix')}`",
+        f"- Response BSDF ID prefix: `{settings.get('response_bsdf_id_prefix')}`",
         "",
         "## Checks",
         "",
         f"- Frames exported: `{checks.get('frames_exported')}`",
         f"- Missing references: `{checks.get('missing_references')}`",
+        f"- Empty mask frames ignored: `{checks.get('empty_mask_frames_ignored')}`",
         f"- Candidate faces: `{checks.get('candidate_faces')}`",
         f"- Response faces: `{checks.get('response_faces')}`",
         f"- Remainder faces: `{checks.get('remainder_faces')}`",
@@ -300,6 +326,7 @@ def split_material(args):
     totals = {
         "xml_scene_bytes": 0,
         "candidate_faces": 0,
+        "empty_mask_frames_ignored": 0,
         "response_faces": 0,
         "response_vertices": 0,
         "response_bytes": 0,
@@ -313,6 +340,14 @@ def split_material(args):
         output_frame = frame.get("output_frame")
         source_xml = resolve_path(((frame.get("xml_scene") or {}).get("path") or (frame.get("xml_scene") or {}).get("repo_path")))
         water_mesh = resolve_path(((frame.get("water_mesh") or {}).get("path") or (frame.get("water_mesh") or {}).get("repo_path")))
+        xml_text = None
+        if source_xml and os.path.isfile(source_xml):
+            with open(source_xml, encoding="utf-8") as f:
+                xml_text = f.read()
+            if args.use_current_water_shape:
+                current_mesh = current_water_shape_mesh(xml_text)
+                if current_mesh:
+                    water_mesh = current_mesh
         mask_frame = mask_frames.get(output_frame)
         mask_path = resolve_path(mask_layer_ref(mask_frame))
         source_path = resolve_path((mask_frame or {}).get("source_path") or (mask_frame or {}).get("source_repo_path"))
@@ -332,6 +367,42 @@ def split_material(args):
         camera = parse_camera(source_xml)
         selected = select_faces(vertices, faces, camera, mask, source, args)
         if not selected:
+            if args.allow_empty_mask_frames:
+                patched = add_response_comment(
+                    xml_text,
+                    f"<!-- S421 water_mask_material_response empty mask source_faces={len(faces)} -->",
+                )
+                xml_out = os.path.join(scene_dir, f"frame_{index:04d}.xml")
+                write_text(xml_out, patched)
+                totals["xml_scene_bytes"] += os.path.getsize(xml_out)
+                totals["empty_mask_frames_ignored"] += 1
+                out_frame = copy.deepcopy(frame)
+                out_frame["xml_scene"] = {
+                    "path": xml_out,
+                    "repo_path": posix_rel(xml_out, root),
+                    "sha256": sha256_file(xml_out),
+                    "size": os.path.getsize(xml_out),
+                }
+                expected = os.path.join(render_dir, f"frame_{index:04d}.exr")
+                out_frame["expected_output"] = {
+                    "path": expected,
+                    "repo_path": posix_rel(expected, root),
+                }
+                out_frame["water_mask_material_response"] = {
+                    "enabled": False,
+                    "empty_mask_frame_ignored": True,
+                    "water_mesh_repo_path": posix_rel(water_mesh, root),
+                    "mask_layer_path": mask_path,
+                    "mask_layer_repo_path": posix_rel(mask_path, root),
+                    "source_repo_path": posix_rel(source_path, root) if source_path else None,
+                    "water_vertices": len(vertices),
+                    "water_faces": len(faces),
+                    "candidate_faces": 0,
+                    "response_faces": 0,
+                    "remainder_faces": len(faces),
+                }
+                frames.append(out_frame)
+                continue
             failures.append({"output_frame": output_frame, "missing": [{"role": "selected_faces", "path": None}]})
             continue
         remainder = remainder_faces(vertices, faces, selected)
@@ -381,8 +452,6 @@ def split_material(args):
             totals["response_bytes"] += response_stats["bytes"]
         remainder_stats = write_selected_obj(remainder_mesh, vertices, remainder, 0.0, args.reverse_faces)
 
-        with open(source_xml, encoding="utf-8") as f:
-            xml_text = f.read()
         bsdf_blocks = "\n".join(
             response_bsdf_block(
                 args,
@@ -395,7 +464,7 @@ def split_material(args):
         )
         patched, count = insert_response_bsdf(xml_text, bsdf_blocks)
         totals["response_bsdf_insertions"] += count
-        patched, count = replace_water_shape(patched, water_mesh, remainder_mesh, response_shapes, index)
+        patched, count = replace_water_shape(patched, water_mesh, remainder_mesh, response_shapes, index, args)
         totals["water_shape_replacements"] += count
         patched = add_response_comment(
             patched,
@@ -505,6 +574,11 @@ def split_material(args):
             "mask_sample_radius": args.mask_sample_radius,
             "source_luma_min": args.source_luma_min,
             "source_luma_max": args.source_luma_max,
+            "allow_empty_mask_frames": args.allow_empty_mask_frames,
+            "use_current_water_shape": args.use_current_water_shape,
+            "response_shape_id_prefix": args.response_shape_id_prefix,
+            "remainder_shape_id_prefix": args.remainder_shape_id_prefix,
+            "response_bsdf_id_prefix": args.response_bsdf_id_prefix,
         },
         "next": args.next,
     })
@@ -556,6 +630,11 @@ def main(argv=None):
     parser.add_argument("--response-bin-specular-reflectance-weak")
     parser.add_argument("--response-bin-specular-transmittance-strong")
     parser.add_argument("--response-bin-specular-transmittance-weak")
+    parser.add_argument("--response-shape-id-prefix", default="lsfs_s421_water_mask_material")
+    parser.add_argument("--remainder-shape-id-prefix", default="lsfs_s421_water_remainder")
+    parser.add_argument("--response-bsdf-id-prefix", default=RESPONSE_BSDF_ID)
+    parser.add_argument("--allow-empty-mask-frames", action="store_true")
+    parser.add_argument("--use-current-water-shape", action="store_true")
     parser.add_argument("--reverse-faces", action="store_true")
     parser.add_argument("--depth-penalty", type=float, default=0.01)
     parser.add_argument("--report")
