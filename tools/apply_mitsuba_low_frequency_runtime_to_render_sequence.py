@@ -335,15 +335,15 @@ def run_adapter(args):
 
     out_dir = os.path.abspath(args.out_dir)
     corrected_dir = os.path.join(out_dir, "corrected")
+    bindings_dir = os.path.join(out_dir, "bindings")
     strip_dir = os.path.join(out_dir, "strips")
     diff_dir = os.path.join(out_dir, "diffs")
     mask_dir = os.path.join(out_dir, "masks")
     gallery_dir = os.path.join(out_dir, "gallery")
     assets_dir = os.path.join(gallery_dir, "assets")
-    for directory in (corrected_dir, strip_dir, diff_dir, mask_dir, assets_dir):
+    for directory in (corrected_dir, bindings_dir, strip_dir, diff_dir, mask_dir, assets_dir):
         os.makedirs(directory, exist_ok=True)
 
-    render_frames = render_frame_map(render)
     anchors = [runtime_anchor(frame, root) for frame in preview.get("frames") or []]
     anchors.sort(key=lambda item: item["output_frame"])
     if len(anchors) < 2:
@@ -385,6 +385,10 @@ def run_adapter(args):
         if mask is not None:
             mask_path = os.path.join(mask_dir, f"frame_{output_frame:04d}_correction_mask.png")
             mask.save(mask_path)
+        positive_path = os.path.join(bindings_dir, f"frame_{output_frame:04d}_positive_delta_rgb.png")
+        negative_path = os.path.join(bindings_dir, f"frame_{output_frame:04d}_negative_delta_rgb.png")
+        positive.save(positive_path)
+        negative.save(negative_path)
         corrected = blend_delta(raw, positive, negative, gain)
         change = diff_stats(corrected, raw)
         corrected_path = os.path.join(corrected_dir, f"frame_{output_frame:04d}.png")
@@ -414,6 +418,12 @@ def run_adapter(args):
             "strip_repo_path": posix_rel(strip_path, root),
             "diff_repo_path": posix_rel(diff_path, root),
             "mask_repo_path": posix_rel(mask_path, root) if mask_path else None,
+            "runtime_bindings": {
+                "base_rgb": posix_rel(raw_path, root),
+                "positive_delta_rgb": posix_rel(positive_path, root),
+                "negative_delta_rgb": posix_rel(negative_path, root),
+                "correction_mask": posix_rel(mask_path, root) if mask_path else None,
+            },
             "runtime_bracket": {
                 "previous_output_frame": previous["output_frame"],
                 "next_output_frame": next_anchor["output_frame"],
