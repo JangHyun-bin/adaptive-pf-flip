@@ -113,6 +113,56 @@ def select_faces(vertices, faces, camera, mask, source, args):
     return selected
 
 
+def grow_selected_faces(vertices, faces, selected, camera, args):
+    if args.face_grow_steps <= 0 or not selected:
+        return selected
+    selected_by_index = {item["face_index"]: item for item in selected}
+    selected_indices = set(selected_by_index)
+    frontier = set(selected_indices)
+    vertex_to_faces = {}
+    for face_index, face in enumerate(faces):
+        for vertex_index in face:
+            vertex_to_faces.setdefault(vertex_index, set()).add(face_index)
+    width = int(camera.get("width") or 960)
+    height = int(camera.get("height") or 540)
+    for _step in range(args.face_grow_steps):
+        grown = set()
+        for face_index in frontier:
+            for vertex_index in faces[face_index]:
+                grown.update(vertex_to_faces.get(vertex_index, ()))
+        grown.difference_update(selected_indices)
+        if not grown:
+            break
+        accepted = set()
+        for face_index in sorted(grown):
+            centroid = face_centroid(faces[face_index], vertices)
+            projected = project(centroid, camera, width, height)
+            if projected is None:
+                continue
+            px, py, depth = projected
+            selected_by_index[face_index] = {
+                "face": faces[face_index],
+                "face_index": face_index,
+                "centroid": centroid,
+                "screen": (px, py),
+                "depth": depth,
+                "mask_value": 0,
+                "source_luma": None,
+                "score": -depth * args.depth_penalty,
+                "grown": True,
+            }
+            selected_indices.add(face_index)
+            accepted.add(face_index)
+            if args.face_grow_max_faces > 0 and len(selected_indices) >= args.face_grow_max_faces:
+                break
+        frontier = accepted
+        if not frontier:
+            break
+        if args.face_grow_max_faces > 0 and len(selected_indices) >= args.face_grow_max_faces:
+            break
+    return sorted(selected_by_index.values(), key=lambda item: (item.get("grown", False), -item["score"]))
+
+
 def write_selected_obj(path, vertices, selected, y_lift, reverse_faces):
     used = []
     seen = set()
@@ -189,6 +239,8 @@ def markdown_report(export, export_path, root, next_text):
         "## Water Mesh Response",
         "",
         f"- Face limit: `{response.get('face_limit')}`",
+        f"- Face grow steps: `{response.get('face_grow_steps')}`",
+        f"- Face grow max faces: `{response.get('face_grow_max_faces')}`",
         f"- Face stride: `{response.get('face_stride')}`",
         f"- Y lift: `{response.get('y_lift')}`",
         f"- BSDF mode: `{response.get('bsdf_mode')}`",
@@ -204,6 +256,7 @@ def markdown_report(export, export_path, root, next_text):
         f"- Frames exported: `{checks.get('frames_exported')}`",
         f"- Missing references: `{checks.get('missing_references')}`",
         f"- Candidate faces: `{checks.get('candidate_faces')}`",
+        f"- Grown response faces: `{checks.get('grown_response_faces')}`",
         f"- Mesh response faces: `{checks.get('mesh_response_faces')}`",
         f"- Mesh response vertices: `{checks.get('mesh_response_vertices')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
@@ -289,6 +342,8 @@ def add_mesh_response(args):
         if not selected:
             failures.append({"output_frame": output_frame, "missing": [{"role": "selected_faces", "path": None}]})
             continue
+        original_selected_count = len(selected)
+        selected = grow_selected_faces(vertices, faces, selected, camera, args)
         base_name = f"frame_{index:04d}"
         mesh_out = os.path.join(mesh_dir, f"{base_name}_water_mask_response.obj")
         mesh_stats = write_selected_obj(mesh_out, vertices, selected, args.y_lift, args.reverse_faces)
@@ -303,7 +358,9 @@ def add_mesh_response(args):
         xml_out = os.path.join(scene_dir, f"{base_name}.xml")
         write_text(xml_out, patched)
         totals["xml_scene_bytes"] += os.path.getsize(xml_out)
-        totals["candidate_faces"] += len(selected)
+        totals["candidate_faces"] += original_selected_count
+        totals.setdefault("grown_response_faces", 0)
+        totals["grown_response_faces"] += len(selected)
         totals["mesh_response_faces"] += mesh_stats["faces"]
         totals["mesh_response_vertices"] += mesh_stats["vertices"]
         totals["mesh_response_bytes"] += mesh_stats["bytes"]
@@ -331,6 +388,7 @@ def add_mesh_response(args):
             "water_vertices": len(vertices),
             "water_faces": len(faces),
             "candidate_faces": len(selected),
+            "source_candidate_faces": original_selected_count,
             "mesh_faces": mesh_stats["faces"],
             "mesh_vertices": mesh_stats["vertices"],
             "mesh_bytes": mesh_stats["bytes"],
@@ -376,6 +434,8 @@ def add_mesh_response(args):
         "water_mask_mesh_response": {
             "enabled": True,
             "face_limit": args.face_limit,
+            "face_grow_steps": args.face_grow_steps,
+            "face_grow_max_faces": args.face_grow_max_faces,
             "face_stride": args.face_stride,
             "y_lift": args.y_lift,
             "bsdf_mode": args.bsdf_mode,
@@ -421,6 +481,8 @@ def main(argv=None):
     parser.add_argument("out_dir")
     parser.add_argument("--frames", type=int, default=0)
     parser.add_argument("--face-limit", type=int, default=0)
+    parser.add_argument("--face-grow-steps", type=int, default=0)
+    parser.add_argument("--face-grow-max-faces", type=int, default=0)
     parser.add_argument("--face-stride", type=int, default=1)
     parser.add_argument("--mask-threshold", type=int, default=8)
     parser.add_argument("--mask-sample-radius", type=int, default=5)
@@ -442,6 +504,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.face_limit < 0:
         parser.error("face-limit must be non-negative")
+    if args.face_grow_steps < 0:
+        parser.error("face-grow-steps must be non-negative")
+    if args.face_grow_max_faces < 0:
+        parser.error("face-grow-max-faces must be non-negative")
     if args.face_stride <= 0:
         parser.error("face-stride must be positive")
     if args.mask_threshold < 0 or args.mask_threshold > 255:
