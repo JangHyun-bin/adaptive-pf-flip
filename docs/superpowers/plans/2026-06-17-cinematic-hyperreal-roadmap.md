@@ -4245,3 +4245,27 @@ have the opposite sign: actual is about `51.392797` luma too bright. Next work
 should boost water/crest highlights while suppressing bright visibility over
 target-dark secondary detail, instead of repeating global grade or
 visibility-only sweeps.
+
+S370 tested renderer-side water material/key-light response:
+
+- S370 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-material-keylight.md`
+- S370 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_keylight_sweep_summary_s370.md`
+- S370 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_material_keylight_review_s370.md`
+- S370 public quick-tunnel preview:
+  `https://protocols-educators-george-stickers.trycloudflare.com/index.html`
+- S370 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+
+`export_external_renderer_mitsuba_xml.py` now has optional water IOR,
+specular-transmittance, and rectangular key-light controls. The experiment
+rejects broad area key lights for this shot. They recover highlights only by
+raising the whole water body/background: `SV1-cache` remains best at
+`23.72217142489712`, while `KL3`/`KL1`/`KL2` jump to max target MAD
+`140.33243569958847`, `140.33249035493827`, and `140.94324395576132`.
+Off-camera one-frame smoke checks still over-lift the water body. Next work
+should use a bounded highlight-response control masked by water/crest evidence,
+or move deeper into renderer-native surface normals/material reconstruction.
+Do not continue broad key-light sweeps.

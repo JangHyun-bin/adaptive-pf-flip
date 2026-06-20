@@ -72,6 +72,13 @@ def csv3_required(values, label):
     return [float(part) for part in parts]
 
 
+def csv2_required(values, label):
+    parts = [part.strip() for part in values.split(",")] if values else []
+    if len(parts) != 2:
+        raise ValueError(f"{label} must contain two comma-separated numbers")
+    return [float(part) for part in parts]
+
+
 def parse_channel_values(values, label):
     if not values:
         return None
@@ -568,6 +575,25 @@ def phase_volume_proxy_shape_lines(proxy):
     ]
 
 
+def key_light_lines(args, camera_target):
+    if args.key_light_radiance_vec is None:
+        return []
+    position = args.key_light_position_vec or [18.0, 30.0, 36.0]
+    target = args.key_light_target_vec or camera_target or [18.0, 8.0, 14.0]
+    scale = args.key_light_scale_vec or [18.0, 9.0]
+    return [
+        '  <shape type="rectangle">',
+        '    <transform name="to_world">',
+        f'      <lookat origin="{csv3(position, [18.0, 30.0, 36.0])}" target="{csv3(target, [18.0, 8.0, 14.0])}" up="0, 1, 0"/>',
+        f'      <scale x="{float(scale[0]):.8g}" y="{float(scale[1]):.8g}"/>',
+        '    </transform>',
+        '    <emitter type="area">',
+        f'      <rgb name="radiance" value="{csv3(args.key_light_radiance_vec, [0.0, 0.0, 0.0])}"/>',
+        '    </emitter>',
+        '  </shape>',
+    ]
+
+
 def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, phase_volume_proxy):
     camera = scene.get("camera") or {}
     settings = scene.get("render_settings") or {}
@@ -584,6 +610,8 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
     camera_up = override3(args.camera_up_vec, camera.get("up"))
     background_radiance = override3(args.background_radiance_vec, [0.55, 0.62, 0.72])
     water_alpha = args.water_alpha if args.water_alpha is not None else 0.035
+    water_int_ior = args.water_int_ior if args.water_int_ior is not None else 1.333
+    water_ext_ior = args.water_ext_ior if args.water_ext_ior is not None else 1.0
     secondary = diagnostics.get("secondary_counts") or {}
     water_faces = diagnostics.get("water_mesh_face_count")
     time = scene.get("time")
@@ -619,10 +647,15 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         '  <emitter type="constant">',
         f'    <rgb name="radiance" value="{csv3(background_radiance, [0.55, 0.62, 0.72])}"/>',
         '  </emitter>',
+        *key_light_lines(args, camera_target),
         '  <bsdf type="roughdielectric" id="lsfs_water_surface">',
         f'    <float name="alpha" value="{water_alpha:.8g}"/>',
-        '    <float name="int_ior" value="1.333"/>',
-        '    <float name="ext_ior" value="1.0"/>',
+        f'    <float name="int_ior" value="{water_int_ior:.8g}"/>',
+        f'    <float name="ext_ior" value="{water_ext_ior:.8g}"/>',
+        *(
+            [f'    <rgb name="specular_transmittance" value="{csv3(args.water_specular_transmittance_vec, [1.0, 1.0, 1.0])}"/>']
+            if args.water_specular_transmittance_vec is not None else []
+        ),
         '  </bsdf>',
         *secondary_bsdf_lines(
             args.secondary_3d_channel_opacity_map
@@ -831,6 +864,13 @@ def export_mitsuba(args):
             "camera_fov_override": args.camera_fov,
             "background_radiance_override": args.background_radiance_vec,
             "water_alpha_override": args.water_alpha,
+            "water_int_ior_override": args.water_int_ior,
+            "water_ext_ior_override": args.water_ext_ior,
+            "water_specular_transmittance": args.water_specular_transmittance_vec,
+            "key_light_radiance": args.key_light_radiance_vec,
+            "key_light_position": args.key_light_position_vec,
+            "key_light_target": args.key_light_target_vec,
+            "key_light_scale": args.key_light_scale_vec,
             "frames_requested": args.frames,
             "frames_exported": len(exported),
             "secondary_proxy_limit": args.secondary_proxy_limit,
@@ -908,6 +948,13 @@ def markdown_report(export, out_path, root):
         f"- Camera target override: `{export.get('render_settings', {}).get('camera_target_override')}`",
         f"- Camera FOV override: `{export.get('render_settings', {}).get('camera_fov_override')}`",
         f"- Water alpha override: `{export.get('render_settings', {}).get('water_alpha_override')}`",
+        f"- Water int IOR override: `{export.get('render_settings', {}).get('water_int_ior_override')}`",
+        f"- Water ext IOR override: `{export.get('render_settings', {}).get('water_ext_ior_override')}`",
+        f"- Water specular transmittance: `{export.get('render_settings', {}).get('water_specular_transmittance')}`",
+        f"- Key light radiance: `{export.get('render_settings', {}).get('key_light_radiance')}`",
+        f"- Key light position: `{export.get('render_settings', {}).get('key_light_position')}`",
+        f"- Key light target: `{export.get('render_settings', {}).get('key_light_target')}`",
+        f"- Key light scale: `{export.get('render_settings', {}).get('key_light_scale')}`",
         f"- Secondary opacity: `{export.get('render_settings', {}).get('secondary_opacity')}`",
         f"- Secondary 3D sidecar: `{export.get('render_settings', {}).get('secondary_3d_sidecar')}`",
         f"- Secondary 3D radius scale: `{export.get('render_settings', {}).get('secondary_3d_radius_scale')}`",
@@ -994,6 +1041,20 @@ def main(argv=None):
                         help="override constant emitter radiance as r,g,b")
     parser.add_argument("--water-alpha", type=float,
                         help="override roughdielectric alpha for the water surface")
+    parser.add_argument("--water-int-ior", type=float,
+                        help="override roughdielectric internal IOR for the water surface")
+    parser.add_argument("--water-ext-ior", type=float,
+                        help="override roughdielectric external IOR for the water surface")
+    parser.add_argument("--water-specular-transmittance",
+                        help="override roughdielectric specular transmittance as r,g,b in [0,1]")
+    parser.add_argument("--key-light-radiance",
+                        help="enable a rectangular area key light with RGB radiance r,g,b")
+    parser.add_argument("--key-light-position",
+                        help="key light origin as x,y,z")
+    parser.add_argument("--key-light-target",
+                        help="key light target as x,y,z")
+    parser.add_argument("--key-light-scale",
+                        help="key light rectangle x,y scale")
     parser.add_argument("--secondary-proxy-limit", type=int, default=0,
                         help="maximum sampled secondary particle sphere proxies per frame")
     parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,
@@ -1078,17 +1139,35 @@ def main(argv=None):
         parser.error("camera-fov must be positive")
     if args.water_alpha is not None and args.water_alpha <= 0.0:
         parser.error("water-alpha must be positive")
+    if args.water_int_ior is not None and args.water_int_ior <= 0.0:
+        parser.error("water-int-ior must be positive")
+    if args.water_ext_ior is not None and args.water_ext_ior <= 0.0:
+        parser.error("water-ext-ior must be positive")
     try:
         args.camera_position_vec = csv3_required(args.camera_position, "camera-position") if args.camera_position else None
         args.camera_target_vec = csv3_required(args.camera_target, "camera-target") if args.camera_target else None
         args.camera_up_vec = csv3_required(args.camera_up, "camera-up") if args.camera_up else None
         args.background_radiance_vec = csv3_required(args.background_radiance, "background-radiance") if args.background_radiance else None
+        args.water_specular_transmittance_vec = (
+            csv3_required(args.water_specular_transmittance, "water-specular-transmittance")
+            if args.water_specular_transmittance else None
+        )
+        args.key_light_radiance_vec = csv3_required(args.key_light_radiance, "key-light-radiance") if args.key_light_radiance else None
+        args.key_light_position_vec = csv3_required(args.key_light_position, "key-light-position") if args.key_light_position else None
+        args.key_light_target_vec = csv3_required(args.key_light_target, "key-light-target") if args.key_light_target else None
+        args.key_light_scale_vec = csv2_required(args.key_light_scale, "key-light-scale") if args.key_light_scale else None
         args.secondary_3d_channel_opacity_map = parse_channel_values(
             args.secondary_3d_channel_opacity,
             "secondary-3d-channel-opacity",
         )
     except ValueError as exc:
         parser.error(str(exc))
+    if args.water_specular_transmittance_vec is not None:
+        for value in args.water_specular_transmittance_vec:
+            if value < 0.0 or value > 1.0:
+                parser.error("water-specular-transmittance values must be in [0, 1]")
+    if args.key_light_scale_vec is not None and any(value <= 0.0 for value in args.key_light_scale_vec):
+        parser.error("key-light-scale values must be positive")
 
     export = export_mitsuba(args)
     out_path = os.path.abspath(os.path.join(args.out_dir, args.manifest_name))
