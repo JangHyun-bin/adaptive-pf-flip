@@ -67,6 +67,11 @@ replace.
   texture layers per frame with zero reconstruction error.
 - S577 consumed the S576 package and reconstructed the accepted full48 frames
   with max expected diff `0`.
+- S578 mapped the current large-grid converted scene cache, water meshes,
+  camera metadata, phase cells, particles, secondary channel counts, and S576
+  low-frequency textures into a renderer scene-cache handoff manifest.
+- S579 validated the S578 handoff across all mapped scene, texture, water mesh,
+  and consumer composite references.
 
 ## Key Artifacts
 
@@ -130,6 +135,10 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_texture_package_s576.md`
 - Low-frequency texture/cache consumer:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_texture_consumer_s577.md`
+- Renderer scene-cache handoff:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_cache_handoff_s578.md`
+- Renderer scene-cache handoff validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_cache_handoff_validation_s579.md`
 
 ## Verification
 
@@ -251,6 +260,29 @@ replace.
   - frames: `48`
   - max expected abs diff: `0`
   - max expected mean diff: `0.0`
+- S578 renderer scene-cache handoff:
+  - `status=ready`
+  - scene frames: `36`
+  - visual frames: `48`
+  - handoff frames: `48`
+  - unique scene frames mapped: `36`
+  - mapping mode: `nearest_normalized_scene_frame`
+  - missing references: `0`
+  - camera assets: `36`
+  - particle assets: `36`
+  - phase-cell assets: `36`
+  - water mesh assets: `36`
+  - texture bytes: `73.92 MB`
+  - max texture reconstruction abs diff: `0`
+  - max visual expected abs diff: `0`
+- S579 renderer scene-cache handoff validation:
+  - `status=passed`
+  - total checks: `579`
+  - failed checks: `0`
+  - frames: `48`
+  - scene frames: `36`
+  - visual frames: `48`
+  - unique scene frames mapped: `36`
 
 ## Current Meaning
 
@@ -261,7 +293,10 @@ now reproducible through:
 2. a renderer job manifest,
 3. backend scene descriptors,
 4. a process-level execution interface,
-5. zero-diff validation against accepted references.
+5. zero-diff validation against accepted references,
+6. a renderer scene-cache handoff that links the accepted full48 visual
+   texture contract to real camera, phase-field, water mesh, primary particle,
+   and secondary particle data.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -270,7 +305,8 @@ light-response contract formats, and two real renderer-native/local XML samples
 have been rendered. These samples prove the contract and material/tone paths are
 executable, but neither local light anchors nor direct material/tone modulation
 reproduce the accepted S555 tone. The accepted T4 field is now packaged as a
-full48 texture/cache boundary with lossless reconstruction.
+full48 texture/cache boundary with lossless reconstruction and has a validated
+handoff into the current large-grid scene-data cache.
 
 ## Next
 
@@ -278,9 +314,9 @@ Use the texture/cache boundary as the accepted visual handoff while moving the
 photoreal renderer work back toward real scene data:
 
 1. Keep S577 as the current accepted full48 texture/cache import gate.
-2. Add renderer/export schema fields for water volume, phase field, secondary
-   particle channels, and camera metadata so the renderer has real scene inputs.
-3. Improve geometry, surface detail, and secondary particle export before more
-   local XML light/material tweaking.
+2. Use S578/S579 as the renderer-side scene-data input contract.
+3. Consume water bounds, phase-cell density, water mesh stats, secondary
+   counts, and low-frequency textures in the next bounded metadata-driven
+   depth/material pass.
 4. Promote a native renderer sample only if it reduces the accepted-reference
    gap before attempting full48.
