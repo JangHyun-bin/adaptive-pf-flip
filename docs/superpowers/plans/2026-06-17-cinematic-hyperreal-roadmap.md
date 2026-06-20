@@ -4895,3 +4895,23 @@ residual-mask-selected particles. RA1 selected `865 / 2877` particles, wrote
 the sidecar quantity/radius branch for now. The next renderer work should focus
 on BSDF, lighting, water surface transport, and target-free perceptual gates
 rather than more particle-count or radius-only tuning.
+
+S400 tested that next renderer branch with a water/light parameter sweep:
+
+- S400 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-light-sweep.md`
+- S400 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_light_sweep_summary_s400.md`
+- S400 candidate reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_light_*_s400_*.md`
+
+All candidates preserved the S357 SS1 camera, sidecar, secondary material, and
+billboard settings. `WA006` and `WA028` changed water roughdielectric alpha,
+`WT72` reduced specular transmittance, and `KL1` added a low key light. SS1
+remained best by target-gap ranking: SS1 max target MAD was
+`23.951853137860084`; KL1 was the least bad S400 candidate at
+`23.988705632716048`; WT72 regressed sharply to `27.907768775720164`. Do not
+promote broad scalar water/light tuning. The next branch should either make a
+larger BSDF/model change or build a calibrated post-render tone/grade bridge
+that can reproduce CR21-like frame-local response without target-image input at
+runtime.
