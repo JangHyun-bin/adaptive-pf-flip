@@ -1,0 +1,27 @@
+# S388 Secondary Channel Response CR19 Target Gap
+
+Generated UTC: `2026-06-20T07:13:16.199325+00:00`
+Summary JSON: `build/shots/s388_mitsuba_secondary_channel_response_cr19_candidate_gap/renderer_target_gap_summary.json`
+Gallery: `build/shots/s388_mitsuba_secondary_channel_response_cr19_candidate_gap/gallery/index.html`
+Status: `ready`
+
+## Checks
+
+- Frames: `8`
+- Missing references: `0`
+- Mean gap mean abs diff: `18.657767730838476`
+- Max gap mean abs diff: `23.55324459876543`
+- Max gap max abs diff: `182`
+- GIF bytes: `8.25 MB`
+
+## Frame Samples
+
+| Frame | Output | Gap MAD | Gap Max | Strip |
+| ---: | ---: | ---: | ---: | --- |
+| 0 | 0 | 21.8716 | 182 | `build/shots/s388_mitsuba_secondary_channel_response_cr19_candidate_gap/strips/frame_0000.png` |
+| 4 | 27 | 19.2845 | 142 | `build/shots/s388_mitsuba_secondary_channel_response_cr19_candidate_gap/strips/frame_0004.png` |
+| 7 | 47 | 19.4128 | 169 | `build/shots/s388_mitsuba_secondary_channel_response_cr19_candidate_gap/strips/frame_0007.png` |
+
+## Next
+
+Use this gap baseline to judge renderer-native secondary and grade improvements.

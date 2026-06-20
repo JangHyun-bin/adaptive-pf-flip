@@ -4651,3 +4651,27 @@ small but real, and unlike broad DS6 ring dilation it does not visibly darken
 the whole water body. Treat CR2 as the current best target-free visual response.
 Next work can either fine-tune this channel-local band or move the same cue into
 a renderer/material parameter instead of post-composite darkening.
+
+S388 fine-tuned the channel-local response:
+
+- S388 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-channel-response-fine-tune.md`
+- S388 CR21 response report:
+  `docs/reports/2026-06-20-s388-mitsuba-secondary-channel-response-cr21.md`
+- S388 CR21 gap report:
+  `docs/reports/2026-06-20-s388-mitsuba-secondary-channel-response-cr21-gap.md`
+- S388 CR21 region report:
+  `docs/reports/2026-06-20-s388-mitsuba-secondary-channel-response-cr21-regions.md`
+- S388 visual review:
+  `docs/reports/2026-06-20-s388-mitsuba-secondary-channel-response-review.md`
+
+This pass swept 19 target-free channel-local response settings around CR2.
+CR21, using channel union dilation `0`, source-luma band `75..82`, strength
+`0.60`, and max delta `56`, is now the best hard-gate candidate. It lowers max
+target MAD from DS6 `23.56051440329218` and CR2 `23.556300154320986` to
+`23.55290509259259`. It also improves secondary-region MAD from DS6
+`20.538978` and CR2 `20.503029` to `20.420048`. CR2 remains slightly better on
+the narrow `secondary_dark_target` region, but CR21 is the stronger current
+baseline by the primary max target MAD gate. Next work should move this narrow
+channel-local cue into the renderer/material path or build a larger visible
+review package around CR21.
