@@ -3979,3 +3979,22 @@ SI3 toward MW7 but does not beat MW7: SR3 reaches max target MAD `23.952147`
 versus MW7 `23.951993`. Keep the option as plumbing, but move next to
 sidecar-driven channel material, color/opacity, and depth attenuation rather
 than simply shrinking proxies.
+
+S356 added sidecar channel opacity and depth-radius falloff controls:
+
+- S356 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-3d-depth-material.md`
+- S356 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S356 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_depth_sweep_summary_s356.md`
+- S356 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_depth_sd*_*.md`
+
+S356 adds `--secondary-3d-channel-opacity` and
+`--secondary-3d-depth-radius-falloff`. SD4 is the first sidecar-import
+candidate to beat the MW7 no-secondary control by max target MAD:
+`23.95192901234568` versus MW7 `23.951992669753086`. This is only a tiny
+metric gain, not a visible quality jump, but it proves native 3D sidecar
+secondary can be reintroduced without worsening the hard max-target gate. Next
+step: keep SD4's gate and add a more visible sidecar billboard/soft-shell path.

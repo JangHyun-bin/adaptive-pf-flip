@@ -4,6 +4,7 @@
 import argparse
 import csv
 import json
+import math
 import os
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
@@ -69,6 +70,26 @@ def csv3_required(values, label):
     if len(parts) != 3:
         raise ValueError(f"{label} must contain three comma-separated numbers")
     return [float(part) for part in parts]
+
+
+def parse_channel_values(values, label):
+    if not values:
+        return None
+    result = {}
+    for part in values.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "=" not in part:
+            raise ValueError(f"{label} entries must be channel=value")
+        channel, value = [item.strip() for item in part.split("=", 1)]
+        if channel not in SECONDARY_CHANNELS:
+            raise ValueError(f"{label}: unknown channel {channel!r}")
+        parsed = float(value)
+        if not (0.0 < parsed <= 1.0):
+            raise ValueError(f"{label}: {channel} opacity must be in the range (0, 1]")
+        result[channel] = parsed
+    return result or None
 
 
 def override3(value, fallback):
@@ -259,12 +280,13 @@ def load_secondary_3d_sidecar(path, root):
     }
 
 
-def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit, radius_scale):
+def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit, radius_scale, depth_radius_falloff):
     payload = {
         "enabled": limit > 0,
         "limit": limit,
         "base_radius": None,
         "radius_scale": radius_scale,
+        "depth_radius_falloff": depth_radius_falloff,
         "source": "secondary_3d_sidecar",
         "sidecar": {
             "path": sidecar["path"],
@@ -299,26 +321,46 @@ def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit, radius_sca
             "path": jsonl_path,
         }]
 
-    channel_rows = {channel: [] for channel in SECONDARY_CHANNELS}
+    raw_rows = []
     with open(jsonl_path, encoding="utf-8") as handle:
         for line in handle:
             row = json.loads(line)
             channel = (row.get("channel") or "").strip()
-            if channel not in channel_rows:
+            if channel not in SECONDARY_CHANNELS:
                 continue
             position = row.get("position") or [0.0, 0.0, 0.0]
-            channel_rows[channel].append({
+            depth = (row.get("camera") or {}).get("depth")
+            raw_rows.append({
                 "channel": channel,
                 "x": as_float(position[0] if len(position) > 0 else 0.0),
                 "y": as_float(position[1] if len(position) > 1 else 0.0),
                 "z": as_float(position[2] if len(position) > 2 else 0.0),
                 "radius": as_float(row.get("radius"), 0.075) * radius_scale,
                 "age": as_float(row.get("age"), 0.0),
-                "depth": ((row.get("camera") or {}).get("depth")),
+                "depth": depth,
                 "in_frame": bool((row.get("camera") or {}).get("in_frame")),
             })
 
+    depths = [
+        as_float(row.get("depth"))
+        for row in raw_rows
+        if isinstance(row.get("depth"), (int, float)) and math.isfinite(float(row.get("depth")))
+    ]
+    depth_min = min(depths) if depths else None
+    depth_max = max(depths) if depths else None
+    depth_span = (depth_max - depth_min) if depth_min is not None and depth_max is not None else 0.0
+    channel_rows = {channel: [] for channel in SECONDARY_CHANNELS}
+    for row in raw_rows:
+        if depth_radius_falloff > 0.0 and depth_span > 1e-9:
+            normalized_depth = max(0.0, min(1.0, (as_float(row.get("depth"), depth_min) - depth_min) / depth_span))
+            radius_factor = max(0.05, 1.0 - depth_radius_falloff * normalized_depth)
+            row["radius"] *= radius_factor
+            row["depth_radius_factor"] = radius_factor
+        channel_rows[row["channel"]].append(row)
+
     payload["available_counts"] = {channel: len(channel_rows[channel]) for channel in SECONDARY_CHANNELS}
+    payload["depth_min"] = depth_min
+    payload["depth_max"] = depth_max
     allocations = allocate_channel_samples(channel_rows, limit)
     proxies = []
     for channel in SECONDARY_CHANNELS:
@@ -386,7 +428,8 @@ def secondary_bsdf_lines(opacity=None):
     lines = []
     for channel in SECONDARY_CHANNELS:
         spec = SECONDARY_BSDFS[channel]
-        if opacity is None:
+        channel_opacity = opacity.get(channel) if isinstance(opacity, dict) else opacity
+        if channel_opacity is None:
             lines.extend([
                 f'  <bsdf type="diffuse" id="{spec["id"]}">',
                 f'    <rgb name="reflectance" value="{spec["reflectance"]}"/>',
@@ -395,7 +438,7 @@ def secondary_bsdf_lines(opacity=None):
         else:
             lines.extend([
                 f'  <bsdf type="mask" id="{spec["id"]}">',
-                f'    <float name="opacity" value="{opacity:.8g}"/>',
+                f'    <float name="opacity" value="{channel_opacity:.8g}"/>',
                 '    <bsdf type="diffuse">',
                 f'      <rgb name="reflectance" value="{spec["reflectance"]}"/>',
                 '    </bsdf>',
@@ -581,7 +624,11 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         '    <float name="int_ior" value="1.333"/>',
         '    <float name="ext_ior" value="1.0"/>',
         '  </bsdf>',
-        *secondary_bsdf_lines(args.secondary_opacity),
+        *secondary_bsdf_lines(
+            args.secondary_3d_channel_opacity_map
+            if secondary_proxy.get("source") == "secondary_3d_sidecar" and args.secondary_3d_channel_opacity_map
+            else args.secondary_opacity
+        ),
         *secondary_halo_bsdf_lines(args.secondary_halo_opacity),
         *secondary_mist_bsdf_lines(args.secondary_mist_opacity),
         *secondary_billboard_bsdf_lines(args.secondary_billboard_opacity),
@@ -724,6 +771,7 @@ def export_mitsuba(args):
                 secondary_3d_sidecar,
                 args.secondary_proxy_limit,
                 args.secondary_3d_radius_scale,
+                args.secondary_3d_depth_radius_falloff,
             )
         else:
             secondary_proxy, proxy_failures = build_secondary_proxy_payload(
@@ -793,6 +841,8 @@ def export_mitsuba(args):
                 "secondary_particles": secondary_3d_sidecar.get("checks", {}).get("secondary_particles"),
             },
             "secondary_3d_radius_scale": args.secondary_3d_radius_scale,
+            "secondary_3d_depth_radius_falloff": args.secondary_3d_depth_radius_falloff,
+            "secondary_3d_channel_opacity": args.secondary_3d_channel_opacity_map,
             "secondary_opacity": args.secondary_opacity,
             "secondary_halo_opacity": args.secondary_halo_opacity,
             "secondary_halo_radius_scale": args.secondary_halo_radius_scale,
@@ -861,6 +911,8 @@ def markdown_report(export, out_path, root):
         f"- Secondary opacity: `{export.get('render_settings', {}).get('secondary_opacity')}`",
         f"- Secondary 3D sidecar: `{export.get('render_settings', {}).get('secondary_3d_sidecar')}`",
         f"- Secondary 3D radius scale: `{export.get('render_settings', {}).get('secondary_3d_radius_scale')}`",
+        f"- Secondary 3D depth radius falloff: `{export.get('render_settings', {}).get('secondary_3d_depth_radius_falloff')}`",
+        f"- Secondary 3D channel opacity: `{export.get('render_settings', {}).get('secondary_3d_channel_opacity')}`",
         f"- Secondary halo opacity: `{export.get('render_settings', {}).get('secondary_halo_opacity')}`",
         f"- Secondary halo radius scale: `{export.get('render_settings', {}).get('secondary_halo_radius_scale')}`",
         f"- Secondary mist opacity: `{export.get('render_settings', {}).get('secondary_mist_opacity')}`",
@@ -950,6 +1002,10 @@ def main(argv=None):
                         help="use an lsfs_mitsuba_secondary_3d_sidecar JSON manifest instead of CSV resampling")
     parser.add_argument("--secondary-3d-radius-scale", type=float, default=1.0,
                         help="radius multiplier applied only to secondary 3D sidecar proxy records")
+    parser.add_argument("--secondary-3d-depth-radius-falloff", type=float, default=0.0,
+                        help="shrink far secondary 3D sidecar proxies by this normalized depth amount in [0, 1]")
+    parser.add_argument("--secondary-3d-channel-opacity",
+                        help="per-channel sidecar opacity as spray=v,foam=v,bubble=v,droplet=v")
     parser.add_argument("--secondary-opacity", type=float,
                         help="wrap secondary BSDFs in a Mitsuba mask BSDF with this opacity")
     parser.add_argument("--secondary-halo-opacity", type=float,
@@ -990,6 +1046,8 @@ def main(argv=None):
         parser.error("secondary-proxy-radius must be positive")
     if args.secondary_3d_radius_scale <= 0.0:
         parser.error("secondary-3d-radius-scale must be positive")
+    if not (0.0 <= args.secondary_3d_depth_radius_falloff <= 1.0):
+        parser.error("secondary-3d-depth-radius-falloff must be in the range [0, 1]")
     if args.secondary_opacity is not None and not (0.0 < args.secondary_opacity <= 1.0):
         parser.error("secondary-opacity must be in the range (0, 1]")
     if args.secondary_halo_opacity is not None and not (0.0 < args.secondary_halo_opacity <= 1.0):
@@ -1025,6 +1083,10 @@ def main(argv=None):
         args.camera_target_vec = csv3_required(args.camera_target, "camera-target") if args.camera_target else None
         args.camera_up_vec = csv3_required(args.camera_up, "camera-up") if args.camera_up else None
         args.background_radiance_vec = csv3_required(args.background_radiance, "background-radiance") if args.background_radiance else None
+        args.secondary_3d_channel_opacity_map = parse_channel_values(
+            args.secondary_3d_channel_opacity,
+            "secondary-3d-channel-opacity",
+        )
     except ValueError as exc:
         parser.error(str(exc))
 
