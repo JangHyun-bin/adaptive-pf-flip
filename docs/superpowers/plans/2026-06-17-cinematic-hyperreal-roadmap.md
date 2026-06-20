@@ -4948,3 +4948,24 @@ S402 published the S401 CR21 profile gallery:
 The public page and `assets/shot.gif` both returned HTTP `200`; local checks
 also returned HTTP `200`. The URL is session-scoped and should be refreshed if
 the recorded HTTP server or `cloudflared` process exits.
+
+S403 built and published the renderer decision comparison board:
+
+- S403 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-candidate-compare-publish.md`
+- S403 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_candidate_compare_ss1_kl1_cr21_s403.md`
+- S403 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_candidate_compare_ss1_kl1_cr21_publish_s403.md`
+- S403 manifest:
+  `build/shots/s403_mitsuba_candidate_compare_ss1_kl1_cr21_publish/publish_manifest.json`
+- S403 public quick-tunnel URL:
+  `https://scholar-page-wednesday-soviet.trycloudflare.com/index.html`
+
+The comparison uses `8` frames and `5` columns: `Target`, `C1E`,
+`SS1_Native`, `KL1`, and `S401_CR21_Profile`. The generated comparison GIF is
+`4824 x 574`, has `8` frames, and `assets/comparison.gif` returned HTTP `200`
+both locally and through the public tunnel. Use S403 as the current renderer
+decision board: SS1 remains the native baseline, KL1 is not worth promoting,
+and CR21 remains the strongest target-free source-response profile while native
+material/light transport work continues.
