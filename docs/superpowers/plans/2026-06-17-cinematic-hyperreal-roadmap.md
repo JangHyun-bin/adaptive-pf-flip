@@ -4764,3 +4764,21 @@ The public page serves the Target/C1E/SS1/S391_CR21_Material comparison for
 outputs `0`, `27`, and `47`. Both `index.html` and `assets/comparison.gif`
 returned HTTP `200` locally and through the quick tunnel. The URL is
 session-scoped; refresh it if the recorded processes exit.
+
+S394 swept renderer-side secondary reflectance scales:
+
+- S394 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-material-scale-sweep.md`
+- S394 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_scale_sweep_summary_s394.md`
+- S394 candidate reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_sm*_*.md`
+
+SM45, SM60, and SM75 reuse the S357 SS1 settings and only change
+`--secondary-channel-reflectance-scale`. All three export and validate `8` XML
+frames, render `8` frames through the Mitsuba Python API, and score against the
+target preview and S350 C1E bridge. SS1 remains best: max target MAD is
+`23.951853137860084`, while all reflectance-only scale candidates land at
+`23.989165380658438`. Treat reflectance scale as a useful renderer knob, but do
+not use it alone as the CR21 replacement. Next work should test opacity/radius
+or visibility-cache driven material response.
