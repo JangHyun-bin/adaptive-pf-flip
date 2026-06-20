@@ -140,6 +140,12 @@ replace.
   weaker/rougher response bins), rendered and compared the same 8-frame sample,
   and slightly improved direct S577/S585 MAD over S598. This makes S599 the
   current native-material split tuning baseline.
+- S600 regenerated the S572-style material/tone base on all 48 S322 frames,
+  applied the S599 `MS3` localized split across the full sequence, validated all
+  48 XML scenes, rendered all 48 frames through Mitsuba SPP4, and compared the
+  result against S577/S585. This proves the S599 setting is full48-stable, but
+  the late-frame water highlight remains a little stronger than the accepted
+  targets.
 
 ## Key Artifacts
 
@@ -293,6 +299,22 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_sequence_compare_s599.md`
 - Renderer scene depth/material subtle split direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_direct_metrics_s599.md`
+- Renderer scene depth/material subtle split full48 base export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_base_export_s600.md`
+- Renderer scene depth/material subtle split full48 export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_export_s600.md`
+- Renderer scene depth/material subtle split full48 validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_validate_s600.md`
+- Renderer scene depth/material subtle split full48 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_render_s600.md`
+- Renderer scene depth/material subtle split full48 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_gallery_s600.md`
+- Renderer scene depth/material subtle split full48 target gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_target_gap_s328_s600.md`
+- Renderer scene depth/material subtle split full48 sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_sequence_compare_full48_s600.md`
+- Renderer scene depth/material subtle split full48 direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_full48_direct_metrics_s600.md`
 
 ## Verification
 
@@ -709,6 +731,34 @@ replace.
   - sequence compare missing references: `0`
   - direct S577 mean MAD: `3.833308577674897`
   - direct S585 mean MAD: `3.8382736143261313`
+- S600 renderer scene depth/material localized split material MS3 full48:
+  - base export `status=ready`
+  - base frames exported: `48`
+  - split export `status=ready`
+  - split frames exported: `48`
+  - response faces: `120000`
+  - remainder faces: `806364`
+  - water shape replacements: `48`
+  - response BSDF insertions: `48`
+  - XML validation `status=ready`
+  - XML parsed: `48`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `48`
+  - render failures: `0`
+  - total elapsed ms: `10307`
+  - image bytes: `137.83 MB`
+  - preview bytes: `17.13 MB`
+  - S328 target gap `status=ready`
+  - S328 target gap max mean abs diff: `100.98423739711934`
+  - S328 target gap max abs diff: `226`
+  - S577/S585/S600 full48 sequence compare `status=ready`
+  - sequence compare common frames: `48`
+  - sequence compare selected frames: `13`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.9167686096107683`
+  - direct S585 mean MAD: `3.921020661865569`
 
 ## Current Meaning
 
@@ -757,7 +807,9 @@ now reproducible through:
 22. a renderable localized water-face material split path that consumes the
    low-frequency response mask through alpha-aware mesh partitioning,
 23. a tighter localized split baseline that is much closer to S577/S585 than
-   the previous native-material renders on direct 8-frame MAD.
+   the previous native-material renders on direct 8-frame MAD,
+24. a full48 stability render of that localized split path through the real
+   Mitsuba SPP4 backend.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -806,7 +858,11 @@ than S596 or S597. This makes S598 the current tuning baseline, not yet a full48
 promotion. S599 narrows and weakens that split again to 20k response faces and
 slightly improves direct S577/S585 metrics over S598, so S599 replaces S598 as
 the current localized native-material tuning baseline. It is still an 8-frame
-sample and not a full48 promotion.
+sample and not a full48 promotion. S600 scales the same setting through all 48
+frames without XML/render failures. The full48 direct metrics are still close
+to S577/S585, but the mean MAD rises slightly versus the 8-frame sample and
+late-frame strips show a stronger water highlight. S600 is therefore the
+full48 stability baseline, not the final accepted visual promotion.
 
 ## Next
 
@@ -816,10 +872,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S599 as the current native-material tuning baseline. The next sweep
-   should stay near the MS3 selected-face range, validate longer-frame
-   stability, and rank candidates by direct S577/S585 MAD before full48
-   rendering.
+4. Use S600 as the current native-material full48 stability baseline. The next
+   sweep should stay near the MS3 selected-face range, slightly reduce late
+   frame response strength or selected faces, and rank candidates by full48
+   direct S577/S585 MAD before publishing.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
