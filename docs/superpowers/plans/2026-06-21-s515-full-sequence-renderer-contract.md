@@ -98,6 +98,8 @@ replace.
 - S587 compared the S586 native-stage output against both the S585 target and
   the current S577 accepted composite gate, confirming exact native-target
   parity while bounding the accepted-gate movement.
+- S588 published the S587 native-stage compare gallery through a Cloudflare
+  quick tunnel for external visual review.
 
 ## Key Artifacts
 
@@ -181,6 +183,10 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_stage_s586.md`
 - Renderer scene depth/material native-stage compare gate:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_stage_compare_s587.md`
+- Public S587 native-stage compare review:
+  `https://basics-classes-searched-mortgages.trycloudflare.com`
+- Renderer scene depth/material native-stage compare publish:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_stage_compare_publish_s588.md`
 
 ## Verification
 
@@ -407,6 +413,12 @@ replace.
   - max native-vs-accepted mean diff: `0.4139242541152263`
   - compare gallery:
     `build/shots/s587_mitsuba_renderer_scene_depth_material_native_stage_compare/gallery/index.html`
+- S588 public native-stage compare review:
+  - public URL:
+    `https://basics-classes-searched-mortgages.trycloudflare.com`
+  - `GET /index.html`: `200`
+  - `HEAD /assets/native_compare_strips.gif`: `200`
+  - GIF bytes: `30560993`
 
 ## Current Meaning
 
@@ -433,7 +445,8 @@ now reproducible through:
 11. a process-level renderer-stage adapter that consumes the selected target
    contract and reproduces its full48 references with zero image diff,
 12. a promotion gate showing exact S586/S585 parity and the bounded delta
-   against the current S577 accepted visual gate.
+   against the current S577 accepted visual gate,
+13. a public visual review URL for the S587 compare gallery.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -454,7 +467,8 @@ renderer-side depth/material pass. S586 proves the contract can now be consumed
 through an independent renderer-stage process boundary with exact parity
 against the selected target previews. S587 records the promotion gate for the
 next backend sample: native-target parity is exact, and the accepted-gate move
-is bounded to max abs diff `5` and max mean diff `0.4139242541152263`.
+is bounded to max abs diff `5` and max mean diff `0.4139242541152263`. S588
+publishes that gate for direct visual inspection.
 
 ## Next
 
