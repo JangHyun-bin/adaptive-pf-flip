@@ -3629,3 +3629,32 @@ secondary baseline, but it is still far from the S335 overlay contract max
 target MAD `18.040229552469135`. The next renderer step should use S340 as the
 native baseline and move to a depth-aware renderer-composite or post-render
 secondary pass.
+
+S341 added a depth-aware post-render secondary composite bridge:
+
+- S341 new tool:
+  `tools/build_mitsuba_depth_aware_secondary_composite.py`
+- S341 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-depth-aware-secondary-composite.md`
+- S341 naive overlay baseline report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_mist_m1_overlay_baseline_s341.md`
+- S341 C1-C4 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_c1_s341.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_c2_s341.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_c3_s341.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_c4_s341.md`
+
+S341 uses S338 M1 as the native render input and the S335 secondary-pass
+contract as the visual anchor. The tool builds a secondary alpha/depth proxy
+from the contract secondary layer, keeps lower native contribution near
+secondary pixels, and blends more native graded detail away from the secondary
+mask. The naive M1 overlay baseline has mean target MAD
+`29.154523855452673` and max `60.98076067386831`, so simply stacking the layer
+over M1 is not enough. The depth-aware sweep improves sharply: C1 max target MAD
+`16.35688014403292`, C2 `15.450580632716049`, C3 `14.571005658436214`, and C4
+`19.998582175925925`. C3 is the best bridge candidate: it beats the S335
+contract max target MAD `18.040229552469135` while retaining measured native
+contribution from the S338 M1 render. Use C3 as the current post-render bridge
+baseline. The next step should add a validator for the
+`lsfs_mitsuba_depth_aware_secondary_composite` schema and publish/package the
+C3 gallery for visual review.
