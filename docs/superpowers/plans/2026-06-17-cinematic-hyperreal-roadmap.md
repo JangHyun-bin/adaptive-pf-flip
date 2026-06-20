@@ -3686,3 +3686,26 @@ top-level composite summary SHA and validates all non-self-referential gallery
 metadata hashes. The next step should package or publish the C3 gallery for
 visual review, then continue toward a renderer-native depth/secondary pass that
 can replace the post-render bridge.
+
+S343 published the validated Mitsuba depth-aware composite C3 gallery:
+
+- S343 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_composite_c3_publish_s343.md`
+- S343 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-depth-aware-secondary-composite-publish.md`
+- S343 publish manifest:
+  `build/shots/s343_mitsuba_depth_aware_composite_c3_publish/publish_manifest.json`
+- S343 public URL:
+  `https://itself-auburn-steering-collectables.trycloudflare.com`
+
+S343 serves `build/shots/s341_mitsuba_depth_aware_composite_c3/gallery`
+through `tools/publish_cinematic_gallery.py --cftunnel`. The publish manifest
+is `running` with local URL `http://127.0.0.1:8943`, HTTP server PID `153272`,
+and cloudflared PID `37812`. The local and public checks passed for both
+`index.html` and `assets/shot.gif`; the public GIF check returned HTTP `200`
+with `2881913` bytes. Use this endpoint as the current external visual review
+page for the depth-aware composite baseline. The quick-tunnel URL is
+session-scoped, so refresh S343 if either recorded process exits. The next step
+should start a renderer-native depth/secondary pass that tries to reproduce or
+beat the C3 post-render bridge without relying on the screen-space contract
+layer as the final composite source.
