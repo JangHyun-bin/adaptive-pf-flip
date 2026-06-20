@@ -325,6 +325,23 @@ def secondary_halo_bsdf_lines(opacity=None):
     return lines
 
 
+def secondary_mist_bsdf_lines(opacity=None):
+    if opacity is None:
+        return []
+    lines = []
+    for channel in SECONDARY_CHANNELS:
+        spec = SECONDARY_BSDFS[channel]
+        lines.extend([
+            f'  <bsdf type="mask" id="{spec["id"]}_mist">',
+            f'    <float name="opacity" value="{opacity:.8g}"/>',
+            '    <bsdf type="diffuse">',
+            f'      <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+            '    </bsdf>',
+            '  </bsdf>',
+        ])
+    return lines
+
+
 def phase_volume_bsdf_lines():
     return [
         f'  <bsdf type="diffuse" id="{PHASE_VOLUME_BSDF["id"]}">',
@@ -353,6 +370,21 @@ def secondary_halo_proxy_shape_lines(proxy, radius_scale):
         f'    <ref name="bsdf" id="{spec["id"]}_halo"/>',
         '  </shape>',
     ]
+
+
+def secondary_mist_proxy_shape_lines(proxy, radius_scale, shells, shell_spacing):
+    spec = SECONDARY_BSDFS.get(proxy["channel"], SECONDARY_BSDFS["spray"])
+    lines = []
+    for shell in range(shells):
+        shell_scale = radius_scale * (1.0 + shell * shell_spacing)
+        lines.extend([
+            '  <shape type="sphere">',
+            f'    <point name="center" x="{proxy["x"]:.8g}" y="{proxy["y"]:.8g}" z="{proxy["z"]:.8g}"/>',
+            f'    <float name="radius" value="{proxy["radius"] * shell_scale:.8g}"/>',
+            f'    <ref name="bsdf" id="{spec["id"]}_mist"/>',
+            '  </shape>',
+        ])
+    return lines
 
 
 def phase_volume_proxy_shape_lines(proxy):
@@ -390,6 +422,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         f'  <!-- LSFS output_frame={scene.get("output_frame")} sequence_frame={scene.get("sequence_frame")} time={time} -->',
         f'  <!-- water_faces={water_faces} secondary_total={secondary.get("total")} -->',
         f'  <!-- secondary_proxy_count={secondary_proxy.get("proxy_count", 0)} -->',
+        f'  <!-- secondary_mist_proxy_count={secondary_proxy.get("proxy_count", 0) * args.secondary_mist_shells if args.secondary_mist_opacity is not None else 0} -->',
         f'  <!-- phase_volume_proxy_count={phase_volume_proxy.get("proxy_count", 0)} -->',
         f'  <!-- phase_cells_csv={xml_path(phase_cells)} -->',
         f'  <!-- particles_csv={xml_path(particles)} -->',
@@ -421,6 +454,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         '  </bsdf>',
         *secondary_bsdf_lines(args.secondary_opacity),
         *secondary_halo_bsdf_lines(args.secondary_halo_opacity),
+        *secondary_mist_bsdf_lines(args.secondary_mist_opacity),
         *phase_volume_bsdf_lines(),
         '  <shape type="obj">',
         f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
@@ -430,6 +464,14 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
     ]
     for proxy in phase_volume_proxy.get("proxies", []):
         lines.extend(phase_volume_proxy_shape_lines(proxy))
+    if args.secondary_mist_opacity is not None:
+        for proxy in secondary_proxy.get("proxies", []):
+            lines.extend(secondary_mist_proxy_shape_lines(
+                proxy,
+                args.secondary_mist_radius_scale,
+                args.secondary_mist_shells,
+                args.secondary_mist_shell_spacing,
+            ))
     if args.secondary_halo_opacity is not None:
         for proxy in secondary_proxy.get("proxies", []):
             lines.extend(secondary_halo_proxy_shape_lines(proxy, args.secondary_halo_radius_scale))
@@ -476,6 +518,15 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
             "halo_opacity": args.secondary_halo_opacity,
             "halo_radius_scale": args.secondary_halo_radius_scale if args.secondary_halo_opacity is not None else None,
             "halo_proxy_count": secondary_proxy.get("proxy_count", 0) if args.secondary_halo_opacity is not None else 0,
+            "mist_enabled": args.secondary_mist_opacity is not None,
+            "mist_opacity": args.secondary_mist_opacity,
+            "mist_radius_scale": args.secondary_mist_radius_scale if args.secondary_mist_opacity is not None else None,
+            "mist_shells": args.secondary_mist_shells if args.secondary_mist_opacity is not None else 0,
+            "mist_shell_spacing": args.secondary_mist_shell_spacing if args.secondary_mist_opacity is not None else None,
+            "mist_proxy_count": (
+                secondary_proxy.get("proxy_count", 0) * args.secondary_mist_shells
+                if args.secondary_mist_opacity is not None else 0
+            ),
         },
         "phase_volume_proxy": {
             "enabled": phase_volume_proxy.get("enabled", False),
@@ -586,6 +637,10 @@ def export_mitsuba(args):
             "secondary_opacity": args.secondary_opacity,
             "secondary_halo_opacity": args.secondary_halo_opacity,
             "secondary_halo_radius_scale": args.secondary_halo_radius_scale,
+            "secondary_mist_opacity": args.secondary_mist_opacity,
+            "secondary_mist_radius_scale": args.secondary_mist_radius_scale,
+            "secondary_mist_shells": args.secondary_mist_shells,
+            "secondary_mist_shell_spacing": args.secondary_mist_shell_spacing,
             "phase_volume_proxy_limit": args.phase_volume_proxy_limit,
             "phase_volume_proxy_radius": args.phase_volume_proxy_radius,
         },
@@ -601,6 +656,7 @@ def export_mitsuba(args):
             "xml_scene_bytes": sum(item["xml_scene"]["size"] for item in exported),
             "secondary_proxy_count": sum(item["secondary_proxy"]["proxy_count"] for item in exported),
             "secondary_halo_proxy_count": sum(item["secondary_proxy"].get("halo_proxy_count", 0) for item in exported),
+            "secondary_mist_proxy_count": sum(item["secondary_proxy"].get("mist_proxy_count", 0) for item in exported),
             "secondary_proxy_available": sum(
                 sum(item["secondary_proxy"].get("available_counts", {}).values())
                 for item in exported
@@ -642,6 +698,10 @@ def markdown_report(export, out_path, root):
         f"- Secondary opacity: `{export.get('render_settings', {}).get('secondary_opacity')}`",
         f"- Secondary halo opacity: `{export.get('render_settings', {}).get('secondary_halo_opacity')}`",
         f"- Secondary halo radius scale: `{export.get('render_settings', {}).get('secondary_halo_radius_scale')}`",
+        f"- Secondary mist opacity: `{export.get('render_settings', {}).get('secondary_mist_opacity')}`",
+        f"- Secondary mist radius scale: `{export.get('render_settings', {}).get('secondary_mist_radius_scale')}`",
+        f"- Secondary mist shells: `{export.get('render_settings', {}).get('secondary_mist_shells')}`",
+        f"- Secondary mist shell spacing: `{export.get('render_settings', {}).get('secondary_mist_shell_spacing')}`",
         "",
         "## Checks",
         "",
@@ -651,14 +711,15 @@ def markdown_report(export, out_path, root):
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         f"- Secondary proxies emitted: `{checks.get('secondary_proxy_count', 0)}`",
         f"- Secondary halo proxies emitted: `{checks.get('secondary_halo_proxy_count', 0)}`",
+        f"- Secondary mist proxies emitted: `{checks.get('secondary_mist_proxy_count', 0)}`",
         f"- Secondary particles available: `{checks.get('secondary_proxy_available', 0)}`",
         f"- Phase volume proxies emitted: `{checks.get('phase_volume_proxy_count', 0)}`",
         f"- Phase volume cells available: `{checks.get('phase_volume_proxy_available', 0)}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Phase Proxies |",
-        "| ---: | --- | ---: | ---: | ---: | ---: | ---: |",
+        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Phase Proxies |",
+        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -669,6 +730,7 @@ def markdown_report(export, out_path, root):
             f"{frame.get('sequence_frame')} | {frame.get('water_mesh', {}).get('faces')} | "
             f"{(frame.get('secondary_counts') or {}).get('total')} | "
             f"{(frame.get('secondary_proxy') or {}).get('proxy_count', 0)} | "
+            f"{(frame.get('secondary_proxy') or {}).get('mist_proxy_count', 0)} | "
             f"{(frame.get('phase_volume_proxy') or {}).get('proxy_count', 0)} |"
         )
     if export.get("failures"):
@@ -720,6 +782,14 @@ def main(argv=None):
                         help="emit larger low-opacity secondary halo proxies with this mask opacity")
     parser.add_argument("--secondary-halo-radius-scale", type=float, default=2.2,
                         help="radius multiplier for secondary halo proxies")
+    parser.add_argument("--secondary-mist-opacity", type=float,
+                        help="emit broad low-opacity secondary mist shell proxies with this mask opacity")
+    parser.add_argument("--secondary-mist-radius-scale", type=float, default=5.0,
+                        help="base radius multiplier for secondary mist shell proxies")
+    parser.add_argument("--secondary-mist-shells", type=int, default=1,
+                        help="number of mist shell proxies emitted for each secondary proxy")
+    parser.add_argument("--secondary-mist-shell-spacing", type=float, default=0.55,
+                        help="incremental radius multiplier between secondary mist shells")
     parser.add_argument("--phase-volume-proxy-limit", type=int, default=0,
                         help="maximum sampled phase-volume sphere proxies per frame")
     parser.add_argument("--phase-volume-proxy-radius", type=float, default=0.11,
@@ -744,6 +814,14 @@ def main(argv=None):
         parser.error("secondary-halo-opacity must be in the range (0, 1]")
     if args.secondary_halo_radius_scale <= 0.0:
         parser.error("secondary-halo-radius-scale must be positive")
+    if args.secondary_mist_opacity is not None and not (0.0 < args.secondary_mist_opacity <= 1.0):
+        parser.error("secondary-mist-opacity must be in the range (0, 1]")
+    if args.secondary_mist_radius_scale <= 0.0:
+        parser.error("secondary-mist-radius-scale must be positive")
+    if args.secondary_mist_shells <= 0:
+        parser.error("secondary-mist-shells must be positive")
+    if args.secondary_mist_shell_spacing < 0.0:
+        parser.error("secondary-mist-shell-spacing must be non-negative")
     if args.phase_volume_proxy_limit < 0:
         parser.error("phase-volume-proxy-limit must be non-negative")
     if args.phase_volume_proxy_radius <= 0.0:

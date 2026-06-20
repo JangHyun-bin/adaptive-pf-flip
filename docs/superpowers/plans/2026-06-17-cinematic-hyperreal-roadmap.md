@@ -3551,3 +3551,32 @@ replacement gate: a renderer-native secondary pass should not replace the
 screen-space overlay contract until it beats both the mean and max target MAD.
 The next renderer pass should focus on a screen-facing or soft-density
 secondary representation instead of more opaque sphere/halo proxy tuning.
+
+S338 added and measured opt-in Mitsuba secondary mist shell proxies:
+
+- S338 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S338 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-mist-shells.md`
+- S338 M1 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_m1_export_s338.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_m1_render_s338.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_m1_candidate_gap_s338.md`
+- S338 M2 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_m2_export_s338.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_m2_render_s338.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_m2_candidate_gap_s338.md`
+
+S338 extends the Mitsuba XML exporter with `--secondary-mist-opacity`,
+`--secondary-mist-radius-scale`, `--secondary-mist-shells`, and
+`--secondary-mist-shell-spacing`. These options are off by default and emit
+larger low-opacity native sphere shells around selected secondary proxies. Both
+tested candidates rendered successfully, but both were rejected by the S337
+replacement gate. M1 produced mean candidate-to-target MAD
+`111.10756606867284` and max `140.84679333847737`; low-strength M2 still
+produced mean `111.37602599344136` and max `141.30888438786008`. This is far
+worse than both S333 H2's max `67.40660365226337` and the S335 contract max
+`18.040229552469135`. Keep mist shells as an opt-in experimental look-dev knob,
+but do not keep tuning them as the main replacement path. The next renderer
+step should implement screen-facing secondary surfaces or another native pass
+that is structurally closer to the accepted screen-space secondary layer.
