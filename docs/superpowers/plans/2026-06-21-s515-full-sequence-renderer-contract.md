@@ -92,6 +92,9 @@ replace.
   renderer-side depth/material target manifest with per-frame controls,
   expected image deltas, source composite links, magnitude masks, target
   previews, strips, and a review gallery.
+- S586 consumed the S585 target through a renderer-stage process adapter and
+  reproduced all 48 selected target previews with zero image diff, proving the
+  selected control contract is executable outside the sweep/preview generator.
 
 ## Key Artifacts
 
@@ -171,6 +174,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_sweep_s584.md`
 - Renderer scene depth/material target:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_target_s585.md`
+- Renderer scene depth/material native-stage proof:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_stage_s586.md`
 
 ## Verification
 
@@ -373,6 +378,19 @@ replace.
     `build/shots/s585_mitsuba_renderer_scene_depth_material_target/gallery/index.html`
   - target GIF:
     `build/shots/s585_mitsuba_renderer_scene_depth_material_target/gallery/assets/selected_depth_material_target.gif`
+- S586 renderer scene depth/material native stage:
+  - `status=passed`
+  - frames: `48`
+  - passed frames: `48`
+  - failed frames: `0`
+  - missing references: `0`
+  - max absolute diff vs S585 target: `0`
+  - max mean diff vs S585 target: `0.0`
+  - max native delta from source: `5`
+  - native-stage GIF:
+    `build/shots/s586_mitsuba_renderer_scene_depth_material_native_stage/gallery/assets/native_stage.gif`
+  - native-stage gallery:
+    `build/shots/s586_mitsuba_renderer_scene_depth_material_native_stage/gallery/index.html`
 
 ## Current Meaning
 
@@ -395,7 +413,9 @@ now reproducible through:
    renderer-side depth/material target,
 10. a selected target manifest that translates the chosen sweep result into
    per-frame renderer controls and concrete preview references for native
-   implementation.
+   implementation,
+11. a process-level renderer-stage adapter that consumes the selected target
+   contract and reproduces its full48 references with zero image diff.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -412,7 +432,9 @@ than by hand-tuning only the final image. S582 shows that this metadata can
 produce a bounded visual probe. S583 keeps S577 as the accepted look, and S584
 selects `strength_1_0` as a stronger but still bounded target. S585 packages
 that target as the current implementation contract for the next native
-renderer-side depth/material pass.
+renderer-side depth/material pass. S586 proves the contract can now be consumed
+through an independent renderer-stage process boundary with exact parity
+against the selected target previews.
 
 ## Next
 
@@ -422,8 +444,8 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Implement the S585 selected target contract in the native renderer path
-   rather than only as image-space preview.
-5. Compare the native renderer result against the S585 preview references and
-   promote only if it reduces the accepted-reference gap before attempting
-   full48.
+4. Replace the S586 process-proof stage with a real renderer material or
+   tonemap backend sample while preserving the same S585 control contract.
+5. Compare that backend sample against both the S585 target references and the
+   S577 accepted gate; promote only if it reduces the accepted-reference gap
+   before attempting full48.
