@@ -45,6 +45,14 @@ replace.
   gallery strips that existing renderer-response tooling can consume.
 - S568 built a renderer-neutral light-response contract from S567, turning the
   correction evidence into bounded per-frame response anchors.
+- S569 consumed the S568 contract into an 8-frame Mitsuba XML sample export,
+  inserting localized area emitters on the water mesh and validating the XML
+  bundle.
+- S570 rendered the S569 XML sample through the real Mitsuba backend command
+  adapter at SPP4 and passed backend validation.
+- S571 compared S515 raw, S555 accepted correction, and S570 native-light
+  previews. The light-only path was technically valid but did not move the
+  sample toward the accepted tone.
 
 ## Key Artifacts
 
@@ -78,6 +86,18 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_response_mask_source_s567.md`
 - Low-frequency light response contract:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_light_response_contract_s568.md`
+- Native light-response sample export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_light_response_sample_export_s569.md`
+- Native light-response sample validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_light_response_sample_validate_s569.md`
+- Native light-response sample render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_light_response_sample_spp4_s570.md`
+- Native light-response sample render validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_light_response_sample_spp4_validation_s570.md`
+- Native light-response compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_light_response_vs_accepted_compare_s571.md`
+- Native light-response visual triage:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_light_response_visual_triage_s571.md`
 
 ## Verification
 
@@ -150,6 +170,24 @@ replace.
   - max anchors per frame: `8`
   - mean mask coverage: `0.08506385834619341`
   - max mask coverage: `0.1625829475308642`
+- S569 native-light XML sample:
+  - `status=ready`
+  - frames exported: `8`
+  - lights inserted: `64`
+  - localized anchors: `64`
+  - XML validation failures: `0`
+- S570 native-light render:
+  - `status=ready`
+  - frames rendered: `8/8`
+  - process failures: `0`
+  - validation: `66/66` checks passed
+- S571 visual comparison:
+  - `status=ready`
+  - candidates: `3`
+  - selected frames: `8`
+  - missing frame references: `0`
+  - mean raw-vs-accepted MAD: `1.878133`
+  - mean native-light-vs-accepted MAD: `1.915123`
 
 ## Current Meaning
 
@@ -165,18 +203,18 @@ now reproducible through:
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
 low-frequency correction evidence has also been lifted into response-mask and
-light-response contract formats, so the next step can drive renderer-native
-parameters instead of only replaying accepted post-tonemap deltas.
+light-response contract formats, and one real renderer-native light sample has
+been rendered. That sample proves the contract path is executable, but the
+light-only response is not enough to reproduce the accepted S555 tone.
 
 ## Next
 
-Move the same descriptor/process boundary from renderer-neutral anchors into a
-candidate renderer-native implementation:
+Move the same descriptor/process boundary from light-only anchors into a bounded
+material/tone native implementation:
 
-1. Map the S568 response anchors onto candidate Mitsuba XML light, caustic, or
-   volume-control parameters.
-2. Generate a candidate Mitsuba XML export from that response descriptor.
-3. Render a short sample through the real Mitsuba XML command adapter.
-4. Compare the renderer-native sample against the S564 post-tonemap backend
-   proof, and only promote it if it improves visual realism without breaking the
-   current full48 contract gates.
+1. Reuse S567/S568 evidence but avoid lifting already over-bright regions.
+2. Add a bounded material/tone response consumer or combine light anchors with
+   existing material response controls.
+3. Render another 8-frame sample through the real Mitsuba XML command adapter.
+4. Compare the renderer-native sample against S555/S564. Promote only if the
+   native sample reduces the accepted-reference gap before attempting full48.
