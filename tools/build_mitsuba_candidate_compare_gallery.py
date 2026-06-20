@@ -50,6 +50,10 @@ def parse_labeled_path(value, label):
     return name, path
 
 
+def slug_label(value):
+    return "".join(ch if ch.isalnum() else "_" for ch in value.lower()).strip("_") or "candidate"
+
+
 def frame_map_from_render(manifest):
     result = {}
     for frame in manifest.get("frames", []):
@@ -63,6 +67,31 @@ def frame_map_from_render(manifest):
                 "source": "render_preview",
             }
     return result
+
+
+def frame_map_from_secondary_composite(summary):
+    result = {}
+    for frame in summary.get("frames", []):
+        output = frame.get("output_frame")
+        if output is None:
+            continue
+        composite_path = resolve_path(frame.get("composite_path") or frame.get("composite_repo_path"))
+        if composite_path:
+            result[int(output)] = {
+                "path": composite_path,
+                "sequence_frame": frame.get("sequence_frame"),
+                "source": "secondary_composite",
+            }
+    return result
+
+
+def frame_map_from_candidate(payload, label, path):
+    schema = payload.get("schema")
+    if schema == "lsfs_mitsuba_xml_render":
+        return frame_map_from_render(payload)
+    if schema == "lsfs_mitsuba_secondary_composite":
+        return frame_map_from_secondary_composite(payload)
+    raise SystemExit(f"{path}: unsupported {label} candidate schema {schema!r}")
 
 
 def frame_map_from_composite(summary):
@@ -269,7 +298,8 @@ def markdown_report(summary, summary_path, root, next_text):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out_dir")
-    parser.add_argument("--candidate", action="append", required=True, help="LABEL=render_manifest.json")
+    parser.add_argument("--candidate", action="append", required=True,
+                        help="LABEL=render_manifest.json or LABEL=secondary_composite_summary.json")
     parser.add_argument("--depth-aware-composite", required=True)
     parser.add_argument("--frames", type=int, default=4)
     parser.add_argument("--fps", type=float, default=2.0)
@@ -299,10 +329,10 @@ def main():
     metadata_files = []
     for item in args.candidate:
         label, path = parse_labeled_path(item, "--candidate")
-        render_path = require_file(path, f"{label} render manifest")
+        render_path = require_file(path, f"{label} candidate manifest")
         render = read_json(render_path)
-        render_maps.append((label, frame_map_from_render(render), render_path))
-        metadata_files.append(copy_asset(render_path, assets_dir, f"{label.lower()}_mitsuba_render.json", f"{label} render manifest", root))
+        render_maps.append((label, frame_map_from_candidate(render, label, render_path), render_path))
+        metadata_files.append(copy_asset(render_path, assets_dir, f"{slug_label(label)}_candidate_manifest.json", f"{label} candidate manifest", root))
     metadata_files.append(copy_asset(composite_path, assets_dir, "depth_aware_secondary_composite_summary.json", "C1E composite summary", root))
 
     common_outputs = set(target_map) & set(c1e_map)

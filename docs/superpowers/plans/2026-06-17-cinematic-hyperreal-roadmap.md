@@ -4104,3 +4104,20 @@ writes a `lsfs_mitsuba_secondary_composite` summary compatible with the existing
 gap harness. It preserves the S359/S360 SV1 result exactly: mean target MAD
 `19.103672839506174`, max target MAD `23.72217142489712`. This is now the stable
 renderer-facing review path before true native cache import.
+
+S363 added a visual review gallery for the cache-consumer path:
+
+- S363 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-visibility-cache-review.md`
+- S363 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_cache_review_s363.md`
+- S363 public quick-tunnel preview:
+  `https://limiting-movie-differential-cleaning.trycloudflare.com/index.html`
+- S363 updated tool:
+  `tools/build_mitsuba_candidate_compare_gallery.py`
+
+`build_mitsuba_candidate_compare_gallery.py` now accepts both
+`lsfs_mitsuba_xml_render` and `lsfs_mitsuba_secondary_composite` candidates. The
+S363 gallery compares `Target | C1E | SS1 | SV1-cache`. It shows that SV1-cache
+does restore readable secondary mass relative to SS1, while the remaining gap is
+now mostly tone/background/integration against the target and C1E reference.
