@@ -1,6 +1,6 @@
 # S338 Mitsuba Secondary Mist M2 Export
 
-Generated UTC: `2026-06-20T00:33:13.765249+00:00`
+Generated UTC: `2026-06-20T00:43:34.698861+00:00`
 Export JSON: `build/shots/s338_mitsuba_secondary_mist_m2/mitsuba_export.json`
 Status: `ready`
 Target renderer: `mitsuba`
@@ -24,6 +24,9 @@ Execution mode: `xml_export_only`
 - Secondary mist radius scale: `4.5`
 - Secondary mist shells: `1`
 - Secondary mist shell spacing: `0.55`
+- Secondary billboard opacity: `None`
+- Secondary billboard radius scale: `2.2`
+- Secondary billboard aspect: `1.0`
 
 ## Checks
 
@@ -34,17 +37,18 @@ Execution mode: `xml_export_only`
 - Secondary proxies emitted: `2297`
 - Secondary halo proxies emitted: `2297`
 - Secondary mist proxies emitted: `2297`
+- Secondary billboard proxies emitted: `0`
 - Secondary particles available: `2877`
 - Phase volume proxies emitted: `0`
 - Phase volume cells available: `0`
 
 ## Frame Samples
 
-| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Phase Proxies |
-| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0 | `build/shots/s338_mitsuba_secondary_mist_m2/scenes/frame_0000.xml` | 8 | 20000 | 256 | 256 | 256 | 0 |
-| 27 | `build/shots/s338_mitsuba_secondary_mist_m2/scenes/frame_0004.xml` | 35 | 18576 | 256 | 256 | 256 | 0 |
-| 47 | `build/shots/s338_mitsuba_secondary_mist_m2/scenes/frame_0007.xml` | 55 | 22300 | 964 | 384 | 384 | 0 |
+| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Billboard Proxies | Phase Proxies |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0 | `build/shots/s338_mitsuba_secondary_mist_m2/scenes/frame_0000.xml` | 8 | 20000 | 256 | 256 | 256 | 0 | 0 |
+| 27 | `build/shots/s338_mitsuba_secondary_mist_m2/scenes/frame_0004.xml` | 35 | 18576 | 256 | 256 | 256 | 0 | 0 |
+| 47 | `build/shots/s338_mitsuba_secondary_mist_m2/scenes/frame_0007.xml` | 55 | 22300 | 964 | 384 | 384 | 0 | 0 |
 
 ## Next
 

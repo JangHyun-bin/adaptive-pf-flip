@@ -342,6 +342,23 @@ def secondary_mist_bsdf_lines(opacity=None):
     return lines
 
 
+def secondary_billboard_bsdf_lines(opacity=None):
+    if opacity is None:
+        return []
+    lines = []
+    for channel in SECONDARY_CHANNELS:
+        spec = SECONDARY_BSDFS[channel]
+        lines.extend([
+            f'  <bsdf type="mask" id="{spec["id"]}_billboard">',
+            f'    <float name="opacity" value="{opacity:.8g}"/>',
+            '    <bsdf type="diffuse">',
+            f'      <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+            '    </bsdf>',
+            '  </bsdf>',
+        ])
+    return lines
+
+
 def phase_volume_bsdf_lines():
     return [
         f'  <bsdf type="diffuse" id="{PHASE_VOLUME_BSDF["id"]}">',
@@ -387,6 +404,21 @@ def secondary_mist_proxy_shape_lines(proxy, radius_scale, shells, shell_spacing)
     return lines
 
 
+def secondary_billboard_proxy_shape_lines(proxy, radius_scale, aspect, camera_position, camera_up):
+    spec = SECONDARY_BSDFS.get(proxy["channel"], SECONDARY_BSDFS["spray"])
+    radius = proxy["radius"] * radius_scale
+    center = [proxy["x"], proxy["y"], proxy["z"]]
+    return [
+        '  <shape type="disk">',
+        '    <transform name="to_world">',
+        f'      <lookat origin="{csv3(center, [0.0, 0.0, 0.0])}" target="{csv3(camera_position, [18.0, 20.0, 58.0])}" up="{csv3(camera_up, [0.0, 1.0, 0.0])}"/>',
+        f'      <scale x="{radius:.8g}" y="{radius * aspect:.8g}" z="1"/>',
+        '    </transform>',
+        f'    <ref name="bsdf" id="{spec["id"]}_billboard"/>',
+        '  </shape>',
+    ]
+
+
 def phase_volume_proxy_shape_lines(proxy):
     return [
         '  <shape type="sphere">',
@@ -423,6 +455,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         f'  <!-- water_faces={water_faces} secondary_total={secondary.get("total")} -->',
         f'  <!-- secondary_proxy_count={secondary_proxy.get("proxy_count", 0)} -->',
         f'  <!-- secondary_mist_proxy_count={secondary_proxy.get("proxy_count", 0) * args.secondary_mist_shells if args.secondary_mist_opacity is not None else 0} -->',
+        f'  <!-- secondary_billboard_proxy_count={secondary_proxy.get("proxy_count", 0) if args.secondary_billboard_opacity is not None else 0} -->',
         f'  <!-- phase_volume_proxy_count={phase_volume_proxy.get("proxy_count", 0)} -->',
         f'  <!-- phase_cells_csv={xml_path(phase_cells)} -->',
         f'  <!-- particles_csv={xml_path(particles)} -->',
@@ -455,6 +488,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         *secondary_bsdf_lines(args.secondary_opacity),
         *secondary_halo_bsdf_lines(args.secondary_halo_opacity),
         *secondary_mist_bsdf_lines(args.secondary_mist_opacity),
+        *secondary_billboard_bsdf_lines(args.secondary_billboard_opacity),
         *phase_volume_bsdf_lines(),
         '  <shape type="obj">',
         f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
@@ -471,6 +505,15 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
                 args.secondary_mist_radius_scale,
                 args.secondary_mist_shells,
                 args.secondary_mist_shell_spacing,
+            ))
+    if args.secondary_billboard_opacity is not None:
+        for proxy in secondary_proxy.get("proxies", []):
+            lines.extend(secondary_billboard_proxy_shape_lines(
+                proxy,
+                args.secondary_billboard_radius_scale,
+                args.secondary_billboard_aspect,
+                camera_position,
+                camera_up,
             ))
     if args.secondary_halo_opacity is not None:
         for proxy in secondary_proxy.get("proxies", []):
@@ -527,6 +570,11 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
                 secondary_proxy.get("proxy_count", 0) * args.secondary_mist_shells
                 if args.secondary_mist_opacity is not None else 0
             ),
+            "billboard_enabled": args.secondary_billboard_opacity is not None,
+            "billboard_opacity": args.secondary_billboard_opacity,
+            "billboard_radius_scale": args.secondary_billboard_radius_scale if args.secondary_billboard_opacity is not None else None,
+            "billboard_aspect": args.secondary_billboard_aspect if args.secondary_billboard_opacity is not None else None,
+            "billboard_proxy_count": secondary_proxy.get("proxy_count", 0) if args.secondary_billboard_opacity is not None else 0,
         },
         "phase_volume_proxy": {
             "enabled": phase_volume_proxy.get("enabled", False),
@@ -641,6 +689,9 @@ def export_mitsuba(args):
             "secondary_mist_radius_scale": args.secondary_mist_radius_scale,
             "secondary_mist_shells": args.secondary_mist_shells,
             "secondary_mist_shell_spacing": args.secondary_mist_shell_spacing,
+            "secondary_billboard_opacity": args.secondary_billboard_opacity,
+            "secondary_billboard_radius_scale": args.secondary_billboard_radius_scale,
+            "secondary_billboard_aspect": args.secondary_billboard_aspect,
             "phase_volume_proxy_limit": args.phase_volume_proxy_limit,
             "phase_volume_proxy_radius": args.phase_volume_proxy_radius,
         },
@@ -657,6 +708,7 @@ def export_mitsuba(args):
             "secondary_proxy_count": sum(item["secondary_proxy"]["proxy_count"] for item in exported),
             "secondary_halo_proxy_count": sum(item["secondary_proxy"].get("halo_proxy_count", 0) for item in exported),
             "secondary_mist_proxy_count": sum(item["secondary_proxy"].get("mist_proxy_count", 0) for item in exported),
+            "secondary_billboard_proxy_count": sum(item["secondary_proxy"].get("billboard_proxy_count", 0) for item in exported),
             "secondary_proxy_available": sum(
                 sum(item["secondary_proxy"].get("available_counts", {}).values())
                 for item in exported
@@ -702,6 +754,9 @@ def markdown_report(export, out_path, root):
         f"- Secondary mist radius scale: `{export.get('render_settings', {}).get('secondary_mist_radius_scale')}`",
         f"- Secondary mist shells: `{export.get('render_settings', {}).get('secondary_mist_shells')}`",
         f"- Secondary mist shell spacing: `{export.get('render_settings', {}).get('secondary_mist_shell_spacing')}`",
+        f"- Secondary billboard opacity: `{export.get('render_settings', {}).get('secondary_billboard_opacity')}`",
+        f"- Secondary billboard radius scale: `{export.get('render_settings', {}).get('secondary_billboard_radius_scale')}`",
+        f"- Secondary billboard aspect: `{export.get('render_settings', {}).get('secondary_billboard_aspect')}`",
         "",
         "## Checks",
         "",
@@ -712,14 +767,15 @@ def markdown_report(export, out_path, root):
         f"- Secondary proxies emitted: `{checks.get('secondary_proxy_count', 0)}`",
         f"- Secondary halo proxies emitted: `{checks.get('secondary_halo_proxy_count', 0)}`",
         f"- Secondary mist proxies emitted: `{checks.get('secondary_mist_proxy_count', 0)}`",
+        f"- Secondary billboard proxies emitted: `{checks.get('secondary_billboard_proxy_count', 0)}`",
         f"- Secondary particles available: `{checks.get('secondary_proxy_available', 0)}`",
         f"- Phase volume proxies emitted: `{checks.get('phase_volume_proxy_count', 0)}`",
         f"- Phase volume cells available: `{checks.get('phase_volume_proxy_available', 0)}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Phase Proxies |",
-        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Billboard Proxies | Phase Proxies |",
+        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -731,6 +787,7 @@ def markdown_report(export, out_path, root):
             f"{(frame.get('secondary_counts') or {}).get('total')} | "
             f"{(frame.get('secondary_proxy') or {}).get('proxy_count', 0)} | "
             f"{(frame.get('secondary_proxy') or {}).get('mist_proxy_count', 0)} | "
+            f"{(frame.get('secondary_proxy') or {}).get('billboard_proxy_count', 0)} | "
             f"{(frame.get('phase_volume_proxy') or {}).get('proxy_count', 0)} |"
         )
     if export.get("failures"):
@@ -790,6 +847,12 @@ def main(argv=None):
                         help="number of mist shell proxies emitted for each secondary proxy")
     parser.add_argument("--secondary-mist-shell-spacing", type=float, default=0.55,
                         help="incremental radius multiplier between secondary mist shells")
+    parser.add_argument("--secondary-billboard-opacity", type=float,
+                        help="emit camera-facing secondary disk billboards with this mask opacity")
+    parser.add_argument("--secondary-billboard-radius-scale", type=float, default=2.2,
+                        help="radius multiplier for camera-facing secondary disk billboards")
+    parser.add_argument("--secondary-billboard-aspect", type=float, default=1.0,
+                        help="vertical aspect multiplier for camera-facing secondary disk billboards")
     parser.add_argument("--phase-volume-proxy-limit", type=int, default=0,
                         help="maximum sampled phase-volume sphere proxies per frame")
     parser.add_argument("--phase-volume-proxy-radius", type=float, default=0.11,
@@ -822,6 +885,12 @@ def main(argv=None):
         parser.error("secondary-mist-shells must be positive")
     if args.secondary_mist_shell_spacing < 0.0:
         parser.error("secondary-mist-shell-spacing must be non-negative")
+    if args.secondary_billboard_opacity is not None and not (0.0 < args.secondary_billboard_opacity <= 1.0):
+        parser.error("secondary-billboard-opacity must be in the range (0, 1]")
+    if args.secondary_billboard_radius_scale <= 0.0:
+        parser.error("secondary-billboard-radius-scale must be positive")
+    if args.secondary_billboard_aspect <= 0.0:
+        parser.error("secondary-billboard-aspect must be positive")
     if args.phase_volume_proxy_limit < 0:
         parser.error("phase-volume-proxy-limit must be non-negative")
     if args.phase_volume_proxy_radius <= 0.0:

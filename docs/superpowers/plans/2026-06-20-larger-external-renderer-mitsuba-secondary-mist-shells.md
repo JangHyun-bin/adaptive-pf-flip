@@ -34,6 +34,7 @@ python tools\export_external_renderer_mitsuba_xml.py `
   --camera-position 18,20,58 `
   --camera-target 18,8,14 `
   --camera-fov 34 `
+  --background-radiance 0.16,0.23,0.32 `
   --water-alpha 0.014 `
   --secondary-proxy-limit 384 `
   --secondary-proxy-radius 0.095 `
@@ -94,15 +95,20 @@ M1:
 
 - Status: `ready`
 - Decision: `candidate_needs_work`
-- Mean candidate-to-target MAD: `111.10756606867284`
-- Max candidate-to-target MAD: `140.84679333847737`
+- Mean candidate-to-target MAD: `37.286685796039094`
+- Max candidate-to-target MAD: `66.5063766718107`
 
 M2:
 
 - Status: `ready`
 - Decision: `candidate_needs_work`
-- Mean candidate-to-target MAD: `111.37602599344136`
-- Max candidate-to-target MAD: `141.30888438786008`
+- Mean candidate-to-target MAD: `37.38058802726338`
+- Max candidate-to-target MAD: `66.78048096707819`
+
+S333 H2 control:
+
+- Mean candidate-to-target MAD: `37.58172702867798`
+- Max candidate-to-target MAD: `67.40660365226337`
 
 S335 contract:
 
@@ -111,8 +117,10 @@ S335 contract:
 
 ## Decision
 
-Do not continue tuning large mist sphere shells as the main native secondary
-replacement path. Even low-strength shells push the rendered frame far away from
-the accepted target. Keep the option available for later look-dev experiments,
-but the next implementation step should be screen-facing secondary surfaces or
-another representation that is closer to the original screen-space layer.
+The background must stay pinned to the S333 H2 baseline
+`0.16,0.23,0.32`; otherwise the candidate gap is dominated by tone drift rather
+than secondary behavior. Under that controlled background, mist shells are a
+small native improvement over H2, with M1 the best measured candidate so far.
+They still do not beat the S335 overlay contract, so the next step should keep
+M1 as the native baseline and explore depth-aware compositing or a more direct
+secondary-layer reconstruction.

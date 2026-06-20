@@ -1,6 +1,6 @@
 # S338 Mitsuba Secondary Mist M2 Render
 
-Generated UTC: `2026-06-20T00:33:25.337245+00:00`
+Generated UTC: `2026-06-20T00:43:47.003081+00:00`
 Render JSON: `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/mitsuba_render.json`
 Status: `ready`
 
@@ -26,17 +26,17 @@ Status: `ready`
 - Frames requested: `8`
 - Frames rendered: `8`
 - Failures: `0`
-- Total elapsed ms: `1792`
-- Image bytes: `21.70 MB`
-- Preview bytes: `2.60 MB`
+- Total elapsed ms: `1986`
+- Image bytes: `21.08 MB`
+- Preview bytes: `2.46 MB`
 
 ## Frame Samples
 
 | Output | Sequence | Image | Preview | Elapsed ms |
 | ---: | ---: | --- | --- | ---: |
-| 0 | 8 | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/renders/frame_0000.exr` | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/previews/frame_0000.png` | 209 |
-| 27 | 35 | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/renders/frame_0004.exr` | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/previews/frame_0004.png` | 210 |
-| 47 | 55 | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/renders/frame_0007.exr` | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/previews/frame_0007.png` | 211 |
+| 0 | 8 | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/renders/frame_0000.exr` | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/previews/frame_0000.png` | 337 |
+| 27 | 35 | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/renders/frame_0004.exr` | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/previews/frame_0004.png` | 220 |
+| 47 | 55 | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/renders/frame_0007.exr` | `build/shots/s338_mitsuba_secondary_mist_m2/actual_render/previews/frame_0007.png` | 225 |
 
 ## Next
 

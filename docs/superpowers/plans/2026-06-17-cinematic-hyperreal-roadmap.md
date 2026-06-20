@@ -3570,13 +3570,41 @@ S338 added and measured opt-in Mitsuba secondary mist shell proxies:
 S338 extends the Mitsuba XML exporter with `--secondary-mist-opacity`,
 `--secondary-mist-radius-scale`, `--secondary-mist-shells`, and
 `--secondary-mist-shell-spacing`. These options are off by default and emit
-larger low-opacity native sphere shells around selected secondary proxies. Both
-tested candidates rendered successfully, but both were rejected by the S337
-replacement gate. M1 produced mean candidate-to-target MAD
-`111.10756606867284` and max `140.84679333847737`; low-strength M2 still
-produced mean `111.37602599344136` and max `141.30888438786008`. This is far
-worse than both S333 H2's max `67.40660365226337` and the S335 contract max
-`18.040229552469135`. Keep mist shells as an opt-in experimental look-dev knob,
-but do not keep tuning them as the main replacement path. The next renderer
-step should implement screen-facing secondary surfaces or another native pass
-that is structurally closer to the accepted screen-space secondary layer.
+larger low-opacity native sphere shells around selected secondary proxies.
+After pinning the background radiance to the S333 H2 baseline
+`0.16,0.23,0.32`, both tested candidates rendered successfully and produced a
+small native improvement over H2 while still failing the S335 replacement gate.
+M1 is the current best native Mitsuba candidate with mean candidate-to-target
+MAD `37.286685796039094` and max `66.5063766718107`; M2 records mean
+`37.38058802726338` and max `66.78048096707819`. Both improve over S333 H2's
+max `67.40660365226337`, but both remain far from the S335 contract max
+`18.040229552469135`. Keep S338 M1 as the current native baseline and keep the
+background radiance pinned in later candidate exports.
+
+S339 added and measured opt-in camera-facing Mitsuba secondary billboards:
+
+- S339 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S339 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-billboards.md`
+- S339 H2 rerender control reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_runtime_h2_rerender_control_s339.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_runtime_h2_rerender_control_candidate_gap_s339.md`
+- S339 B4 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_billboard_b4_export_s339.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_billboard_b4_render_s339.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_billboard_b4_candidate_gap_s339.md`
+
+S339 extends the Mitsuba XML exporter with `--secondary-billboard-opacity`,
+`--secondary-billboard-radius-scale`, and `--secondary-billboard-aspect`. These
+options are off by default and emit camera-facing `disk` shapes for selected
+secondary proxies. A current-runtime H2 rerender reproduced the S337 baseline
+with max candidate-to-target MAD `67.40660365226337`, confirming the measured
+changes are not Mitsuba runtime drift. B4, an H2-plus-billboard candidate under
+the same background, rendered successfully and records mean candidate-to-target
+MAD `37.57644900977366` and max `67.3997678755144`. This is a tiny improvement
+over H2 but worse than S338 M1. Keep billboard support as an experimental
+native geometry path, but prefer S338 M1 as the current native Mitsuba
+secondary baseline. The next concrete step should be a depth-aware
+post-render/renderer-composite secondary pass because pure native geometry is
+still far from the S335 screen-space contract.
