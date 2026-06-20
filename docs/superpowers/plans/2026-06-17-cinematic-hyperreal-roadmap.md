@@ -3428,3 +3428,30 @@ The published B gallery verifies public `index.html` and `assets/shot.gif` with
 HTTP `200`. Use S332-B as the next actual Mitsuba baseline, then spend the next
 pass on replacing sphere secondary proxies with a softer or volumetric
 renderer-side secondary representation.
+
+S333 added opt-in Mitsuba secondary halo proxies:
+
+- S333 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S333 sweep summary report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_halo_sweep_summary_s333.md`
+- S333 best candidate gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_halo_h2_gap_s333.md`
+- S333 best candidate publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_halo_h2_publish_s333.md`
+- S333 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-halo.md`
+- S333 public URL:
+  `https://timer-symbol-referrals-competent.trycloudflare.com`
+
+S333 extends the Mitsuba XML exporter with `--secondary-halo-opacity` and
+`--secondary-halo-radius-scale`. When enabled, each secondary proxy also emits a
+larger low-opacity halo sphere with a dedicated halo BSDF. H1 and H2 both render
+successfully, and H2 becomes the best ranked actual Mitsuba candidate with mean
+gap mean absolute diff `37.58172702867798`, max gap mean absolute diff
+`67.40660365226337`, and max gap max absolute diff `171`. This is only a small
+improvement over S332-B's max gap `67.67647762345679`, so S333 confirms that
+halo sphere proxies are useful as a temporary renderer-side baseline but are
+not enough to replace the accepted screen-space secondary target. The next
+renderer step should use a true screen-space or volumetric secondary
+representation instead of only more sphere tuning.
