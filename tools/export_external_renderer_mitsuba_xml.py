@@ -523,10 +523,20 @@ def secondary_billboard_bsdf_lines(opacity=None):
     return lines
 
 
-def phase_volume_bsdf_lines():
+def phase_volume_bsdf_lines(args):
+    reflectance = csv3(args.phase_volume_reflectance_vec, PHASE_VOLUME_BSDF["reflectance"].split(","))
+    if args.phase_volume_opacity is None:
+        return [
+            f'  <bsdf type="diffuse" id="{PHASE_VOLUME_BSDF["id"]}">',
+            f'    <rgb name="reflectance" value="{reflectance}"/>',
+            '  </bsdf>',
+        ]
     return [
-        f'  <bsdf type="diffuse" id="{PHASE_VOLUME_BSDF["id"]}">',
-        f'    <rgb name="reflectance" value="{PHASE_VOLUME_BSDF["reflectance"]}"/>',
+        f'  <bsdf type="mask" id="{PHASE_VOLUME_BSDF["id"]}">',
+        f'    <float name="opacity" value="{args.phase_volume_opacity:.8g}"/>',
+        '    <bsdf type="diffuse">',
+        f'      <rgb name="reflectance" value="{reflectance}"/>',
+        '    </bsdf>',
         '  </bsdf>',
     ]
 
@@ -684,7 +694,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         *secondary_halo_bsdf_lines(args.secondary_halo_opacity),
         *secondary_mist_bsdf_lines(args.secondary_mist_opacity),
         *secondary_billboard_bsdf_lines(args.secondary_billboard_opacity),
-        *phase_volume_bsdf_lines(),
+        *phase_volume_bsdf_lines(args),
         '  <shape type="obj">',
         f'    <string name="filename" value="{xml_path(water_mesh)}"/>',
         '    <boolean name="face_normals" value="true"/>',
@@ -917,6 +927,8 @@ def export_mitsuba(args):
             "secondary_billboard_aspect": args.secondary_billboard_aspect,
             "phase_volume_proxy_limit": args.phase_volume_proxy_limit,
             "phase_volume_proxy_radius": args.phase_volume_proxy_radius,
+            "phase_volume_opacity": args.phase_volume_opacity,
+            "phase_volume_reflectance": args.phase_volume_reflectance_vec,
         },
         "command_list": {
             "path": command_list_path,
@@ -992,6 +1004,8 @@ def markdown_report(export, out_path, root):
         f"- Secondary billboard opacity: `{export.get('render_settings', {}).get('secondary_billboard_opacity')}`",
         f"- Secondary billboard radius scale: `{export.get('render_settings', {}).get('secondary_billboard_radius_scale')}`",
         f"- Secondary billboard aspect: `{export.get('render_settings', {}).get('secondary_billboard_aspect')}`",
+        f"- Phase volume opacity: `{export.get('render_settings', {}).get('phase_volume_opacity')}`",
+        f"- Phase volume reflectance: `{export.get('render_settings', {}).get('phase_volume_reflectance')}`",
         "",
         "## Checks",
         "",
@@ -1116,6 +1130,10 @@ def main(argv=None):
                         help="maximum sampled phase-volume sphere proxies per frame")
     parser.add_argument("--phase-volume-proxy-radius", type=float, default=0.11,
                         help="base radius for phase-volume sphere proxies in cell units")
+    parser.add_argument("--phase-volume-opacity", type=float,
+                        help="optional mask opacity for phase-volume proxy spheres")
+    parser.add_argument("--phase-volume-reflectance",
+                        help="phase-volume proxy diffuse reflectance as r,g,b")
     parser.add_argument("--manifest-name", default="mitsuba_export.json")
     parser.add_argument("--report")
     parser.add_argument("--title", default="Mitsuba XML Export")
@@ -1158,6 +1176,8 @@ def main(argv=None):
         parser.error("phase-volume-proxy-limit must be non-negative")
     if args.phase_volume_proxy_radius <= 0.0:
         parser.error("phase-volume-proxy-radius must be positive")
+    if args.phase_volume_opacity is not None and not (0.0 < args.phase_volume_opacity <= 1.0):
+        parser.error("phase-volume-opacity must be in the range (0, 1]")
     if args.samples is not None and args.samples <= 0:
         parser.error("samples must be positive")
     if args.camera_fov is not None and args.camera_fov <= 0.0:
@@ -1177,6 +1197,10 @@ def main(argv=None):
             csv3_required(args.water_specular_transmittance, "water-specular-transmittance")
             if args.water_specular_transmittance else None
         )
+        args.phase_volume_reflectance_vec = (
+            csv3_required(args.phase_volume_reflectance, "phase-volume-reflectance")
+            if args.phase_volume_reflectance else None
+        )
         args.key_light_radiance_vec = csv3_required(args.key_light_radiance, "key-light-radiance") if args.key_light_radiance else None
         args.key_light_position_vec = csv3_required(args.key_light_position, "key-light-position") if args.key_light_position else None
         args.key_light_target_vec = csv3_required(args.key_light_target, "key-light-target") if args.key_light_target else None
@@ -1195,6 +1219,10 @@ def main(argv=None):
         for value in args.water_specular_transmittance_vec:
             if value < 0.0 or value > 1.0:
                 parser.error("water-specular-transmittance values must be in [0, 1]")
+    if args.phase_volume_reflectance_vec is not None:
+        for value in args.phase_volume_reflectance_vec:
+            if value < 0.0 or value > 1.0:
+                parser.error("phase-volume-reflectance values must be in [0, 1]")
     if args.key_light_scale_vec is not None and any(value <= 0.0 for value in args.key_light_scale_vec):
         parser.error("key-light-scale values must be positive")
 
