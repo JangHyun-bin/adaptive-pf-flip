@@ -3733,3 +3733,31 @@ mean MAD is `40.380344087577164`, max `62.06783050411523`, with `8` frames and
 `0` missing references. Use S344 as the native replacement gate: a future
 renderer-native secondary pass should not replace the C3 bridge until it beats
 both the C3 mean target MAD and C3 max target MAD.
+
+S345 tested mist-plus-billboard native Mitsuba proxy candidates against the
+S344 gate:
+
+- S345 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-mist-billboard-sweep.md`
+- S345 MB1 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_billboard_mb1_export_s345.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_billboard_mb1_render_s345.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_billboard_mb1_candidate_gap_s345.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_mb1_s345.md`
+- S345 MB2 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_billboard_mb2_export_s345.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_billboard_mb2_render_s345.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mist_billboard_mb2_candidate_gap_s345.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_mb2_s345.md`
+
+S345 keeps the S338 M1 camera/background/water/mist settings pinned and adds
+two billboard stress candidates. MB1 uses billboard opacity `0.09`, radius
+scale `2.5`, and aspect `1.25`; MB2 uses opacity `0.18`, radius scale `4.0`,
+and aspect `1.4`. MB2 is the best measured native proxy candidate so far:
+mean target MAD `37.13389178240741`, max target MAD `66.33950488683128`,
+native-to-C3 mean MAD `40.225236062885806`, and native-to-C3 max MAD
+`61.84939814814815`. This improves slightly over S338 M1 max target MAD
+`66.5063766718107`, but it is still far from the C3 bridge max
+`14.571005658436214`. Treat this as evidence that more sphere/mist/billboard
+proxy strength alone is not enough. The next renderer-native pass should use a
+more direct depth/secondary representation guided by C3/S335 masks.
