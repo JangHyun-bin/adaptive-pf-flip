@@ -4782,3 +4782,21 @@ target preview and S350 C1E bridge. SS1 remains best: max target MAD is
 `23.989165380658438`. Treat reflectance scale as a useful renderer knob, but do
 not use it alone as the CR21 replacement. Next work should test opacity/radius
 or visibility-cache driven material response.
+
+S395 swept secondary opacity/radius visibility boosts:
+
+- S395 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-material-visibility-sweep.md`
+- S395 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_visibility_sweep_summary_s395.md`
+- S395 candidate reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_{ov1,rv1,or1}_*.md`
+
+OV1 doubles secondary opacity, RV1 expands secondary radius/billboard radius,
+and OR1 combines both. All three export, validate, and render `8` frames, then
+score against the target preview and S350 C1E bridge. SS1 remains best: max
+target MAD is `23.951853137860084`, while OV1 reaches `23.98887281378601`,
+RV1 reaches `23.989178883744856`, and OR1 reaches `23.989264403292182`.
+Broad renderer-side visibility boosts are therefore not the replacement for
+CR21. Next work should localize renderer response using screen/visibility
+evidence such as SV1-cache or the CR21 channel-local mask.
