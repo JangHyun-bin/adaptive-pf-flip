@@ -2,6 +2,7 @@
 """Filter a Mitsuba secondary 3D sidecar by a per-frame alpha mask source."""
 
 import argparse
+import copy
 import json
 import os
 from datetime import datetime, timezone
@@ -75,6 +76,21 @@ def write_jsonl(path, rows):
             handle.write("\n")
 
 
+def boosted_row(row, radius_scale, boost_index):
+    result = copy.deepcopy(row)
+    try:
+        result["radius"] = float(result.get("radius") or 0.0) * radius_scale
+    except (TypeError, ValueError):
+        result["radius"] = 0.0
+    result["residual_mask_boost"] = {
+        "enabled": True,
+        "boost_index": boost_index,
+        "radius_scale": radius_scale,
+        "source_index": row.get("index"),
+    }
+    return result
+
+
 def max_alpha_near(alpha, x, y, radius):
     width, height = alpha.size
     px = int(round(x))
@@ -128,31 +144,33 @@ def markdown_report(summary, summary_path, root, next_text):
         "",
         f"- Frames: `{checks.get('frames')}`",
         f"- Source particles: `{checks.get('source_particles')}`",
-        f"- Filtered particles: `{checks.get('filtered_particles')}`",
-        f"- Retention ratio: `{checks.get('retention_ratio')}`",
+        f"- Mask-selected particles: `{checks.get('selected_particles')}`",
+        f"- Output particles: `{checks.get('output_particles')}`",
+        f"- Selection ratio: `{checks.get('selection_ratio')}`",
+        f"- Output/source ratio: `{checks.get('output_source_ratio')}`",
         f"- Sidecar bytes: `{format_bytes(checks.get('sidecar_bytes', 0))}`",
         f"- Missing references: `{checks.get('missing_references')}`",
         "",
         "## Channel Counts",
         "",
-        "| Channel | Source | Filtered |",
+        "| Channel | Source | Output |",
         "| --- | ---: | ---: |",
     ]
     source_counts = checks.get("source_channel_counts") or {}
-    filtered_counts = checks.get("filtered_channel_counts") or {}
+    filtered_counts = checks.get("output_channel_counts") or checks.get("filtered_channel_counts") or {}
     for channel in SECONDARY_CHANNELS:
         lines.append(f"| `{channel}` | {source_counts.get(channel, 0)} | {filtered_counts.get(channel, 0)} |")
     lines.extend([
         "",
         "## Frame Samples",
         "",
-        "| Output | Source | Filtered | Mask | Sidecar |",
-        "| ---: | ---: | ---: | --- | --- |",
+        "| Output | Source | Selected | Written | Mask | Sidecar |",
+        "| ---: | ---: | ---: | ---: | --- | --- |",
     ])
     for frame in summary.get("frames", []):
         lines.append(
             f"| {frame.get('output_frame')} | {frame.get('source_count')} | "
-            f"{frame.get('filtered_count')} | `{frame.get('mask_repo_path')}` | "
+            f"{frame.get('selected_count')} | {frame.get('output_count')} | `{frame.get('mask_repo_path')}` | "
             f"`{(frame.get('sidecar') or {}).get('repo_path')}` |"
         )
     lines.extend(["", "## Next", "", next_text, ""])
@@ -184,10 +202,12 @@ def build(args):
     output_frames = []
     failures = []
     source_channel_counts = {channel: 0 for channel in SECONDARY_CHANNELS}
-    filtered_channel_counts = {channel: 0 for channel in SECONDARY_CHANNELS}
+    selected_channel_counts = {channel: 0 for channel in SECONDARY_CHANNELS}
+    output_channel_counts = {channel: 0 for channel in SECONDARY_CHANNELS}
     sidecar_bytes = 0
     source_particles = 0
-    filtered_particles = 0
+    selected_particles = 0
+    output_particles = 0
 
     for index, output_frame in enumerate(outputs):
         source_frame = sidecar_frames[output_frame]
@@ -203,19 +223,29 @@ def build(args):
 
         rows = read_jsonl(source_jsonl)
         alpha = Image.open(alpha_image).convert("RGBA").split()[3]
-        kept = [row for row in rows if row_hits_mask(row, alpha, args)]
+        selected = [row for row in rows if row_hits_mask(row, alpha, args)]
+        if args.mode == "filtered":
+            output_rows = selected
+        else:
+            output_rows = list(rows)
+            for boost_index in range(args.duplicate_count):
+                output_rows.extend(boosted_row(row, args.boost_radius_scale, boost_index) for row in selected)
         out_path = os.path.join(sidecar_dir, f"frame_{index:04d}_secondary_3d.jsonl")
-        write_jsonl(out_path, kept)
+        write_jsonl(out_path, output_rows)
         sidecar_bytes += os.path.getsize(out_path)
         source_count = len(rows)
-        filtered_count = len(kept)
+        selected_count = len(selected)
+        output_count = len(output_rows)
         source_particles += source_count
-        filtered_particles += filtered_count
+        selected_particles += selected_count
+        output_particles += output_count
         source_counts = count_channels(rows)
-        filtered_counts = count_channels(kept)
+        selected_counts = count_channels(selected)
+        output_counts = count_channels(output_rows)
         for channel in SECONDARY_CHANNELS:
             source_channel_counts[channel] += source_counts[channel]
-            filtered_channel_counts[channel] += filtered_counts[channel]
+            selected_channel_counts[channel] += selected_counts[channel]
+            output_channel_counts[channel] += output_counts[channel]
         frame_item = dict(source_frame)
         frame_item.update({
             "sidecar": {
@@ -227,19 +257,24 @@ def build(args):
             "source_sidecar_repo_path": posix_rel(source_jsonl, root),
             "mask_repo_path": posix_rel(alpha_image, root),
             "source_count": source_count,
-            "filtered_count": filtered_count,
+            "selected_count": selected_count,
+            "output_count": output_count,
+            "filtered_count": output_count,
             "counts": {
-                "total": filtered_count,
-                **filtered_counts,
+                "total": output_count,
+                **output_counts,
             },
             "available_counts": source_counts,
-            "projected_counts": filtered_counts,
-            "in_frame_counts": filtered_counts,
-            "retention_ratio": filtered_count / float(max(1, source_count)),
+            "selected_counts": selected_counts,
+            "projected_counts": output_counts,
+            "in_frame_counts": output_counts,
+            "selection_ratio": selected_count / float(max(1, source_count)),
+            "output_source_ratio": output_count / float(max(1, source_count)),
         })
         output_frames.append(frame_item)
 
-    retention_ratio = filtered_particles / float(max(1, source_particles))
+    selection_ratio = selected_particles / float(max(1, source_particles))
+    output_source_ratio = output_particles / float(max(1, source_particles))
     summary_path = os.path.join(out_dir, "secondary_3d_sidecar.json")
     summary = {
         "schema": "lsfs_mitsuba_secondary_3d_sidecar",
@@ -260,25 +295,34 @@ def build(args):
             "sha256": sha256_file(mask_path),
         },
         "settings": {
+            "mode": args.mode,
             "alpha_threshold": args.alpha_threshold,
             "sample_radius": args.sample_radius,
             "require_in_frame": args.require_in_frame,
+            "boost_radius_scale": args.boost_radius_scale,
+            "duplicate_count": args.duplicate_count,
         },
         "checks": {
             "frames": len(output_frames),
             "source_particles": source_particles,
-            "filtered_particles": filtered_particles,
-            "retention_ratio": retention_ratio,
+            "selected_particles": selected_particles,
+            "output_particles": output_particles,
+            "filtered_particles": output_particles,
+            "selection_ratio": selection_ratio,
+            "output_source_ratio": output_source_ratio,
+            "retention_ratio": output_source_ratio,
             "missing_references": len(failures),
             "sidecar_bytes": sidecar_bytes,
             "source_channel_counts": source_channel_counts,
-            "filtered_channel_counts": filtered_channel_counts,
-            "secondary_particles": filtered_particles,
-            "in_front_particles": filtered_particles,
-            "in_frame_particles": filtered_particles,
-            "channel_counts": filtered_channel_counts,
-            "channel_projected_counts": filtered_channel_counts,
-            "channel_in_frame_counts": filtered_channel_counts,
+            "selected_channel_counts": selected_channel_counts,
+            "output_channel_counts": output_channel_counts,
+            "filtered_channel_counts": output_channel_counts,
+            "secondary_particles": output_particles,
+            "in_front_particles": output_particles,
+            "in_frame_particles": output_particles,
+            "channel_counts": output_channel_counts,
+            "channel_projected_counts": output_channel_counts,
+            "channel_in_frame_counts": output_channel_counts,
         },
         "frames": output_frames,
         "failures": failures,
@@ -289,7 +333,8 @@ def build(args):
         write_text(resolve_path(args.report), markdown_report(summary, summary_path, root, args.next))
     print(
         f"status={summary['status']} frames={len(output_frames)} "
-        f"filtered={filtered_particles}/{source_particles} ratio={retention_ratio:.6f} "
+        f"selected={selected_particles}/{source_particles} output={output_particles} "
+        f"ratio={output_source_ratio:.6f} "
         f"summary={summary_path}"
     )
 
@@ -299,8 +344,11 @@ def main(argv=None):
     parser.add_argument("sidecar_summary")
     parser.add_argument("mask_source")
     parser.add_argument("out_dir")
+    parser.add_argument("--mode", choices=("filtered", "augment"), default="filtered")
     parser.add_argument("--alpha-threshold", type=int, default=8)
     parser.add_argument("--sample-radius", type=int, default=2)
+    parser.add_argument("--boost-radius-scale", type=float, default=1.0)
+    parser.add_argument("--duplicate-count", type=int, default=1)
     parser.add_argument("--allow-out-of-frame", action="store_false", dest="require_in_frame")
     parser.add_argument("--report")
     parser.add_argument("--title", default="Mitsuba Mask-Filtered Secondary 3D Sidecar")
@@ -310,6 +358,12 @@ def main(argv=None):
         parser.error("alpha-threshold must be in [0, 255]")
     if args.sample_radius < 0:
         parser.error("sample-radius must be non-negative")
+    if args.boost_radius_scale <= 0.0:
+        parser.error("boost-radius-scale must be positive")
+    if args.duplicate_count < 0:
+        parser.error("duplicate-count must be non-negative")
+    if args.mode == "augment" and args.duplicate_count <= 0:
+        parser.error("augment mode requires duplicate-count > 0")
     build(args)
 
 

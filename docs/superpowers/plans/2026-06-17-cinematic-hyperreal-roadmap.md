@@ -4874,3 +4874,24 @@ filtered-only sidecar remains worse than SS1: max target MAD was
 `23.988987911522635` and mean target MAD was `19.222541875643003`. Keep the
 filter as evidence plumbing, but use it as a boost layer on top of SS1 rather
 than a replacement layer.
+
+S399 tested that boost-layer idea directly:
+
+- S399 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-residual-augmented-sidecar.md`
+- S399 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_augmented_secondary_material_ra1_summary_s399.md`
+- S399 updated tool:
+  `tools/filter_mitsuba_secondary_sidecar_by_mask.py`
+- S399 RA1 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_augmented_*_s399.md`
+
+`filter_mitsuba_secondary_sidecar_by_mask.py` now supports `--mode augment`,
+which preserves the full source sidecar and appends boosted duplicates of
+residual-mask-selected particles. RA1 selected `865 / 2877` particles, wrote
+`3742` output sidecar particles, validated with `0` failed checks, and rendered
+`8` frames with `0` failures. It still did not beat SS1: max target MAD was
+`23.98904320987654` and mean target MAD was `19.22306568287037`. This closes
+the sidecar quantity/radius branch for now. The next renderer work should focus
+on BSDF, lighting, water surface transport, and target-free perceptual gates
+rather than more particle-count or radius-only tuning.
