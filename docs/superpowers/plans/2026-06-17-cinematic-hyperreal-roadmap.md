@@ -4480,3 +4480,25 @@ surface-quality CSV: `8 / 8` frames are annotated, with label counts
 This is useful renderer/material metadata, but it is frame-level, so it is too
 coarse to replace the DS6 pixel mask. Next work should project or rasterize
 surface normal/contact evidence spatially.
+
+S380 tested projected water mesh screen masks:
+
+- S380 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-mesh-screen-mask-candidates.md`
+- S380 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_mesh_screen_mask_candidates_sv1_s380.md`
+- S380 new tool:
+  `tools/analyze_mitsuba_water_mesh_screen_masks.py`
+- S380 public quick-tunnel preview:
+  `https://graphical-landscapes-settings-understood.trycloudflare.com/index.html`
+
+This pass projects the water OBJ through the Mitsuba camera and rasterizes
+water coverage plus simple face-normal classes. It does not produce a new
+response candidate. `water_all_secondary_source_luma_0_75` ties the
+DS6-equivalent `secondary_source_luma_0_75` at F1 `0.612175`, which confirms
+that the DS6 mask sits on the water surface. Normal/angle submasks increase
+precision slightly but lose recall: `water_tilt_abs_y_lt_070...` reaches F1
+`0.604012`, `water_camera_facing_060...` reaches `0.600942`, and
+`water_camera_facing_080...` drops to `0.572895`. Water masks are not useful
+highlight evidence either; best water highlight F1 is `0.052949`. Next work
+should use explicit contact particles/contact foam masks or renderer AOV export.
