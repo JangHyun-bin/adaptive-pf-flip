@@ -677,6 +677,10 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         '  </emitter>',
         *key_light_lines(args, camera_target),
         '  <bsdf type="roughdielectric" id="lsfs_water_surface">',
+        *(
+            [f'    <string name="distribution" value="{escape(args.water_distribution)}"/>']
+            if args.water_distribution else []
+        ),
         f'    <float name="alpha" value="{water_alpha:.8g}"/>',
         f'    <float name="int_ior" value="{water_int_ior:.8g}"/>',
         f'    <float name="ext_ior" value="{water_ext_ior:.8g}"/>',
@@ -895,6 +899,7 @@ def export_mitsuba(args):
             "camera_fov_override": args.camera_fov,
             "background_radiance_override": args.background_radiance_vec,
             "water_alpha_override": args.water_alpha,
+            "water_distribution": args.water_distribution,
             "water_int_ior_override": args.water_int_ior,
             "water_ext_ior_override": args.water_ext_ior,
             "water_specular_transmittance": args.water_specular_transmittance_vec,
@@ -982,6 +987,7 @@ def markdown_report(export, out_path, root):
         f"- Camera target override: `{export.get('render_settings', {}).get('camera_target_override')}`",
         f"- Camera FOV override: `{export.get('render_settings', {}).get('camera_fov_override')}`",
         f"- Water alpha override: `{export.get('render_settings', {}).get('water_alpha_override')}`",
+        f"- Water distribution: `{export.get('render_settings', {}).get('water_distribution')}`",
         f"- Water int IOR override: `{export.get('render_settings', {}).get('water_int_ior_override')}`",
         f"- Water ext IOR override: `{export.get('render_settings', {}).get('water_ext_ior_override')}`",
         f"- Water specular transmittance: `{export.get('render_settings', {}).get('water_specular_transmittance')}`",
@@ -1078,6 +1084,8 @@ def main(argv=None):
                         help="override constant emitter radiance as r,g,b")
     parser.add_argument("--water-alpha", type=float,
                         help="override roughdielectric alpha for the water surface")
+    parser.add_argument("--water-distribution", choices=("ggx", "beckmann"),
+                        help="optional roughdielectric microfacet distribution for the water surface")
     parser.add_argument("--water-int-ior", type=float,
                         help="override roughdielectric internal IOR for the water surface")
     parser.add_argument("--water-ext-ior", type=float,
