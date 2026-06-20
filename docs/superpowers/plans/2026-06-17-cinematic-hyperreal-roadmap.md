@@ -4502,3 +4502,27 @@ precision slightly but lose recall: `water_tilt_abs_y_lt_070...` reaches F1
 `water_camera_facing_080...` drops to `0.572895`. Water masks are not useful
 highlight evidence either; best water highlight F1 is `0.052949`. Next work
 should use explicit contact particles/contact foam masks or renderer AOV export.
+
+S381 tested explicit contact foam and impact ripple masks:
+
+- S381 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-contact-particle-mask-candidates.md`
+- S381 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_contact_particle_mask_candidates_sv1_s381.md`
+- S381 new tool:
+  `tools/analyze_mitsuba_contact_particle_masks.py`
+- S381 public quick-tunnel preview:
+  `https://motivation-asthma-gilbert-gabriel.trycloudflare.com/index.html`
+
+This pass reproduces the Blender bridge contact foam and impact ripple particle
+selection, projects those patches through the Mitsuba camera, and compares them
+against the target-dark secondary diagnostic. It is rejected as a replacement
+mask. The DS6-equivalent `secondary_source_luma_0_75` remains at F1
+`0.612175`, while the best default contact mask
+`contact_foam_or_ripple_secondary_source_luma_0_85` reaches only F1
+`0.271314`. Enlarging the projected contact/ripple patches helps but still
+does not close the gap: `r150` reaches `0.311431`, `r250` reaches `0.359728`,
+and `r400` reaches `0.402618`. Existing secondary/contact geometry has now been
+exhausted as a better target-free dark-secondary mask. Next practical work
+should either apply a bounded visual/material response using DS6, or export
+renderer AOVs for richer screen-space shading state.
