@@ -3882,3 +3882,24 @@ as the current bridge target when max-frame stability is the gate, but do not
 count it as a native renderer replacement. The next large visual-quality step
 should return to native material/secondary representation or export a proper
 depth-aware 3D secondary cache instead of increasing post-render blend tuning.
+
+S351 tested native Mitsuba material and secondary proxy tuning around TB6:
+
+- S351 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-native-material-sweep.md`
+- S351 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_material_sweep_summary_s351.md`
+- S351 best control candidate:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_material_mw7_candidate_gap_s351.md`
+- S351 C1E comparison for MW7:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_material_mw7_c1e_gap_s351.md`
+
+S351 shows that water roughness changes are nearly neutral, while progressively
+attenuating current secondary proxies gives only tiny gains until the
+no-secondary-proxy MW7 control. MW7 lowers native max target MAD from TB6
+`24.390221193415638` to `23.951992669753086` and lowers max native-to-C1E MAD
+from `22.504146` to `22.125309284979423`, but increases max contract MAD from
+`24.992857767489712` to `25.512461419753087`. This is a diagnostic win, not an
+acceptance win: the current native proxy-secondary representation is not the
+right replacement path. Continue with an MW7/no-secondary-proxy background
+control sweep or implement a proper depth-aware 3D secondary cache/export path.
