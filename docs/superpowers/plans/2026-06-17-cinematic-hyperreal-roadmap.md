@@ -4569,3 +4569,23 @@ further: DR3 reaches `23.579101080246913`, and DR5 reaches
 `23.580107317386833`. Keep DS6 as the current target-free baseline, keep the
 ring response disabled by default, and move next to richer renderer-side AOVs
 or material/volume evidence rather than broader screen-space darkening.
+
+S384 built renderer-side water material AOV evidence:
+
+- S384 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-material-aov-package.md`
+- S384 report:
+  `docs/reports/2026-06-20-s384-mitsuba-water-material-aov-package-sv1.md`
+- S384 new tool:
+  `tools/build_mitsuba_water_material_aov_package.py`
+
+The package rasterizes water coverage, depth-near, camera-facing, normal-y
+flatness, silhouette edge, screen-thickness proxy, and absorption proxy through
+the Mitsuba camera, then builds a 14-panel AOV grid for all 8 frames. It also
+tests 33 material-AOV candidate masks against the target-dark-secondary
+diagnostic. DS6 remains best at F1 `0.6121749824314828`; the best new material
+AOV candidate, `water_facing_ge_160_secondary_source_luma_0_95`, reaches only
+F1 `0.210744`. The material AOVs show the residual is on the water body, but
+they are too broad for direct response. Next work should localize residuals
+inside these AOVs using secondary channel density, visibility state, or a
+renderer-side shadow/occlusion cue rather than applying global absorption.
