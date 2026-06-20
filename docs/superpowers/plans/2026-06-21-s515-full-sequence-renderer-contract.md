@@ -117,6 +117,10 @@ replace.
   accepted visual gate.
 - S593 published the S592 full48 backend-output promotion gate through a
   Cloudflare quick tunnel for direct external visual review.
+- S594 converted the S591/S592 full48 scene-cache backend gate into a
+  renderer-native material package with 48 frame-local Mitsuba roughdielectric
+  snippets, localized mask texture bindings, material-parameter ranges, visual
+  intent strips, and a gallery.
 
 ## Key Artifacts
 
@@ -216,6 +220,8 @@ replace.
   `https://outputs-murray-phil-beads.trycloudflare.com`
 - Renderer scene depth/material backend output compare publish:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_backend_output_compare_publish_s593.md`
+- Renderer scene depth/material native material package:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_material_package_s594.md`
 
 ## Verification
 
@@ -508,6 +514,22 @@ replace.
   - `GET /index.html`: `200`
   - `HEAD /assets/backend_compare_strips.gif`: `200`
   - GIF bytes: `30572999`
+- S594 renderer scene depth/material native material package:
+  - `status=ready`
+  - frames: `48`
+  - missing references: `0`
+  - material snippets: `48`
+  - texture bindings: `48`
+  - max backend-vs-target abs diff: `0`
+  - max backend-vs-target mean diff: `0.0`
+  - max backend-vs-accepted abs diff: `5`
+  - max backend-vs-accepted mean diff: `0.4139242541152263`
+  - alpha range: `0.008699999999999998` .. `0.011999999999999999`
+  - mask weight range: `0.625` .. `0.74875`
+  - material package gallery:
+    `build/shots/s594_mitsuba_renderer_scene_depth_material_native_material_package/gallery/index.html`
+  - material intent GIF:
+    `build/shots/s594_mitsuba_renderer_scene_depth_material_native_material_package/gallery/assets/native_material_intent.gif`
 
 ## Current Meaning
 
@@ -545,7 +567,10 @@ now reproducible through:
    through the same external backend process boundary,
 17. a full48 backend promotion gate that compares the S591 output against both
    the S585 target and S577 accepted visual gate,
-18. a public visual review URL for that full48 backend promotion gate.
+18. a public visual review URL for that full48 backend promotion gate,
+19. a full48 renderer-native material package with per-frame Mitsuba material
+   snippets and localized texture bindings derived from the validated S591/S592
+   contract.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -577,7 +602,10 @@ scene-cache direct backend path holds across all 48 frames. S592 confirms that
 the full48 backend result is ready to feed the next renderer-native material
 implementation step: backend-target parity is exact, and accepted-gate movement
 is still bounded to max abs diff `5` and max mean diff `0.4139242541152263`.
-S593 publishes the full48 backend gate for direct inspection.
+S593 publishes the full48 backend gate for direct inspection. S594 turns the
+validated backend/gate contract into renderer-native material inputs, so the
+next step can patch or generate Mitsuba XML scenes instead of hand-translating
+image-space controls.
 
 ## Next
 
@@ -587,8 +615,8 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Start the renderer-native material implementation from the S591/S592
-   descriptor, process, and promotion-gate contract.
+4. Bind the S594 material package to a Mitsuba XML water-material sample and
+   render a bounded frame subset through the native renderer path.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
