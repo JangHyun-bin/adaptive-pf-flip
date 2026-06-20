@@ -24,6 +24,12 @@ from build_mitsuba_renderer_target_preview import (
     require_pillow,
 )
 
+MASK_SOURCE_SCHEMAS = {
+    "lsfs_mitsuba_depth_aware_secondary_composite",
+    "lsfs_mitsuba_secondary_composite",
+    "lsfs_mitsuba_composite_grade",
+}
+
 
 def resolve_path(path):
     if not path:
@@ -248,9 +254,39 @@ def source_entry(path, root, label, payload=None):
     return entry
 
 
+def mask_source_label(payload):
+    schema = (payload or {}).get("schema")
+    if schema == "lsfs_mitsuba_depth_aware_secondary_composite":
+        return "depth-aware composite summary"
+    if schema == "lsfs_mitsuba_secondary_composite":
+        return "secondary composite summary"
+    if schema == "lsfs_mitsuba_composite_grade":
+        return "composite grade summary"
+    return "mask source summary"
+
+
+def mask_layer_ref(frame):
+    if not frame:
+        return None
+    direct = (
+        frame.get("secondary_layer_repo_path")
+        or frame.get("secondary_layer_path")
+        or frame.get("layer_repo_path")
+        or frame.get("layer_path")
+    )
+    if direct:
+        return direct
+    nested = frame.get("secondary_layer") or frame.get("layer")
+    if isinstance(nested, dict):
+        return nested.get("repo_path") or nested.get("path")
+    return None
+
+
 def markdown_report(export, export_path, root, next_text):
     checks = export.get("checks", {})
     card = export.get("secondary_screen_card") or {}
+    sources = export.get("sources") or {}
+    mask_source = sources.get("mask_source") or sources.get("depth_aware_composite") or {}
     lines = [
         f"# {export['title']}",
         "",
@@ -261,7 +297,8 @@ def markdown_report(export, export_path, root, next_text):
         "## Inputs",
         "",
         f"- Base export: `{export['sources']['base_export']['repo_path']}`",
-        f"- Depth-aware composite: `{export['sources']['depth_aware_composite']['repo_path']}`",
+        f"- Mask source: `{mask_source.get('repo_path')}`",
+        f"- Mask source schema: `{mask_source.get('schema')}`",
         "",
         "## Screen Card",
         "",
@@ -314,16 +351,17 @@ def add_cards(args):
     require_pillow()
     root = os.getcwd()
     base_export_path = require_file(args.base_export, "base Mitsuba XML export")
-    bridge_path = require_file(args.depth_aware_composite, "depth-aware composite summary")
+    bridge_path = require_file(args.depth_aware_composite, "mask source summary")
     base = read_json(base_export_path)
     bridge = read_json(bridge_path)
     if base.get("schema") != "lsfs_mitsuba_xml_export":
         raise SystemExit(f"{args.base_export}: expected lsfs_mitsuba_xml_export schema")
     if base.get("status") != "ready":
         raise SystemExit(f"{args.base_export}: base export status is {base.get('status')!r}")
-    if bridge.get("schema") != "lsfs_mitsuba_depth_aware_secondary_composite":
-        raise SystemExit(f"{args.depth_aware_composite}: expected lsfs_mitsuba_depth_aware_secondary_composite schema")
-    if bridge.get("status") != "ready":
+    if bridge.get("schema") not in MASK_SOURCE_SCHEMAS:
+        expected = ", ".join(sorted(MASK_SOURCE_SCHEMAS))
+        raise SystemExit(f"{args.depth_aware_composite}: expected one of {expected}")
+    if bridge.get("status") and bridge.get("status") != "ready":
         raise SystemExit(f"{args.depth_aware_composite}: bridge status is {bridge.get('status')!r}")
 
     render_settings = base.get("render_settings") or {}
@@ -353,7 +391,7 @@ def add_cards(args):
         output_frame = frame.get("output_frame")
         bridge_frame = bridge_frames.get(output_frame)
         source_xml = resolve_path(((frame.get("xml_scene") or {}).get("path") or (frame.get("xml_scene") or {}).get("repo_path")))
-        layer_path = resolve_path((bridge_frame or {}).get("secondary_layer_repo_path"))
+        layer_path = resolve_path(mask_layer_ref(bridge_frame))
         missing = []
         if not source_xml or not os.path.isfile(source_xml):
             missing.append({"role": "source_xml", "path": source_xml})
@@ -426,6 +464,7 @@ def add_cards(args):
         }
         out_frame["secondary_screen_card"] = {
             "enabled": True,
+            "source_mask_layer_repo_path": posix_rel(layer_path, root),
             "source_secondary_layer_repo_path": posix_rel(layer_path, root),
             "mask_path": mask_path,
             "mask_repo_path": posix_rel(mask_path, root),
@@ -448,6 +487,14 @@ def add_cards(args):
         (base.get("render_settings") or {}).get("mitsuba_mode"),
     )
     export = copy.deepcopy(base)
+    source_label = mask_source_label(bridge)
+    sources = {
+        "base_export": source_entry(base_export_path, root, "base Mitsuba XML export", base),
+        "mask_source": source_entry(bridge_path, root, source_label, bridge),
+    }
+    if bridge.get("schema") == "lsfs_mitsuba_depth_aware_secondary_composite":
+        sources["depth_aware_composite"] = sources["mask_source"]
+
     export.update({
         "schema": "lsfs_mitsuba_xml_export",
         "version": 1,
@@ -460,10 +507,7 @@ def add_cards(args):
             "sha256": sha256_file(command_list),
             "size": os.path.getsize(command_list),
         },
-        "sources": {
-            "base_export": source_entry(base_export_path, root, "base Mitsuba XML export", base),
-            "depth_aware_composite": source_entry(bridge_path, root, "depth-aware composite summary", bridge),
-        },
+        "sources": sources,
         "frames": frames,
         "failures": failures,
         "secondary_screen_card": {
@@ -485,6 +529,7 @@ def add_cards(args):
             "sprite_radiance": args.sprite_radiance,
             "sprite_alpha_scale": args.sprite_alpha_scale,
             "sprite_alpha_power": args.sprite_alpha_power,
+            "mask_source_schema": bridge.get("schema"),
         },
     })
     export["render_settings"]["secondary_screen_card_enabled"] = True

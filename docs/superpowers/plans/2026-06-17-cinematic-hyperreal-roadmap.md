@@ -4800,3 +4800,26 @@ RV1 reaches `23.989178883744856`, and OR1 reaches `23.989264403292182`.
 Broad renderer-side visibility boosts are therefore not the replacement for
 CR21. Next work should localize renderer response using screen/visibility
 evidence such as SV1-cache or the CR21 channel-local mask.
+
+S396 tested a localized SV1 mask source with the native Mitsuba screen-card path:
+
+- S396 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-localized-screen-card.md`
+- S396 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sv1_local_screen_card_summary_s396.md`
+- S396 export/render/gap reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_sv1_local_screen_card_*_s396.md`
+- S396 updated tool:
+  `tools/add_mitsuba_secondary_screen_cards.py`
+
+The screen-card tool now accepts `lsfs_mitsuba_depth_aware_secondary_composite`,
+`lsfs_mitsuba_secondary_composite`, and `lsfs_mitsuba_composite_grade` as mask
+sources, while preserving the existing positional CLI. The S396 SV1-local
+candidate exported and rendered `8` frames with `0` missing references and `0`
+render failures, but did not beat SS1: max target MAD was
+`23.988894675925927` versus SS1 at `23.951853137860084`, and mean target MAD
+was `19.222715486754115` versus SS1 at `19.146412117412552`. Keep the mask
+source compatibility, but do not continue broad diffuse screen-card overlays as
+the CR21 replacement. Next work should attach the local response to actual
+secondary/material/AOV data or convert residual-mask analysis into a single
+alpha mask for a narrower native render experiment.
