@@ -28,6 +28,7 @@ MASK_SOURCE_SCHEMAS = {
     "lsfs_mitsuba_depth_aware_secondary_composite",
     "lsfs_mitsuba_secondary_composite",
     "lsfs_mitsuba_composite_grade",
+    "lsfs_mitsuba_source_response_mask_source",
 }
 
 
@@ -262,6 +263,8 @@ def mask_source_label(payload):
         return "secondary composite summary"
     if schema == "lsfs_mitsuba_composite_grade":
         return "composite grade summary"
+    if schema == "lsfs_mitsuba_source_response_mask_source":
+        return "source-response mask source"
     return "mask source summary"
 
 
@@ -305,6 +308,7 @@ def markdown_report(export, export_path, root, next_text):
         f"- Card distance: `{card.get('card_distance')}`",
         f"- Card mode: `{card.get('card_mode')}`",
         f"- Card scale: `{card.get('card_scale')}`",
+        f"- ID prefix: `{card.get('id_prefix')}`",
         f"- Mask gain: `{card.get('mask_gain')}`",
         f"- Mask blur radius: `{card.get('mask_blur_radius')}`",
         f"- Flip Y: `{card.get('flip_y')}`",
@@ -405,7 +409,7 @@ def add_cards(args):
         mask_path = os.path.join(mask_dir, f"{base_name}.png")
         xml_out = os.path.join(scene_dir, f"{base_name}.xml")
         mask = build_mask(layer_path, mask_path, args)
-        card_id = f"lsfs_secondary_screen_card_{index:04d}"
+        card_id = f"{args.id_prefix}_{index:04d}"
         camera_position_f = [float(item) for item in camera_position]
         camera_target_f = [float(item) for item in camera_target]
         camera_up_f = [float(item) for item in camera_up]
@@ -515,6 +519,7 @@ def add_cards(args):
             "card_mode": args.card_mode,
             "card_distance": args.card_distance,
             "card_scale": args.card_scale,
+            "id_prefix": args.id_prefix,
             "camera_fov": args.camera_fov,
             "film_width": args.film_width,
             "film_height": args.film_height,
@@ -579,6 +584,7 @@ def main(argv=None):
     parser.add_argument("--card-distance", type=float, default=18.0)
     parser.add_argument("--card-mode", choices=("rectangle", "sprites", "both"), default="rectangle")
     parser.add_argument("--card-scale", type=float, default=1.0)
+    parser.add_argument("--id-prefix", default="lsfs_secondary_screen_card")
     parser.add_argument("--mask-gain", type=float, default=0.6)
     parser.add_argument("--mask-blur-radius", type=float, default=1.5)
     parser.add_argument("--reflectance", default="0.70,0.84,0.96")
@@ -607,6 +613,8 @@ def main(argv=None):
         parser.error("card-distance must be positive")
     if args.card_scale <= 0.0:
         parser.error("card-scale must be positive")
+    if not args.id_prefix or not all(ch.isalnum() or ch in "_-" for ch in args.id_prefix):
+        parser.error("id-prefix must be non-empty and contain only letters, digits, underscores, or hyphens")
     if args.card_mode in ("sprites", "both") and args.sprite_limit <= 0:
         parser.error("sprite-limit must be positive when card-mode uses sprites")
     if args.mask_gain <= 0.0:
