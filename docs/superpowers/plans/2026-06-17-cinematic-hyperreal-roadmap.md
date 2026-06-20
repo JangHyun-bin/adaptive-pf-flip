@@ -5284,3 +5284,33 @@ speckled, and it does not recover the connected highlight plus dark-water band
 visible in the S409/S401 evidence. S417 should combine WP4 with accepted SF12
 dark attenuation or move the water/highlight evidence into a true renderer-side
 texture or volume mask.
+
+S417 tested the planned WP4 plus SF12 family and isolated the useful part:
+
+- S417 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-wp4-light-only.md`
+- S417 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_wp4_light_only_summary_s417.md`
+- S417 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_wp4_light_only_sweep_summary_s417.md`
+- S417 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_wp4_light_only_compare_s417.md`
+- S417 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_wp4_light_only_compare_publish_s417.md`
+- S417 public quick-tunnel URL:
+  `https://fires-factors-can-eugene.trycloudflare.com/index.html`
+- S417 new tool:
+  `tools/build_mitsuba_render_response_input.py`
+
+The new wrapper tool lets existing source-region response scripts run on native
+Mitsuba render previews by preserving secondary layer metadata and swapping the
+source image to the render preview. The planned WP4 plus SF12 dark-band path is
+rejected: `S417_WP4_SF12_DarkOnly` max target MAD is `24.156141975308643`, and
+`S417_WP4_SF12_H18` is `24.126077031893004`, both worse than WP4. The useful
+direction is light-only response over WP4. `S417_WP4_H18_D90` is the best S417
+candidate with max target MAD `23.948739068930042`, a small improvement over
+SS1 `23.951853137860084` and S416 WP4 `23.97967785493827`, but still far
+behind S409 `SF12_H18` `23.687431841563786` and S401 CR21
+`23.552905092592592`. S418 should migrate this light-only behavior into
+renderer-native water texture, area patch, or volume/emission controls instead
+of applying it as a post-response grade.
