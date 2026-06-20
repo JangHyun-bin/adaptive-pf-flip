@@ -4325,3 +4325,24 @@ by about `-76.279920` luma and target-dark secondary pixels too bright by about
 from render-cache geometry, projected secondary channel metadata, or
 surface-normal/material evidence instead of making screen-space source luma
 rules stronger.
+
+S373 diagnosed target-free mask candidates for the two remaining region classes:
+
+- S373 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-region-mask-candidates.md`
+- S373 mask report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_region_mask_candidates_sv1_s373.md`
+- S373 public quick-tunnel preview:
+  `https://bind-apps-continent-francisco.trycloudflare.com/index.html`
+- S373 new tool:
+  `tools/analyze_mitsuba_region_mask_candidates.py`
+
+The best target-highlight candidate is `source_highlight_120` with precision
+`0.997656`, recall `0.800290`, and F1 `0.888140`, so the highlight path is
+well explained by source luminance. The best target-dark-secondary candidate is
+only `secondary_source_luma_20_105` with precision `0.086989`, recall
+`0.965468`, and F1 `0.159599`; it is broad, not selective. This explains why
+S372 highlight-only helped but source-luma darkening hurt the hard gate. Next
+work should add richer secondary-dark evidence from projected secondary channel
+metadata, local layer density/shape, depth ordering, or surface/normal contact
+signals.
