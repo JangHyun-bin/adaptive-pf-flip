@@ -46,27 +46,97 @@ def normalized_path(path):
     return os.path.normcase(os.path.abspath(str(path).replace("/", os.sep)))
 
 
-def response_bsdf_block(args):
+def response_bsdf_block(
+    args,
+    bsdf_id=RESPONSE_BSDF_ID,
+    alpha=None,
+    specular_reflectance=None,
+    specular_transmittance=None,
+):
+    if alpha is None:
+        alpha = args.response_alpha
+    if specular_reflectance is None:
+        specular_reflectance = args.response_specular_reflectance_vec
+    if specular_transmittance is None:
+        specular_transmittance = args.response_specular_transmittance_vec
     lines = [
-        f'  <bsdf type="roughdielectric" id="{RESPONSE_BSDF_ID}">',
+        f'  <bsdf type="roughdielectric" id="{bsdf_id}">',
     ]
     if args.distribution != "none":
         lines.append(f'    <string name="distribution" value="{args.distribution}"/>')
     lines.extend([
-        f'    <float name="alpha" value="{fmt(args.response_alpha)}"/>',
+        f'    <float name="alpha" value="{fmt(alpha)}"/>',
         f'    <float name="int_ior" value="{fmt(args.int_ior)}"/>',
         f'    <float name="ext_ior" value="{fmt(args.ext_ior)}"/>',
     ])
-    if args.response_specular_reflectance_vec is not None:
+    if specular_reflectance is not None:
         lines.append(
-            f'    <rgb name="specular_reflectance" value="{csv3(args.response_specular_reflectance_vec)}"/>'
+            f'    <rgb name="specular_reflectance" value="{csv3(specular_reflectance)}"/>'
         )
-    if args.response_specular_transmittance_vec is not None:
+    if specular_transmittance is not None:
         lines.append(
-            f'    <rgb name="specular_transmittance" value="{csv3(args.response_specular_transmittance_vec)}"/>'
+            f'    <rgb name="specular_transmittance" value="{csv3(specular_transmittance)}"/>'
         )
     lines.append("  </bsdf>")
     return "\n".join(lines)
+
+
+def lerp(a, b, t):
+    return float(a) + (float(b) - float(a)) * float(t)
+
+
+def lerp_vec3(a, b, t):
+    if a is None and b is None:
+        return None
+    if a is None:
+        a = b
+    if b is None:
+        b = a
+    return [lerp(a[index], b[index], t) for index in range(3)]
+
+
+def resolved_bin_specs(args):
+    count = max(1, int(args.response_bin_count))
+    strong_alpha = args.response_bin_alpha_strong
+    weak_alpha = args.response_bin_alpha_weak
+    if strong_alpha is None:
+        strong_alpha = args.response_alpha
+    if weak_alpha is None:
+        weak_alpha = args.response_alpha
+    strong_reflectance = args.response_bin_specular_reflectance_strong_vec
+    weak_reflectance = args.response_bin_specular_reflectance_weak_vec
+    if strong_reflectance is None:
+        strong_reflectance = args.response_specular_reflectance_vec
+    if weak_reflectance is None:
+        weak_reflectance = args.response_specular_reflectance_vec
+    strong_transmittance = args.response_bin_specular_transmittance_strong_vec
+    weak_transmittance = args.response_bin_specular_transmittance_weak_vec
+    if strong_transmittance is None:
+        strong_transmittance = args.response_specular_transmittance_vec
+    if weak_transmittance is None:
+        weak_transmittance = args.response_specular_transmittance_vec
+
+    specs = []
+    for index in range(count):
+        t = index / float(max(1, count - 1))
+        specs.append({
+            "index": index,
+            "bsdf_id": RESPONSE_BSDF_ID if count == 1 else f"{RESPONSE_BSDF_ID}_{index:02d}",
+            "alpha": lerp(strong_alpha, weak_alpha, t),
+            "specular_reflectance": lerp_vec3(strong_reflectance, weak_reflectance, t),
+            "specular_transmittance": lerp_vec3(strong_transmittance, weak_transmittance, t),
+        })
+    return specs
+
+
+def partition_selected_faces(selected, specs):
+    if len(specs) <= 1:
+        return [{"spec": specs[0], "faces": selected}]
+    bins = [{"spec": spec, "faces": []} for spec in specs]
+    for index, item in enumerate(selected):
+        bin_index = min(len(specs) - 1, int(index * len(specs) / max(1, len(selected))))
+        bins[bin_index]["faces"].append(item)
+    return [item for item in bins if item["faces"]]
 
 
 def insert_response_bsdf(xml_text, block):
@@ -90,7 +160,7 @@ def shape_block(shape_id, mesh_path, bsdf_id):
     ])
 
 
-def replace_water_shape(xml_text, source_mesh, remainder_mesh, response_mesh, frame_index):
+def replace_water_shape(xml_text, source_mesh, remainder_mesh, response_shapes, frame_index):
     source_norm = normalized_path(source_mesh)
     pattern = re.compile(r'(?P<block>\s*<shape\s+type="obj"(?:\s+id="[^"]+")?>.*?</shape>)', re.DOTALL)
     for match in pattern.finditer(xml_text):
@@ -102,10 +172,18 @@ def replace_water_shape(xml_text, source_mesh, remainder_mesh, response_mesh, fr
             continue
         if normalized_path(filename.group(1)) != source_norm:
             continue
-        replacement = "\n".join([
+        replacement_shapes = [
             shape_block(f"lsfs_s421_water_remainder_{frame_index:04d}", remainder_mesh, "lsfs_water_surface"),
-            shape_block(f"lsfs_s421_water_mask_material_{frame_index:04d}", response_mesh, RESPONSE_BSDF_ID),
-        ])
+        ]
+        for response_shape in response_shapes:
+            replacement_shapes.append(
+                shape_block(
+                    f"lsfs_s421_water_mask_material_{frame_index:04d}_{response_shape['bin_index']:02d}",
+                    response_shape["mesh_path"],
+                    response_shape["bsdf_id"],
+                )
+            )
+        replacement = "\n".join(replacement_shapes)
         return xml_text[:match.start()] + "\n" + replacement + xml_text[match.end():], 1
     raise ValueError(f"missing water shape for {source_mesh}")
 
@@ -148,6 +226,7 @@ def markdown_report(export, export_path, root, next_text):
         f"- Face limit: `{settings.get('face_limit')}`",
         f"- Face stride: `{settings.get('face_stride')}`",
         f"- Response alpha: `{settings.get('response_alpha')}`",
+        f"- Response bins: `{settings.get('response_bin_count')}`",
         f"- Distribution: `{settings.get('distribution')}`",
         f"- IOR: `{settings.get('ext_ior')} -> {settings.get('int_ior')}`",
         f"- Specular reflectance: `{settings.get('response_specular_reflectance')}`",
@@ -215,6 +294,7 @@ def split_material(args):
     os.makedirs(mesh_dir, exist_ok=True)
 
     mask_frames = output_frame_map(mask_source.get("frames") or [])
+    bin_specs = resolved_bin_specs(args)
     frames = []
     failures = []
     totals = {
@@ -260,16 +340,62 @@ def split_material(args):
             continue
 
         base_name = f"frame_{index:04d}"
-        response_mesh = os.path.join(mesh_dir, f"{base_name}_water_mask_material.obj")
         remainder_mesh = os.path.join(mesh_dir, f"{base_name}_water_remainder.obj")
-        response_stats = write_selected_obj(response_mesh, vertices, selected, args.response_y_lift, args.reverse_faces)
+        response_shapes = []
+        response_bins = []
+        for bin_item in partition_selected_faces(selected, bin_specs):
+            spec = bin_item["spec"]
+            bin_selected = bin_item["faces"]
+            suffix = "" if len(bin_specs) == 1 else f"_bin{spec['index']:02d}"
+            response_mesh = os.path.join(mesh_dir, f"{base_name}_water_mask_material{suffix}.obj")
+            response_stats = write_selected_obj(response_mesh, vertices, bin_selected, args.response_y_lift, args.reverse_faces)
+            response_shapes.append({
+                "bin_index": spec["index"],
+                "mesh_path": response_mesh,
+                "bsdf_id": spec["bsdf_id"],
+            })
+            response_bins.append({
+                "bin_index": spec["index"],
+                "bsdf_id": spec["bsdf_id"],
+                "response_mesh_repo_path": posix_rel(response_mesh, root),
+                "response_mesh_sha256": sha256_file(response_mesh),
+                "faces": response_stats["faces"],
+                "vertices": response_stats["vertices"],
+                "bytes": response_stats["bytes"],
+                "alpha": spec["alpha"],
+                "specular_reflectance": spec["specular_reflectance"],
+                "specular_transmittance": spec["specular_transmittance"],
+                "face_samples": [
+                    {
+                        "centroid": [float(v) for v in item["centroid"]],
+                        "screen": [float(item["screen"][0]), float(item["screen"][1])],
+                        "depth": float(item["depth"]),
+                        "mask_value": int(item["mask_value"]),
+                        "source_luma": item["source_luma"],
+                    }
+                    for item in bin_selected[:4]
+                ],
+            })
+            totals["response_faces"] += response_stats["faces"]
+            totals["response_vertices"] += response_stats["vertices"]
+            totals["response_bytes"] += response_stats["bytes"]
         remainder_stats = write_selected_obj(remainder_mesh, vertices, remainder, 0.0, args.reverse_faces)
 
         with open(source_xml, encoding="utf-8") as f:
             xml_text = f.read()
-        patched, count = insert_response_bsdf(xml_text, response_bsdf_block(args))
+        bsdf_blocks = "\n".join(
+            response_bsdf_block(
+                args,
+                spec["bsdf_id"],
+                spec["alpha"],
+                spec["specular_reflectance"],
+                spec["specular_transmittance"],
+            )
+            for spec in bin_specs
+        )
+        patched, count = insert_response_bsdf(xml_text, bsdf_blocks)
         totals["response_bsdf_insertions"] += count
-        patched, count = replace_water_shape(patched, water_mesh, remainder_mesh, response_mesh, index)
+        patched, count = replace_water_shape(patched, water_mesh, remainder_mesh, response_shapes, index)
         totals["water_shape_replacements"] += count
         patched = add_response_comment(
             patched,
@@ -280,9 +406,6 @@ def split_material(args):
         write_text(xml_out, patched)
         totals["xml_scene_bytes"] += os.path.getsize(xml_out)
         totals["candidate_faces"] += len(selected)
-        totals["response_faces"] += response_stats["faces"]
-        totals["response_vertices"] += response_stats["vertices"]
-        totals["response_bytes"] += response_stats["bytes"]
         totals["remainder_faces"] += remainder_stats["faces"]
         totals["remainder_vertices"] += remainder_stats["vertices"]
         totals["remainder_bytes"] += remainder_stats["bytes"]
@@ -302,9 +425,9 @@ def split_material(args):
         out_frame["water_mask_material_response"] = {
             "enabled": True,
             "water_mesh_repo_path": posix_rel(water_mesh, root),
-            "response_mesh_repo_path": posix_rel(response_mesh, root),
+            "response_mesh_repo_path": response_bins[0]["response_mesh_repo_path"] if len(response_bins) == 1 else None,
             "remainder_mesh_repo_path": posix_rel(remainder_mesh, root),
-            "response_mesh_sha256": sha256_file(response_mesh),
+            "response_mesh_sha256": response_bins[0]["response_mesh_sha256"] if len(response_bins) == 1 else None,
             "remainder_mesh_sha256": sha256_file(remainder_mesh),
             "mask_layer_path": mask_path,
             "mask_layer_repo_path": posix_rel(mask_path, root),
@@ -312,9 +435,10 @@ def split_material(args):
             "water_vertices": len(vertices),
             "water_faces": len(faces),
             "candidate_faces": len(selected),
-            "response_faces": response_stats["faces"],
-            "response_vertices": response_stats["vertices"],
-            "response_bytes": response_stats["bytes"],
+            "response_faces": sum(item["faces"] for item in response_bins),
+            "response_vertices": sum(item["vertices"] for item in response_bins),
+            "response_bytes": sum(item["bytes"] for item in response_bins),
+            "response_bins": response_bins,
             "remainder_faces": remainder_stats["faces"],
             "remainder_vertices": remainder_stats["vertices"],
             "remainder_bytes": remainder_stats["bytes"],
@@ -361,6 +485,14 @@ def split_material(args):
             "enabled": True,
             "face_limit": args.face_limit,
             "face_stride": args.face_stride,
+            "response_bin_count": args.response_bin_count,
+            "response_bin_alpha_strong": args.response_bin_alpha_strong,
+            "response_bin_alpha_weak": args.response_bin_alpha_weak,
+            "response_bin_specular_reflectance_strong": args.response_bin_specular_reflectance_strong_vec,
+            "response_bin_specular_reflectance_weak": args.response_bin_specular_reflectance_weak_vec,
+            "response_bin_specular_transmittance_strong": args.response_bin_specular_transmittance_strong_vec,
+            "response_bin_specular_transmittance_weak": args.response_bin_specular_transmittance_weak_vec,
+            "response_bin_specs": bin_specs,
             "response_alpha": args.response_alpha,
             "response_y_lift": args.response_y_lift,
             "distribution": args.distribution,
@@ -411,12 +543,19 @@ def main(argv=None):
     parser.add_argument("--source-luma-min", type=float, default=0.0)
     parser.add_argument("--source-luma-max", type=float, default=255.0)
     parser.add_argument("--response-alpha", type=float, default=0.006)
+    parser.add_argument("--response-bin-count", type=int, default=1)
+    parser.add_argument("--response-bin-alpha-strong", type=float)
+    parser.add_argument("--response-bin-alpha-weak", type=float)
     parser.add_argument("--response-y-lift", type=float, default=0.0)
     parser.add_argument("--distribution", choices=["ggx", "beckmann", "none"], default="ggx")
     parser.add_argument("--int-ior", type=float, default=1.333)
     parser.add_argument("--ext-ior", type=float, default=1.0)
     parser.add_argument("--response-specular-reflectance")
     parser.add_argument("--response-specular-transmittance")
+    parser.add_argument("--response-bin-specular-reflectance-strong")
+    parser.add_argument("--response-bin-specular-reflectance-weak")
+    parser.add_argument("--response-bin-specular-transmittance-strong")
+    parser.add_argument("--response-bin-specular-transmittance-weak")
     parser.add_argument("--reverse-faces", action="store_true")
     parser.add_argument("--depth-penalty", type=float, default=0.01)
     parser.add_argument("--report")
@@ -438,6 +577,12 @@ def main(argv=None):
         parser.error("source-luma-min cannot exceed source-luma-max")
     if args.response_alpha <= 0.0:
         parser.error("response-alpha must be positive")
+    if args.response_bin_count <= 0:
+        parser.error("response-bin-count must be positive")
+    if args.response_bin_alpha_strong is not None and args.response_bin_alpha_strong <= 0.0:
+        parser.error("response-bin-alpha-strong must be positive")
+    if args.response_bin_alpha_weak is not None and args.response_bin_alpha_weak <= 0.0:
+        parser.error("response-bin-alpha-weak must be positive")
     if args.response_y_lift < 0.0:
         parser.error("response-y-lift must be non-negative")
     if args.int_ior <= 0.0 or args.ext_ior <= 0.0:
@@ -446,13 +591,41 @@ def main(argv=None):
         parser.error("depth-penalty must be non-negative")
     args.response_specular_reflectance_vec = None
     args.response_specular_transmittance_vec = None
+    args.response_bin_specular_reflectance_strong_vec = None
+    args.response_bin_specular_reflectance_weak_vec = None
+    args.response_bin_specular_transmittance_strong_vec = None
+    args.response_bin_specular_transmittance_weak_vec = None
     if args.response_specular_reflectance:
         args.response_specular_reflectance_vec = parse_vec3(args.response_specular_reflectance, "response-specular-reflectance")
     if args.response_specular_transmittance:
         args.response_specular_transmittance_vec = parse_vec3(args.response_specular_transmittance, "response-specular-transmittance")
+    if args.response_bin_specular_reflectance_strong:
+        args.response_bin_specular_reflectance_strong_vec = parse_vec3(
+            args.response_bin_specular_reflectance_strong,
+            "response-bin-specular-reflectance-strong",
+        )
+    if args.response_bin_specular_reflectance_weak:
+        args.response_bin_specular_reflectance_weak_vec = parse_vec3(
+            args.response_bin_specular_reflectance_weak,
+            "response-bin-specular-reflectance-weak",
+        )
+    if args.response_bin_specular_transmittance_strong:
+        args.response_bin_specular_transmittance_strong_vec = parse_vec3(
+            args.response_bin_specular_transmittance_strong,
+            "response-bin-specular-transmittance-strong",
+        )
+    if args.response_bin_specular_transmittance_weak:
+        args.response_bin_specular_transmittance_weak_vec = parse_vec3(
+            args.response_bin_specular_transmittance_weak,
+            "response-bin-specular-transmittance-weak",
+        )
     for label, vec in (
         ("response-specular-reflectance", args.response_specular_reflectance_vec),
         ("response-specular-transmittance", args.response_specular_transmittance_vec),
+        ("response-bin-specular-reflectance-strong", args.response_bin_specular_reflectance_strong_vec),
+        ("response-bin-specular-reflectance-weak", args.response_bin_specular_reflectance_weak_vec),
+        ("response-bin-specular-transmittance-strong", args.response_bin_specular_transmittance_strong_vec),
+        ("response-bin-specular-transmittance-weak", args.response_bin_specular_transmittance_weak_vec),
     ):
         if vec is not None and min(vec) < 0.0:
             parser.error(f"{label} values must be non-negative")
