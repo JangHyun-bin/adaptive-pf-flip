@@ -3,14 +3,16 @@
 
 import argparse
 import html
+import math
 import os
 import shutil
 from datetime import datetime, timezone
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageFilter
 except ImportError:  # pragma: no cover - reported at runtime.
     Image = None
+    ImageFilter = None
 
 from apply_mitsuba_low_frequency_runtime_to_render import (
     copy_asset,
@@ -34,7 +36,7 @@ from build_mitsuba_low_frequency_renderer_runtime_preview import blend_delta, la
 
 
 def require_pillow():
-    if Image is None:
+    if Image is None or ImageFilter is None:
         raise SystemExit("Pillow is required to apply low-frequency runtime deltas")
 
 
@@ -104,6 +106,96 @@ def lerp_image(path_a, path_b, t, size):
     return Image.blend(image_a, image_b, t)
 
 
+def median(values):
+    ordered = sorted(values)
+    return ordered[len(ordered) // 2]
+
+
+def estimate_border_color(image, margin=48, stride=4):
+    width, height = image.size
+    margin = max(1, min(margin, width // 2, height // 2))
+    pixels = image.load()
+    samples = []
+    for y in list(range(0, margin, stride)) + list(range(height - margin, height, stride)):
+        for x in range(0, width, stride):
+            samples.append(pixels[x, y])
+    for y in range(0, height, stride):
+        for x in list(range(0, margin, stride)) + list(range(width - margin, width, stride)):
+            samples.append(pixels[x, y])
+    return tuple(median([sample[channel] for sample in samples]) for channel in range(3))
+
+
+def smoothstep(edge0, edge1, value):
+    if edge1 <= edge0:
+        return 1.0 if value >= edge1 else 0.0
+    t = max(0.0, min(1.0, (value - edge0) / (edge1 - edge0)))
+    return t * t * (3.0 - 2.0 * t)
+
+
+def raw_contrast_mask(raw, threshold, softness, blur_radius):
+    source = raw.convert("RGB")
+    background = estimate_border_color(source)
+    width, height = source.size
+    source_bytes = source.tobytes()
+    mask = bytearray(width * height)
+    edge1 = threshold + softness
+    out_index = 0
+    for index in range(0, len(source_bytes), 3):
+        r = source_bytes[index]
+        g = source_bytes[index + 1]
+        b = source_bytes[index + 2]
+        distance = math.sqrt(
+            (r - background[0]) * (r - background[0])
+            + (g - background[1]) * (g - background[1])
+            + (b - background[2]) * (b - background[2])
+        )
+        mask[out_index] = int(round(255.0 * smoothstep(threshold, edge1, distance)))
+        out_index += 1
+    image = Image.frombytes("L", source.size, bytes(mask))
+    if blur_radius > 0.0:
+        image = image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    return image, background
+
+
+def mask_stats(mask):
+    values = mask.convert("L").tobytes()
+    if not values:
+        return {"mean": 0.0, "coverage": 0.0, "strong_coverage": 0.0, "max": 0}
+    count = len(values)
+    active = sum(1 for value in values if value > 0)
+    strong = sum(1 for value in values if value >= 128)
+    return {
+        "mean": sum(values) / float(count * 255),
+        "coverage": active / float(count),
+        "strong_coverage": strong / float(count),
+        "max": max(values),
+    }
+
+
+def apply_mask(delta, mask, floor):
+    delta = delta.convert("RGB")
+    mask = mask.convert("L")
+    delta_bytes = delta.tobytes()
+    mask_bytes = mask.tobytes()
+    out = bytearray(len(delta_bytes))
+    for pixel_index, weight in enumerate(mask_bytes):
+        alpha = max(floor, weight / 255.0)
+        base = pixel_index * 3
+        out[base] = int(round(delta_bytes[base] * alpha))
+        out[base + 1] = int(round(delta_bytes[base + 1] * alpha))
+        out[base + 2] = int(round(delta_bytes[base + 2] * alpha))
+    return Image.frombytes("RGB", delta.size, bytes(out))
+
+
+def build_masked_deltas(raw, positive, negative, args):
+    if args.mask_mode == "none":
+        return positive, negative, None, None, None
+    if args.mask_mode == "raw-contrast":
+        mask, background = raw_contrast_mask(raw, args.mask_threshold, args.mask_softness, args.mask_blur_radius)
+        return apply_mask(positive, mask, args.mask_floor), apply_mask(negative, mask, args.mask_floor), mask, mask_stats(mask), background
+    raise SystemExit(f"unsupported mask mode: {args.mask_mode}")
+
+
 def html_page(title, summary, assets, metadata_files):
     shot = next((item for item in assets if item.get("label") == "Corrected Sequence GIF"), None)
     strips = [item for item in assets if item.get("label", "").startswith("Sequence Strip")]
@@ -118,6 +210,8 @@ def html_page(title, summary, assets, metadata_files):
         ("Frames", checks.get("frames")),
         ("Anchors", checks.get("runtime_anchor_frames")),
         ("Interpolated", checks.get("interpolated_frames")),
+        ("Mask", checks.get("mask_mode")),
+        ("Mask coverage", checks.get("max_mask_coverage")),
         ("Max change", checks.get("max_corrected_abs_diff")),
         ("Mean change", checks.get("max_corrected_mean_abs_diff")),
     ]
@@ -194,6 +288,9 @@ def markdown_report(summary, summary_path, root):
         f"- Runtime anchor frames: `{checks.get('runtime_anchor_frames')}`",
         f"- Frames corrected: `{checks.get('frames')}`",
         f"- Interpolated frames: `{checks.get('interpolated_frames')}`",
+        f"- Mask mode: `{checks.get('mask_mode')}`",
+        f"- Max mask coverage: `{checks.get('max_mask_coverage')}`",
+        f"- Max strong mask coverage: `{checks.get('max_strong_mask_coverage')}`",
         f"- Missing references: `{checks.get('missing_references')}`",
         f"- Dimension mismatches: `{checks.get('dimension_mismatches')}`",
         f"- Max corrected abs diff: `{checks.get('max_corrected_abs_diff')}`",
@@ -203,8 +300,8 @@ def markdown_report(summary, summary_path, root):
         "",
         "## Frame Samples",
         "",
-        "| Frame | Output | Bracket | t | Mean Change | Max Change | Raw | Corrected | Strip |",
-        "| ---: | ---: | --- | ---: | ---: | ---: | --- | --- | --- |",
+        "| Frame | Output | Bracket | t | Mask Coverage | Mean Change | Max Change | Raw | Corrected | Strip |",
+        "| ---: | ---: | --- | ---: | ---: | ---: | ---: | --- | --- | --- |",
     ]
     frames = summary.get("frames") or []
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -214,6 +311,7 @@ def markdown_report(summary, summary_path, root):
         lines.append(
             f"| {frame.get('frame')} | {frame.get('output_frame')} | "
             f"{bracket.get('previous_output_frame')}->{bracket.get('next_output_frame')} | {bracket.get('t')} | "
+            f"{frame.get('mask', {}).get('coverage')} | "
             f"{frame.get('corrected_change', {}).get('mean_abs_diff')} | {frame.get('corrected_change', {}).get('max_abs_diff')} | "
             f"`{frame.get('raw_repo_path')}` | `{frame.get('corrected_repo_path')}` | `{frame.get('strip_repo_path')}` |"
         )
@@ -239,9 +337,10 @@ def run_adapter(args):
     corrected_dir = os.path.join(out_dir, "corrected")
     strip_dir = os.path.join(out_dir, "strips")
     diff_dir = os.path.join(out_dir, "diffs")
+    mask_dir = os.path.join(out_dir, "masks")
     gallery_dir = os.path.join(out_dir, "gallery")
     assets_dir = os.path.join(gallery_dir, "assets")
-    for directory in (corrected_dir, strip_dir, diff_dir, assets_dir):
+    for directory in (corrected_dir, strip_dir, diff_dir, mask_dir, assets_dir):
         os.makedirs(directory, exist_ok=True)
 
     render_frames = render_frame_map(render)
@@ -281,6 +380,11 @@ def run_adapter(args):
             interpolation_failures.append({"frame": index, "output_frame": output_frame, "error": str(exc)})
             continue
 
+        positive, negative, mask, mask_metric, background_color = build_masked_deltas(raw, positive, negative, args)
+        mask_path = None
+        if mask is not None:
+            mask_path = os.path.join(mask_dir, f"frame_{output_frame:04d}_correction_mask.png")
+            mask.save(mask_path)
         corrected = blend_delta(raw, positive, negative, gain)
         change = diff_stats(corrected, raw)
         corrected_path = os.path.join(corrected_dir, f"frame_{output_frame:04d}.png")
@@ -288,11 +392,14 @@ def run_adapter(args):
         strip_path = os.path.join(strip_dir, f"frame_{output_frame:04d}_low_frequency_sequence_adapter.png")
         corrected.save(corrected_path)
         change["diff_image"].save(diff_path)
-        labeled_strip(
-            [raw, positive, negative, corrected, change["diff_image"]],
-            ["raw render", "positive interp", "negative interp", "corrected render", "change x8"],
-            strip_path,
-        )
+        panels = [raw, positive, negative]
+        labels = ["raw render", "positive interp", "negative interp"]
+        if mask is not None:
+            panels.append(mask.convert("RGB"))
+            labels.append("correction mask")
+        panels.extend([corrected, change["diff_image"]])
+        labels.extend(["corrected render", "change x8"])
+        labeled_strip(panels, labels, strip_path)
         corrected_bytes += os.path.getsize(corrected_path)
         corrected_paths.append(corrected_path)
         strip_paths.append(strip_path)
@@ -306,10 +413,16 @@ def run_adapter(args):
             "corrected_size": os.path.getsize(corrected_path),
             "strip_repo_path": posix_rel(strip_path, root),
             "diff_repo_path": posix_rel(diff_path, root),
+            "mask_repo_path": posix_rel(mask_path, root) if mask_path else None,
             "runtime_bracket": {
                 "previous_output_frame": previous["output_frame"],
                 "next_output_frame": next_anchor["output_frame"],
                 "t": round(t, 6),
+            },
+            "mask": {
+                "mode": args.mask_mode,
+                "background_color": list(background_color) if background_color is not None else None,
+                **(mask_metric or {"mean": 1.0, "coverage": 1.0, "strong_coverage": 1.0, "max": 255}),
             },
             "corrected_change": {
                 "mean_abs_diff": change["mean_abs_diff"],
@@ -342,6 +455,11 @@ def run_adapter(args):
         "frames": len(frames),
         "exact_anchor_frames": sum(1 for frame in frames if frame["output_frame"] in exact_anchor_outputs),
         "interpolated_frames": sum(1 for frame in frames if frame["output_frame"] not in exact_anchor_outputs),
+        "mask_mode": args.mask_mode,
+        "max_mask_coverage": max((frame["mask"]["coverage"] for frame in frames), default=0.0),
+        "mean_mask_coverage": sum((frame["mask"]["coverage"] for frame in frames), 0.0) / float(len(frames)),
+        "max_strong_mask_coverage": max((frame["mask"]["strong_coverage"] for frame in frames), default=0.0),
+        "mean_strong_mask_coverage": sum((frame["mask"]["strong_coverage"] for frame in frames), 0.0) / float(len(frames)),
         "missing_references": len(missing),
         "dimension_mismatches": len(dimension_mismatches),
         "interpolation_failures": len(interpolation_failures),
@@ -377,6 +495,11 @@ def run_adapter(args):
             "fps": args.fps,
             "keyframes": args.keyframes,
             "frames_filter": args.frames,
+            "mask_mode": args.mask_mode,
+            "mask_threshold": args.mask_threshold,
+            "mask_softness": args.mask_softness,
+            "mask_blur_radius": args.mask_blur_radius,
+            "mask_floor": args.mask_floor,
         },
         "checks": checks,
         "missing_references": missing,
@@ -436,6 +559,11 @@ def main(argv=None):
     parser.add_argument("--fps", type=float, default=8.0)
     parser.add_argument("--keyframes", type=int, default=6)
     parser.add_argument("--frames", help="optional comma-separated output frame filter")
+    parser.add_argument("--mask-mode", choices=["none", "raw-contrast"], default="none")
+    parser.add_argument("--mask-threshold", type=float, default=8.0)
+    parser.add_argument("--mask-softness", type=float, default=18.0)
+    parser.add_argument("--mask-blur-radius", type=float, default=0.0)
+    parser.add_argument("--mask-floor", type=float, default=0.0)
     parser.add_argument("--fail-on-review", action="store_true")
     parser.add_argument("--title", default="Mitsuba Low Frequency Runtime Render Sequence Adapter")
     parser.add_argument("--next", default="Publish this corrected full-sequence render review gallery.")
@@ -444,6 +572,14 @@ def main(argv=None):
         parser.error("fps must be positive")
     if args.keyframes <= 0:
         parser.error("keyframes must be positive")
+    if args.mask_threshold < 0.0:
+        parser.error("mask-threshold must be non-negative")
+    if args.mask_softness < 0.0:
+        parser.error("mask-softness must be non-negative")
+    if args.mask_blur_radius < 0.0:
+        parser.error("mask-blur-radius must be non-negative")
+    if not (0.0 <= args.mask_floor <= 1.0):
+        parser.error("mask-floor must be in [0, 1]")
     run_adapter(args)
 
 
