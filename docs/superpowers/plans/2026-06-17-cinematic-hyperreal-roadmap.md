@@ -4969,3 +4969,17 @@ both locally and through the public tunnel. Use S403 as the current renderer
 decision board: SS1 remains the native baseline, KL1 is not worth promoting,
 and CR21 remains the strongest target-free source-response profile while native
 material/light transport work continues.
+
+S404 triaged the S403 comparison board:
+
+- S404 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-candidate-compare-triage.md`
+- S404 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_candidate_compare_visual_triage_s404.md`
+
+Decision: keep `SS1_Native` as the native baseline and `S401_CR21_Profile` as
+the visual response reference. Do not promote `KL1`, and do not spend the next
+pass on broad water roughness, transmittance, or global key-light sweeps. The
+next branch is S405: a bounded CR21-native migration pass that attempts to move
+source/dark-secondary response into a renderer-side or renderer-native
+candidate while preserving target-free runtime behavior.
