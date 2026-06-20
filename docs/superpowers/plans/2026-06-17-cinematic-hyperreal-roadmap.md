@@ -3998,3 +3998,18 @@ candidate to beat the MW7 no-secondary control by max target MAD:
 metric gain, not a visible quality jump, but it proves native 3D sidecar
 secondary can be reintroduced without worsening the hard max-target gate. Next
 step: keep SD4's gate and add a more visible sidecar billboard/soft-shell path.
+
+S357 measured low-opacity sidecar billboard/mist overlays on top of SD4:
+
+- S357 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-3d-soft.md`
+- S357 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_soft_sweep_summary_s357.md`
+- S357 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_soft_ss*_*.md`
+
+SS1 is now the best native sidecar-soft candidate by max target MAD:
+`23.951853137860084`, improving over SD4 `23.95192901234568` and MW7
+`23.951992669753086`. Stronger billboard candidates SS2/SS5 and mist candidate
+SS3 do not preserve the hard gate. Use SS1 as the current sidecar-soft baseline,
+but inspect actual frames before increasing secondary visibility further.
