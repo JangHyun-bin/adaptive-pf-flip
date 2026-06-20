@@ -5342,3 +5342,30 @@ grade. It should not be promoted: best disk patch DP2 max target MAD is
 patchy artifacts and worsen the hard gate. S419 should stop adding more
 discrete emitters and move the evidence into water material, texture, or volume
 mask controls.
+
+S419 tested the actual water mesh as the mask carrier:
+
+- S419 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-mesh-response.md`
+- S419 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_mesh_response_summary_s419.md`
+- S419 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_mesh_response_sweep_summary_s419.md`
+- S419 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_mesh_response_compare_s419.md`
+- S419 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_mesh_response_compare_publish_s419.md`
+- S419 public quick-tunnel URL:
+  `https://junction-start-consistency-worldcat.trycloudflare.com/index.html`
+- S419 new tool:
+  `tools/add_mitsuba_water_mask_mesh_response.py`
+
+The new tool projects water OBJ face centroids into the S410 highlight mask,
+writes a compact selected-face OBJ, and inserts that mesh as renderer-native
+Mitsuba XML. This finds an important technical issue: original water face
+winding shows black backside patches, while `--reverse-faces` is required for
+the useful candidates. Reversed MMR4/MMR8 improve over S416 WP4 and S418 DP2
+with max target MAD `23.96551183127572`, but they still lose to S417
+`WP4_H18_D90` `23.948739068930042` and add too much lower water-surface noise.
+S420 should stop treating the mask as extra emitting geometry and move to
+calibrated material/texture response or a post-free light mask.
