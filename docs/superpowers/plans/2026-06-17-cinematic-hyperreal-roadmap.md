@@ -5259,3 +5259,28 @@ than SS1 `23.951853137860084` and much worse than S409 `SF12_H18`
 S416 should convert the point-emitter idea into a broader area response:
 renderer-side texture/volume mask, clustered water patch emission, or a
 combined pass with accepted SF12 dark attenuation.
+
+S416 evaluated broader water-patch emitters without adding new code:
+
+- S416 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-patch.md`
+- S416 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_patch_summary_s416.md`
+- S416 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_patch_sweep_summary_s416.md`
+- S416 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_patch_compare_s416.md`
+- S416 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_patch_compare_publish_s416.md`
+- S416 public quick-tunnel URL:
+  `https://full-fuji-tone-vii.trycloudflare.com/index.html`
+
+WP4 is the best native water-patch probe so far: max target MAD
+`23.97967785493827`, better than S415 WH4 `23.98679526748971` and the earlier
+S411-S414 native attempts. It still should not be promoted: SS1 remains better
+at `23.951853137860084`, and S409 `SF12_H18` remains much better at
+`23.687431841563786`. Visual review shows WP4 is broader than WH4 but still too
+speckled, and it does not recover the connected highlight plus dark-water band
+visible in the S409/S401 evidence. S417 should combine WP4 with accepted SF12
+dark attenuation or move the water/highlight evidence into a true renderer-side
+texture or volume mask.
