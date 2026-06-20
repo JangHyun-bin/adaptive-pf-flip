@@ -3709,3 +3709,27 @@ session-scoped, so refresh S343 if either recorded process exits. The next step
 should start a renderer-native depth/secondary pass that tries to reproduce or
 beat the C3 post-render bridge without relying on the screen-space contract
 layer as the final composite source.
+
+S344 added a renderer-native replacement gap gate against the C3 bridge:
+
+- S344 new tool:
+  `tools/compare_mitsuba_native_to_depth_aware_composite.py`
+- S344 gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_s344.md`
+- S344 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-depth-aware-native-replacement-gap.md`
+- S344 gap summary:
+  `build/shots/s344_mitsuba_depth_aware_native_replacement_gap_m1/depth_aware_native_replacement_gap_summary.json`
+- S344 gap gallery:
+  `build/shots/s344_mitsuba_depth_aware_native_replacement_gap_m1/gallery/index.html`
+
+S344 compares the current best native Mitsuba secondary baseline, S338 M1,
+against the validated S341 C3 depth-aware composite. The tool measures both
+native-to-bridge error and native-to-accepted-target error. M1 remains far from
+replacement quality: native mean target MAD is `37.286685796039094` versus C3
+bridge `11.423722591949588`, and native max target MAD is
+`66.5063766718107` versus C3 bridge `14.571005658436214`. Native-to-bridge
+mean MAD is `40.380344087577164`, max `62.06783050411523`, with `8` frames and
+`0` missing references. Use S344 as the native replacement gate: a future
+renderer-native secondary pass should not replace the C3 bridge until it beats
+both the C3 mean target MAD and C3 max target MAD.
