@@ -3920,3 +3920,24 @@ NB4 also worsen max target MAD. Stop spending iterations on background-only
 tuning for this branch. The next renderer milestone should be schema-first
 depth-aware 3D secondary export/import for Mitsuba, then a native replacement
 measurement against S350 C1E.
+
+S353 added the schema-first depth-aware 3D secondary sidecar:
+
+- S353 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-3d-sidecar.md`
+- S353 sidecar report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_sidecar_s353.md`
+- S353 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_sidecar_validation_s353.md`
+- S353 tools:
+  `tools/build_mitsuba_secondary_3d_sidecar.py`
+  `tools/validate_mitsuba_secondary_3d_sidecar.py`
+
+S353 consumes the S308 renderer-neutral adapter manifest and writes per-frame
+JSONL records with secondary channel, position, velocity, radius, age, volume,
+camera depth, and normalized screen projection. The 8-frame sidecar contains
+`2877` secondary particles (`2052` spray, `548` foam, `277` bubble, `0`
+droplet); all `2877` are in front of the S348/S352 camera and in frame, with
+`0` validation failures. This is the data-contract step for native secondary
+rendering. Next, add a Mitsuba import/proxy pass that consumes this sidecar and
+measure it against S350 C1E plus S335.
