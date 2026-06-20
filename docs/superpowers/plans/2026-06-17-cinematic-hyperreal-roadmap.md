@@ -3608,3 +3608,24 @@ native geometry path, but prefer S338 M1 as the current native Mitsuba
 secondary baseline. The next concrete step should be a depth-aware
 post-render/renderer-composite secondary pass because pure native geometry is
 still far from the S335 screen-space contract.
+
+S340 summarized the native Mitsuba secondary candidate sweep:
+
+- S340 new tool:
+  `tools/summarize_mitsuba_secondary_candidate_sweep.py`
+- S340 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_native_candidate_sweep_s340.md`
+- S340 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-native-candidate-sweep.md`
+- S340 sweep summary:
+  `build/shots/s340_mitsuba_secondary_native_candidate_sweep/candidate_sweep_summary.json`
+
+S340 ranks H2, corrected S338 M1/M2, and S339 B4 using the same
+`lsfs_mitsuba_secondary_native_candidate_gap` schema. The ranking is:
+`mist_m1` max target MAD `66.5063766718107`, `mist_m2`
+`66.78048096707819`, `billboard_b4` `67.3997678755144`, and H2
+`67.40660365226337`. This makes S338 M1 the current best native Mitsuba
+secondary baseline, but it is still far from the S335 overlay contract max
+target MAD `18.040229552469135`. The next renderer step should use S340 as the
+native baseline and move to a depth-aware renderer-composite or post-render
+secondary pass.
