@@ -4222,3 +4222,26 @@ the baseline but still fails the hard gate: `SV1-cache` stays best at
 visibility-only tuning as locally exhausted. The next useful lever is a
 target-fit profile harness or renderer/material response pass that changes
 water/background/secondary integration together.
+
+S369 added target-gap region diagnostics for the active `SV1-cache` baseline:
+
+- S369 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-target-gap-regions.md`
+- S369 region report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_gap_regions_sv1_s369.md`
+- S369 public quick-tunnel preview:
+  `https://combining-contractor-furthermore-hire.trycloudflare.com/index.html`
+- S369 new tool:
+  `tools/analyze_mitsuba_target_gap_regions.py`
+
+The region split uses the secondary visibility alpha layer as a mask and shows
+why visibility-only tuning stalled. `SV1-cache` has aggregate MAD
+`19.103673`. Secondary-mask pixels are worse at `21.578829`, but they cover
+only `0.045091` of the image. Nonsecondary pixels cover `0.954909` and remain
+too dark by about `-4.998968` luma on average. Target highlights are the clearest
+failure: only `0.006155` coverage, but MAD `99.553962`, with actual about
+`-100.208894` luma below target. Dark target pixels inside the secondary mask
+have the opposite sign: actual is about `51.392797` luma too bright. Next work
+should boost water/crest highlights while suppressing bright visibility over
+target-dark secondary detail, instead of repeating global grade or
+visibility-only sweeps.
