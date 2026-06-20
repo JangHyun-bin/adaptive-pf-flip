@@ -3455,3 +3455,27 @@ halo sphere proxies are useful as a temporary renderer-side baseline but are
 not enough to replace the accepted screen-space secondary target. The next
 renderer step should use a true screen-space or volumetric secondary
 representation instead of only more sphere tuning.
+
+S334 added a Mitsuba secondary overlay hybrid:
+
+- S334 new tool:
+  `tools/build_mitsuba_render_secondary_overlay.py`
+- S334 overlay report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_overlay_hybrid_s334.md`
+- S334 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_overlay_hybrid_publish_s334.md`
+- S334 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-overlay-hybrid.md`
+- S334 public URL:
+  `https://laundry-tanks-prot-until.trycloudflare.com`
+
+S334 reads the S333 H2 actual Mitsuba render, applies the accepted S327
+secondary layer over each rendered preview, applies the accepted S328 grade
+settings, and compares the result against the S328 target. The generated
+`lsfs_mitsuba_render_secondary_overlay` is `ready` for `8` frames with `0`
+missing references, mean overlay mean absolute diff `12.566030735596708`, max
+overlay mean absolute diff `18.040229552469135`, and max overlay max absolute
+diff `214`. This is the closest current visual bridge to the accepted target,
+but it remains a hybrid post-render overlay. The next step should turn this
+screen-space layer into a renderer-native screen-space pass or volumetric
+secondary representation rather than stopping at the overlay.
