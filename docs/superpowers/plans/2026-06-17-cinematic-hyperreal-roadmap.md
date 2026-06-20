@@ -5006,3 +5006,25 @@ Best S405 native max target MAD was `23.98830825617284`, worse than SS1
 (`23.951853137860084`) and far from S401 CR21 (`23.552905092592592`). Keep the
 S405 mask-source tooling as target-free evidence plumbing, but move S406 away
 from screen-space cards/sprites and toward material/AOV response.
+
+S406 joined the S405 CR21 masks with projected secondary-channel AOVs:
+
+- S406 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-cr21-mask-channel-join.md`
+- S406 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_cr21_mask_channel_join_s406.md`
+- S406 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_cr21_mask_channel_join_summary_s406.md`
+- S406 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_cr21_mask_channel_join_publish_s406.md`
+- S406 public quick-tunnel URL:
+  `https://almost-supplied-consulting-graph.trycloudflare.com/index.html`
+- S406 new tool:
+  `tools/analyze_mitsuba_source_response_mask_channels.py`
+
+Result: `Highlight` is not explained by secondary channels (`spray_density_ge_8`
+F1 `0.008123`), so source highlights should not be solved through secondary
+material. `DarkSecondary` and `ResponseUnion` correlate best with broad
+all-channel or spray/foam density, but precision is low (`DarkSecondary` best F1
+`0.179764`). S407 should therefore test a bounded local attenuation/AOV
+candidate and avoid another broad material brightness/radius sweep.
