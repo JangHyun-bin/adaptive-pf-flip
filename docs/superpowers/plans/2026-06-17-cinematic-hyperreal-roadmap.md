@@ -4710,3 +4710,43 @@ not named `shot.gif` can still use the same local-server and quick-tunnel
 verification flow. The S389 crop review responded with HTTP `200` for both the
 public index page and `assets/crop_review.gif`. Because the tunnel URL is
 session-scoped, refresh it if the recorded processes exit.
+
+S391 moved the CR21 secondary cue toward renderer-side material controls:
+
+- S391 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-material-response.md`
+- S391 export report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_cr21_export_s391.md`
+- S391 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_cr21_validation_s391.md`
+- S391 render report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_cr21_render_s391.md`
+- S391 gallery report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_cr21_gallery_s391.md`
+- S391 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+
+The Mitsuba XML exporter now supports `--secondary-channel-reflectance-scale`
+with per-channel values such as `spray=0.6,foam=0.6,bubble=0.6,droplet=0.6`.
+The default remains unchanged when the option is omitted. The CR21 material
+profile exported `8` XML frames, validated with `0` failures and `0` warnings,
+and rendered a `3` frame Python API probe with `0` render failures. This is not
+yet a replacement for post-composite CR21, but it creates the renderer/material
+integration point needed for that replacement.
+
+S392 compared the renderer-side CR21 material profile against SS1:
+
+- S392 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-material-response-compare.md`
+- S392 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_cr21_compare_s392.md`
+- S392 compare gallery:
+  `build/shots/s392_mitsuba_secondary_material_cr21_compare/gallery/index.html`
+
+The comparison gallery uses Target, C1E, SS1, and S391_CR21_Material columns
+for outputs `0`, `27`, and `47`. Output `27` has a nonzero SS1-to-S391 preview
+diff mean of approximately `[0.6444, 0.6950, 0.7492]` and max channel deltas
+`[64, 69, 76]`, confirming the material knob is visible but still subtler than
+the post-composite CR21 response. Next work should either publish this gallery
+for visual review or sweep reflectance scale/secondary opacity under the
+target-gap harness.

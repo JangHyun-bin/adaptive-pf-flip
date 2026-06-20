@@ -99,6 +99,22 @@ def parse_channel_values(values, label):
     return result or None
 
 
+def parse_channel_reflectance_scales(values, label):
+    result = parse_channel_values(values, label)
+    if result:
+        for channel, value in result.items():
+            if value <= 0.0 or value > 1.0:
+                raise ValueError(f"{label}: {channel} scale must be in the range (0, 1]")
+    return result
+
+
+def scaled_reflectance(spec, scale):
+    if scale is None:
+        return spec["reflectance"]
+    channels = [float(part.strip()) for part in spec["reflectance"].split(",")]
+    return ", ".join(f"{max(0.0, min(1.0, value * scale)):.8g}" for value in channels)
+
+
 def override3(value, fallback):
     return value if value is not None else fallback
 
@@ -431,15 +447,17 @@ def build_phase_volume_proxy_payload(scene, limit, base_radius):
     return payload, []
 
 
-def secondary_bsdf_lines(opacity=None):
+def secondary_bsdf_lines(opacity=None, reflectance_scale=None):
     lines = []
     for channel in SECONDARY_CHANNELS:
         spec = SECONDARY_BSDFS[channel]
         channel_opacity = opacity.get(channel) if isinstance(opacity, dict) else opacity
+        channel_scale = reflectance_scale.get(channel) if isinstance(reflectance_scale, dict) else reflectance_scale
+        reflectance = scaled_reflectance(spec, channel_scale)
         if channel_opacity is None:
             lines.extend([
                 f'  <bsdf type="diffuse" id="{spec["id"]}">',
-                f'    <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+                f'    <rgb name="reflectance" value="{reflectance}"/>',
                 '  </bsdf>',
             ])
         else:
@@ -447,7 +465,7 @@ def secondary_bsdf_lines(opacity=None):
                 f'  <bsdf type="mask" id="{spec["id"]}">',
                 f'    <float name="opacity" value="{channel_opacity:.8g}"/>',
                 '    <bsdf type="diffuse">',
-                f'      <rgb name="reflectance" value="{spec["reflectance"]}"/>',
+                f'      <rgb name="reflectance" value="{reflectance}"/>',
                 '    </bsdf>',
                 '  </bsdf>',
             ])
@@ -660,7 +678,8 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         *secondary_bsdf_lines(
             args.secondary_3d_channel_opacity_map
             if secondary_proxy.get("source") == "secondary_3d_sidecar" and args.secondary_3d_channel_opacity_map
-            else args.secondary_opacity
+            else args.secondary_opacity,
+            args.secondary_channel_reflectance_scale_map,
         ),
         *secondary_halo_bsdf_lines(args.secondary_halo_opacity),
         *secondary_mist_bsdf_lines(args.secondary_mist_opacity),
@@ -752,6 +771,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
             "billboard_radius_scale": args.secondary_billboard_radius_scale if args.secondary_billboard_opacity is not None else None,
             "billboard_aspect": args.secondary_billboard_aspect if args.secondary_billboard_opacity is not None else None,
             "billboard_proxy_count": secondary_proxy.get("proxy_count", 0) if args.secondary_billboard_opacity is not None else 0,
+            "channel_reflectance_scale": args.secondary_channel_reflectance_scale_map,
         },
         "phase_volume_proxy": {
             "enabled": phase_volume_proxy.get("enabled", False),
@@ -884,6 +904,7 @@ def export_mitsuba(args):
             "secondary_3d_radius_scale": args.secondary_3d_radius_scale,
             "secondary_3d_depth_radius_falloff": args.secondary_3d_depth_radius_falloff,
             "secondary_3d_channel_opacity": args.secondary_3d_channel_opacity_map,
+            "secondary_channel_reflectance_scale": args.secondary_channel_reflectance_scale_map,
             "secondary_opacity": args.secondary_opacity,
             "secondary_halo_opacity": args.secondary_halo_opacity,
             "secondary_halo_radius_scale": args.secondary_halo_radius_scale,
@@ -961,6 +982,7 @@ def markdown_report(export, out_path, root):
         f"- Secondary 3D radius scale: `{export.get('render_settings', {}).get('secondary_3d_radius_scale')}`",
         f"- Secondary 3D depth radius falloff: `{export.get('render_settings', {}).get('secondary_3d_depth_radius_falloff')}`",
         f"- Secondary 3D channel opacity: `{export.get('render_settings', {}).get('secondary_3d_channel_opacity')}`",
+        f"- Secondary channel reflectance scale: `{export.get('render_settings', {}).get('secondary_channel_reflectance_scale')}`",
         f"- Secondary halo opacity: `{export.get('render_settings', {}).get('secondary_halo_opacity')}`",
         f"- Secondary halo radius scale: `{export.get('render_settings', {}).get('secondary_halo_radius_scale')}`",
         f"- Secondary mist opacity: `{export.get('render_settings', {}).get('secondary_mist_opacity')}`",
@@ -1068,6 +1090,8 @@ def main(argv=None):
                         help="shrink far secondary 3D sidecar proxies by this normalized depth amount in [0, 1]")
     parser.add_argument("--secondary-3d-channel-opacity",
                         help="per-channel sidecar opacity as spray=v,foam=v,bubble=v,droplet=v")
+    parser.add_argument("--secondary-channel-reflectance-scale",
+                        help="per-channel secondary diffuse reflectance scale as spray=v,foam=v,bubble=v,droplet=v")
     parser.add_argument("--secondary-opacity", type=float,
                         help="wrap secondary BSDFs in a Mitsuba mask BSDF with this opacity")
     parser.add_argument("--secondary-halo-opacity", type=float,
@@ -1160,6 +1184,10 @@ def main(argv=None):
         args.secondary_3d_channel_opacity_map = parse_channel_values(
             args.secondary_3d_channel_opacity,
             "secondary-3d-channel-opacity",
+        )
+        args.secondary_channel_reflectance_scale_map = parse_channel_reflectance_scales(
+            args.secondary_channel_reflectance_scale,
+            "secondary-channel-reflectance-scale",
         )
     except ValueError as exc:
         parser.error(str(exc))
