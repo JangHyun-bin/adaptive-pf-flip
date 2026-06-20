@@ -4175,3 +4175,26 @@ the active baseline by hard max target MAD: `SV1-cache` remains
 `24.0534754372428`. Stop camera-only tuning. The next useful lever is
 material/secondary integration while preserving the current camera/background
 baseline.
+
+S367 tested shadow/occlusion-style secondary visibility layers:
+
+- S367 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-shadow.md`
+- S367 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_shadow_sweep_summary_s367.md`
+- S367 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_shadow_review_s367.md`
+- S367 public quick-tunnel preview:
+  `https://louis-bowl-viii-predictions.trycloudflare.com/index.html`
+- S367 updated tool:
+  `tools/composite_mitsuba_secondary_layer.py`
+
+`composite_mitsuba_secondary_layer.py` now supports a bounded
+`--blend-mode shadow` diagnostic path. Default alpha behavior is preserved. The
+shadow candidates confirmed that the target needs darker particle detail, but a
+pure dark layer loses the hard gate: `SV1-cache` stays best with max target MAD
+`23.72217142489712`, while `SO1-shadow` is `24.144057998971192` and
+`SO2-shadow` is `24.19077160493827`. Reject shadow-only compositing and move
+next to a target-trained visibility profile or renderer/material integration
+that preserves bright crest highlights while adding darker fine secondary
+detail.

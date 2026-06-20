@@ -61,6 +61,16 @@ def parse_vec(value):
     return [float(part.strip()) for part in value.split(",")]
 
 
+def parse_rgb(value, label):
+    items = [int(part.strip()) for part in value.split(",")] if value else []
+    if len(items) != 3:
+        raise ValueError(f"{label} must contain three comma-separated RGB values")
+    for item in items:
+        if item < 0 or item > 255:
+            raise ValueError(f"{label} values must be in [0, 255]")
+    return tuple(items)
+
+
 def vec_sub(a, b):
     return [a[i] - b[i] for i in range(3)]
 
@@ -169,8 +179,10 @@ def draw_layer(particles, camera, width, height, args):
         depth_scale = max(0.55, min(2.4, args.reference_depth / max(1.0, depth)))
         volume_scale = max(0.65, min(1.8, particle["volume"] ** (1.0 / 3.0) if particle["volume"] > 0.0 else 1.0))
         radius = style["radius"] * args.radius_scale * depth_scale * volume_scale
-        alpha = int(max(1, min(255, style["alpha"] * args.opacity_scale)))
-        color = (*style["color"], alpha)
+        alpha_scale = args.opacity_scale * (args.shadow_alpha_scale if args.blend_mode == "shadow" else 1.0)
+        alpha = int(max(1, min(255, style["alpha"] * alpha_scale)))
+        rgb = args.shadow_color_rgb if args.blend_mode == "shadow" else style["color"]
+        color = (*rgb, alpha)
         draw.ellipse((px - radius, py - radius, px + radius, py + radius), fill=color)
         projected += 1
         counts[particle["channel"]] += 1
@@ -356,6 +368,7 @@ def build_visibility_cache(summary, cache_path, root):
         "usage": {
             "kind": "renderer_facing_secondary_visibility_layer",
             "composition": "alpha_composite_visibility_layer_over_render_preview",
+            "blend_mode": (summary.get("settings") or {}).get("blend_mode"),
             "layer_color_space": "rgba_png",
         },
         "checks": {
@@ -463,6 +476,9 @@ def composite(args):
             "max_particles": args.max_particles,
             "radius_scale": args.radius_scale,
             "opacity_scale": args.opacity_scale,
+            "blend_mode": args.blend_mode,
+            "shadow_alpha_scale": args.shadow_alpha_scale if args.blend_mode == "shadow" else None,
+            "shadow_color": list(args.shadow_color_rgb) if args.blend_mode == "shadow" else None,
             "blur_radius": args.blur_radius,
             "reference_depth": args.reference_depth,
             "fps": args.fps,
@@ -541,6 +557,10 @@ def main(argv=None):
     parser.add_argument("--max-particles", type=int, default=1400)
     parser.add_argument("--radius-scale", type=float, default=1.0)
     parser.add_argument("--opacity-scale", type=float, default=1.0)
+    parser.add_argument("--blend-mode", choices=("alpha", "shadow"), default="alpha")
+    parser.add_argument("--shadow-alpha-scale", type=float, default=1.0)
+    parser.add_argument("--shadow-color", default="12,16,18",
+                        help="RGB tint used by --blend-mode=shadow")
     parser.add_argument("--blur-radius", type=float, default=2.4)
     parser.add_argument("--reference-depth", type=float, default=52.0)
     parser.add_argument("--profile-name", default="custom")
@@ -556,6 +576,8 @@ def main(argv=None):
         parser.error("radius-scale must be positive")
     if args.opacity_scale <= 0.0:
         parser.error("opacity-scale must be positive")
+    if args.shadow_alpha_scale <= 0.0:
+        parser.error("shadow-alpha-scale must be positive")
     if args.blur_radius < 0.0:
         parser.error("blur-radius must be non-negative")
     if args.reference_depth <= 0.0:
@@ -563,6 +585,10 @@ def main(argv=None):
     if not args.profile_name.strip():
         parser.error("profile-name must not be empty")
     args.profile_name = args.profile_name.strip()
+    try:
+        args.shadow_color_rgb = parse_rgb(args.shadow_color, "shadow-color")
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.fps <= 0.0:
         parser.error("fps must be positive")
     if args.keyframes <= 0:
