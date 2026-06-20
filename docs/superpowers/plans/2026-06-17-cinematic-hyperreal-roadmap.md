@@ -3502,3 +3502,26 @@ diff `12.566030735596708` plus max overlay mean absolute diff
 `18.040229552469135`. Use S335 as the bridge contract for replacing the hybrid
 screen-space overlay with a renderer-native secondary pass without losing the
 current visual target gates.
+
+S336 added a validation gate for the Mitsuba secondary pass contract:
+
+- S336 new tool:
+  `tools/validate_mitsuba_secondary_pass_contract.py`
+- S336 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_pass_contract_validation_s336.md`
+- S336 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-pass-contract-validation.md`
+- S336 validation JSON:
+  `build/shots/s336_mitsuba_secondary_pass_contract_validation/validation.json`
+
+S336 validates the S335 `lsfs_mitsuba_secondary_pass_contract` without
+regenerating render assets. It checks schema/version/status, source JSON hashes
+and schemas, review artifacts, required per-frame asset roles, per-frame asset
+hashes, overlay diff metrics, output-frame ordering, and renderer-pass
+semantics. The default run passed `187` checks with `0` failures and `2`
+skipped optional public HTTP checks. A `--check-public` mode is available when a
+Cloudflare quick tunnel is active, but the default gate treats quick tunnel
+lifetime as external to the contract. Use S336 as the regression gate for the
+next step: replacing the S334 screen-space secondary overlay with a
+renderer-native Mitsuba secondary pass while preserving the S335 target-diff
+contract.
