@@ -1,0 +1,86 @@
+# S573 Mitsuba S515 Full48 T4 LFMask Material Tone Dark Water SPP4 Validation
+
+Generated UTC: `2026-06-20T21:34:15.410302+00:00`
+Validation JSON: `build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/backend_command_adapter_validation.json`
+Status: `passed`
+Summary: `build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/backend_command_adapter_summary.json`
+
+## Summary
+
+- Total checks: `66`
+- Failed checks: `0`
+
+## Failed Checks
+
+- None
+
+## Checks
+
+| Check | Status | Detail |
+| --- | --- | --- |
+| `summary:schema` | `ok` | schema |
+| `summary:version` | `ok` | version |
+| `source:export` | `ok` | build/shots/s572_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water/mitsuba_export.json |
+| `source:schema` | `ok` | export schema |
+| `source:status` | `ok` | export status |
+| `runtime:render_script` | `ok` | tools/render_mitsuba_xml_export.py |
+| `runtime:gallery_script` | `ok` | tools/build_mitsuba_render_gallery.py |
+| `runtime:python` | `ok` | renderer python exists |
+| `runtime:llvm_dll` | `ok` | build/envs/llvm18_runtime/Library/bin/LLVM-C.dll |
+| `runtime:spp` | `ok` | spp |
+| `runtime:write_png` | `ok` | png previews enabled |
+| `process:render:command` | `ok` | command present |
+| `process:render:returncode` | `ok` | return code |
+| `process:render:timeout` | `ok` | not timed out |
+| `process:render:elapsed` | `ok` | elapsed |
+| `process:render:stdout` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/logs/render_stdout.log |
+| `process:render:stderr` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/logs/render_stderr.log |
+| `process:gallery:command` | `ok` | command present |
+| `process:gallery:returncode` | `ok` | return code |
+| `process:gallery:timeout` | `ok` | not timed out |
+| `process:gallery:elapsed` | `ok` | elapsed |
+| `process:gallery:stdout` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/logs/gallery_stdout.log |
+| `process:gallery:stderr` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/logs/gallery_stderr.log |
+| `render:manifest` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/mitsuba_render.json |
+| `render:schema` | `ok` | render schema |
+| `render:status` | `ok` | render status |
+| `render:frame_count` | `ok` | all frames rendered |
+| `render:failures` | `ok` | failures |
+| `render:image_bytes` | `ok` | image bytes |
+| `render:preview_bytes` | `ok` | preview bytes |
+| `render:frame:0:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0000.exr |
+| `render:frame:0:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0000.png |
+| `render:frame:1:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0001.exr |
+| `render:frame:1:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0001.png |
+| `render:frame:2:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0002.exr |
+| `render:frame:2:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0002.png |
+| `render:frame:3:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0003.exr |
+| `render:frame:3:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0003.png |
+| `render:frame:4:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0004.exr |
+| `render:frame:4:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0004.png |
+| `render:frame:5:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0005.exr |
+| `render:frame:5:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0005.png |
+| `render:frame:6:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0006.exr |
+| `render:frame:6:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0006.png |
+| `render:frame:7:image` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/renders/frame_0007.exr |
+| `render:frame:7:preview` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/render/previews/frame_0007.png |
+| `gallery:manifest` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/gallery_manifest.json |
+| `gallery:schema` | `ok` | gallery schema |
+| `gallery:index` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/index.html |
+| `gallery:asset:Shot GIF` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/shot.gif |
+| `gallery:asset:Keyframe 1 output 0` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/keyframe_00.png |
+| `gallery:asset:Keyframe 2 output 13` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/keyframe_01.png |
+| `gallery:asset:Keyframe 3 output 34` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/keyframe_02.png |
+| `gallery:asset:Keyframe 4 output 47` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/keyframe_03.png |
+| `gallery:shot_gif` | `ok` | shot gif present |
+| `gallery:metadata:Mitsuba render manifest` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/mitsuba_render.json |
+| `gallery:metadata:Mitsuba export manifest` | `ok` | build/shots/s573_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4/gallery/assets/mitsuba_export.json |
+| `summary:status` | `ok` | status |
+| `checks:frames` | `ok` | frame count |
+| `checks:render_failures` | `ok` | render failures |
+| `checks:process_failures` | `ok` | process failures |
+| `checks:image_bytes` | `ok` | image bytes |
+| `checks:preview_bytes` | `ok` | preview bytes |
+| `checks:gif_bytes` | `ok` | gif bytes |
+| `checks:gallery_assets` | `ok` | gallery assets |
+| `checks:stdout_bytes` | `ok` | stdout bytes |

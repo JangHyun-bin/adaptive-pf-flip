@@ -53,6 +53,14 @@ replace.
 - S571 compared S515 raw, S555 accepted correction, and S570 native-light
   previews. The light-only path was technically valid but did not move the
   sample toward the accepted tone.
+- S572 used the S567 low-frequency mask source as both channel and highlight
+  evidence for material/tone XML modulation, producing a no-key dark-water
+  8-frame sample export.
+- S573 rendered the S572 sample at SPP4 and passed backend validation.
+- S574 compared S515 raw, S555 accepted correction, S570 native-light, and S573
+  material/tone previews. The S567-driven material/tone path moved farther away
+  from the accepted correction, so local light/material consumers are not enough
+  for this T4 field.
 
 ## Key Artifacts
 
@@ -98,6 +106,18 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_light_response_vs_accepted_compare_s571.md`
 - Native light-response visual triage:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_light_response_visual_triage_s571.md`
+- LFMask material/tone sample export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_export_s572.md`
+- LFMask material/tone sample validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_validate_s572.md`
+- LFMask material/tone sample render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4_s573.md`
+- LFMask material/tone sample render validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_dark_water_spp4_validation_s573.md`
+- LFMask material/tone compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_compare_s574.md`
+- LFMask material/tone visual triage:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_visual_triage_s574.md`
 
 ## Verification
 
@@ -188,6 +208,20 @@ replace.
   - missing frame references: `0`
   - mean raw-vs-accepted MAD: `1.878133`
   - mean native-light-vs-accepted MAD: `1.915123`
+- S572/S573 LFMask material/tone sample:
+  - XML export: `ready`
+  - XML validation failures: `0`
+  - render: `ready`
+  - frames rendered: `8/8`
+  - process failures: `0`
+  - backend validation: `66/66` checks passed
+- S574 material/tone comparison:
+  - `status=ready`
+  - candidates: `4`
+  - selected frames: `8`
+  - mean raw-vs-accepted MAD: `1.878133`
+  - mean native-light-vs-accepted MAD: `1.915123`
+  - mean LFMask-material-vs-accepted MAD: `2.395302`
 
 ## Current Meaning
 
@@ -203,18 +237,21 @@ now reproducible through:
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
 low-frequency correction evidence has also been lifted into response-mask and
-light-response contract formats, and one real renderer-native light sample has
-been rendered. That sample proves the contract path is executable, but the
-light-only response is not enough to reproduce the accepted S555 tone.
+light-response contract formats, and two real renderer-native/local XML samples
+have been rendered. These samples prove the contract and material/tone paths are
+executable, but neither local light anchors nor direct material/tone modulation
+reproduce the accepted S555 tone.
 
 ## Next
 
-Move the same descriptor/process boundary from light-only anchors into a bounded
-material/tone native implementation:
+Move the same descriptor/process boundary toward an explicit low-frequency
+texture/cache input instead of another local light/material tweak:
 
-1. Reuse S567/S568 evidence but avoid lifting already over-bright regions.
-2. Add a bounded material/tone response consumer or combine light anchors with
-   existing material response controls.
-3. Render another 8-frame sample through the real Mitsuba XML command adapter.
-4. Compare the renderer-native sample against S555/S564. Promote only if the
-   native sample reduces the accepted-reference gap before attempting full48.
+1. Package the S555/S564 low-frequency field as explicit per-frame renderer
+   texture/cache data.
+2. Keep the current post-tonemap backend as the accepted full48 proof until a
+   real renderer-side texture consumer exists.
+3. Shift new photoreal work toward real geometry, surface detail, secondary
+   particles, and export/cache formats rather than local XML anchor tweaks.
+4. Promote a native renderer sample only if it reduces the accepted-reference
+   gap before attempting full48.
