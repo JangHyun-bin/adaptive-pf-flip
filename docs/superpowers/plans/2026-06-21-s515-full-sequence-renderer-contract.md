@@ -83,6 +83,8 @@ replace.
   over the accepted S577 composite frames, producing a GIF and per-frame
   original/mask/preview/diff strips without exceeding the configured image-diff
   tolerance.
+- S583 triaged S582 against S577 and kept S577 as the accepted visual gate
+  while preserving S582 as a safe metadata-driven depth/material control proof.
 
 ## Key Artifacts
 
@@ -156,6 +158,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_render_data_profile_s581.md`
 - Renderer scene depth/material preview:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_preview_s582.md`
+- Renderer scene depth/material preview triage:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_preview_triage_s583.md`
 
 ## Verification
 
@@ -328,6 +332,11 @@ replace.
     `build/shots/s582_mitsuba_renderer_scene_depth_material_preview/depth_material_preview.gif`
   - representative strip:
     `build/shots/s582_mitsuba_renderer_scene_depth_material_preview/strips/frame_0024_depth_material_preview.png`
+- S583 renderer scene depth/material preview triage:
+  - `status=recorded`
+  - decision: keep S577 as accepted full48 visual gate
+  - use S582 as a safe metadata-driven depth/material control proof
+  - next: run a bounded strength/material sweep before promotion
 
 ## Current Meaning
 
@@ -359,8 +368,8 @@ handoff into the current large-grid scene-data cache. The handoff now also has
 an `lsfs_render_data_summary` sidecar and trend profile, so the next pass can
 drive renderer-side depth/material behavior from measured scene metadata rather
 than by hand-tuning only the final image. S582 shows that this metadata can
-produce a bounded visual probe, but it is not yet promoted as an accepted look
-replacement; it needs a direct S577-vs-S582 comparison/triage first.
+produce a bounded visual probe. S583 keeps it as a control proof rather than an
+accepted look replacement because the visible change is still subtle.
 
 ## Next
 
@@ -370,7 +379,6 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Compare S582 against S577 with the same visual review/comparison tooling
-   before promoting any depth/material settings.
+4. Run a bounded S584 strength/material sweep over the S578/S580/S582 contract.
 5. Promote a native renderer sample only if it reduces the accepted-reference
    gap before attempting full48.
