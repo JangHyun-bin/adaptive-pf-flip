@@ -136,6 +136,10 @@ replace.
   (`mask_threshold=128`, `face_limit=3000`) and rendered an 8-frame `MS2`
   sample. Legacy S328 target gap increased, but direct S577/S585 MAD dropped
   sharply, making S598 the current native-material tuning baseline.
+- S599 reduced the split to a subtler `MS3` setting (`face_limit=2500` with
+  weaker/rougher response bins), rendered and compared the same 8-frame sample,
+  and slightly improved direct S577/S585 MAD over S598. This makes S599 the
+  current native-material split tuning baseline.
 
 ## Key Artifacts
 
@@ -275,6 +279,20 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_sequence_compare_s598.md`
 - Renderer scene depth/material tight split direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms2_tight_direct_metrics_s598.md`
+- Renderer scene depth/material subtle split material export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_export_s599.md`
+- Renderer scene depth/material subtle split material validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_validate_s599.md`
+- Renderer scene depth/material subtle split material render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_render_s599.md`
+- Renderer scene depth/material subtle split material gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_gallery_s599.md`
+- Renderer scene depth/material subtle split material target gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_target_gap_s328_s599.md`
+- Renderer scene depth/material subtle split material sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_sequence_compare_s599.md`
+- Renderer scene depth/material subtle split direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms3_subtle_direct_metrics_s599.md`
 
 ## Verification
 
@@ -665,6 +683,32 @@ replace.
   - sequence compare missing references: `0`
   - direct S577 mean MAD: `3.87780647183642`
   - direct S585 mean MAD: `3.875843139146091`
+- S599 renderer scene depth/material localized split material MS3:
+  - export `status=ready`
+  - frames exported: `8`
+  - response faces: `20000`
+  - remainder faces: `136764`
+  - water shape replacements: `8`
+  - response BSDF insertions: `8`
+  - XML validation `status=ready`
+  - XML parsed: `8`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `8`
+  - render failures: `0`
+  - total elapsed ms: `1740`
+  - image bytes: `23.19 MB`
+  - preview bytes: `2.88 MB`
+  - S328 target gap `status=ready`
+  - S328 target gap max mean abs diff: `100.98423739711934`
+  - S328 target gap max abs diff: `226`
+  - S573/S577/S585/S596/S597/S598 sequence compare `status=ready`
+  - sequence compare candidates: `7`
+  - sequence compare frames: `8`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.833308577674897`
+  - direct S585 mean MAD: `3.8382736143261313`
 
 ## Current Meaning
 
@@ -759,7 +803,10 @@ still broad enough to increase the legacy S328 target gap relative to S596.
 S598 reduces the selected region to 24k response faces and, despite a worse
 legacy S328 gap, directly matches the current S577/S585 gates much more closely
 than S596 or S597. This makes S598 the current tuning baseline, not yet a full48
-promotion.
+promotion. S599 narrows and weakens that split again to 20k response faces and
+slightly improves direct S577/S585 metrics over S598, so S599 replaces S598 as
+the current localized native-material tuning baseline. It is still an 8-frame
+sample and not a full48 promotion.
 
 ## Next
 
@@ -769,9 +816,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S598 as the current native-material tuning baseline. The next sweep
-   should stay near the MS2 selected-face range, reduce tint/contrast, and
-   rank candidates by direct S577/S585 MAD before full48 rendering.
+4. Use S599 as the current native-material tuning baseline. The next sweep
+   should stay near the MS3 selected-face range, validate longer-frame
+   stability, and rank candidates by direct S577/S585 MAD before full48
+   rendering.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
