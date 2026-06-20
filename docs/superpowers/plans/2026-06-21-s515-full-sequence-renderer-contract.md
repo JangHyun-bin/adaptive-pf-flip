@@ -61,6 +61,12 @@ replace.
   material/tone previews. The S567-driven material/tone path moved farther away
   from the accepted correction, so local light/material consumers are not enough
   for this T4 field.
+- S575 bridged the S555 full48 runtime sequence adapter into the existing
+  `lsfs_mitsuba_low_frequency_parity` schema.
+- S576 built a full48 renderer texture/cache package from S575, writing 12
+  texture layers per frame with zero reconstruction error.
+- S577 consumed the S576 package and reconstructed the accepted full48 frames
+  with max expected diff `0`.
 
 ## Key Artifacts
 
@@ -118,6 +124,12 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_compare_s574.md`
 - LFMask material/tone visual triage:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_lfmask_material_tone_visual_triage_s574.md`
+- Low-frequency parity bridge:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_parity_from_sequence_s575.md`
+- Low-frequency texture/cache package:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_texture_package_s576.md`
+- Low-frequency texture/cache consumer:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_low_frequency_texture_consumer_s577.md`
 
 ## Verification
 
@@ -222,6 +234,23 @@ replace.
   - mean raw-vs-accepted MAD: `1.878133`
   - mean native-light-vs-accepted MAD: `1.915123`
   - mean LFMask-material-vs-accepted MAD: `2.395302`
+- S575 low-frequency parity bridge:
+  - `status=ready`
+  - frames: `48`
+  - missing references: `0`
+  - dimension mismatches: `0`
+  - max target abs diff: `43`
+- S576 low-frequency texture/cache package:
+  - `status=ready`
+  - frames: `48`
+  - textures per frame: `12`
+  - texture bytes: `73.92 MB`
+  - max reconstruction abs diff: `0`
+- S577 low-frequency texture/cache consumer:
+  - `status=ready`
+  - frames: `48`
+  - max expected abs diff: `0`
+  - max expected mean diff: `0.0`
 
 ## Current Meaning
 
@@ -240,18 +269,18 @@ low-frequency correction evidence has also been lifted into response-mask and
 light-response contract formats, and two real renderer-native/local XML samples
 have been rendered. These samples prove the contract and material/tone paths are
 executable, but neither local light anchors nor direct material/tone modulation
-reproduce the accepted S555 tone.
+reproduce the accepted S555 tone. The accepted T4 field is now packaged as a
+full48 texture/cache boundary with lossless reconstruction.
 
 ## Next
 
-Move the same descriptor/process boundary toward an explicit low-frequency
-texture/cache input instead of another local light/material tweak:
+Use the texture/cache boundary as the accepted visual handoff while moving the
+photoreal renderer work back toward real scene data:
 
-1. Package the S555/S564 low-frequency field as explicit per-frame renderer
-   texture/cache data.
-2. Keep the current post-tonemap backend as the accepted full48 proof until a
-   real renderer-side texture consumer exists.
-3. Shift new photoreal work toward real geometry, surface detail, secondary
-   particles, and export/cache formats rather than local XML anchor tweaks.
+1. Keep S577 as the current accepted full48 texture/cache import gate.
+2. Add renderer/export schema fields for water volume, phase field, secondary
+   particle channels, and camera metadata so the renderer has real scene inputs.
+3. Improve geometry, surface detail, and secondary particle export before more
+   local XML light/material tweaking.
 4. Promote a native renderer sample only if it reduces the accepted-reference
    gap before attempting full48.
