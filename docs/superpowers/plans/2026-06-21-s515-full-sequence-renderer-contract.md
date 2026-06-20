@@ -128,6 +128,10 @@ replace.
   using the validated Python 3.11 + VS18 LLVM runtime, packaged a review
   gallery, and compared the result against the S573, S577, S585, and legacy
   S328 visual references.
+- S597 fixed RGBA-alpha mask handling in the localized water-material split
+  path, exported and rendered an 8-frame `MS1` face-split native-material
+  sample, and compared it against S573/S577/S585/S596. The path is renderable
+  but still too broad for promotion.
 
 ## Key Artifacts
 
@@ -241,6 +245,18 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_spp4_target_gap_s328_s596.md`
 - Renderer scene depth/material native material XML sequence compare:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_xml_sample_spp4_sequence_compare_s596.md`
+- Renderer scene depth/material localized split material export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_export_s597.md`
+- Renderer scene depth/material localized split material validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_validate_s597.md`
+- Renderer scene depth/material localized split material render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_render_s597.md`
+- Renderer scene depth/material localized split material gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_gallery_s597.md`
+- Renderer scene depth/material localized split material target gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_target_gap_s328_s597.md`
+- Renderer scene depth/material localized split material sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms1_soft_sequence_compare_s597.md`
 
 ## Verification
 
@@ -581,6 +597,30 @@ replace.
   - sequence compare candidates: `4`
   - sequence compare frames: `8`
   - sequence compare missing references: `0`
+- S597 renderer scene depth/material localized split material MS1:
+  - export `status=ready`
+  - frames exported: `8`
+  - response faces: `103565`
+  - remainder faces: `53199`
+  - water shape replacements: `8`
+  - response BSDF insertions: `8`
+  - XML validation `status=ready`
+  - XML parsed: `8`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `8`
+  - render failures: `0`
+  - total elapsed ms: `1700`
+  - image bytes: `24.86 MB`
+  - preview bytes: `3.56 MB`
+  - S328 target gap `status=ready`
+  - S328 target gap max mean abs diff: `88.33843942901234`
+  - S328 target gap max abs diff: `243`
+  - S573/S577/S585/S596 sequence compare `status=ready`
+  - sequence compare candidates: `5`
+  - sequence compare frames: `8`
+  - sequence compare missing references: `0`
 
 ## Current Meaning
 
@@ -625,7 +665,9 @@ now reproducible through:
 20. a validated 8-frame Mitsuba XML sample that binds those material snippets
    into real water-surface BSDF references,
 21. an actual SPP4 Mitsuba render of that native-material XML sample plus
-   S573/S577/S585 visual comparison artifacts.
+   S573/S577/S585 visual comparison artifacts,
+22. a renderable localized water-face material split path that consumes the
+   low-frequency response mask through alpha-aware mesh partitioning.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -665,6 +707,9 @@ passes XML validation. S596 proves the bound XML sample is renderable in the
 native Mitsuba path and produces a much more refractive/renderer-native water
 look; the sequence compare also shows this is a major visual move from the
 S577/S585 accepted gate, so it should be tuned before any full48 promotion.
+S597 fixes a concrete mask-ingestion bug in the face-split path and proves a
+localized native-material split can render, but the selected response region is
+still broad enough to increase the legacy S328 target gap relative to S596.
 
 ## Next
 
@@ -674,9 +719,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Tune the S596 native XML material response against the S573/S577/S585
-   comparison, especially refractive strength, roughness, tint, and mask
-   localization.
+4. Tune the S597 localized split response with tighter threshold/face-limit
+   sweeps before full48 rendering. The next sweep should reduce selected faces
+   and cool down tint/roughness while keeping the alpha-aware mask ingestion.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.

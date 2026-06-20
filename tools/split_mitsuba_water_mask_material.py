@@ -46,6 +46,17 @@ def normalized_path(path):
     return os.path.normcase(os.path.abspath(str(path).replace("/", os.sep)))
 
 
+def load_mask_luma(path):
+    from PIL import Image
+
+    image = Image.open(path)
+    if "A" in image.getbands():
+        alpha = image.getchannel("A")
+        if alpha.getextrema() != (255, 255):
+            return alpha
+    return image.convert("L")
+
+
 def current_water_shape_mesh(xml_text):
     pattern = re.compile(r'(?P<block>\s*<shape\s+type="obj"(?:\s+id="[^"]+")?>.*?</shape>)', re.DOTALL)
     candidates = []
@@ -362,7 +373,7 @@ def split_material(args):
         vertices, faces = read_obj_mesh(water_mesh)
         from PIL import Image
 
-        mask = Image.open(mask_path).convert("L")
+        mask = load_mask_luma(mask_path)
         source = Image.open(source_path).convert("RGB") if source_path and os.path.isfile(source_path) else None
         camera = parse_camera(source_xml)
         selected = select_faces(vertices, faces, camera, mask, source, args)
