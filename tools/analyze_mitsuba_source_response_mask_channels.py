@@ -227,8 +227,8 @@ def build(args):
     for label, path in args.mask_source:
         summary_path = require_file(path, f"{label} mask source")
         summary = read_json(summary_path)
-        if summary.get("schema") != "lsfs_mitsuba_secondary_composite":
-            raise SystemExit(f"{path}: expected lsfs_mitsuba_secondary_composite schema")
+        if summary.get("schema") not in ("lsfs_mitsuba_secondary_composite", "lsfs_mitsuba_source_response_mask_source"):
+            raise SystemExit(f"{path}: expected source-response mask or secondary composite schema")
         mask_sources.append((label, summary_path, summary, output_frame_map(summary.get("frames") or [])))
 
     out_dir = os.path.abspath(args.out_dir)

@@ -60,23 +60,27 @@ def mask_union(*masks):
     return [any(values) for values in zip(*masks)]
 
 
-def select_mask(masks, kind):
+def enabled_mask(mask, enabled):
+    return mask if enabled else [False for _value in mask]
+
+
+def select_mask(masks, kind, args):
     if kind == "highlight":
-        return masks["highlight"]
+        return enabled_mask(masks["highlight"], args.highlight_strength > 0.0)
     if kind == "dark-secondary-primary":
-        return masks["dark_secondary_primary"]
+        return enabled_mask(masks["dark_secondary_primary"], args.dark_secondary_strength > 0.0)
     if kind == "channel-band":
-        return masks["dark_secondary_channel_band"]
+        return enabled_mask(masks["dark_secondary_channel_band"], args.channel_band_strength > 0.0)
     dark_secondary = mask_union(
-        masks["dark_secondary_primary"],
-        masks["dark_secondary_ring"],
-        masks["dark_secondary_channel_band"],
-        masks["dark_secondary_soft"],
+        enabled_mask(masks["dark_secondary_primary"], args.dark_secondary_strength > 0.0),
+        enabled_mask(masks["dark_secondary_ring"], args.dark_secondary_ring_strength > 0.0),
+        enabled_mask(masks["dark_secondary_channel_band"], args.channel_band_strength > 0.0),
+        enabled_mask(masks["dark_secondary_soft"], args.dark_secondary_soft_strength > 0.0),
     )
     if kind == "dark-secondary":
         return dark_secondary
     if kind == "response-union":
-        return mask_union(masks["highlight"], dark_secondary)
+        return mask_union(enabled_mask(masks["highlight"], args.highlight_strength > 0.0), dark_secondary)
     raise ValueError(f"unknown mask kind {kind!r}")
 
 
@@ -312,7 +316,7 @@ def build(args):
             response_args,
             channel_mask=channel_mask,
         )
-        selected = select_mask(masks, args.mask_kind)
+        selected = select_mask(masks, args.mask_kind, response_args)
         coverage = sum(1 for value in selected if value) / float(max(1, len(selected)))
         mask = mask_image(selected, source_img.size, args.alpha_value, args.blur_radius, args.dilate_radius)
         mask_path = os.path.join(mask_dir, f"frame_{index:04d}.png")
@@ -359,13 +363,14 @@ def build(args):
     summary_path = os.path.join(out_dir, "source_response_mask_source_summary.json")
     generated_utc = datetime.now(timezone.utc).isoformat()
     summary = {
-        "schema": "lsfs_mitsuba_secondary_composite",
+        "schema": "lsfs_mitsuba_source_response_mask_source",
         "version": 1,
         "generated_utc": generated_utc,
         "title": args.title,
         "status": "ready",
         "mask_kind": args.mask_kind,
         "candidate": f"{args.profile}_{args.mask_kind}",
+        "compat_schema": "lsfs_mitsuba_secondary_composite",
         "source": {
             "composite_summary": posix_rel(composite_summary_path, root),
             "mitsuba_export": posix_rel(export_summary_path, root) if export_summary_path else None,
