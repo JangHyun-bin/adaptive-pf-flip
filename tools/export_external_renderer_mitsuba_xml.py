@@ -721,6 +721,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
             "repo_path": posix_rel(water_mesh, os.getcwd()) if water_mesh else None,
             "size": os.path.getsize(water_mesh) if water_mesh and os.path.isfile(water_mesh) else 0,
             "faces": water_faces,
+            "surface_quality": diagnostics.get("water_mesh_surface_quality", {}),
         },
         "sidecar_assets": {
             "phase_cells": posix_rel(phase_cells, os.getcwd()) if phase_cells else None,

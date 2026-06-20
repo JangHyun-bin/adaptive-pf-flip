@@ -4461,3 +4461,22 @@ and F1 `0.612175`. Blurred-density variants only match or fall below it:
 global projected secondary masks and simple layer-density gates are both
 exhausted for this shot. Next work should use surface-normal, water-contact, or
 renderer-side material evidence.
+
+S379 preserved water mesh surface-quality metadata in the Mitsuba path:
+
+- S379 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-export-surface-quality-annotation.md`
+- S379 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_export_surface_quality_annotation_sv1_s379.md`
+- S379 new tool:
+  `tools/annotate_mitsuba_export_surface_quality.py`
+- S379 updated exporter:
+  `tools/export_external_renderer_mitsuba_xml.py`
+
+The active SV1 Mitsuba export can be fully annotated from the S205 water mesh
+surface-quality CSV: `8 / 8` frames are annotated, with label counts
+`{'normal_rough': 1, 'stable': 7}`, max normal discontinuity p95
+`0.08905251265290359`, and max mesh quality risk score `0.13883554159123784`.
+This is useful renderer/material metadata, but it is frame-level, so it is too
+coarse to replace the DS6 pixel mask. Next work should project or rasterize
+surface normal/contact evidence spatially.
