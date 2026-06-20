@@ -5206,3 +5206,29 @@ than SS1 `23.951853137860084` and far behind S409 `SF12_H18`
 localized response data, not whole-frame per-channel material scaling. S414
 should test a native projected mask, per-particle material grouping, or
 texture/volume mask that affects only the S410 evidence regions.
+
+S414 added a localized secondary material-response patcher:
+
+- S414 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-localized-secondary-response.md`
+- S414 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_localized_secondary_summary_s414.md`
+- S414 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_localized_secondary_sweep_summary_s414.md`
+- S414 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_localized_secondary_compare_s414.md`
+- S414 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_localized_secondary_compare_publish_s414.md`
+- S414 public quick-tunnel URL:
+  `https://italia-mart-wallet-sides.trycloudflare.com/index.html`
+- S414 new tool:
+  `tools/localize_mitsuba_secondary_material_response.py`
+
+The tool projects existing secondary XML shapes to screen space and rewrites
+only mask-hit shapes to localized BSDFs. LR3 proves the luma gate works,
+reducing selected shapes from `5200` to `980`. However, localized secondary
+attenuation still should not be promoted: best localized max target MAD
+`23.989165380658438`, worse than SS1 `23.951853137860084` and far behind S409
+`SF12_H18` `23.687431841563786`. S415 should reuse the localization
+infrastructure for a different response class: source-highlight/light response
+or water/volume texture response, not secondary attenuation.
