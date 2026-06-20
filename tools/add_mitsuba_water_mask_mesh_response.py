@@ -146,7 +146,16 @@ def mesh_response_block(mesh_path, args, frame_index):
         f'    <string name="filename" value="{xml_path(mesh_path)}"/>',
         '    <boolean name="face_normals" value="true"/>',
     ]
-    if max(args.reflectance_vec) > 0.0:
+    if args.bsdf_mode == "roughdielectric":
+        lines.extend([
+            '    <bsdf type="roughdielectric">',
+            '      <string name="distribution" value="ggx"/>',
+            f'      <float name="alpha" value="{fmt(args.rough_alpha)}"/>',
+            f'      <float name="int_ior" value="{fmt(args.int_ior)}"/>',
+            f'      <float name="ext_ior" value="{fmt(args.ext_ior)}"/>',
+            '    </bsdf>',
+        ])
+    elif max(args.reflectance_vec) > 0.0:
         lines.extend([
             '    <bsdf type="diffuse">',
             f'      <rgb name="reflectance" value="{csv3(args.reflectance_vec)}"/>',
@@ -182,6 +191,9 @@ def markdown_report(export, export_path, root, next_text):
         f"- Face limit: `{response.get('face_limit')}`",
         f"- Face stride: `{response.get('face_stride')}`",
         f"- Y lift: `{response.get('y_lift')}`",
+        f"- BSDF mode: `{response.get('bsdf_mode')}`",
+        f"- Rough alpha: `{response.get('rough_alpha')}`",
+        f"- IOR: `{response.get('ext_ior')} -> {response.get('int_ior')}`",
         f"- Radiance: `{response.get('radiance')}`",
         f"- Reflectance: `{response.get('reflectance')}`",
         f"- Mask threshold: `{response.get('mask_threshold')}`",
@@ -366,6 +378,10 @@ def add_mesh_response(args):
             "face_limit": args.face_limit,
             "face_stride": args.face_stride,
             "y_lift": args.y_lift,
+            "bsdf_mode": args.bsdf_mode,
+            "rough_alpha": args.rough_alpha,
+            "int_ior": args.int_ior,
+            "ext_ior": args.ext_ior,
             "radiance": args.radiance_vec,
             "reflectance": args.reflectance_vec,
             "reverse_faces": args.reverse_faces,
@@ -411,6 +427,10 @@ def main(argv=None):
     parser.add_argument("--source-luma-min", type=float, default=0.0)
     parser.add_argument("--source-luma-max", type=float, default=255.0)
     parser.add_argument("--y-lift", type=float, default=0.025)
+    parser.add_argument("--bsdf-mode", choices=["diffuse", "roughdielectric"], default="diffuse")
+    parser.add_argument("--rough-alpha", type=float, default=0.006)
+    parser.add_argument("--int-ior", type=float, default=1.333)
+    parser.add_argument("--ext-ior", type=float, default=1.0)
     parser.add_argument("--radiance", default="0.65,0.85,1.10")
     parser.add_argument("--reflectance", default="0.0,0.0,0.0")
     parser.add_argument("--reverse-faces", action="store_true")
@@ -434,10 +454,16 @@ def main(argv=None):
         parser.error("source-luma-min cannot exceed source-luma-max")
     if args.depth_penalty < 0.0:
         parser.error("depth-penalty must be non-negative")
+    if args.rough_alpha <= 0.0:
+        parser.error("rough-alpha must be positive")
+    if args.int_ior <= 0.0 or args.ext_ior <= 0.0:
+        parser.error("int-ior and ext-ior must be positive")
     args.radiance_vec = parse_vec3(args.radiance, "radiance")
     args.reflectance_vec = parse_vec3(args.reflectance, "reflectance")
     if min(args.radiance_vec) < 0.0 or min(args.reflectance_vec) < 0.0:
         parser.error("radiance and reflectance values must be non-negative")
+    if max(args.reflectance_vec) > 1.0:
+        parser.error("diffuse reflectance values must be in [0, 1]")
     add_mesh_response(args)
 
 
