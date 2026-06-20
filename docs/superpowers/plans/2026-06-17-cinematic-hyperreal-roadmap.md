@@ -3402,3 +3402,29 @@ mean absolute diff `55.544113136574076`, and max gap mean absolute diff
 and `assets/shot.gif` with HTTP `200`. Use S331 as the first measured
 renderer-native improvement, while noting that the remaining gap still requires
 a non-sphere secondary representation and renderer-side grade/material work.
+
+S332 added a small Mitsuba native material/secondary sweep:
+
+- S332 new tool:
+  `tools/summarize_mitsuba_native_gap_sweep.py`
+- S332 sweep summary report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_gap_sweep_summary_s332.md`
+- S332 best candidate gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_gap_sweep_b_gap_s332.md`
+- S332 best candidate publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_native_gap_sweep_b_publish_s332.md`
+- S332 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-native-gap-sweep.md`
+- S332 public URL:
+  `https://also-ringtone-compilation-only.trycloudflare.com`
+
+S332 renders two additional actual Mitsuba candidates and ranks them against
+S330 and S331. Candidate B is the new best renderer-native baseline with mean
+gap mean absolute diff `37.73105774176955`, max gap mean absolute diff
+`67.67647762345679`, and max gap max absolute diff `171`. Candidate C is worse
+than B with max gap mean absolute diff `70.31346450617283`. Candidate B improves
+over S331's `85.7207773919753` max gap and S330's `104.48981417181069` max gap.
+The published B gallery verifies public `index.html` and `assets/shot.gif` with
+HTTP `200`. Use S332-B as the next actual Mitsuba baseline, then spend the next
+pass on replacing sphere secondary proxies with a softer or volumetric
+renderer-side secondary representation.
