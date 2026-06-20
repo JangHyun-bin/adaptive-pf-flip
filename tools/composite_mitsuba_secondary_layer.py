@@ -282,12 +282,14 @@ def html_page(title, assets, metadata_files, summary):
 
 def markdown_report(summary, manifest_path, root, next_text):
     checks = summary["checks"]
+    visibility_cache = summary.get("secondary_visibility_cache") or {}
     lines = [
         f"# {summary['title']}",
         "",
         f"Generated UTC: `{summary['generated_utc']}`",
         f"Summary JSON: `{posix_rel(manifest_path, root)}`",
         f"Gallery: `{summary['gallery']['index_repo_path']}`",
+        f"Visibility cache: `{visibility_cache.get('repo_path')}`",
         "",
         "## Checks",
         "",
@@ -295,6 +297,7 @@ def markdown_report(summary, manifest_path, root, next_text):
         f"- Particles total: `{checks.get('particles_total')}`",
         f"- Particles projected: `{checks.get('particles_projected')}`",
         f"- Max layer coverage: `{checks.get('max_layer_coverage')}`",
+        f"- Layer bytes: `{format_bytes(checks.get('layer_bytes', 0))}`",
         f"- GIF bytes: `{format_bytes(checks.get('gif_bytes', 0))}`",
         "",
         "## Frame Samples",
@@ -324,6 +327,50 @@ def build_export_frame_map(export, root):
     return mapping
 
 
+def build_visibility_cache(summary, cache_path, root):
+    frames = []
+    layer_bytes = 0
+    for frame in summary.get("frames") or []:
+        layer_path = resolve_path(frame.get("layer_repo_path"))
+        layer_size = os.path.getsize(layer_path)
+        layer_bytes += layer_size
+        frames.append({
+            "frame": frame.get("frame"),
+            "output_frame": frame.get("output_frame"),
+            "sequence_frame": frame.get("sequence_frame"),
+            "layer_repo_path": posix_rel(layer_path, root),
+            "layer_sha256": sha256_file(layer_path),
+            "layer_size": layer_size,
+            "layer_coverage": frame.get("layer_coverage"),
+            "particles_projected": frame.get("particles_projected"),
+            "projected_counts": frame.get("projected_counts"),
+        })
+    return {
+        "schema": "lsfs_mitsuba_secondary_visibility_cache",
+        "version": 1,
+        "generated_utc": summary.get("generated_utc"),
+        "title": f"{summary.get('title')} Visibility Cache",
+        "profile_name": (summary.get("settings") or {}).get("profile_name"),
+        "source": summary.get("source"),
+        "settings": summary.get("settings"),
+        "usage": {
+            "kind": "renderer_facing_secondary_visibility_layer",
+            "composition": "alpha_composite_visibility_layer_over_render_preview",
+            "layer_color_space": "rgba_png",
+        },
+        "checks": {
+            "frames": len(frames),
+            "particles_projected": sum(item.get("particles_projected") or 0 for item in frames),
+            "max_layer_coverage": max((item.get("layer_coverage") or 0.0 for item in frames), default=0.0),
+            "layer_bytes": layer_bytes,
+            "failures": 0,
+        },
+        "path": cache_path,
+        "repo_path": posix_rel(cache_path, root),
+        "frames": frames,
+    }
+
+
 def composite(args):
     require_pillow()
     root = os.getcwd()
@@ -351,6 +398,7 @@ def composite(args):
     total_particles = 0
     total_projected = 0
     max_coverage = 0.0
+    layer_bytes = 0
     for index, frame in enumerate(render.get("frames") or []):
         preview_path = require_file((frame.get("preview") or {}).get("path") or (frame.get("preview") or {}).get("repo_path"), "render preview")
         xml_path = require_file((frame.get("xml_scene") or {}).get("path") or (frame.get("xml_scene") or {}).get("repo_path"), "xml scene")
@@ -368,9 +416,12 @@ def composite(args):
         layer.save(layer_path)
         Image.alpha_composite(base, layer).convert("RGB").save(composite_path)
         coverage = alpha_coverage(layer)
+        layer_size = os.path.getsize(layer_path)
+        composite_size = os.path.getsize(composite_path)
         total_particles += len(particles)
         total_projected += projected
         max_coverage = max(max_coverage, coverage)
+        layer_bytes += layer_size
         composite_paths.append(composite_path)
         frame_results.append({
             "frame": index,
@@ -378,7 +429,11 @@ def composite(args):
             "sequence_frame": frame.get("sequence_frame"),
             "preview_repo_path": posix_rel(preview_path, root),
             "layer_repo_path": posix_rel(layer_path, root),
+            "layer_sha256": sha256_file(layer_path),
+            "layer_size": layer_size,
             "composite_repo_path": posix_rel(composite_path, root),
+            "composite_sha256": sha256_file(composite_path),
+            "composite_size": composite_size,
             "particles_total": len(particles),
             "particles_projected": projected,
             "projected_counts": counts,
@@ -393,19 +448,18 @@ def composite(args):
         assets.append(copy_asset(composite_paths[frame_index], assets_dir, f"keyframe_{out_index:02d}.png", f"Keyframe {out_index + 1}", root))
 
     summary_path = os.path.join(out_dir, "secondary_composite_summary.json")
-    render_asset = copy_asset(render_path, assets_dir, "mitsuba_render.json", "Mitsuba render manifest", root)
-    export_asset = copy_asset(export_path, assets_dir, "mitsuba_export.json", "Mitsuba export manifest", root)
-    metadata_files = [render_asset, export_asset]
+    generated_utc = datetime.now(timezone.utc).isoformat()
     summary = {
         "schema": "lsfs_mitsuba_secondary_composite",
         "version": 1,
-        "generated_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_utc": generated_utc,
         "title": args.title,
         "source": {
             "render_manifest": posix_rel(render_path, root),
             "mitsuba_export": posix_rel(export_path, root),
         },
         "settings": {
+            "profile_name": args.profile_name,
             "max_particles": args.max_particles,
             "radius_scale": args.radius_scale,
             "opacity_scale": args.opacity_scale,
@@ -418,15 +472,30 @@ def composite(args):
             "particles_total": total_particles,
             "particles_projected": total_projected,
             "max_layer_coverage": max_coverage,
+            "layer_bytes": layer_bytes,
             "gif_bytes": os.path.getsize(gif_path),
         },
+        "secondary_visibility_cache": {},
         "gallery": {},
         "frames": frame_results,
     }
-    summary_asset = None
+    cache_path = os.path.join(out_dir, "secondary_visibility_cache.json")
+    cache = build_visibility_cache(summary, cache_path, root)
+    write_json(cache_path, cache)
+    summary["secondary_visibility_cache"] = {
+        "path": cache_path,
+        "repo_path": posix_rel(cache_path, root),
+        "sha256": sha256_file(cache_path),
+        "size": os.path.getsize(cache_path),
+        "schema": cache["schema"],
+        "profile_name": cache["profile_name"],
+    }
     write_json(summary_path, summary)
     summary_asset = copy_asset(summary_path, assets_dir, "secondary_composite_summary.json", "Composite summary", root)
-    metadata_files.insert(0, summary_asset)
+    cache_asset = copy_asset(cache_path, assets_dir, "secondary_visibility_cache.json", "Visibility cache", root)
+    render_asset = copy_asset(render_path, assets_dir, "mitsuba_render.json", "Mitsuba render manifest", root)
+    export_asset = copy_asset(export_path, assets_dir, "mitsuba_export.json", "Mitsuba export manifest", root)
+    metadata_files = [summary_asset, cache_asset, render_asset, export_asset]
     index_path = os.path.join(gallery_dir, "index.html")
     gallery_manifest_path = os.path.join(gallery_dir, "gallery_manifest.json")
     summary["gallery"] = {
@@ -453,6 +522,8 @@ def composite(args):
             "frames": len(frame_results),
             "particles_projected": total_projected,
             "max_layer_coverage": max_coverage,
+            "layer_bytes": layer_bytes,
+            "secondary_visibility_cache": summary["secondary_visibility_cache"].get("repo_path"),
         },
     })
     if args.report:
@@ -472,6 +543,7 @@ def main(argv=None):
     parser.add_argument("--opacity-scale", type=float, default=1.0)
     parser.add_argument("--blur-radius", type=float, default=2.4)
     parser.add_argument("--reference-depth", type=float, default=52.0)
+    parser.add_argument("--profile-name", default="custom")
     parser.add_argument("--fps", type=float, default=2.0)
     parser.add_argument("--keyframes", type=int, default=4)
     parser.add_argument("--title", default="Mitsuba Secondary Composite")
@@ -488,6 +560,9 @@ def main(argv=None):
         parser.error("blur-radius must be non-negative")
     if args.reference_depth <= 0.0:
         parser.error("reference-depth must be positive")
+    if not args.profile_name.strip():
+        parser.error("profile-name must not be empty")
+    args.profile_name = args.profile_name.strip()
     if args.fps <= 0.0:
         parser.error("fps must be positive")
     if args.keyframes <= 0:

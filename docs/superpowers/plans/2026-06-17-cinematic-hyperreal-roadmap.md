@@ -4051,3 +4051,22 @@ visibility bridge: max target MAD improves from SS1 `23.951853137860084` to
 `23.72217142489712`, while stronger/sharper bridges regress the gate. This is a
 useful appearance target, but it is still a screen-space bridge. The next step is
 to port the SV1 profile into renderer-facing secondary cache/pass data.
+
+S360 promoted the SV1 visibility bridge into a renderer-facing cache contract:
+
+- S360 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-visibility-cache.md`
+- S360 cache report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_cache_sv1_s360.md`
+- S360 gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_cache_sv1_gap_s360.md`
+- S360 updated tool:
+  `tools/composite_mitsuba_secondary_layer.py`
+
+`composite_mitsuba_secondary_layer.py` now writes
+`lsfs_mitsuba_secondary_visibility_cache` alongside the composite summary. The
+SV1 cache records 8 RGBA layer frames, `2877` projected particles, max layer
+coverage `0.1105054012345679`, and `540.24 KB` of layer data. Rechecking the
+cache-backed composite preserves the S359 max target MAD
+`23.72217142489712`. Next, consume this cache from a renderer-native secondary
+pass instead of treating the screen-space composite as the final render.
