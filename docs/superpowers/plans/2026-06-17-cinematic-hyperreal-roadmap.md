@@ -3903,3 +3903,20 @@ from `22.504146` to `22.125309284979423`, but increases max contract MAD from
 acceptance win: the current native proxy-secondary representation is not the
 right replacement path. Continue with an MW7/no-secondary-proxy background
 control sweep or implement a proper depth-aware 3D secondary cache/export path.
+
+S352 ran the MW7/no-secondary-proxy background control sweep:
+
+- S352 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-no-secondary-background-sweep.md`
+- S352 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_no_secondary_bg_sweep_summary_s352.md`
+- S352 NB reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_no_secondary_bg_nb*_*.md`
+
+S352 confirms the TB6 background should stay with MW7. NB3 improves mean target
+MAD (`18.250665`) and max native-to-C1E MAD (`21.145738`), but worsens the hard
+max target gate to `25.934545` versus MW7 `23.951992669753086`. NB1, NB2, and
+NB4 also worsen max target MAD. Stop spending iterations on background-only
+tuning for this branch. The next renderer milestone should be schema-first
+depth-aware 3D secondary export/import for Mitsuba, then a native replacement
+measurement against S350 C1E.
