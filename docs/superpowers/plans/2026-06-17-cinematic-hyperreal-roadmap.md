@@ -3843,3 +3843,21 @@ as the current native replacement baseline. It still does not beat the S335
 contract max `18.040229552469135` or S341 C3 bridge max
 `14.571005658436214`. Continue from TB6 rather than the brighter S345/S347
 baseline.
+
+S349 tested TB6 plus the S347 screen-sprite secondary path:
+
+- S349 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-tone-sprite-combination.md`
+- S349 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_tone_bg_screen_sprites_ts1_export_s349.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_tone_bg_screen_sprites_ts1_render_s349.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_tone_bg_screen_sprites_ts1_candidate_gap_s349.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_ts1_s349.md`
+
+S349 uses S348 TB6 as the base export and adds SC4-style screen sprites from
+the C3 secondary mask. TS1 is slightly worse than TB6: mean target MAD
+`19.41354994534465` versus TB6 `19.411650913065845`, and max target MAD
+`24.39063721707819` versus TB6 `24.390221193415638`. Do not keep the current
+screen-sprite path on top of the calibrated TB6 baseline. Continue from TB6 and
+move to native material/water/secondary tuning or a TB6-based post-render bridge
+refresh.
