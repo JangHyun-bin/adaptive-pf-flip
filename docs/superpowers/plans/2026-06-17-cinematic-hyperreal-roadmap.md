@@ -4750,3 +4750,17 @@ diff mean of approximately `[0.6444, 0.6950, 0.7492]` and max channel deltas
 the post-composite CR21 response. Next work should either publish this gallery
 for visual review or sweep reflectance scale/secondary opacity under the
 target-gap harness.
+
+S393 published the S392 material-response comparison gallery:
+
+- S393 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-material-response-compare-publish.md`
+- S393 report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_material_cr21_compare_publish_s393.md`
+- S393 public quick-tunnel preview:
+  `https://fashion-adapters-careers-active.trycloudflare.com/index.html`
+
+The public page serves the Target/C1E/SS1/S391_CR21_Material comparison for
+outputs `0`, `27`, and `47`. Both `index.html` and `assets/comparison.gif`
+returned HTTP `200` locally and through the quick tunnel. The URL is
+session-scoped; refresh it if the recorded processes exit.
