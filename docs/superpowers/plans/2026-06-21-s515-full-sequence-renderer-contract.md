@@ -72,6 +72,13 @@ replace.
   low-frequency textures into a renderer scene-cache handoff manifest.
 - S579 validated the S578 handoff across all mapped scene, texture, water mesh,
   and consumer composite references.
+- S580 exported the S578 handoff into an `lsfs_render_data_summary` sidecar so
+  renderer depth/material controls can consume water bounds, phase volume,
+  mesh complexity, secondary counts, and visual-contract frame links without
+  re-reading raw cache JSONL.
+- S581 consumed the S580 sidecar into CSV/SVG profile diagnostics and verified
+  monotonic source/output frame mappings plus depth, mesh, and secondary trend
+  coverage.
 
 ## Key Artifacts
 
@@ -139,6 +146,10 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_cache_handoff_s578.md`
 - Renderer scene-cache handoff validation:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_cache_handoff_validation_s579.md`
+- Renderer scene render-data sidecar:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_render_data_s580.md`
+- Renderer scene render-data profile:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_render_data_profile_s581.md`
 
 ## Verification
 
@@ -283,6 +294,23 @@ replace.
   - scene frames: `36`
   - visual frames: `48`
   - unique scene frames mapped: `36`
+- S580 renderer scene render-data sidecar:
+  - `status=ok`
+  - scene/cache frames: `36`
+  - visual frames: `48`
+  - render-data frames: `48`
+  - mapping mode: `nearest_normalized_scene_frame`
+  - water Y-depth span: min `21.0`, mean `26.375`, max `31.0`
+  - water Z-depth span: min `19.0`, mean `21.416666666666668`, max `25.0`
+  - water mesh face count: min `23424`, mean `27165.75`, max `29664`
+  - secondary total count: `192` across mapped frames
+- S581 renderer scene render-data profile:
+  - `status=ok`
+  - frames: `48`
+  - row count, water depth spans, mesh faces, secondary counts, source mapping,
+    and output mapping checks all passed
+  - SVG profile:
+    `build/shots/s581_mitsuba_renderer_scene_render_data_profile/render_data_profile.svg`
 
 ## Current Meaning
 
@@ -296,7 +324,9 @@ now reproducible through:
 5. zero-diff validation against accepted references,
 6. a renderer scene-cache handoff that links the accepted full48 visual
    texture contract to real camera, phase-field, water mesh, primary particle,
-   and secondary particle data.
+   and secondary particle data,
+7. a renderer-data sidecar/profile that turns the handoff into reusable
+   depth/material control metrics.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -306,7 +336,10 @@ have been rendered. These samples prove the contract and material/tone paths are
 executable, but neither local light anchors nor direct material/tone modulation
 reproduce the accepted S555 tone. The accepted T4 field is now packaged as a
 full48 texture/cache boundary with lossless reconstruction and has a validated
-handoff into the current large-grid scene-data cache.
+handoff into the current large-grid scene-data cache. The handoff now also has
+an `lsfs_render_data_summary` sidecar and trend profile, so the next pass can
+drive renderer-side depth/material behavior from measured scene metadata rather
+than by hand-tuning only the final image.
 
 ## Next
 
@@ -315,8 +348,6 @@ photoreal renderer work back toward real scene data:
 
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
-3. Consume water bounds, phase-cell density, water mesh stats, secondary
-   counts, and low-frequency textures in the next bounded metadata-driven
-   depth/material pass.
+3. Use S580/S581 as the reusable depth/material control sidecar and profile.
 4. Promote a native renderer sample only if it reduces the accepted-reference
    gap before attempting full48.

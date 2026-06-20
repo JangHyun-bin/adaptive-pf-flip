@@ -131,12 +131,18 @@ def inspect_scene_frame(frame, sequence_dir, root, missing):
         "counts": {
             "particle_count": frame.get("particle_count", camera_payload.get("particle_count", 0)),
             "phase_cell_count": frame.get("phase_cell_count", camera_payload.get("phase_cell_count", 0)),
+            "phase_field_cells": water.get("phase_field_cells", frame.get("phase_cell_count", camera_payload.get("phase_cell_count", 0))),
+            "phase_field_liquid_volume": water.get("phase_field_liquid_volume", 0.0),
+            "primary_liquid_count": water.get("primary_liquid_count", cinematic.get("primary_liquid_count", 0)),
+            "primary_gas_count": water.get("primary_gas_count", cinematic.get("primary_gas_count", 0)),
             "secondary_particle_count": water.get("secondary_particle_count", secondary.get("total_count", 0)),
+            "secondary_droplet_count": water.get("secondary_droplet_count", secondary.get("droplet_count", 0)),
             "secondary_spray_count": secondary.get("spray_count", cinematic.get("secondary_spray_count", 0)),
             "secondary_foam_count": secondary.get("foam_count", cinematic.get("secondary_foam_count", 0)),
             "secondary_bubble_count": secondary.get("bubble_count", cinematic.get("secondary_bubble_count", 0)),
             "water_mesh_vertex_count": frame.get("water_mesh_vertex_count", 0),
             "water_mesh_face_count": frame.get("water_mesh_face_count", 0),
+            "water_mesh_occupied_cell_count": frame.get("water_mesh_occupied_cell_count"),
         },
         "cinematic": {
             "water_bounds_valid": cinematic.get("water_bounds_valid"),

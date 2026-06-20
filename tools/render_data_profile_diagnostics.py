@@ -122,7 +122,7 @@ def write_svg(path: Path, rows, summary) -> None:
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         '<rect width="100%" height="100%" fill="#101419"/>',
-        '<text x="48" y="30" fill="#e8eef5" font-family="Consolas, monospace" font-size="18">S172 Render Data Profile Diagnostics</text>',
+        f'<text x="48" y="30" fill="#e8eef5" font-family="Consolas, monospace" font-size="18">{svg_escape(summary.get("title", "S172 Render Data Profile Diagnostics"))}</text>',
     ]
     for chart_idx, (key, label, color) in enumerate(SERIES):
         y0 = margin_top + chart_idx * (chart_h + gap)
@@ -160,7 +160,7 @@ def write_svg(path: Path, rows, summary) -> None:
     path.write_text("\n".join(parts), encoding="utf-8")
 
 
-def build_summary(sidecar_path: Path, csv_path: Path, svg_path: Path, rows):
+def build_summary(sidecar_path: Path, csv_path: Path, svg_path: Path, rows, title, next_recommendation):
     sidecar = read_json(sidecar_path)
     simulation = sidecar.get("simulation", {})
     y_stats = stats(row.get("water_depth_y_span") for row in rows)
@@ -209,10 +209,21 @@ def build_summary(sidecar_path: Path, csv_path: Path, svg_path: Path, rows):
         },
     ]
     status = "ok" if all(check["passed"] for check in checks) else "failed"
+    findings = [
+        "Water Z-depth span is near the full grid depth for much of the shot, so a renderer can use this sidecar to separate foreground and background water more deliberately.",
+        "Mesh face counts remain high and stable enough for a metadata-driven render pass without re-reading raw cache JSONL.",
+    ]
+    if secondary_stats["delta"] is None:
+        findings.append("Secondary count variation is unavailable, so secondary attenuation should use conservative constant bounds.")
+    elif abs(float(secondary_stats["delta"])) < 1e-9:
+        findings.append("Secondary total count is stable across the mapped frames; channel mix and depth placement should drive attenuation more than total count.")
+    else:
+        findings.append("Secondary counts vary across the shot, so depth-aware secondary attenuation should be frame dependent rather than a single constant.")
     return {
         "schema": "lsfs_render_data_profile_diagnostics",
         "version": 1,
         "generated_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "title": title,
         "status": status,
         "inputs": {
             "render_data_summary": str(sidecar_path),
@@ -231,12 +242,8 @@ def build_summary(sidecar_path: Path, csv_path: Path, svg_path: Path, rows):
             "phase_field_liquid_volume": liquid_stats,
         },
         "sanity_checks": checks,
-        "findings": [
-            "Water Z-depth span is near the full grid depth for much of the shot, so a renderer can use this sidecar to separate foreground and background water more deliberately.",
-            "Mesh face counts remain high and stable enough for a metadata-driven render pass without re-reading raw cache JSONL.",
-            "Secondary counts rise late in the shot, so depth-aware secondary attenuation should be frame dependent rather than a single constant.",
-        ],
-        "next_recommendation": "S173 should consume render_data_summary.json in the render bridge as a bounded metadata-driven depth/attenuation pass, then compare against S168 without rerunning simulation.",
+        "findings": findings,
+        "next_recommendation": next_recommendation,
     }
 
 
@@ -244,7 +251,7 @@ def write_report(path: Path, summary) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     t = summary["trends"]
     lines = [
-        "# S172 Render Data Consumer Diagnostics",
+        f"# {summary.get('title', 'S172 Render Data Consumer Diagnostics')}",
         "",
         f"Generated UTC: `{summary['generated_utc']}`",
         f"Status: `{summary['status']}`",
@@ -301,6 +308,11 @@ def parse_args():
     parser.add_argument("render_data_summary", help="S171 render_data_summary.json")
     parser.add_argument("--out-dir", required=True, help="Output diagnostic directory")
     parser.add_argument("--report", help="Optional Markdown report path")
+    parser.add_argument("--title", default="S172 Render Data Profile Diagnostics")
+    parser.add_argument(
+        "--next",
+        default="S173 should consume render_data_summary.json in the render bridge as a bounded metadata-driven depth/attenuation pass, then compare against S168 without rerunning simulation.",
+    )
     return parser.parse_args()
 
 
@@ -314,7 +326,7 @@ def main() -> int:
     svg_path = out_dir / "render_data_profile.svg"
     json_path = out_dir / "render_data_profile_summary.json"
     write_csv(csv_path, rows)
-    summary = build_summary(sidecar_path, csv_path, svg_path, rows)
+    summary = build_summary(sidecar_path, csv_path, svg_path, rows, args.title, args.next)
     write_svg(svg_path, rows, summary)
     write_json(json_path, summary)
     if args.report:
