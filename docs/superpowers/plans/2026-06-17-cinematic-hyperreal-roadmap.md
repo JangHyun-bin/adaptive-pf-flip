@@ -4439,3 +4439,25 @@ DS6 evidence mask. Projected masks also fail as highlight evidence:
 stays at F1 `0.888140`. Next work should move to local visibility-layer
 density, surface normal, or water-contact evidence rather than another global
 point-projection mask.
+
+S378 tested local secondary-layer density evidence:
+
+- S378 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-layer-density-mask-candidates.md`
+- S378 mask report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_layer_density_mask_candidates_sv1_s378.md`
+- S378 new tool:
+  `tools/analyze_mitsuba_secondary_layer_density_masks.py`
+- S378 public quick-tunnel preview:
+  `https://prove-place-bond-players.trycloudflare.com/index.html`
+
+This pass also does not produce a new response candidate. The best
+dark-secondary mask is still the DS6-equivalent
+`alpha_ge_4_source_luma_0_75`, with precision `0.858780`, recall `0.475602`,
+and F1 `0.612175`. Blurred-density variants only match or fall below it:
+`density_b1_ge_4_source_luma_0_75` ties at F1 `0.612175`, while
+`density_b2_ge_4_source_luma_0_75` falls to `0.593510` and
+`density_b3_ge_6_source_luma_0_75` falls to `0.589290`. This confirms that
+global projected secondary masks and simple layer-density gates are both
+exhausted for this shot. Next work should use surface-normal, water-contact, or
+renderer-side material evidence.
