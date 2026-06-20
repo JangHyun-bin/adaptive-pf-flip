@@ -239,6 +239,7 @@ def markdown_report(export, export_path, root, next_text):
         f"- Frames exported: `{checks.get('frames_exported')}`",
         f"- Missing references: `{checks.get('missing_references')}`",
         f"- Contract frames matched: `{checks.get('contract_frames_matched')}`",
+        f"- Contract frames missing ignored: `{checks.get('contract_frames_missing_ignored')}`",
         f"- Anchors consumed: `{checks.get('anchors_consumed')}`",
         f"- Lights inserted: `{checks.get('lights_inserted')}`",
         f"- Localized anchors: `{checks.get('localized_anchors')}`",
@@ -299,6 +300,7 @@ def build(args):
         "lights_inserted": 0,
         "localized_anchors": 0,
         "vertices_tested": 0,
+        "contract_frames_missing_ignored": 0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -307,18 +309,27 @@ def build(args):
         water_mesh = resolve_path(frame_path(frame, "water_mesh"))
         missing = []
         for role, path in (("source_xml", source_xml), ("water_mesh", water_mesh)):
+            if role == "water_mesh" and contract_frame is None and args.allow_missing_contract_frames:
+                continue
             if not path or not os.path.isfile(path):
                 missing.append({"role": role, "path": path})
         if contract_frame is None:
-            missing.append({"role": "contract_frame", "path": f"output_frame={output_frame}"})
+            if args.allow_missing_contract_frames:
+                totals["contract_frames_missing_ignored"] += 1
+            else:
+                missing.append({"role": "contract_frame", "path": f"output_frame={output_frame}"})
         if missing:
             failures.append({"output_frame": output_frame, "missing": missing})
             continue
-        if water_mesh not in mesh_cache:
-            mesh_cache[water_mesh] = read_obj_vertices(water_mesh, args.vertex_stride)
-        vertices = mesh_cache[water_mesh]
-        camera = parse_camera(source_xml)
-        anchors = (contract_frame.get("anchors") or [])[:args.anchor_limit]
+        anchors = (contract_frame.get("anchors") or [])[:args.anchor_limit] if contract_frame else []
+        vertices = []
+        if anchors:
+            if water_mesh not in mesh_cache:
+                mesh_cache[water_mesh] = read_obj_vertices(water_mesh, args.vertex_stride)
+            vertices = mesh_cache[water_mesh]
+            camera = parse_camera(source_xml)
+        else:
+            camera = None
         lights = []
         for anchor in anchors:
             localized = localize_anchor(anchor, vertices, camera, args)
@@ -338,7 +349,8 @@ def build(args):
         xml_out = os.path.join(scene_dir, f"{base_name}.xml")
         write_text(xml_out, patched)
         totals["xml_scene_bytes"] += os.path.getsize(xml_out)
-        totals["contract_frames_matched"] += 1
+        if contract_frame is not None:
+            totals["contract_frames_matched"] += 1
         totals["lights_inserted"] += len(lights)
         totals["vertices_tested"] += len(vertices)
         out_frame = copy.deepcopy(frame)
@@ -354,9 +366,10 @@ def build(args):
             "repo_path": posix_rel(expected, root),
         }
         out_frame["light_response_contract"] = {
-            "enabled": True,
-            "contract_output_frame": output_frame,
-            "water_mesh_repo_path": posix_rel(water_mesh, root),
+            "enabled": contract_frame is not None,
+            "contract_output_frame": output_frame if contract_frame is not None else None,
+            "missing_contract_frame_ignored": contract_frame is None and args.allow_missing_contract_frames,
+            "water_mesh_repo_path": posix_rel(water_mesh, root) if water_mesh else None,
             "vertices_tested": len(vertices),
             "anchors_available": len(anchors),
             "lights_inserted": len(lights),
@@ -404,6 +417,7 @@ def build(args):
             "y_lift": args.y_lift,
             "radiance": args.radiance_vec,
             "radiance_scale": args.radiance_scale,
+            "allow_missing_contract_frames": args.allow_missing_contract_frames,
         },
         "next": args.next,
     })
@@ -449,6 +463,7 @@ def main(argv=None):
     parser.add_argument("--radiance-scale", type=float, default=1.0)
     parser.add_argument("--radiance-weight-base", type=float, default=0.65)
     parser.add_argument("--radiance-weight-scale", type=float, default=1.6)
+    parser.add_argument("--allow-missing-contract-frames", action="store_true")
     parser.add_argument("--report")
     parser.add_argument("--title", default="S442 Mitsuba Light Response Contract Consumer")
     parser.add_argument("--next", default="Validate, render, and compare this contract-driven light response candidate against SS1_Native.")
