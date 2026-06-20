@@ -4851,3 +4851,26 @@ and `0` render failures, but still did not beat SS1: max target MAD was
 S396 failure profile. Keep the residual mask-source bridge, but move the next
 native replacement attempt into real secondary material/pass/AOV response rather
 than another camera-facing diffuse overlay.
+
+S398 moved residual evidence into the native 3D secondary sidecar path:
+
+- S398 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-residual-filtered-sidecar.md`
+- S398 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_filtered_secondary_material_summary_s398.md`
+- S398 new tool:
+  `tools/filter_mitsuba_secondary_sidecar_by_mask.py`
+- S398 sidecar/filter reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_filtered_sidecar*_s398.md`
+- S398 render/gap reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_residual_filtered_secondary_material_*_s398.md`
+
+The filter reads an existing `lsfs_mitsuba_secondary_3d_sidecar` and a
+mask-source compatible summary, then keeps sidecar particles whose projected NDC
+position lands inside the residual alpha mask. It retained `865 / 2877`
+particles (`0.30066041014946127`) and validated with `0` failed checks. The
+native export/render path completed `8` frames with `0` failures, but a
+filtered-only sidecar remains worse than SS1: max target MAD was
+`23.988987911522635` and mean target MAD was `19.222541875643003`. Keep the
+filter as evidence plumbing, but use it as a boost layer on top of SS1 rather
+than a replacement layer.
