@@ -108,6 +108,22 @@ def parse_channel_reflectance_scales(values, label):
     return result
 
 
+def parse_channel_set(values, label, default):
+    if not values:
+        return set(default)
+    result = set()
+    for part in values.split(","):
+        channel = part.strip()
+        if not channel:
+            continue
+        if channel not in SECONDARY_CHANNELS:
+            raise ValueError(f"{label}: unknown channel {channel!r}")
+        result.add(channel)
+    if not result:
+        raise ValueError(f"{label} must name at least one channel")
+    return result
+
+
 def scaled_reflectance(spec, scale):
     if scale is None:
         return spec["reflectance"]
@@ -523,6 +539,21 @@ def secondary_billboard_bsdf_lines(opacity=None):
     return lines
 
 
+def surface_contact_foam_bsdf_lines(opacity=None):
+    if opacity is None:
+        return []
+    return [
+        '  <bsdf type="mask" id="lsfs_surface_contact_foam">',
+        f'    <float name="opacity" value="{opacity:.8g}"/>',
+        '    <bsdf type="twosided">',
+        '      <bsdf type="diffuse">',
+        '        <rgb name="reflectance" value="0.92, 0.96, 0.98"/>',
+        '      </bsdf>',
+        '    </bsdf>',
+        '  </bsdf>',
+    ]
+
+
 def phase_volume_bsdf_lines(args):
     reflectance = csv3(args.phase_volume_reflectance_vec, PHASE_VOLUME_BSDF["reflectance"].split(","))
     if args.phase_volume_opacity is None:
@@ -624,6 +655,38 @@ def secondary_billboard_proxy_shape_lines(proxy, radius_scale, aspect, camera_po
     ]
 
 
+def surface_contact_foam_proxies(secondary_proxy, args):
+    if args.surface_contact_foam_opacity is None:
+        return []
+    channels = args.surface_contact_foam_channel_set
+    proxies = []
+    for proxy in secondary_proxy.get("proxies", []):
+        if proxy.get("channel") not in channels:
+            continue
+        y = as_float(proxy.get("y"))
+        if args.surface_contact_foam_min_y is not None and y < args.surface_contact_foam_min_y:
+            continue
+        if args.surface_contact_foam_max_y is not None and y > args.surface_contact_foam_max_y:
+            continue
+        proxies.append(proxy)
+    return proxies
+
+
+def surface_contact_foam_proxy_shape_lines(proxy, radius_scale, aspect, y_lift):
+    radius = proxy["radius"] * radius_scale
+    center = [proxy["x"], proxy["y"] + y_lift, proxy["z"]]
+    target = [proxy["x"], proxy["y"] + y_lift + 1.0, proxy["z"]]
+    return [
+        '  <shape type="disk">',
+        '    <transform name="to_world">',
+        f'      <lookat origin="{csv3(center, [0.0, 0.0, 0.0])}" target="{csv3(target, [0.0, 1.0, 0.0])}" up="0, 0, 1"/>',
+        f'      <scale x="{radius:.8g}" y="{radius * aspect:.8g}" z="1"/>',
+        '    </transform>',
+        '    <ref name="bsdf" id="lsfs_surface_contact_foam"/>',
+        '  </shape>',
+    ]
+
+
 def phase_volume_proxy_shape_lines(proxy):
     return [
         '  <shape type="sphere">',
@@ -691,6 +754,8 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
     phase_proxy_count = phase_volume_proxy.get("proxy_count", 0)
     phase_sphere_proxy_count = phase_proxy_count if phase_volume_emits_spheres(args) else 0
     phase_billboard_proxy_count = phase_proxy_count if phase_volume_emits_billboards(args) else 0
+    contact_foam_proxies = surface_contact_foam_proxies(secondary_proxy, args)
+    contact_foam_proxy_count = len(contact_foam_proxies)
     lines = [
         '<?xml version="1.0" encoding="utf-8"?>',
         '<scene version="3.0.0">',
@@ -699,6 +764,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         f'  <!-- secondary_proxy_count={secondary_proxy.get("proxy_count", 0)} -->',
         f'  <!-- secondary_mist_proxy_count={secondary_proxy.get("proxy_count", 0) * args.secondary_mist_shells if args.secondary_mist_opacity is not None else 0} -->',
         f'  <!-- secondary_billboard_proxy_count={secondary_proxy.get("proxy_count", 0) if args.secondary_billboard_opacity is not None else 0} -->',
+        f'  <!-- surface_contact_foam_proxy_count={contact_foam_proxy_count} -->',
         f'  <!-- phase_volume_proxy_count={phase_volume_proxy.get("proxy_count", 0)} -->',
         f'  <!-- phase_volume_sphere_proxy_count={phase_sphere_proxy_count} -->',
         f'  <!-- phase_volume_billboard_proxy_count={phase_billboard_proxy_count} -->',
@@ -748,6 +814,7 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
         *secondary_halo_bsdf_lines(args.secondary_halo_opacity),
         *secondary_mist_bsdf_lines(args.secondary_mist_opacity),
         *secondary_billboard_bsdf_lines(args.secondary_billboard_opacity),
+        *surface_contact_foam_bsdf_lines(args.surface_contact_foam_opacity),
         *phase_volume_bsdf_lines(args),
         *phase_volume_billboard_bsdf_lines(args),
         '  <shape type="obj">',
@@ -784,6 +851,14 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
                 args.secondary_billboard_aspect,
                 camera_position,
                 camera_up,
+            ))
+    if args.surface_contact_foam_opacity is not None:
+        for proxy in contact_foam_proxies:
+            lines.extend(surface_contact_foam_proxy_shape_lines(
+                proxy,
+                args.surface_contact_foam_radius_scale,
+                args.surface_contact_foam_aspect,
+                args.surface_contact_foam_y_lift,
             ))
     if args.secondary_halo_opacity is not None:
         for proxy in secondary_proxy.get("proxies", []):
@@ -846,6 +921,27 @@ def write_mitsuba_scene(scene, out_path, output_image, args, secondary_proxy, ph
             "billboard_radius_scale": args.secondary_billboard_radius_scale if args.secondary_billboard_opacity is not None else None,
             "billboard_aspect": args.secondary_billboard_aspect if args.secondary_billboard_opacity is not None else None,
             "billboard_proxy_count": secondary_proxy.get("proxy_count", 0) if args.secondary_billboard_opacity is not None else 0,
+            "surface_contact_foam_enabled": args.surface_contact_foam_opacity is not None,
+            "surface_contact_foam_opacity": args.surface_contact_foam_opacity,
+            "surface_contact_foam_radius_scale": (
+                args.surface_contact_foam_radius_scale
+                if args.surface_contact_foam_opacity is not None else None
+            ),
+            "surface_contact_foam_aspect": (
+                args.surface_contact_foam_aspect
+                if args.surface_contact_foam_opacity is not None else None
+            ),
+            "surface_contact_foam_y_lift": (
+                args.surface_contact_foam_y_lift
+                if args.surface_contact_foam_opacity is not None else None
+            ),
+            "surface_contact_foam_min_y": args.surface_contact_foam_min_y,
+            "surface_contact_foam_max_y": args.surface_contact_foam_max_y,
+            "surface_contact_foam_channels": (
+                sorted(args.surface_contact_foam_channel_set)
+                if args.surface_contact_foam_opacity is not None else []
+            ),
+            "surface_contact_foam_proxy_count": contact_foam_proxy_count,
             "channel_reflectance_scale": args.secondary_channel_reflectance_scale_map,
         },
         "phase_volume_proxy": {
@@ -1004,6 +1100,16 @@ def export_mitsuba(args):
             "secondary_billboard_opacity": args.secondary_billboard_opacity,
             "secondary_billboard_radius_scale": args.secondary_billboard_radius_scale,
             "secondary_billboard_aspect": args.secondary_billboard_aspect,
+            "surface_contact_foam_opacity": args.surface_contact_foam_opacity,
+            "surface_contact_foam_radius_scale": args.surface_contact_foam_radius_scale,
+            "surface_contact_foam_aspect": args.surface_contact_foam_aspect,
+            "surface_contact_foam_y_lift": args.surface_contact_foam_y_lift,
+            "surface_contact_foam_min_y": args.surface_contact_foam_min_y,
+            "surface_contact_foam_max_y": args.surface_contact_foam_max_y,
+            "surface_contact_foam_channels": (
+                sorted(args.surface_contact_foam_channel_set)
+                if args.surface_contact_foam_opacity is not None else []
+            ),
             "phase_volume_proxy_limit": args.phase_volume_proxy_limit,
             "phase_volume_proxy_radius": args.phase_volume_proxy_radius,
             "phase_volume_shape_mode": args.phase_volume_shape_mode,
@@ -1027,6 +1133,10 @@ def export_mitsuba(args):
             "secondary_halo_proxy_count": sum(item["secondary_proxy"].get("halo_proxy_count", 0) for item in exported),
             "secondary_mist_proxy_count": sum(item["secondary_proxy"].get("mist_proxy_count", 0) for item in exported),
             "secondary_billboard_proxy_count": sum(item["secondary_proxy"].get("billboard_proxy_count", 0) for item in exported),
+            "surface_contact_foam_proxy_count": sum(
+                item["secondary_proxy"].get("surface_contact_foam_proxy_count", 0)
+                for item in exported
+            ),
             "secondary_proxy_available": sum(
                 sum(item["secondary_proxy"].get("available_counts", {}).values())
                 for item in exported
@@ -1096,6 +1206,13 @@ def markdown_report(export, out_path, root):
         f"- Secondary billboard opacity: `{export.get('render_settings', {}).get('secondary_billboard_opacity')}`",
         f"- Secondary billboard radius scale: `{export.get('render_settings', {}).get('secondary_billboard_radius_scale')}`",
         f"- Secondary billboard aspect: `{export.get('render_settings', {}).get('secondary_billboard_aspect')}`",
+        f"- Surface contact foam opacity: `{export.get('render_settings', {}).get('surface_contact_foam_opacity')}`",
+        f"- Surface contact foam radius scale: `{export.get('render_settings', {}).get('surface_contact_foam_radius_scale')}`",
+        f"- Surface contact foam aspect: `{export.get('render_settings', {}).get('surface_contact_foam_aspect')}`",
+        f"- Surface contact foam y lift: `{export.get('render_settings', {}).get('surface_contact_foam_y_lift')}`",
+        f"- Surface contact foam min y: `{export.get('render_settings', {}).get('surface_contact_foam_min_y')}`",
+        f"- Surface contact foam max y: `{export.get('render_settings', {}).get('surface_contact_foam_max_y')}`",
+        f"- Surface contact foam channels: `{export.get('render_settings', {}).get('surface_contact_foam_channels')}`",
         f"- Phase volume shape mode: `{export.get('render_settings', {}).get('phase_volume_shape_mode')}`",
         f"- Phase volume opacity: `{export.get('render_settings', {}).get('phase_volume_opacity')}`",
         f"- Phase volume billboard opacity: `{export.get('render_settings', {}).get('phase_volume_billboard_opacity')}`",
@@ -1113,6 +1230,7 @@ def markdown_report(export, out_path, root):
         f"- Secondary halo proxies emitted: `{checks.get('secondary_halo_proxy_count', 0)}`",
         f"- Secondary mist proxies emitted: `{checks.get('secondary_mist_proxy_count', 0)}`",
         f"- Secondary billboard proxies emitted: `{checks.get('secondary_billboard_proxy_count', 0)}`",
+        f"- Surface contact foam proxies emitted: `{checks.get('surface_contact_foam_proxy_count', 0)}`",
         f"- Secondary particles available: `{checks.get('secondary_proxy_available', 0)}`",
         f"- Phase volume proxies emitted: `{checks.get('phase_volume_proxy_count', 0)}`",
         f"- Phase volume sphere proxies emitted: `{checks.get('phase_volume_sphere_proxy_count', 0)}`",
@@ -1121,8 +1239,8 @@ def markdown_report(export, out_path, root):
         "",
         "## Frame Samples",
         "",
-        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Billboard Proxies | Phase Proxies | Phase Spheres | Phase Billboards |",
-        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Output | XML Scene | Sequence | Water Faces | Secondary Total | Secondary Proxies | Mist Proxies | Billboard Proxies | Contact Foam | Phase Proxies | Phase Spheres | Phase Billboards |",
+        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -1135,6 +1253,7 @@ def markdown_report(export, out_path, root):
             f"{(frame.get('secondary_proxy') or {}).get('proxy_count', 0)} | "
             f"{(frame.get('secondary_proxy') or {}).get('mist_proxy_count', 0)} | "
             f"{(frame.get('secondary_proxy') or {}).get('billboard_proxy_count', 0)} | "
+            f"{(frame.get('secondary_proxy') or {}).get('surface_contact_foam_proxy_count', 0)} | "
             f"{(frame.get('phase_volume_proxy') or {}).get('proxy_count', 0)} | "
             f"{(frame.get('phase_volume_proxy') or {}).get('sphere_proxy_count', 0)} | "
             f"{(frame.get('phase_volume_proxy') or {}).get('billboard_proxy_count', 0)} |"
@@ -1228,6 +1347,20 @@ def main(argv=None):
                         help="radius multiplier for camera-facing secondary disk billboards")
     parser.add_argument("--secondary-billboard-aspect", type=float, default=1.0,
                         help="vertical aspect multiplier for camera-facing secondary disk billboards")
+    parser.add_argument("--surface-contact-foam-opacity", type=float,
+                        help="emit horizontal secondary foam/spray disk patches with this mask opacity")
+    parser.add_argument("--surface-contact-foam-radius-scale", type=float, default=10.0,
+                        help="radius multiplier for horizontal surface-contact foam patches")
+    parser.add_argument("--surface-contact-foam-aspect", type=float, default=0.18,
+                        help="minor-axis aspect multiplier for horizontal surface-contact foam patches")
+    parser.add_argument("--surface-contact-foam-y-lift", type=float, default=0.035,
+                        help="vertical lift applied to horizontal surface-contact foam patches")
+    parser.add_argument("--surface-contact-foam-min-y", type=float,
+                        help="minimum secondary y value eligible for surface-contact foam patches")
+    parser.add_argument("--surface-contact-foam-max-y", type=float,
+                        help="maximum secondary y value eligible for surface-contact foam patches")
+    parser.add_argument("--surface-contact-foam-channels", default="foam",
+                        help="comma-separated secondary channels eligible for surface-contact foam patches")
     parser.add_argument("--phase-volume-proxy-limit", type=int, default=0,
                         help="maximum sampled phase-volume proxies per frame")
     parser.add_argument("--phase-volume-proxy-radius", type=float, default=0.11,
@@ -1282,6 +1415,21 @@ def main(argv=None):
         parser.error("secondary-billboard-radius-scale must be positive")
     if args.secondary_billboard_aspect <= 0.0:
         parser.error("secondary-billboard-aspect must be positive")
+    if args.surface_contact_foam_opacity is not None and not (0.0 < args.surface_contact_foam_opacity <= 1.0):
+        parser.error("surface-contact-foam-opacity must be in the range (0, 1]")
+    if args.surface_contact_foam_radius_scale <= 0.0:
+        parser.error("surface-contact-foam-radius-scale must be positive")
+    if args.surface_contact_foam_aspect <= 0.0:
+        parser.error("surface-contact-foam-aspect must be positive")
+    if not math.isfinite(args.surface_contact_foam_y_lift):
+        parser.error("surface-contact-foam-y-lift must be finite")
+    if args.surface_contact_foam_min_y is not None and not math.isfinite(args.surface_contact_foam_min_y):
+        parser.error("surface-contact-foam-min-y must be finite")
+    if args.surface_contact_foam_max_y is not None and not math.isfinite(args.surface_contact_foam_max_y):
+        parser.error("surface-contact-foam-max-y must be finite")
+    if (args.surface_contact_foam_min_y is not None and args.surface_contact_foam_max_y is not None and
+            args.surface_contact_foam_min_y > args.surface_contact_foam_max_y):
+        parser.error("surface-contact-foam-min-y must be <= surface-contact-foam-max-y")
     if args.phase_volume_proxy_limit < 0:
         parser.error("phase-volume-proxy-limit must be non-negative")
     if args.phase_volume_proxy_radius <= 0.0:
@@ -1328,6 +1476,11 @@ def main(argv=None):
         args.secondary_channel_reflectance_scale_map = parse_channel_reflectance_scales(
             args.secondary_channel_reflectance_scale,
             "secondary-channel-reflectance-scale",
+        )
+        args.surface_contact_foam_channel_set = parse_channel_set(
+            args.surface_contact_foam_channels,
+            "surface-contact-foam-channels",
+            ("foam",),
         )
     except ValueError as exc:
         parser.error(str(exc))
