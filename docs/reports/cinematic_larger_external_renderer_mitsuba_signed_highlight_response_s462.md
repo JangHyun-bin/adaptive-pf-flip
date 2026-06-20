@@ -1,0 +1,45 @@
+# S462 Mitsuba Signed Highlight Response
+
+Generated UTC: `2026-06-20T15:18:36.238574+00:00`
+Summary JSON: `build/shots/s462_mitsuba_signed_highlight_response/signed_gap_response_summary.json`
+Gallery: `build/shots/s462_mitsuba_signed_highlight_response/gallery/index.html`
+Status: `ready`
+
+## Checks
+
+- Frames: `8`
+- Applied requests: `8`
+- Max changed coverage: `0.019110725308641975`
+- Max channel delta: `24`
+- Mean applied abs delta: `7.54376749490272`
+- GIF bytes: `5.80 MB`
+
+## Settings
+
+- regions: `['highlight']`
+- directions: `['brighten']`
+- max_requests: `8`
+- min_score: `0.0`
+- strength_scale: `0.35`
+- max_strength: `0.35`
+- max_channel_delta: `24.0`
+- feather_power: `1.5`
+- fps: `2.0`
+- keyframes: `4`
+
+## Frame Samples
+
+| Output | Requests | Changed | Max Delta | Source | Response |
+| ---: | ---: | ---: | ---: | --- | --- |
+| 0 | 1 | 0.0010802469135802468 | 24 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0000.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0000.png` |
+| 7 | 0 | 0.0 | 0 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0001.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0001.png` |
+| 13 | 0 | 0.0 | 0 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0002.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0002.png` |
+| 20 | 0 | 0.0 | 0 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0003.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0003.png` |
+| 27 | 1 | 0.0008545524691358024 | 17 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0004.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0004.png` |
+| 34 | 1 | 0.0005632716049382716 | 24 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0005.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0005.png` |
+| 40 | 2 | 0.015553626543209877 | 24 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0006.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0006.png` |
+| 47 | 3 | 0.019110725308641975 | 24 | `build/shots/s460_mitsuba_material_tone_refine_sweep/mt8_secondary_light_render/previews/frame_0007.png` | `build/shots/s462_mitsuba_signed_highlight_response/frames/frame_0007.png` |
+
+## Next
+
+Compare this bounded signed highlight response against the target and decide whether to promote or tune the strength.
