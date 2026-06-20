@@ -3941,3 +3941,23 @@ droplet); all `2877` are in front of the S348/S352 camera and in frame, with
 `0` validation failures. This is the data-contract step for native secondary
 rendering. Next, add a Mitsuba import/proxy pass that consumes this sidecar and
 measure it against S350 C1E plus S335.
+
+S354 wired the S353 sidecar into the Mitsuba XML exporter:
+
+- S354 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-3d-import.md`
+- S354 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S354 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_import_sweep_summary_s354.md`
+- S354 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_import_si*_*.md`
+
+S354 adds `--secondary-3d-sidecar`, maps sidecar frames by `output_frame`, and
+emits native sphere proxies from sidecar position/radius records. SI1/SI2/SI3
+all export and render `2877` sidecar particles. SI3 is the best sidecar import
+candidate by max target MAD (`23.953638`), but still does not beat MW7
+(`23.951993`). SI1 slightly improves max contract MAD and mean native-to-C1E
+MAD, which means the import path is useful, but the current sphere-only material
+is not acceptance-ready. Continue with channel-specific sidecar material,
+radius, and depth attenuation tuning.

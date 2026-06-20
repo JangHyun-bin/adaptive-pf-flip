@@ -3,6 +3,7 @@
 
 import argparse
 import csv
+import json
 import os
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
@@ -227,6 +228,100 @@ def build_secondary_proxy_payload(scene, limit, base_radius):
                 "radius": base_radius * radius_scale * volume_scale,
                 "age": row["age"],
             })
+    payload["proxies"] = proxies
+    payload["proxy_count"] = len(proxies)
+    payload["proxy_counts"] = {
+        channel: sum(1 for item in proxies if item["channel"] == channel)
+        for channel in SECONDARY_CHANNELS
+    }
+    return payload, []
+
+
+def load_secondary_3d_sidecar(path, root):
+    if not path:
+        return None
+    sidecar_path = resolve_path(path)
+    payload = read_json(sidecar_path)
+    if payload.get("schema") != "lsfs_mitsuba_secondary_3d_sidecar":
+        raise SystemExit(f"{path}: expected lsfs_mitsuba_secondary_3d_sidecar schema")
+    frame_lookup = {}
+    for frame in payload.get("frames", []):
+        key = frame.get("output_frame")
+        if key is None:
+            continue
+        frame_lookup[int(key)] = frame
+    return {
+        "path": sidecar_path,
+        "repo_path": posix_rel(sidecar_path, root),
+        "sha256": sha256_file(sidecar_path),
+        "frame_lookup": frame_lookup,
+        "checks": payload.get("checks", {}),
+    }
+
+
+def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit):
+    payload = {
+        "enabled": limit > 0,
+        "limit": limit,
+        "base_radius": None,
+        "source": "secondary_3d_sidecar",
+        "sidecar": {
+            "path": sidecar["path"],
+            "repo_path": sidecar["repo_path"],
+            "sha256": sidecar["sha256"],
+        },
+        "available_counts": {channel: 0 for channel in SECONDARY_CHANNELS},
+        "proxy_counts": {channel: 0 for channel in SECONDARY_CHANNELS},
+        "proxy_count": 0,
+        "proxies": [],
+    }
+    output_frame = frame.get("output_frame")
+    sidecar_frame = sidecar["frame_lookup"].get(int(output_frame)) if output_frame is not None else None
+    if not sidecar_frame:
+        return payload, [{
+            "kind": "missing_secondary_3d_sidecar_frame",
+            "output_frame": output_frame,
+            "path": sidecar["path"],
+        }]
+    payload["sidecar_frame"] = {
+        "output_frame": sidecar_frame.get("output_frame"),
+        "repo_path": (sidecar_frame.get("sidecar") or {}).get("repo_path"),
+        "sha256": (sidecar_frame.get("sidecar") or {}).get("sha256"),
+    }
+    if limit <= 0:
+        return payload, []
+    jsonl_path = resolve_path((sidecar_frame.get("sidecar") or {}).get("path") or (sidecar_frame.get("sidecar") or {}).get("repo_path"))
+    if not jsonl_path or not os.path.isfile(jsonl_path):
+        return payload, [{
+            "kind": "missing_secondary_3d_sidecar_jsonl",
+            "output_frame": output_frame,
+            "path": jsonl_path,
+        }]
+
+    channel_rows = {channel: [] for channel in SECONDARY_CHANNELS}
+    with open(jsonl_path, encoding="utf-8") as handle:
+        for line in handle:
+            row = json.loads(line)
+            channel = (row.get("channel") or "").strip()
+            if channel not in channel_rows:
+                continue
+            position = row.get("position") or [0.0, 0.0, 0.0]
+            channel_rows[channel].append({
+                "channel": channel,
+                "x": as_float(position[0] if len(position) > 0 else 0.0),
+                "y": as_float(position[1] if len(position) > 1 else 0.0),
+                "z": as_float(position[2] if len(position) > 2 else 0.0),
+                "radius": as_float(row.get("radius"), 0.075),
+                "age": as_float(row.get("age"), 0.0),
+                "depth": ((row.get("camera") or {}).get("depth")),
+                "in_frame": bool((row.get("camera") or {}).get("in_frame")),
+            })
+
+    payload["available_counts"] = {channel: len(channel_rows[channel]) for channel in SECONDARY_CHANNELS}
+    allocations = allocate_channel_samples(channel_rows, limit)
+    proxies = []
+    for channel in SECONDARY_CHANNELS:
+        proxies.extend(sample_items(channel_rows[channel], allocations.get(channel, 0)))
     payload["proxies"] = proxies
     payload["proxy_count"] = len(proxies)
     payload["proxy_counts"] = {
@@ -603,6 +698,7 @@ def export_mitsuba(args):
     exported = []
     failures = []
     commands = []
+    secondary_3d_sidecar = load_secondary_3d_sidecar(args.secondary_3d_sidecar, root)
     for index, frame in enumerate(selected_frames(manifest.get("frames") or [], args.frames)):
         scene_path = scene_ref_path(frame)
         if not scene_path or not os.path.isfile(scene_path):
@@ -621,11 +717,18 @@ def export_mitsuba(args):
                 "path": water_mesh,
             })
             continue
-        secondary_proxy, proxy_failures = build_secondary_proxy_payload(
-            scene,
-            args.secondary_proxy_limit,
-            args.secondary_proxy_radius,
-        )
+        if secondary_3d_sidecar:
+            secondary_proxy, proxy_failures = build_secondary_proxy_payload_from_sidecar(
+                frame,
+                secondary_3d_sidecar,
+                args.secondary_proxy_limit,
+            )
+        else:
+            secondary_proxy, proxy_failures = build_secondary_proxy_payload(
+                scene,
+                args.secondary_proxy_limit,
+                args.secondary_proxy_radius,
+            )
         if proxy_failures:
             failures.extend(proxy_failures)
             continue
@@ -682,6 +785,11 @@ def export_mitsuba(args):
             "frames_exported": len(exported),
             "secondary_proxy_limit": args.secondary_proxy_limit,
             "secondary_proxy_radius": args.secondary_proxy_radius,
+            "secondary_3d_sidecar": secondary_3d_sidecar and {
+                "repo_path": secondary_3d_sidecar["repo_path"],
+                "sha256": secondary_3d_sidecar["sha256"],
+                "secondary_particles": secondary_3d_sidecar.get("checks", {}).get("secondary_particles"),
+            },
             "secondary_opacity": args.secondary_opacity,
             "secondary_halo_opacity": args.secondary_halo_opacity,
             "secondary_halo_radius_scale": args.secondary_halo_radius_scale,
@@ -748,6 +856,7 @@ def markdown_report(export, out_path, root):
         f"- Camera FOV override: `{export.get('render_settings', {}).get('camera_fov_override')}`",
         f"- Water alpha override: `{export.get('render_settings', {}).get('water_alpha_override')}`",
         f"- Secondary opacity: `{export.get('render_settings', {}).get('secondary_opacity')}`",
+        f"- Secondary 3D sidecar: `{export.get('render_settings', {}).get('secondary_3d_sidecar')}`",
         f"- Secondary halo opacity: `{export.get('render_settings', {}).get('secondary_halo_opacity')}`",
         f"- Secondary halo radius scale: `{export.get('render_settings', {}).get('secondary_halo_radius_scale')}`",
         f"- Secondary mist opacity: `{export.get('render_settings', {}).get('secondary_mist_opacity')}`",
@@ -833,6 +942,8 @@ def main(argv=None):
                         help="maximum sampled secondary particle sphere proxies per frame")
     parser.add_argument("--secondary-proxy-radius", type=float, default=0.075,
                         help="base radius for secondary particle sphere proxies in cell units")
+    parser.add_argument("--secondary-3d-sidecar",
+                        help="use an lsfs_mitsuba_secondary_3d_sidecar JSON manifest instead of CSV resampling")
     parser.add_argument("--secondary-opacity", type=float,
                         help="wrap secondary BSDFs in a Mitsuba mask BSDF with this opacity")
     parser.add_argument("--secondary-halo-opacity", type=float,
