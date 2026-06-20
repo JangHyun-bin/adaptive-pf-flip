@@ -4269,3 +4269,32 @@ Off-camera one-frame smoke checks still over-lift the water body. Next work
 should use a bounded highlight-response control masked by water/crest evidence,
 or move deeper into renderer-native surface normals/material reconstruction.
 Do not continue broad key-light sweeps.
+
+S371 tested a bounded target-region response bridge using the S369 region
+diagnostics:
+
+- S371 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-target-region-response.md`
+- S371 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_region_response_sweep_summary_s371.md`
+- S371 RR5 region report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_region_response_rr5_regions_s371.md`
+- S371 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_target_region_response_review_s371.md`
+- S371 public quick-tunnel preview:
+  `https://contacting-touched-veterinary-expensive.trycloudflare.com/index.html`
+- S371 new tool:
+  `tools/apply_mitsuba_target_region_response.py`
+- S371 updated tools:
+  `tools/analyze_mitsuba_target_gap_regions.py`,
+  `tools/build_mitsuba_candidate_compare_gallery.py`
+
+The diagnostic bridge confirms that the S369 region diagnosis is actionable.
+RR5 is now the best measured candidate: max target MAD improves from
+`SV1-cache` at `23.72217142489712` to `23.459497813786008`, with aggregate MAD
+`18.30976916152263`. RR5 fixes the tiny target-highlight and
+target-dark-secondary regions in the diagnostic pass. Broad nonsecondary lift is
+still rejected: RR6 worsens the hard max gate to `24.22597222222222`, and
+RR1/RR2/RR3 are worse. Next work should port the bounded response away from
+target pixels into renderer-native water crest/highlight masks, secondary
+darkening masks, and eventually surface-normal/material reconstruction.

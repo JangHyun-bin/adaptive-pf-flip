@@ -54,6 +54,10 @@ def composite_path(frame):
     return frame.get("composite_path") or frame.get("composite_repo_path")
 
 
+def actual_path(frame):
+    return frame.get("graded_path") or frame.get("graded_repo_path") or composite_path(frame)
+
+
 def layer_path(frame):
     return frame.get("layer_path") or frame.get("layer_repo_path")
 
@@ -366,8 +370,11 @@ def analyze(args):
     actual_summary_path = require_file(args.actual_composite_summary, "actual composite summary")
     target_summary = read_json(target_summary_path)
     actual_summary = read_json(actual_summary_path)
-    if actual_summary.get("schema") != "lsfs_mitsuba_secondary_composite":
-        raise SystemExit(f"{args.actual_composite_summary}: expected lsfs_mitsuba_secondary_composite schema")
+    if actual_summary.get("schema") not in ("lsfs_mitsuba_secondary_composite", "lsfs_mitsuba_composite_grade"):
+        raise SystemExit(
+            f"{args.actual_composite_summary}: expected lsfs_mitsuba_secondary_composite "
+            "or lsfs_mitsuba_composite_grade schema"
+        )
 
     target_frames = output_frame_map(target_summary.get("frames") or [])
     actual_frames = output_frame_map(actual_summary.get("frames") or [])
@@ -384,7 +391,7 @@ def analyze(args):
         target_frame = target_frames[output_frame]
         actual_frame = actual_frames[output_frame]
         target_img_path = require_file(target_path(target_frame), "target image")
-        actual_img_path = require_file(composite_path(actual_frame), "actual composite image")
+        actual_img_path = require_file(actual_path(actual_frame), "actual image")
         layer_img_path = require_file(layer_path(actual_frame), "secondary layer image")
         target_img = Image.open(target_img_path).convert("RGB")
         actual_img = Image.open(actual_img_path).convert("RGB")

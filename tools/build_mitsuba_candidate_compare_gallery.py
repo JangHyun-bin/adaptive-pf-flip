@@ -85,12 +85,30 @@ def frame_map_from_secondary_composite(summary):
     return result
 
 
+def frame_map_from_composite_grade(summary):
+    result = {}
+    for frame in summary.get("frames", []):
+        output = frame.get("output_frame")
+        if output is None:
+            continue
+        graded_path = resolve_path(frame.get("graded_path") or frame.get("graded_repo_path"))
+        if graded_path:
+            result[int(output)] = {
+                "path": graded_path,
+                "sequence_frame": frame.get("sequence_frame"),
+                "source": "composite_grade",
+            }
+    return result
+
+
 def frame_map_from_candidate(payload, label, path):
     schema = payload.get("schema")
     if schema == "lsfs_mitsuba_xml_render":
         return frame_map_from_render(payload)
     if schema == "lsfs_mitsuba_secondary_composite":
         return frame_map_from_secondary_composite(payload)
+    if schema == "lsfs_mitsuba_composite_grade":
+        return frame_map_from_composite_grade(payload)
     raise SystemExit(f"{path}: unsupported {label} candidate schema {schema!r}")
 
 
