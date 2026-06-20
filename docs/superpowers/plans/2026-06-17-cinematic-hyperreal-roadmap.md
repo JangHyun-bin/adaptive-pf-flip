@@ -4915,3 +4915,21 @@ promote broad scalar water/light tuning. The next branch should either make a
 larger BSDF/model change or build a calibrated post-render tone/grade bridge
 that can reproduce CR21-like frame-local response without target-image input at
 runtime.
+
+S401 promoted that bridge into a reusable source-response profile:
+
+- S401 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-source-response-profile.md`
+- S401 profile report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_response_profile_cr21_s401.md`
+- S401 target-gap report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_source_response_profile_cr21_target_gap_s401.md`
+- S401 updated tool:
+  `tools/apply_mitsuba_source_region_response.py`
+
+`apply_mitsuba_source_region_response.py` now accepts `--profile cr21`, which
+encodes the S388 target-free source response settings. The S401 profile output
+matches S388 CR21 exactly at pixel level (`maxdiff=0`, mean channel diff `0.0`)
+and reproduces the CR21 target-gap score: max target MAD
+`23.552905092592592`, mean target MAD `18.657217962319958`. This gives the
+project a stable visual baseline while native BSDF work continues.

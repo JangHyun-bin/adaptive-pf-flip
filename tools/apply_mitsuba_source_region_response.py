@@ -97,6 +97,46 @@ class ChannelDensityArgs:
         self.density_blur_radius = density_blur_radius
 
 
+SOURCE_RESPONSE_PROFILES = {
+    "cr21": {
+        "secondary_alpha_threshold": 4,
+        "highlight_source_luma_threshold": 120.0,
+        "highlight_alpha_max": 3,
+        "highlight_strength": 1.0,
+        "highlight_max_delta": 255.0,
+        "dark_secondary_source_luma_min": 0.0,
+        "dark_secondary_source_luma_max": 75.0,
+        "dark_secondary_strength": 1.0,
+        "dark_secondary_max_delta": 255.0,
+        "dark_secondary_ring_radius": 0,
+        "dark_secondary_ring_source_luma_min": 0.0,
+        "dark_secondary_ring_source_luma_max": 95.0,
+        "dark_secondary_ring_strength": 0.0,
+        "dark_secondary_ring_max_delta": 35.0,
+        "channel_band_source_luma_min": 75.0,
+        "channel_band_source_luma_max": 82.0,
+        "channel_band_strength": 0.6,
+        "channel_band_max_delta": 56.0,
+        "channel_band_dilate_radius": 0,
+        "channel_radius_scale": 1.0,
+        "channel_density_blur_radius": 2.0,
+        "dark_secondary_soft_source_luma_min": 75.0,
+        "dark_secondary_soft_source_luma_max": 95.0,
+        "dark_secondary_soft_strength": 0.0,
+        "dark_secondary_soft_max_delta": 35.0,
+        "nonsecondary_lift": 0.0,
+    },
+}
+
+
+def apply_profile(args):
+    if args.profile == "default":
+        return
+    profile = SOURCE_RESPONSE_PROFILES[args.profile]
+    for key, value in profile.items():
+        setattr(args, key, value)
+
+
 def channel_union_mask(export_frame, size, args):
     if export_frame is None:
         return None, None
@@ -376,6 +416,7 @@ def apply_source_response(args):
             "composite_summary": posix_rel(composite_summary_path, root),
         },
         "settings": {
+            "profile": args.profile,
             "secondary_alpha_threshold": args.secondary_alpha_threshold,
             "highlight_source_luma_threshold": args.highlight_source_luma_threshold,
             "highlight_alpha_max": args.highlight_alpha_max,
@@ -460,6 +501,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Apply source-evidence Mitsuba region response")
     parser.add_argument("composite_summary", help="lsfs_mitsuba_secondary_composite summary")
     parser.add_argument("out_dir", help="output directory")
+    parser.add_argument("--profile", choices=("default", *sorted(SOURCE_RESPONSE_PROFILES)), default="default",
+                        help="apply a named target-free source-response profile")
     parser.add_argument("--secondary-alpha-threshold", type=int, default=4)
     parser.add_argument("--highlight-source-luma-threshold", type=float, default=145.0)
     parser.add_argument("--highlight-alpha-max", type=int, default=255)
@@ -493,6 +536,7 @@ def parse_args():
     parser.add_argument("--title", default="Mitsuba Source Region Response")
     parser.add_argument("--next", default="Compare this target-free source response against the target-gap baseline.")
     args = parser.parse_args()
+    apply_profile(args)
     if args.secondary_alpha_threshold < 0 or args.secondary_alpha_threshold > 255:
         parser.error("secondary-alpha-threshold must be in [0, 255]")
     if args.highlight_alpha_max < 0 or args.highlight_alpha_max > 255:
