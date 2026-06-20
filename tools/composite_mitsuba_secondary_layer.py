@@ -71,6 +71,20 @@ def parse_rgb(value, label):
     return tuple(items)
 
 
+def parse_channels(value, label):
+    channels = []
+    for item in value.split(",") if value else []:
+        channel = item.strip()
+        if not channel:
+            continue
+        if channel not in CHANNEL_STYLE:
+            raise ValueError(f"{label}: unknown channel {channel!r}")
+        channels.append(channel)
+    if not channels:
+        raise ValueError(f"{label} must contain at least one channel")
+    return set(channels)
+
+
 def vec_sub(a, b):
     return [a[i] - b[i] for i in range(3)]
 
@@ -179,11 +193,26 @@ def draw_layer(particles, camera, width, height, args):
         depth_scale = max(0.55, min(2.4, args.reference_depth / max(1.0, depth)))
         volume_scale = max(0.65, min(1.8, particle["volume"] ** (1.0 / 3.0) if particle["volume"] > 0.0 else 1.0))
         radius = style["radius"] * args.radius_scale * depth_scale * volume_scale
-        alpha_scale = args.opacity_scale * (args.shadow_alpha_scale if args.blend_mode == "shadow" else 1.0)
-        alpha = int(max(1, min(255, style["alpha"] * alpha_scale)))
-        rgb = args.shadow_color_rgb if args.blend_mode == "shadow" else style["color"]
-        color = (*rgb, alpha)
-        draw.ellipse((px - radius, py - radius, px + radius, py + radius), fill=color)
+        uses_shadow = args.blend_mode == "shadow" or (
+            args.blend_mode in ("mixed", "dual") and particle["channel"] in args.shadow_channels
+        )
+        if args.blend_mode == "dual" and uses_shadow:
+            shadow_radius = radius * args.shadow_radius_scale
+            shadow_alpha = int(max(1, min(255, style["alpha"] * args.opacity_scale * args.shadow_alpha_scale)))
+            shadow_color = (*args.shadow_color_rgb, shadow_alpha)
+            draw.ellipse(
+                (px - shadow_radius, py - shadow_radius, px + shadow_radius, py + shadow_radius),
+                fill=shadow_color,
+            )
+            light_alpha = int(max(1, min(255, style["alpha"] * args.opacity_scale * args.dual_light_alpha_scale)))
+            light_color = (*style["color"], light_alpha)
+            draw.ellipse((px - radius, py - radius, px + radius, py + radius), fill=light_color)
+        else:
+            alpha_scale = args.opacity_scale * (args.shadow_alpha_scale if uses_shadow else 1.0)
+            alpha = int(max(1, min(255, style["alpha"] * alpha_scale)))
+            rgb = args.shadow_color_rgb if uses_shadow else style["color"]
+            color = (*rgb, alpha)
+            draw.ellipse((px - radius, py - radius, px + radius, py + radius), fill=color)
         projected += 1
         counts[particle["channel"]] += 1
     if args.blur_radius > 0.0:
@@ -477,8 +506,11 @@ def composite(args):
             "radius_scale": args.radius_scale,
             "opacity_scale": args.opacity_scale,
             "blend_mode": args.blend_mode,
-            "shadow_alpha_scale": args.shadow_alpha_scale if args.blend_mode == "shadow" else None,
-            "shadow_color": list(args.shadow_color_rgb) if args.blend_mode == "shadow" else None,
+            "shadow_alpha_scale": args.shadow_alpha_scale if args.blend_mode in ("shadow", "mixed", "dual") else None,
+            "shadow_color": list(args.shadow_color_rgb) if args.blend_mode in ("shadow", "mixed", "dual") else None,
+            "shadow_channels": sorted(args.shadow_channels) if args.blend_mode in ("mixed", "dual") else None,
+            "shadow_radius_scale": args.shadow_radius_scale if args.blend_mode == "dual" else None,
+            "dual_light_alpha_scale": args.dual_light_alpha_scale if args.blend_mode == "dual" else None,
             "blur_radius": args.blur_radius,
             "reference_depth": args.reference_depth,
             "fps": args.fps,
@@ -557,10 +589,14 @@ def main(argv=None):
     parser.add_argument("--max-particles", type=int, default=1400)
     parser.add_argument("--radius-scale", type=float, default=1.0)
     parser.add_argument("--opacity-scale", type=float, default=1.0)
-    parser.add_argument("--blend-mode", choices=("alpha", "shadow"), default="alpha")
+    parser.add_argument("--blend-mode", choices=("alpha", "shadow", "mixed", "dual"), default="alpha")
     parser.add_argument("--shadow-alpha-scale", type=float, default=1.0)
+    parser.add_argument("--shadow-radius-scale", type=float, default=1.0)
+    parser.add_argument("--dual-light-alpha-scale", type=float, default=0.45)
     parser.add_argument("--shadow-color", default="12,16,18",
-                        help="RGB tint used by --blend-mode=shadow")
+                        help="RGB tint used by --blend-mode=shadow, mixed, or dual shadow channels")
+    parser.add_argument("--shadow-channels", default="spray,bubble",
+                        help="comma-separated secondary channels shadowed by --blend-mode=mixed or dual")
     parser.add_argument("--blur-radius", type=float, default=2.4)
     parser.add_argument("--reference-depth", type=float, default=52.0)
     parser.add_argument("--profile-name", default="custom")
@@ -578,6 +614,10 @@ def main(argv=None):
         parser.error("opacity-scale must be positive")
     if args.shadow_alpha_scale <= 0.0:
         parser.error("shadow-alpha-scale must be positive")
+    if args.shadow_radius_scale <= 0.0:
+        parser.error("shadow-radius-scale must be positive")
+    if args.dual_light_alpha_scale <= 0.0:
+        parser.error("dual-light-alpha-scale must be positive")
     if args.blur_radius < 0.0:
         parser.error("blur-radius must be non-negative")
     if args.reference_depth <= 0.0:
@@ -587,6 +627,10 @@ def main(argv=None):
     args.profile_name = args.profile_name.strip()
     try:
         args.shadow_color_rgb = parse_rgb(args.shadow_color, "shadow-color")
+    except ValueError as exc:
+        parser.error(str(exc))
+    try:
+        args.shadow_channels = parse_channels(args.shadow_channels, "shadow-channels")
     except ValueError as exc:
         parser.error(str(exc))
     if args.fps <= 0.0:

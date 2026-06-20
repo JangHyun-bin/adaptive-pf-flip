@@ -4198,3 +4198,27 @@ pure dark layer loses the hard gate: `SV1-cache` stays best with max target MAD
 next to a target-trained visibility profile or renderer/material integration
 that preserves bright crest highlights while adding darker fine secondary
 detail.
+
+S368 tested channel-aware mixed and dual secondary visibility profiles:
+
+- S368 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-mixed-dual.md`
+- S368 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mixed_dual_sweep_summary_s368.md`
+- S368 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_mixed_dual_review_s368.md`
+- S368 public quick-tunnel preview:
+  `https://lawn-regardless-petroleum-gospel.trycloudflare.com/index.html`
+- S368 updated tool:
+  `tools/composite_mitsuba_secondary_layer.py`
+
+`composite_mitsuba_secondary_layer.py` now supports `--blend-mode mixed` and
+`--blend-mode dual`. Mixed mode shadows selected channels while leaving the rest
+in the light SV1 style. Dual mode draws a shadow pass for selected channels and
+then restores a bounded light pass. The closest candidate, `DV4`, nearly ties
+the baseline but still fails the hard gate: `SV1-cache` stays best at
+`23.72217142489712`, while `DV4` is `23.72891139403292`, `DV5` is
+`23.73129822530864`, and `DV3` is `23.739014917695474`. Treat
+visibility-only tuning as locally exhausted. The next useful lever is a
+target-fit profile harness or renderer/material response pass that changes
+water/background/secondary integration together.
