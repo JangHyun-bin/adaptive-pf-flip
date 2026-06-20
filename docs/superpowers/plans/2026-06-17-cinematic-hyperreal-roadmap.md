@@ -4156,3 +4156,22 @@ baseline still wins by hard max target MAD: `SV1-cache` is
 `29.499659850823047`. B2 improves mean target MAD but breaks the hard gate.
 Stop background-only sweeps and move next to camera/framing or material/
 secondary integration.
+
+S366 tested renderer-facing camera/framing changes with the SV1 visibility
+profile regenerated per camera:
+
+- S366 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-renderer-camera-sweep.md`
+- S366 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_renderer_camera_sweep_summary_s366.md`
+- S366 visual review:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_renderer_camera_review_s366.md`
+- S366 public quick-tunnel preview:
+  `https://dare-sell-aquarium-third.trycloudflare.com/index.html`
+
+CF1 lowers the camera target and CF2 narrows FOV. Both are close but fail to beat
+the active baseline by hard max target MAD: `SV1-cache` remains
+`23.72217142489712`, CF2 is `24.04738297325103`, and CF1 is
+`24.0534754372428`. Stop camera-only tuning. The next useful lever is
+material/secondary integration while preserving the current camera/background
+baseline.
