@@ -112,6 +112,9 @@ replace.
 - S591 extended the S590 scene-cache direct backend path from representative
   frames to full48 execution, preserving zero-diff parity against the S585
   target across all 48 frames.
+- S592 re-ran the promotion gate on the S591 full48 backend output, confirming
+  exact backend-target parity and the same bounded movement against the S577
+  accepted visual gate.
 
 ## Key Artifacts
 
@@ -205,6 +208,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_scene_cache_backend_sample_s590.md`
 - Renderer scene depth/material scene-cache backend full48:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_scene_cache_backend_full48_s591.md`
+- Renderer scene depth/material backend output compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_backend_output_compare_s592.md`
 
 ## Verification
 
@@ -478,6 +483,19 @@ replace.
     `build/shots/s591_mitsuba_renderer_scene_depth_material_scene_cache_backend_full48/gallery/index.html`
   - full48 scene-cache backend GIF:
     `build/shots/s591_mitsuba_renderer_scene_depth_material_scene_cache_backend_full48/gallery/assets/scene_cache_backend_sample.gif`
+- S592 renderer scene depth/material backend output compare:
+  - `status=ready`
+  - decision: `renderer_native_material_ready`
+  - frames: `48`
+  - missing references: `0`
+  - max backend-vs-target abs diff: `0`
+  - max backend-vs-target mean diff: `0.0`
+  - max backend-vs-accepted abs diff: `5`
+  - max backend-vs-accepted mean diff: `0.4139242541152263`
+  - compare gallery:
+    `build/shots/s592_mitsuba_renderer_scene_depth_material_backend_output_compare/gallery/index.html`
+  - compare GIF:
+    `build/shots/s592_mitsuba_renderer_scene_depth_material_backend_output_compare/gallery/assets/backend_compare_strips.gif`
 
 ## Current Meaning
 
@@ -512,7 +530,9 @@ now reproducible through:
 15. a scene-cache direct backend sample that derives the same controls from
    S578/S580 scene data before validating against S585 target references,
 16. a full48 scene-cache direct backend run with exact S585 target parity
-   through the same external backend process boundary.
+   through the same external backend process boundary,
+17. a full48 backend promotion gate that compares the S591 output against both
+   the S585 target and S577 accepted visual gate.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -540,7 +560,10 @@ descriptor, process, metadata, validation, strip, GIF, and report artifacts.
 S590 removes the S585 manifest as the source of backend inputs: it consumes the
 scene-cache handoff and render-data sidecar directly, while preserving exact
 S585 target parity on the representative sample. S591 proves the same
-scene-cache direct backend path holds across all 48 frames.
+scene-cache direct backend path holds across all 48 frames. S592 confirms that
+the full48 backend result is ready to feed the next renderer-native material
+implementation step: backend-target parity is exact, and accepted-gate movement
+is still bounded to max abs diff `5` and max mean diff `0.4139242541152263`.
 
 ## Next
 
@@ -550,9 +573,8 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Re-run the S587 promotion gate on the S591 full48 scene-cache backend result
-   so the full48 backend output is compared against both the S585 target and
-   S577 accepted visual gate.
-5. Use that gate before attempting a renderer-native material implementation,
-   and promote only if it preserves S585 target parity while improving or
-   justifying the S577 accepted gate movement.
+4. Start the renderer-native material implementation from the S591/S592
+   descriptor, process, and promotion-gate contract.
+5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
+   promote renderer-native changes that improve or justify the S577 accepted
+   gate movement.
