@@ -4983,3 +4983,26 @@ pass on broad water roughness, transmittance, or global key-light sweeps. The
 next branch is S405: a bounded CR21-native migration pass that attempts to move
 source/dark-secondary response into a renderer-side or renderer-native
 candidate while preserving target-free runtime behavior.
+
+S405 implemented the first CR21-native migration loop:
+
+- S405 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-cr21-native-response.md`
+- S405 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_cr21_native_response_summary_s405.md`
+- S405 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_cr21_native_response_compare_s405.md`
+- S405 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_cr21_native_response_compare_publish_s405.md`
+- S405 public quick-tunnel URL:
+  `https://decades-monitors-application-watch.trycloudflare.com/index.html`
+- S405 new tool:
+  `tools/build_mitsuba_source_response_mask_source.py`
+
+The pass added a reusable CR21 response classifier and mask-source builder,
+then rendered three bounded native candidates: `NH1_HighlightSprites`,
+`NU1_UnionSoftCard`, and `NHD1_HighlightDarkCard`. None should be promoted.
+Best S405 native max target MAD was `23.98830825617284`, worse than SS1
+(`23.951853137860084`) and far from S401 CR21 (`23.552905092592592`). Keep the
+S405 mask-source tooling as target-free evidence plumbing, but move S406 away
+from screen-space cards/sprites and toward material/AOV response.

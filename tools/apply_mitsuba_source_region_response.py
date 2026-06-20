@@ -156,7 +156,7 @@ def channel_union_mask(export_frame, size, args):
     }
 
 
-def apply_response(actual_img, layer_img, args, channel_mask=None):
+def classify_response_pixels(actual_img, layer_img, args, channel_mask=None):
     actual_bytes = actual_img.convert("RGB").tobytes()
     alpha_bytes = layer_img.convert("RGBA").split()[3].tobytes()
     source_luma_values = [
@@ -169,28 +169,18 @@ def apply_response(actual_img, layer_img, args, channel_mask=None):
         for alpha, source_luma in zip(alpha_bytes, source_luma_values)
     ]
     ring_mask = dilated_ring_mask(primary_dark_mask, actual_img.size, args.dark_secondary_ring_radius)
-    out = bytearray(len(actual_bytes))
-    stats = {
-        "pixels": len(alpha_bytes),
-        "highlight_pixels": 0,
-        "dark_secondary_pixels": 0,
-        "dark_secondary_primary_pixels": 0,
-        "dark_secondary_soft_pixels": 0,
-        "dark_secondary_ring_pixels": 0,
-        "dark_secondary_channel_band_pixels": 0,
-        "nonsecondary_pixels": 0,
-        "changed_pixels": 0,
+    false_mask = [False] * len(alpha_bytes)
+    masks = {
+        "secondary": [],
+        "highlight": [],
+        "dark_secondary_primary": primary_dark_mask,
+        "dark_secondary_ring": ring_mask or false_mask,
+        "dark_secondary_channel_band": [],
+        "dark_secondary_soft": [],
     }
     for pixel_index, alpha in enumerate(alpha_bytes):
-        base = pixel_index * 3
-        ar, ag, ab = actual_bytes[base], actual_bytes[base + 1], actual_bytes[base + 2]
-        nr, ng, nb = float(ar), float(ag), float(ab)
         source_luma = source_luma_values[pixel_index]
         is_secondary = alpha >= args.secondary_alpha_threshold
-        is_highlight = (
-            source_luma >= args.highlight_source_luma_threshold
-            and alpha <= args.highlight_alpha_max
-        )
         is_dark_secondary = primary_dark_mask[pixel_index]
         is_ring_dark_secondary = (
             ring_mask is not None
@@ -217,6 +207,45 @@ def apply_response(actual_img, layer_img, args, channel_mask=None):
             and source_luma >= args.dark_secondary_soft_source_luma_min
             and source_luma <= args.dark_secondary_soft_source_luma_max
         )
+        masks["secondary"].append(is_secondary)
+        masks["highlight"].append(
+            source_luma >= args.highlight_source_luma_threshold
+            and alpha <= args.highlight_alpha_max
+        )
+        masks["dark_secondary_channel_band"].append(is_channel_band_dark_secondary)
+        masks["dark_secondary_soft"].append(is_soft_dark_secondary)
+    return actual_bytes, alpha_bytes, source_luma_values, masks
+
+
+def apply_response(actual_img, layer_img, args, channel_mask=None):
+    actual_bytes, alpha_bytes, source_luma_values, masks = classify_response_pixels(
+        actual_img,
+        layer_img,
+        args,
+        channel_mask=channel_mask,
+    )
+    out = bytearray(len(actual_bytes))
+    stats = {
+        "pixels": len(alpha_bytes),
+        "highlight_pixels": 0,
+        "dark_secondary_pixels": 0,
+        "dark_secondary_primary_pixels": 0,
+        "dark_secondary_soft_pixels": 0,
+        "dark_secondary_ring_pixels": 0,
+        "dark_secondary_channel_band_pixels": 0,
+        "nonsecondary_pixels": 0,
+        "changed_pixels": 0,
+    }
+    for pixel_index, alpha in enumerate(alpha_bytes):
+        base = pixel_index * 3
+        ar, ag, ab = actual_bytes[base], actual_bytes[base + 1], actual_bytes[base + 2]
+        nr, ng, nb = float(ar), float(ag), float(ab)
+        is_secondary = alpha >= args.secondary_alpha_threshold
+        is_highlight = masks["highlight"][pixel_index]
+        is_dark_secondary = masks["dark_secondary_primary"][pixel_index]
+        is_ring_dark_secondary = masks["dark_secondary_ring"][pixel_index]
+        is_channel_band_dark_secondary = masks["dark_secondary_channel_band"][pixel_index]
+        is_soft_dark_secondary = masks["dark_secondary_soft"][pixel_index]
         if not is_secondary and args.nonsecondary_lift != 0.0:
             nr += args.nonsecondary_lift
             ng += args.nonsecondary_lift
