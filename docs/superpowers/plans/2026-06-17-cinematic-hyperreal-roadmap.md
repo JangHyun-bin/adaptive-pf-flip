@@ -4121,3 +4121,20 @@ S363 added a visual review gallery for the cache-consumer path:
 S363 gallery compares `Target | C1E | SS1 | SV1-cache`. It shows that SV1-cache
 does restore readable secondary mass relative to SS1, while the remaining gap is
 now mostly tone/background/integration against the target and C1E reference.
+
+S364 tested broad post-grade tuning on the S362/S363 SV1-cache path:
+
+- S364 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-visibility-grade-sweep.md`
+- S364 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_grade_sweep_summary_s364.md`
+- S364 updated tool:
+  `tools/compare_mitsuba_renderer_target_gap.py`
+
+The comparison tool now accepts `lsfs_mitsuba_composite_grade` via
+`--actual-grade-summary`. Three global grade candidates were tested. None beat
+the ungraded SV1-cache baseline by the hard gate: `SV1-cache` remains best with
+max target MAD `23.72217142489712`, while G3/G1/G2 regress to
+`31.732736625514402`, `36.446965663580244`, and `46.3463850308642`. Stop broad
+post-grade tuning; move tone matching into renderer-facing background,
+camera, and material parameters.
