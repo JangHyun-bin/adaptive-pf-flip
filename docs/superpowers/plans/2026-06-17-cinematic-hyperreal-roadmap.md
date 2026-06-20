@@ -4675,3 +4675,21 @@ the narrow `secondary_dark_target` region, but CR21 is the stronger current
 baseline by the primary max target MAD gate. Next work should move this narrow
 channel-local cue into the renderer/material path or build a larger visible
 review package around CR21.
+
+S389 built a crop/zoom visual review package around CR21:
+
+- S389 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-response-crop-review.md`
+- S389 report:
+  `docs/reports/2026-06-20-s389-mitsuba-response-crop-review-cr21.md`
+- S389 new tool:
+  `tools/build_mitsuba_response_crop_review.py`
+- S389 crop review gallery:
+  `build/shots/s389_mitsuba_response_crop_review_cr21/gallery/index.html`
+
+The review compares Target, SV1, DS6, CR2, CR21, RR5, and Target Dark in
+zoomed crops centered on the target-dark secondary regions for 8 frames. This
+does not change the renderer output; it makes the S388 decision inspectable at
+the affected pixels. Keep CR21 as the current target-free visual baseline unless
+visual review flags objectionable over-darkening. Next work can either publish
+the gallery for review or move the CR21 cue into renderer/material parameters.
