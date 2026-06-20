@@ -5314,3 +5314,31 @@ behind S409 `SF12_H18` `23.687431841563786` and S401 CR21
 `23.552905092592592`. S418 should migrate this light-only behavior into
 renderer-native water texture, area patch, or volume/emission controls instead
 of applying it as a post-response grade.
+
+S418 tested the area-patch branch of that renderer-native migration:
+
+- S418 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-disk-patch.md`
+- S418 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_disk_patch_summary_s418.md`
+- S418 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_disk_patch_sweep_summary_s418.md`
+- S418 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_disk_patch_compare_s418.md`
+- S418 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_disk_patch_compare_publish_s418.md`
+- S418 public quick-tunnel URL:
+  `https://forth-broadcasting-engagement-appointment.trycloudflare.com/index.html`
+- S418 new tool:
+  `tools/add_mitsuba_water_mask_patch_emitters.py`
+
+The new tool clusters S410 highlight-mask water vertices and inserts
+camera-facing Mitsuba disk area emitters at the clustered water-surface
+positions. This is renderer-native XML light geometry, not a post-response
+grade. It should not be promoted: best disk patch DP2 max target MAD is
+`23.980085519547327`, effectively tied with S416 WP4
+`23.97967785493827` and worse than S417 `WP4_H18_D90`
+`23.948739068930042`. Hotter DP4/DP5 variants brighten the image but reintroduce
+patchy artifacts and worsen the hard gate. S419 should stop adding more
+discrete emitters and move the evidence into water material, texture, or volume
+mask controls.
