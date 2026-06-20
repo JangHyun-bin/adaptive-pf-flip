@@ -194,10 +194,10 @@ def run_variant(args, variant, root):
     gap_dir = os.path.join(args.out_dir, f"{label}_target_gap")
     report_prefix = f"cinematic_larger_external_renderer_mitsuba_{args.report_slug}_{label}"
     reports = {
-        "export": os.path.join("docs", "reports", f"{report_prefix}_export_s456.md"),
-        "validate": os.path.join("docs", "reports", f"{report_prefix}_validate_s456.md"),
-        "render": os.path.join("docs", "reports", f"{report_prefix}_render_s456.md"),
-        "target_gap": os.path.join("docs", "reports", f"{report_prefix}_target_gap_s456.md"),
+        "export": os.path.join("docs", "reports", f"{report_prefix}_export_{args.stage_id}.md"),
+        "validate": os.path.join("docs", "reports", f"{report_prefix}_validate_{args.stage_id}.md"),
+        "render": os.path.join("docs", "reports", f"{report_prefix}_render_{args.stage_id}.md"),
+        "target_gap": os.path.join("docs", "reports", f"{report_prefix}_target_gap_{args.stage_id}.md"),
     }
     export_cmd = [
         sys.executable,
@@ -234,9 +234,9 @@ def run_variant(args, variant, root):
         "--report",
         reports["export"],
         "--title",
-        f"S456 Mitsuba Residual Response {label} Export",
+        f"{args.stage_label} Mitsuba Residual Response {label} Export",
         "--next",
-        f"Validate, render, and compare S456 {label}.",
+        f"Validate, render, and compare {args.stage_label} {label}.",
         "--fail-on-review",
     ]
     validate_cmd = [
@@ -248,9 +248,9 @@ def run_variant(args, variant, root):
         "--report",
         reports["validate"],
         "--title",
-        f"S456 Mitsuba Residual Response {label} Validation",
+        f"{args.stage_label} Mitsuba Residual Response {label} Validation",
         "--next",
-        f"Render S456 {label}.",
+        f"Render {args.stage_label} {label}.",
     ]
     render_cmd = [
         args.render_python,
@@ -267,9 +267,9 @@ def run_variant(args, variant, root):
         "--report",
         reports["render"],
         "--title",
-        f"S456 Mitsuba Residual Response {label} Render",
+        f"{args.stage_label} Mitsuba Residual Response {label} Render",
         "--next",
-        f"Compare S456 {label} target gap.",
+        f"Compare {args.stage_label} {label} target gap.",
     ]
     compare_cmd = [
         sys.executable,
@@ -286,9 +286,9 @@ def run_variant(args, variant, root):
         "--report",
         reports["target_gap"],
         "--title",
-        f"S456 Mitsuba Residual Response {label} Target Gap",
+        f"{args.stage_label} Mitsuba Residual Response {label} Target Gap",
         "--next",
-        f"Rank S456 {label} against RR4 and the S456 sweep.",
+        f"Rank {args.stage_label} {label} against the sweep references.",
     ]
     command_results = []
     for step, cmd in (
@@ -335,7 +335,7 @@ def parse_reference_candidate(value):
 
 def run_fit(args, results, root):
     fit_dir = os.path.join(args.out_dir, "fit")
-    fit_report = os.path.join("docs", "reports", f"cinematic_larger_external_renderer_mitsuba_{args.report_slug}_fit_s456.md")
+    fit_report = os.path.join("docs", "reports", f"cinematic_larger_external_renderer_mitsuba_{args.report_slug}_fit_{args.stage_id}.md")
     cmd = [
         sys.executable,
         "tools/fit_mitsuba_residual_response_candidates.py",
@@ -346,7 +346,7 @@ def run_fit(args, results, root):
         "--report",
         fit_report,
         "--title",
-        "S456 Mitsuba Residual Response Energy Fit",
+        f"{args.stage_label} Mitsuba Residual Response Energy Fit",
         "--next",
         "Use the best safe energy candidate as the current target-driven response preset.",
     ]
@@ -497,6 +497,8 @@ def main(argv=None):
     parser.add_argument("--render-python", default=default_render_python())
     parser.add_argument("--llvm-dll", default=os.path.join("build", "envs", "llvm18_runtime", "Library", "bin", "LLVM-C.dll"))
     parser.add_argument("--report-slug", default="residual_response_energy_sweep")
+    parser.add_argument("--stage-id", default="s456")
+    parser.add_argument("--stage-label", default="S456")
     parser.add_argument("--report")
     parser.add_argument("--title", default="S456 Mitsuba Residual Response Energy Sweep")
     parser.add_argument("--next", default="Use the best safe energy sweep candidate as the current residual response preset.")
