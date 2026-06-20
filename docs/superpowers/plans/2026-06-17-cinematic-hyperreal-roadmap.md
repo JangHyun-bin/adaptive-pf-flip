@@ -3791,3 +3791,33 @@ from C3 bridge max `14.571005658436214`. Keep the screen-card tool as the next
 renderer-native representation path, but tune depth placement, material
 response, facing/orientation, and possibly multi-card placement before another
 native replacement attempt.
+
+S347 extended the secondary screen-card path with sprite mode:
+
+- S347 updated tool:
+  `tools/add_mitsuba_secondary_screen_cards.py`
+- S347 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-screen-sprites.md`
+- S347 SC3 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_sprites_sc3_export_s347.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_sprites_sc3_render_s347.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_sprites_sc3_candidate_gap_s347.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_sc3_s347.md`
+- S347 SC4 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_sprites_sc4_export_s347.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_sprites_sc4_render_s347.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_screen_sprites_sc4_candidate_gap_s347.md`
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_depth_aware_native_replacement_gap_sc4_s347.md`
+
+S347 samples bright pixels from the secondary mask and projects them as small
+camera-facing Mitsuba `disk` area emitters instead of relying on a single
+textured rectangle. SC3 emits `4096` sprites across `8` frames; SC4 emits
+`8192` sprites and is the current best native Mitsuba candidate by max target
+MAD. SC4 records mean target MAD `37.13381309477881`, max target MAD
+`66.33893840020576`, native-to-C3 mean MAD `40.2254558899177`, and
+native-to-C3 max MAD `61.848001543209875`. This is a measurable but tiny
+improvement over S345 MB2 max `66.33950488683128`, still far from the C3 bridge
+max `14.571005658436214`. Treat sprite mode as useful renderer-native
+infrastructure, but shift the next pass to native tone/background calibration
+because the remaining gap is no longer explained by secondary mask placement
+alone.

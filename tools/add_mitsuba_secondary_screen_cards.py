@@ -56,6 +56,14 @@ def vec_norm(a):
     return [float(item) / length for item in a]
 
 
+def vec_cross(a, b):
+    return [
+        float(a[1]) * float(b[2]) - float(a[2]) * float(b[1]),
+        float(a[2]) * float(b[0]) - float(a[0]) * float(b[2]),
+        float(a[0]) * float(b[1]) - float(a[1]) * float(b[0]),
+    ]
+
+
 def csv3(values):
     return ", ".join(f"{float(values[i]):.8g}" for i in range(3))
 
@@ -94,13 +102,20 @@ def build_mask(layer_path, out_path, args):
     }
 
 
-def screen_card_block(mask_path, card_id, args, camera_position, camera_target, camera_up):
+def camera_plane(args, camera_position, camera_target, camera_up):
     view_dir = vec_norm(vec_sub(camera_target, camera_position))
     center = vec_add(camera_position, vec_scale(view_dir, args.card_distance))
     fov_y = math.radians(args.camera_fov)
     half_height = math.tan(fov_y * 0.5) * args.card_distance * args.card_scale
     aspect = float(args.film_width) / float(args.film_height)
     half_width = half_height * aspect
+    right = vec_norm(vec_cross(view_dir, camera_up))
+    up = vec_norm(vec_cross(right, view_dir))
+    return center, half_width, half_height, right, up
+
+
+def screen_card_block(mask_path, card_id, args, camera_position, camera_target, camera_up):
+    center, half_width, half_height, _right, _up = camera_plane(args, camera_position, camera_target, camera_up)
     reflectance = ", ".join(str(item).strip() for item in args.reflectance.split(","))
     lines = [
         f'  <bsdf type="mask" id="{card_id}_bsdf">',
@@ -121,6 +136,84 @@ def screen_card_block(mask_path, card_id, args, camera_position, camera_target, 
         '  </shape>',
     ]
     return "\n".join(lines), center, half_width, half_height
+
+
+def parse_rgb_text(value):
+    parts = [part.strip() for part in str(value).split(",")]
+    if len(parts) != 3:
+        raise ValueError("expected three comma-separated color values")
+    return [float(part) for part in parts]
+
+
+def sprite_samples(mask_path, args):
+    if args.sprite_limit <= 0:
+        return []
+    img = Image.open(mask_path).convert("L")
+    width, height = img.size
+    pixels = img.load()
+    stride = max(1, int(args.sprite_stride))
+    candidates = []
+    for y in range(0, height, stride):
+        for x in range(0, width, stride):
+            value = pixels[x, y]
+            if value >= args.sprite_threshold:
+                candidates.append((value, x, y))
+    if not candidates:
+        return []
+    candidates.sort(key=lambda item: (-item[0], item[2], item[1]))
+    if len(candidates) > args.sprite_limit:
+        step = max(1, len(candidates) // args.sprite_limit)
+        candidates = candidates[::step][:args.sprite_limit]
+    return candidates
+
+
+def screen_sprite_block(mask_path, sprite_id, args, camera_position, camera_target, camera_up):
+    samples = sprite_samples(mask_path, args)
+    if not samples:
+        return "", {
+            "sprite_count": 0,
+            "sprite_radius_world": 0.0,
+            "sprite_max_alpha": 0,
+            "sprite_mean_alpha": 0.0,
+        }
+    center, half_width, half_height, right, up = camera_plane(args, camera_position, camera_target, camera_up)
+    width = float(args.film_width)
+    height = float(args.film_height)
+    radius_world = args.sprite_radius_pixels * (2.0 * half_width / width)
+    base_radiance = parse_rgb_text(args.sprite_radiance)
+    lines = []
+    alpha_sum = 0.0
+    alpha_max = 0
+    for index, (value, x, y) in enumerate(samples):
+        alpha = max(0.0, min(1.0, value / 255.0))
+        alpha = (alpha ** args.sprite_alpha_power) * args.sprite_alpha_scale
+        radiance = [channel * alpha for channel in base_radiance]
+        u = (float(x) + 0.5) / width * 2.0 - 1.0
+        v = 1.0 - (float(y) + 0.5) / height * 2.0
+        position = vec_add(
+            vec_add(center, vec_scale(right, u * half_width)),
+            vec_scale(up, v * half_height),
+        )
+        lines.extend([
+            '  <shape type="disk">',
+            '    <transform name="to_world">',
+            f'      <lookat origin="{csv3(position)}" target="{csv3(camera_position)}" up="{csv3(camera_up)}"/>',
+            f'      <scale x="{radius_world:.8g}" y="{radius_world:.8g}" z="1"/>',
+            '    </transform>',
+            '    <emitter type="area">',
+            f'      <rgb name="radiance" value="{csv3(radiance)}"/>',
+            '    </emitter>',
+            '  </shape>',
+        ])
+        alpha_sum += float(value)
+        alpha_max = max(alpha_max, int(value))
+    return "\n".join(lines), {
+        "sprite_count": len(samples),
+        "sprite_radius_world": radius_world,
+        "sprite_max_alpha": alpha_max,
+        "sprite_mean_alpha": alpha_sum / float(len(samples)),
+        "sprite_id": sprite_id,
+    }
 
 
 def insert_before_scene_end(xml_text, block):
@@ -173,24 +266,30 @@ def markdown_report(export, export_path, root, next_text):
         "## Screen Card",
         "",
         f"- Card distance: `{card.get('card_distance')}`",
+        f"- Card mode: `{card.get('card_mode')}`",
         f"- Card scale: `{card.get('card_scale')}`",
         f"- Mask gain: `{card.get('mask_gain')}`",
         f"- Mask blur radius: `{card.get('mask_blur_radius')}`",
         f"- Flip Y: `{card.get('flip_y')}`",
         f"- Reflectance: `{card.get('reflectance')}`",
+        f"- Sprite limit: `{card.get('sprite_limit')}`",
+        f"- Sprite threshold: `{card.get('sprite_threshold')}`",
+        f"- Sprite radius pixels: `{card.get('sprite_radius_pixels')}`",
+        f"- Sprite radiance: `{card.get('sprite_radiance')}`",
         "",
         "## Checks",
         "",
         f"- Frames exported: `{checks.get('frames_exported')}`",
         f"- Missing references: `{checks.get('missing_references')}`",
         f"- Screen cards emitted: `{checks.get('secondary_screen_card_count')}`",
+        f"- Screen sprites emitted: `{checks.get('secondary_screen_sprite_count')}`",
         f"- Screen card mask bytes: `{format_bytes(checks.get('secondary_screen_card_mask_bytes', 0))}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | XML Scene | Mask | Mask Bytes | Center | Half Extents |",
-        "| ---: | --- | --- | ---: | --- | --- |",
+        "| Output | XML Scene | Mask | Mask Bytes | Center | Half Extents | Sprites |",
+        "| ---: | --- | --- | ---: | --- | --- | ---: |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -200,7 +299,8 @@ def markdown_report(export, export_path, root, next_text):
         lines.append(
             f"| {frame.get('output_frame')} | `{(frame.get('xml_scene') or {}).get('repo_path')}` | "
             f"`{card_frame.get('mask_repo_path')}` | {card_frame.get('mask_size')} | "
-            f"`{card_frame.get('center')}` | `{card_frame.get('half_extents')}` |"
+            f"`{card_frame.get('center')}` | `{card_frame.get('half_extents')}` | "
+            f"{card_frame.get('sprite_count', 0)} |"
         )
     if export.get("failures"):
         lines.extend(["", "## Failures", ""])
@@ -248,6 +348,7 @@ def add_cards(args):
     failures = []
     mask_bytes = 0
     xml_bytes = 0
+    sprite_count = 0
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
         bridge_frame = bridge_frames.get(output_frame)
@@ -267,14 +368,42 @@ def add_cards(args):
         xml_out = os.path.join(scene_dir, f"{base_name}.xml")
         mask = build_mask(layer_path, mask_path, args)
         card_id = f"lsfs_secondary_screen_card_{index:04d}"
-        block, center, half_width, half_height = screen_card_block(
-            mask_path,
-            card_id,
-            args,
-            [float(item) for item in camera_position],
-            [float(item) for item in camera_target],
-            [float(item) for item in camera_up],
-        )
+        camera_position_f = [float(item) for item in camera_position]
+        camera_target_f = [float(item) for item in camera_target]
+        camera_up_f = [float(item) for item in camera_up]
+        blocks = []
+        center, half_width, half_height, _right, _up = camera_plane(args, camera_position_f, camera_target_f, camera_up_f)
+        if args.card_mode in ("rectangle", "both"):
+            block, center, half_width, half_height = screen_card_block(
+                mask_path,
+                card_id,
+                args,
+                camera_position_f,
+                camera_target_f,
+                camera_up_f,
+            )
+            blocks.append(block)
+        sprite_summary = {
+            "sprite_count": 0,
+            "sprite_radius_world": 0.0,
+            "sprite_max_alpha": 0,
+            "sprite_mean_alpha": 0.0,
+        }
+        if args.card_mode in ("sprites", "both"):
+            block, sprite_summary = screen_sprite_block(
+                mask_path,
+                f"{card_id}_sprite",
+                args,
+                camera_position_f,
+                camera_target_f,
+                camera_up_f,
+            )
+            if block:
+                blocks.append(block)
+        if not blocks:
+            failures.append({"output_frame": output_frame, "missing": [{"role": "screen_card_block", "path": None}]})
+            continue
+        block = "\n".join(blocks)
         with open(source_xml, encoding="utf-8") as f:
             xml_text = f.read()
         patched = insert_before_scene_end(xml_text, block)
@@ -282,6 +411,7 @@ def add_cards(args):
             f.write(patched)
         mask_bytes += mask["size"]
         xml_bytes += os.path.getsize(xml_out)
+        sprite_count += sprite_summary.get("sprite_count", 0)
         out_frame = copy.deepcopy(frame)
         out_frame["xml_scene"] = {
             "path": xml_out,
@@ -305,6 +435,8 @@ def add_cards(args):
             "center": [round(item, 6) for item in center],
             "half_extents": [round(half_width, 6), round(half_height, 6)],
             "card_id": card_id,
+            "card_mode": args.card_mode,
+            **sprite_summary,
         }
         frames.append(out_frame)
 
@@ -336,6 +468,7 @@ def add_cards(args):
         "failures": failures,
         "secondary_screen_card": {
             "enabled": True,
+            "card_mode": args.card_mode,
             "card_distance": args.card_distance,
             "card_scale": args.card_scale,
             "camera_fov": args.camera_fov,
@@ -345,17 +478,27 @@ def add_cards(args):
             "mask_blur_radius": args.mask_blur_radius,
             "flip_y": args.flip_y,
             "reflectance": args.reflectance,
+            "sprite_limit": args.sprite_limit,
+            "sprite_threshold": args.sprite_threshold,
+            "sprite_stride": args.sprite_stride,
+            "sprite_radius_pixels": args.sprite_radius_pixels,
+            "sprite_radiance": args.sprite_radiance,
+            "sprite_alpha_scale": args.sprite_alpha_scale,
+            "sprite_alpha_power": args.sprite_alpha_power,
         },
     })
     export["render_settings"]["secondary_screen_card_enabled"] = True
     export["render_settings"]["secondary_screen_card_distance"] = args.card_distance
     export["render_settings"]["secondary_screen_card_scale"] = args.card_scale
     export["render_settings"]["secondary_screen_card_mask_gain"] = args.mask_gain
+    export["render_settings"]["secondary_screen_card_mode"] = args.card_mode
+    export["render_settings"]["secondary_screen_sprite_count"] = sprite_count
     export["checks"] = copy.deepcopy(base.get("checks") or {})
     export["checks"].update({
         "frames_exported": len(frames),
         "missing_references": len(failures),
         "secondary_screen_card_count": len(frames),
+        "secondary_screen_sprite_count": sprite_count,
         "secondary_screen_card_mask_bytes": mask_bytes,
         "xml_scene_bytes": xml_bytes,
     })
@@ -367,7 +510,7 @@ def add_cards(args):
         write_text(args.report, markdown_report(export, export_path, root, args.next))
     print(
         f"status={export['status']} frames={len(frames)} cards={len(frames)} "
-        f"missing={len(failures)} export={export_path}"
+        f"sprites={sprite_count} missing={len(failures)} export={export_path}"
     )
     if export["status"] != "ready" and args.fail_on_review:
         raise SystemExit(1)
@@ -389,10 +532,18 @@ def main(argv=None):
     parser.add_argument("out_dir")
     parser.add_argument("--frames", type=int, default=0)
     parser.add_argument("--card-distance", type=float, default=18.0)
+    parser.add_argument("--card-mode", choices=("rectangle", "sprites", "both"), default="rectangle")
     parser.add_argument("--card-scale", type=float, default=1.0)
     parser.add_argument("--mask-gain", type=float, default=0.6)
     parser.add_argument("--mask-blur-radius", type=float, default=1.5)
     parser.add_argument("--reflectance", default="0.70,0.84,0.96")
+    parser.add_argument("--sprite-limit", type=int, default=0)
+    parser.add_argument("--sprite-threshold", type=int, default=16)
+    parser.add_argument("--sprite-stride", type=int, default=2)
+    parser.add_argument("--sprite-radius-pixels", type=float, default=5.0)
+    parser.add_argument("--sprite-radiance", default="4.0,5.5,7.0")
+    parser.add_argument("--sprite-alpha-scale", type=float, default=1.0)
+    parser.add_argument("--sprite-alpha-power", type=float, default=1.0)
     parser.add_argument("--film-width", type=int, default=960)
     parser.add_argument("--film-height", type=int, default=540)
     parser.add_argument("--camera-position", type=parse_vec3)
@@ -411,12 +562,25 @@ def main(argv=None):
         parser.error("card-distance must be positive")
     if args.card_scale <= 0.0:
         parser.error("card-scale must be positive")
+    if args.card_mode in ("sprites", "both") and args.sprite_limit <= 0:
+        parser.error("sprite-limit must be positive when card-mode uses sprites")
     if args.mask_gain <= 0.0:
         parser.error("mask-gain must be positive")
     if args.mask_blur_radius < 0.0:
         parser.error("mask-blur-radius must be non-negative")
     if args.film_width <= 0 or args.film_height <= 0:
         parser.error("film dimensions must be positive")
+    if args.sprite_threshold < 0 or args.sprite_threshold > 255:
+        parser.error("sprite-threshold must be in [0, 255]")
+    if args.sprite_stride <= 0:
+        parser.error("sprite-stride must be positive")
+    if args.sprite_radius_pixels <= 0.0:
+        parser.error("sprite-radius-pixels must be positive")
+    if args.sprite_alpha_scale <= 0.0:
+        parser.error("sprite-alpha-scale must be positive")
+    if args.sprite_alpha_power <= 0.0:
+        parser.error("sprite-alpha-power must be positive")
+    parse_rgb_text(args.sprite_radiance)
     add_cards(args)
 
 
