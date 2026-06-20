@@ -5232,3 +5232,30 @@ attenuation still should not be promoted: best localized max target MAD
 `SF12_H18` `23.687431841563786`. S415 should reuse the localization
 infrastructure for a different response class: source-highlight/light response
 or water/volume texture response, not secondary attenuation.
+
+S415 added a world-space water-highlight emitter pass:
+
+- S415 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-water-highlight.md`
+- S415 summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_highlight_summary_s415.md`
+- S415 sweep report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_highlight_sweep_summary_s415.md`
+- S415 compare report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_highlight_compare_s415.md`
+- S415 publish report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_water_highlight_compare_publish_s415.md`
+- S415 public quick-tunnel URL:
+  `https://logical-mambo-metro-mountain.trycloudflare.com/index.html`
+- S415 new tool:
+  `tools/add_mitsuba_water_mask_highlights.py`
+
+The tool projects water mesh vertices into the S410 highlight mask and inserts
+small world-space Mitsuba sphere area emitters on selected water-surface
+vertices. WH4 is now the best native water-highlight probe so far: max target
+MAD `23.98679526748971`, better than S411/S414 native attempts but still worse
+than SS1 `23.951853137860084` and much worse than S409 `SF12_H18`
+`23.687431841563786`. Visual review shows the response is still too speckled.
+S416 should convert the point-emitter idea into a broader area response:
+renderer-side texture/volume mask, clustered water patch emission, or a
+combined pass with accepted SF12 dark attenuation.
