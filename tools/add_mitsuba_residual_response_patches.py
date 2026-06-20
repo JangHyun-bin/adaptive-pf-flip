@@ -159,7 +159,7 @@ def patch_emitter_block(patches, args, frame_index, camera):
         y += args.y_lift
         radius = patch["radius"]
         lines.extend([
-            f'  <shape type="disk" id="lsfs_s454_residual_patch_{frame_index:04d}_{index:03d}">',
+            f'  <shape type="disk" id="{args.id_prefix}_{frame_index:04d}_{index:03d}">',
             '    <transform name="to_world">',
             f'      <lookat origin="{csv3([x, y, z])}" target="{target}" up="{up}"/>',
             f'      <scale x="{fmt(radius)}" y="{fmt(radius * args.aspect)}" z="1"/>',
@@ -195,6 +195,7 @@ def markdown_report(export, export_path, root, next_text):
         f"- Radius range: `{response.get('min_radius')}..{response.get('max_radius')}`",
         f"- Radius scale: `{response.get('radius_scale')}`",
         f"- Radiance scale: `{response.get('radiance_scale')}`",
+        f"- ID prefix: `{response.get('id_prefix')}`",
         "",
         "## Checks",
         "",
@@ -395,6 +396,7 @@ def add_patches(args):
             "aspect": args.aspect,
             "y_lift": args.y_lift,
             "radiance_scale": args.radiance_scale,
+            "id_prefix": args.id_prefix,
         },
         "next": args.next,
     })
@@ -444,6 +446,7 @@ def main(argv=None):
     parser.add_argument("--y-lift", type=float, default=0.026)
     parser.add_argument("--radiance", default="0.82,1.02,1.34")
     parser.add_argument("--radiance-scale", type=float, default=1.0)
+    parser.add_argument("--id-prefix", default="lsfs_s454_residual_patch")
     parser.add_argument("--report")
     parser.add_argument("--title", default="S454 Mitsuba Residual Response Patches")
     parser.add_argument("--next", default="Validate, render, and compare this target-residual response candidate.")
@@ -481,6 +484,8 @@ def main(argv=None):
         parser.error("aspect must be positive")
     if args.radiance_scale < 0.0:
         parser.error("radiance-scale must be non-negative")
+    if not args.id_prefix.strip():
+        parser.error("id-prefix cannot be empty")
     try:
         args.output_frames = parse_output_frames(args.output_frames)
     except ValueError as exc:
