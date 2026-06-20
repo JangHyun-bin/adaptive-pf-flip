@@ -4589,3 +4589,23 @@ F1 `0.210744`. The material AOVs show the residual is on the water body, but
 they are too broad for direct response. Next work should localize residuals
 inside these AOVs using secondary channel density, visibility state, or a
 renderer-side shadow/occlusion cue rather than applying global absorption.
+
+S385 built secondary-channel AOV evidence:
+
+- S385 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-channel-aov-package.md`
+- S385 report:
+  `docs/reports/2026-06-20-s385-mitsuba-secondary-channel-aov-package-sv1.md`
+- S385 new tool:
+  `tools/build_mitsuba_secondary_channel_aov_package.py`
+
+This pass projects sidecar secondary particles through the Mitsuba camera by
+spray, foam, bubble, and droplet channels, then tests 45 channel/density masks
+against the target-dark-secondary diagnostic. DS6 remains best at F1
+`0.6121749824314828`. The best channel-specific candidate,
+`all_secondary_channels_source_luma_0_75`, reaches F1 `0.350564`, but its
+precision is high at `0.940143` and recall is low at `0.215451`. This means the
+current channel positions are reliable where they exist, but too sparse to
+cover the residual. Next work should build a residual clustering or
+shadow/occlusion diagnostic around DS6 misses and high-precision channel hits
+before applying another visual response.
