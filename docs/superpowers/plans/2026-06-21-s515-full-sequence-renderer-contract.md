@@ -95,6 +95,9 @@ replace.
 - S586 consumed the S585 target through a renderer-stage process adapter and
   reproduced all 48 selected target previews with zero image diff, proving the
   selected control contract is executable outside the sweep/preview generator.
+- S587 compared the S586 native-stage output against both the S585 target and
+  the current S577 accepted composite gate, confirming exact native-target
+  parity while bounding the accepted-gate movement.
 
 ## Key Artifacts
 
@@ -176,6 +179,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_target_s585.md`
 - Renderer scene depth/material native-stage proof:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_stage_s586.md`
+- Renderer scene depth/material native-stage compare gate:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_renderer_scene_depth_material_native_stage_compare_s587.md`
 
 ## Verification
 
@@ -391,6 +396,17 @@ replace.
     `build/shots/s586_mitsuba_renderer_scene_depth_material_native_stage/gallery/assets/native_stage.gif`
   - native-stage gallery:
     `build/shots/s586_mitsuba_renderer_scene_depth_material_native_stage/gallery/index.html`
+- S587 renderer scene depth/material native-stage compare:
+  - `status=ready`
+  - decision: `backend_sample_ready`
+  - frames: `48`
+  - missing references: `0`
+  - max native-vs-target abs diff: `0`
+  - max native-vs-target mean diff: `0.0`
+  - max native-vs-accepted abs diff: `5`
+  - max native-vs-accepted mean diff: `0.4139242541152263`
+  - compare gallery:
+    `build/shots/s587_mitsuba_renderer_scene_depth_material_native_stage_compare/gallery/index.html`
 
 ## Current Meaning
 
@@ -415,7 +431,9 @@ now reproducible through:
    per-frame renderer controls and concrete preview references for native
    implementation,
 11. a process-level renderer-stage adapter that consumes the selected target
-   contract and reproduces its full48 references with zero image diff.
+   contract and reproduces its full48 references with zero image diff,
+12. a promotion gate showing exact S586/S585 parity and the bounded delta
+   against the current S577 accepted visual gate.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -434,7 +452,9 @@ selects `strength_1_0` as a stronger but still bounded target. S585 packages
 that target as the current implementation contract for the next native
 renderer-side depth/material pass. S586 proves the contract can now be consumed
 through an independent renderer-stage process boundary with exact parity
-against the selected target previews.
+against the selected target previews. S587 records the promotion gate for the
+next backend sample: native-target parity is exact, and the accepted-gate move
+is bounded to max abs diff `5` and max mean diff `0.4139242541152263`.
 
 ## Next
 
@@ -446,6 +466,6 @@ photoreal renderer work back toward real scene data:
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
 4. Replace the S586 process-proof stage with a real renderer material or
    tonemap backend sample while preserving the same S585 control contract.
-5. Compare that backend sample against both the S585 target references and the
-   S577 accepted gate; promote only if it reduces the accepted-reference gap
-   before attempting full48.
+5. Use S587 as the promotion gate for that backend sample, then promote only if
+   it preserves S585 target parity and improves or justifies the S577 accepted
+   gate movement before attempting full48.
