@@ -4070,3 +4070,17 @@ coverage `0.1105054012345679`, and `540.24 KB` of layer data. Rechecking the
 cache-backed composite preserves the S359 max target MAD
 `23.72217142489712`. Next, consume this cache from a renderer-native secondary
 pass instead of treating the screen-space composite as the final render.
+
+S361 added a validation gate for the SV1 secondary visibility cache:
+
+- S361 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-visibility-cache-validation.md`
+- S361 validation report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_visibility_cache_validation_s361.md`
+- S361 validation tool:
+  `tools/validate_mitsuba_secondary_visibility_cache.py`
+
+The validator checks schema, layer file existence, sha256/size, alpha coverage,
+projected particle totals, aggregate layer bytes, and max layer coverage. The
+S360 SV1 cache passes with `0` failures across `8` frames and `2877` projected
+particles. Use this gate before any native renderer pass consumes the cache.
