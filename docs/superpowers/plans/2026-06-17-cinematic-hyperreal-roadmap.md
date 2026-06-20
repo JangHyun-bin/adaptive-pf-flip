@@ -3961,3 +3961,21 @@ candidate by max target MAD (`23.953638`), but still does not beat MW7
 MAD, which means the import path is useful, but the current sphere-only material
 is not acceptance-ready. Continue with channel-specific sidecar material,
 radius, and depth attenuation tuning.
+
+S355 added sidecar radius-scale tuning:
+
+- S355 plan:
+  `docs/superpowers/plans/2026-06-20-larger-external-renderer-mitsuba-secondary-3d-radius.md`
+- S355 updated tool:
+  `tools/export_external_renderer_mitsuba_xml.py`
+- S355 sweep summary:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_radius_sweep_summary_s355.md`
+- S355 reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_secondary_3d_radius_sr*_*.md`
+
+S355 adds `--secondary-3d-radius-scale`, preserving default `1.0`, and tests
+radius scales `0.5`, `0.35`, and `0.2`. Shrinking the sidecar spheres improves
+SI3 toward MW7 but does not beat MW7: SR3 reaches max target MAD `23.952147`
+versus MW7 `23.951993`. Keep the option as plumbing, but move next to
+sidecar-driven channel material, color/opacity, and depth attenuation rather
+than simply shrinking proxies.

@@ -259,11 +259,12 @@ def load_secondary_3d_sidecar(path, root):
     }
 
 
-def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit):
+def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit, radius_scale):
     payload = {
         "enabled": limit > 0,
         "limit": limit,
         "base_radius": None,
+        "radius_scale": radius_scale,
         "source": "secondary_3d_sidecar",
         "sidecar": {
             "path": sidecar["path"],
@@ -311,7 +312,7 @@ def build_secondary_proxy_payload_from_sidecar(frame, sidecar, limit):
                 "x": as_float(position[0] if len(position) > 0 else 0.0),
                 "y": as_float(position[1] if len(position) > 1 else 0.0),
                 "z": as_float(position[2] if len(position) > 2 else 0.0),
-                "radius": as_float(row.get("radius"), 0.075),
+                "radius": as_float(row.get("radius"), 0.075) * radius_scale,
                 "age": as_float(row.get("age"), 0.0),
                 "depth": ((row.get("camera") or {}).get("depth")),
                 "in_frame": bool((row.get("camera") or {}).get("in_frame")),
@@ -722,6 +723,7 @@ def export_mitsuba(args):
                 frame,
                 secondary_3d_sidecar,
                 args.secondary_proxy_limit,
+                args.secondary_3d_radius_scale,
             )
         else:
             secondary_proxy, proxy_failures = build_secondary_proxy_payload(
@@ -790,6 +792,7 @@ def export_mitsuba(args):
                 "sha256": secondary_3d_sidecar["sha256"],
                 "secondary_particles": secondary_3d_sidecar.get("checks", {}).get("secondary_particles"),
             },
+            "secondary_3d_radius_scale": args.secondary_3d_radius_scale,
             "secondary_opacity": args.secondary_opacity,
             "secondary_halo_opacity": args.secondary_halo_opacity,
             "secondary_halo_radius_scale": args.secondary_halo_radius_scale,
@@ -857,6 +860,7 @@ def markdown_report(export, out_path, root):
         f"- Water alpha override: `{export.get('render_settings', {}).get('water_alpha_override')}`",
         f"- Secondary opacity: `{export.get('render_settings', {}).get('secondary_opacity')}`",
         f"- Secondary 3D sidecar: `{export.get('render_settings', {}).get('secondary_3d_sidecar')}`",
+        f"- Secondary 3D radius scale: `{export.get('render_settings', {}).get('secondary_3d_radius_scale')}`",
         f"- Secondary halo opacity: `{export.get('render_settings', {}).get('secondary_halo_opacity')}`",
         f"- Secondary halo radius scale: `{export.get('render_settings', {}).get('secondary_halo_radius_scale')}`",
         f"- Secondary mist opacity: `{export.get('render_settings', {}).get('secondary_mist_opacity')}`",
@@ -944,6 +948,8 @@ def main(argv=None):
                         help="base radius for secondary particle sphere proxies in cell units")
     parser.add_argument("--secondary-3d-sidecar",
                         help="use an lsfs_mitsuba_secondary_3d_sidecar JSON manifest instead of CSV resampling")
+    parser.add_argument("--secondary-3d-radius-scale", type=float, default=1.0,
+                        help="radius multiplier applied only to secondary 3D sidecar proxy records")
     parser.add_argument("--secondary-opacity", type=float,
                         help="wrap secondary BSDFs in a Mitsuba mask BSDF with this opacity")
     parser.add_argument("--secondary-halo-opacity", type=float,
@@ -982,6 +988,8 @@ def main(argv=None):
         parser.error("secondary-proxy-limit must be non-negative")
     if args.secondary_proxy_radius <= 0.0:
         parser.error("secondary-proxy-radius must be positive")
+    if args.secondary_3d_radius_scale <= 0.0:
+        parser.error("secondary-3d-radius-scale must be positive")
     if args.secondary_opacity is not None and not (0.0 < args.secondary_opacity <= 1.0):
         parser.error("secondary-opacity must be in the range (0, 1]")
     if args.secondary_halo_opacity is not None and not (0.0 < args.secondary_halo_opacity <= 1.0):
