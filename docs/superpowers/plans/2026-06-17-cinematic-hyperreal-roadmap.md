@@ -5369,3 +5369,44 @@ with max target MAD `23.96551183127572`, but they still lose to S417
 `WP4_H18_D90` `23.948739068930042` and add too much lower water-surface noise.
 S420 should stop treating the mask as extra emitting geometry and move to
 calibrated material/texture response or a post-free light mask.
+
+S467-S474 established the promoted visual-cache AOV import bridge:
+
+- Current bridge plan:
+  `docs/superpowers/plans/2026-06-21-mitsuba-visual-cache-aov-import.md`
+- S467 signed response reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_signed_response_layer_s467.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_signed_response_layer_target_gap_s467.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_signed_response_layer_decision_s467.md`
+- S468-S471 bundle/consumer reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_bundle_s468.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_bundle_validation_s470.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_bundle_consumer_target_gap_s471.md`
+- S472-S474 AOV import reports:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_aov_package_s472.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_aov_import_package_s473.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_aov_import_consumer_s473.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_aov_import_consumer_target_gap_s473.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_visual_cache_aov_import_publish_s474.md`
+- S469 public visual-cache review:
+  `https://refresh-oscar-values-complex.trycloudflare.com/index.html`
+- S474 public AOV review:
+  `https://wanted-simulations-editing-republican.trycloudflare.com/index.html`
+- New tools:
+  `tools/build_mitsuba_signed_response_layer.py`,
+  `tools/build_mitsuba_visual_cache_bundle.py`,
+  `tools/validate_mitsuba_visual_cache_bundle.py`,
+  `tools/apply_mitsuba_visual_cache_bundle.py`,
+  `tools/build_mitsuba_visual_cache_aov_package.py`,
+  `tools/apply_mitsuba_visual_cache_aov_package.py`
+
+The promoted bridge is now
+`lsfs_mitsuba_visual_cache_aov_package` ->
+`tools/apply_mitsuba_visual_cache_aov_package.py` ->
+`lsfs_mitsuba_secondary_composite`. S473 proves the AOV import path reconstructs
+the S471 composite with max pixel diff `0`, while preserving the target-gap
+score: mean MAD `19.10240579989712`, max MAD `23.950307355967077`, max abs gap
+`176`. S475 should use the S473 AOV channels (`response_rgb`,
+`response_alpha`, `response_luma`, `response_mask`, `target_gap_diff`) as the
+input contract for renderer-native material/light/volume response rather than
+continuing discrete emitter patches.
