@@ -155,6 +155,14 @@ replace.
   stability, improves full48 mean MAD and max-absolute error over S601, and
   becomes the current full48 native-material split baseline despite a small
   max-MAD increase.
+- S603 tested a detail-recovery neighbor by increasing the selected response
+  region to 76,800 faces. It preserved max absolute error and improved max MAD
+  slightly, but worsened mean MAD and is not promoted.
+- S604 tested a softer guarded neighbor with 57,600 response faces. It improves
+  full48 mean MAD and max MAD against S577/S585 versus S602, while keeping
+  S577 max absolute error below the earlier S601 outlier. S604 becomes the
+  current full48 native-material split baseline, with peak error still tracked
+  against S602.
 
 ## Key Artifacts
 
@@ -352,6 +360,30 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms5_guarded_full48_sequence_compare_s602.md`
 - Renderer scene depth/material guarded split full48 direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms5_guarded_full48_direct_metrics_s602.md`
+- Renderer scene depth/material detail-recovery split full48 export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms6_detail_recovery_full48_export_s603.md`
+- Renderer scene depth/material detail-recovery split full48 validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms6_detail_recovery_full48_validate_s603.md`
+- Renderer scene depth/material detail-recovery split full48 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms6_detail_recovery_full48_render_s603.md`
+- Renderer scene depth/material detail-recovery split full48 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms6_detail_recovery_full48_gallery_s603.md`
+- Renderer scene depth/material detail-recovery split full48 sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms6_detail_recovery_full48_sequence_compare_s603.md`
+- Renderer scene depth/material soft-guard split full48 export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_export_s604.md`
+- Renderer scene depth/material soft-guard split full48 validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_validate_s604.md`
+- Renderer scene depth/material soft-guard split full48 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_render_s604.md`
+- Renderer scene depth/material soft-guard split full48 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_gallery_s604.md`
+- Renderer scene depth/material soft-guard split full48 target gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_target_gap_s328_s604.md`
+- Renderer scene depth/material soft-guard split full48 sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_sequence_compare_s604.md`
+- Renderer scene depth/material soft-guard split full48 direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_direct_metrics_s604.md`
 
 ## Verification
 
@@ -854,6 +886,60 @@ replace.
   - direct S585 mean MAD: `3.2147581232853226`
   - direct S585 max MAD: `5.954301054526749`
   - direct S585 max abs: `167`
+- S603 renderer scene depth/material localized split material MS6 detail recovery full48:
+  - export `status=ready`
+  - frames exported: `48`
+  - response faces: `76800`
+  - remainder faces: `849564`
+  - XML validation `status=ready`
+  - XML parsed: `48`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `48`
+  - render failures: `0`
+  - total elapsed ms: `10007`
+  - image bytes: `135.58 MB`
+  - preview bytes: `16.28 MB`
+  - S577/S585/S602/S603 full48 sequence compare `status=ready`
+  - sequence compare common frames: `48`
+  - sequence compare selected frames: `13`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.365041460369513`
+  - direct S577 max MAD: `5.936041023662551`
+  - direct S577 max abs: `171`
+  - direct S585 mean MAD: `3.374113069594479`
+  - direct S585 max MAD: `5.94494212962963`
+  - direct S585 max abs: `167`
+  - decision: `not promoted; mean MAD regressed versus S602`
+- S604 renderer scene depth/material localized split material MS7 soft guard full48:
+  - export `status=ready`
+  - frames exported: `48`
+  - response faces: `57600`
+  - remainder faces: `868764`
+  - XML validation `status=ready`
+  - XML parsed: `48`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `48`
+  - render failures: `0`
+  - total elapsed ms: `10452`
+  - image bytes: `134.47 MB`
+  - preview bytes: `15.79 MB`
+  - S328 target gap `status=ready`
+  - S328 target gap max mean abs diff: `102.81458140432099`
+  - S328 target gap max abs diff: `216`
+  - S577/S585/S602/S603/S604 full48 sequence compare `status=ready`
+  - sequence compare common frames: `48`
+  - sequence compare selected frames: `13`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.0665762442129627`
+  - direct S577 max MAD: `5.926882716049382`
+  - direct S577 max abs: `176`
+  - direct S585 mean MAD: `3.0774464431155693`
+  - direct S585 max MAD: `5.939676568930041`
+  - direct S585 max abs: `175`
 
 ## Current Meaning
 
@@ -908,7 +994,9 @@ now reproducible through:
 25. a quieter full48 localized split baseline that reduces mean S577/S585
    error while preserving backend stability,
 26. a guarded full48 localized split baseline that improves both mean and max
-   absolute S577/S585 error over the previous quiet baseline.
+   absolute S577/S585 error over the previous quiet baseline,
+27. a soft-guard full48 baseline that improves mean/max-MAD error while keeping
+   the S577 peak error below the earlier quiet-baseline outlier.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -967,7 +1055,11 @@ substantially while preserving 48/48 render stability. It becomes the current
 full48 native-material split baseline, with S577 max absolute diff `179` as the
 main tracked risk. S602 removes that risk by guarding the response further:
 mean S577/S585 MAD and max absolute error both improve over S601, while max
-MAD rises slightly. S602 is the current full48 native-material split baseline.
+MAD rises slightly. S603 shows that simple face-count recovery is not enough:
+it improves max MAD slightly but worsens mean MAD. S604 softens the response
+instead and improves mean/max-MAD over S602 while keeping S577 max abs below
+the S601 outlier. S604 is the current full48 native-material split baseline,
+with peak error versus S602 still tracked.
 
 ## Next
 
@@ -977,10 +1069,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S602 as the current native-material full48 baseline. The next sweep
-   should stay near the MS5 selected-face/roughness range, recover a little
-   surface detail only if S577 max abs stays below S601's `179` outlier, and
-   rank candidates by full48 direct S577/S585 MAD before publishing.
+4. Use S604 as the current native-material full48 baseline. The next sweep
+   should stay near the MS7 soft-guard range, recover peak-error margin toward
+   S602 only if S604's lower mean/max-MAD scores are preserved, and rank
+   candidates by full48 direct S577/S585 MAD before publishing.
 5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
