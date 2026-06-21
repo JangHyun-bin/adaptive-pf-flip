@@ -270,6 +270,10 @@ replace.
   outside the accepted envelope (`max scale/S577 MAD=5.5108699845679014`
   versus `max S585/S577 MAD=0.4139242541152263`). This proves simple
   response-scale backoff is not the right acceptance path.
+- S632 created the S585-anchored response-AOV scene handoff. It keeps the S621
+  scene/AOV descriptors, binds each frame to the S585 target preview as the new
+  near-accepted visual anchor, and preserves the S577 envelope
+  (`max anchor/S577 MAD=0.4139242541152263`).
 
 ## Key Artifacts
 
@@ -601,6 +605,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_backend_gate_compare_s075_s630.md`
 - Renderer scene depth/material response scale gate sweep:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_gate_sweep_s075_s631.md`
+- Renderer scene depth/material response AOV S585 anchor handoff:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_s585_anchor_handoff_s075_s632.md`
 
 ## Verification
 
@@ -1493,6 +1499,17 @@ replace.
   - max selected scale-vs-S585 mean diff: `5.524723508230453`
   - max S585-vs-S577 mean diff: `0.4139242541152263`
   - S631 decision: `response-scale backoff alone cannot recover the accepted envelope`
+- S632 response AOV S585 anchor handoff:
+  - handoff `status=ready`
+  - decision: `s585_anchor_handoff_ready`
+  - frames: `48`
+  - ready frames: `48`
+  - failed frames: `0`
+  - missing references: `0`
+  - max S585-anchor-vs-S577 abs diff: `5`
+  - max S585-anchor-vs-S577 mean diff: `0.4139242541152263`
+  - mean S585-anchor-vs-S577 mean diff: `0.15709458590534978`
+  - S632 decision: `use this as the next bounded native-backend anchor`
 
 ## Current Meaning
 
@@ -1591,7 +1608,10 @@ now reproducible through:
 47. a S577/S585 gate comparison proving that the promoted `BOLD_SAFE` backend
    output is visually much stronger than the current accepted gate envelope,
 48. a response-scale gate sweep proving that the current response-scale family
-   itself remains outside the accepted S577/S585 envelope.
+   itself remains outside the accepted S577/S585 envelope,
+49. a S585-anchored response-AOV scene handoff that restores the next native
+   backend branch to the near-accepted visual envelope while keeping scene/AOV
+   descriptor context.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1709,6 +1729,9 @@ gate.
 S631 checks whether simply backing off response scale can solve that gap. It
 cannot: the best existing scale remains scale `0.75`, and that family is still
 well outside the accepted S577/S585 envelope.
+S632 then creates the corrected branch point: keep the scene/AOV descriptor
+contract, but anchor the next backend candidate to S585 so future renderer
+movement starts near the accepted S577/S585 envelope.
 
 ## Next
 
@@ -1718,12 +1741,11 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S631 as the current response-scale diagnosis. Keep S577 as the accepted
-   full48 gate and S585 as the near-accepted target; branch the next visual
-   candidate from the S585 target contract rather than from S617 response
-   scale.
-5. Publish S630/S631 only if a visual review link is needed before tuning;
-   otherwise prefer an S585-anchored native-backend candidate first.
+4. Use S632 as the current response-AOV scene anchor for the next visual
+   candidate. Keep S577 as the accepted full48 gate and S585 as the
+   near-accepted target.
+5. Build the next native-backend candidate against the S632 S585 anchor, with
+   strict S577/S585 gap tolerances before any publication or promotion.
 6. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 7. Keep S592 as the pass/fail gate: preserve S585 target parity and only
