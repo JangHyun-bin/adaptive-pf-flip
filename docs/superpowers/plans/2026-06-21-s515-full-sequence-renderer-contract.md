@@ -259,6 +259,12 @@ replace.
   `mitsuba_response_aov_scene_native_backend.py`, reproduced the S626 target
   with zero pixel diff, and kept the S623 movement bounded to max delta `7`
   and max MAD `0.5889236111111111`.
+- S630 compared the promoted S629 backend output against the current S585
+  target and S577 accepted gate. The comparison is complete for 48/48 frames
+  with no missing references, but the S629 candidate is much farther from the
+  accepted gate (`max S629/S577 MAD=5.631182484567901`) than S585 is
+  (`max S585/S577 MAD=0.4139242541152263`), so it stays a review/tuning
+  candidate rather than an accepted visual gate.
 
 ## Key Artifacts
 
@@ -586,6 +592,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_guard_s075_s628.md`
 - Renderer scene depth/material response AOV scene native backend adapter:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_backend_adapter_s075_s629.md`
+- Renderer scene depth/material response AOV scene native backend gate compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_backend_gate_compare_s075_s630.md`
 
 ## Verification
 
@@ -1450,6 +1458,20 @@ replace.
   - max mean abs delta from S623: `0.5889236111111111`
   - GIF bytes: `9.50 MB`
   - S629 decision: `promoted as the current native backend smoke output`
+- S630 response AOV scene native backend gate compare:
+  - compare `status=ready`
+  - decision: `review_candidate_needs_visual_decision`
+  - frames: `48`
+  - measured frames: `48`
+  - failed frames: `0`
+  - missing references: `0`
+  - max S629-vs-S585 abs diff: `150`
+  - max S629-vs-S585 mean diff: `5.560743312757202`
+  - max S629-vs-S577 abs diff: `153`
+  - max S629-vs-S577 mean diff: `5.631182484567901`
+  - max S585-vs-S577 abs diff: `5`
+  - max S585-vs-S577 mean diff: `0.4139242541152263`
+  - S630 decision: `keep BOLD_SAFE as a review/tuning candidate, not accepted gate`
 
 ## Current Meaning
 
@@ -1544,7 +1566,9 @@ now reproducible through:
 45. a peak/late-frame guard pack for the stronger candidate before promotion,
 46. an external native backend executable and subprocess adapter that
    reproduce the guarded `BOLD_SAFE` output from descriptors with zero diff
-   against S626.
+   against S626,
+47. a S577/S585 gate comparison proving that the promoted `BOLD_SAFE` backend
+   output is visually much stronger than the current accepted gate envelope.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1655,6 +1679,10 @@ S629 promotes that guarded candidate into the external native backend path:
 the visual math is still the response-AOV probe family, but it now runs through
 the same descriptor/process/metadata/validation shape expected from a real
 renderer backend and reproduces the S626 target exactly.
+S630 then re-compares the promoted output against the accepted S577/S585
+envelope and shows that it is too strong for direct acceptance: technically
+valid and inspectable, but currently a tuning branch rather than the accepted
+gate.
 
 ## Next
 
@@ -1664,11 +1692,13 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S629 as the current promoted native backend smoke output for
-   `BOLD_SAFE`, while still keeping S577 as the accepted full48 gate until the
-   promoted backend output is re-compared against S577/S585 and reviewed.
-5. Retry public publishing only after quick-tunnel issuance is healthy, or use
+4. Use S630 as the current `BOLD_SAFE` gate comparison. Keep S577 as the
+   accepted full48 gate, keep S585 as the near-accepted depth/material target,
+   and tune the response-AOV native backend before any promotion.
+5. Publish S630 only if a visual review link is needed before tuning; otherwise
+   prefer a narrower/softer response-AOV backend sweep first.
+6. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
-6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
+7. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
