@@ -218,6 +218,11 @@ replace.
   (`max diff=0`, `mean diff=0.0`) and preserves the S617/S618 S577/S585 gate
   metrics, proving the response-AOV boundary can be exported and consumed
   without visual drift.
+- S620 joined the S578/S580 renderer scene-cache handoff with the S618/S619
+  signed response-AOV export/import boundary into a single scene/AOV handoff.
+  The manifest keeps all 48 output frames ready, preserves exact AOV import
+  parity (`max diff=0`), and records the expected 48-output-to-36-scene-frame
+  normalized mapping from S578.
 
 ## Key Artifacts
 
@@ -521,6 +526,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_vs_s585_gap_s619.md`
 - Renderer scene depth/material response AOV consumer direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_direct_metrics_s619.md`
+- Renderer scene depth/material response AOV scene handoff:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_handoff_s075_s620.md`
 
 ## Verification
 
@@ -1274,6 +1281,16 @@ replace.
   - S577 mean/max/maxabs: `2.9732022274734224` / `5.5108699845679014` / `151`
   - S585 mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
   - S619 decision: `promoted as the response-AOV import proof`
+- S620 response AOV scene handoff:
+  - handoff `status=ready`, frames `48`, missing references `0`
+  - response scale: `0.75`
+  - max import absolute diff: `0`
+  - max import mean absolute diff: `0.0`
+  - S577 mean/max/maxabs: `2.9732022274734224` / `5.5108699845679014` / `151`
+  - S585 mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
+  - unique scene frames: `36`
+  - scene frame count mismatch: `true` as expected from S578 normalized mapping
+  - S620 decision: `promoted as the current scene-cache plus response-AOV handoff`
 
 ## Current Meaning
 
@@ -1346,7 +1363,10 @@ now reproducible through:
 35. a signed response-AOV contract that reconstructs the selected composite
    exactly from base, positive response, and negative response layers,
 36. a response-AOV consumer proving that the portable contract can reconstruct
-   the promoted visual gate with exact parity.
+   the promoted visual gate with exact parity,
+37. a scene-cache plus response-AOV handoff that carries scene data, render-data
+   controls, signed AOV layers, selected composites, and S577/S585 gate metrics
+   together for larger renderer-cache jobs.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1436,7 +1456,9 @@ is now the concrete visual target for the next portable response-AOV export
 contract. S618 completes that export boundary by storing the selected response
 as signed positive/negative AOV layers with exact reconstruction. S619 consumes
 that contract back into a standard composite summary with zero import diff,
-which closes the response-AOV export/import loop.
+which closes the response-AOV export/import loop. S620 wires that proven AOV
+boundary into the S578/S580 scene-cache handoff so scene data and signed
+response layers can travel through the same renderer-cache job contract.
 
 ## Next
 
@@ -1446,10 +1468,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S619 as the current response-AOV import gate. The next step should wire
-   the same contract/consumer boundary into the S578/S580 renderer scene-cache
-   handoff so larger renderer jobs can carry base, signed response, selected
-   composite, and gate metrics together.
+4. Use S620 as the current renderer/cache handoff for scene data plus signed
+   response-AOV layers. The next step should drive a renderer/cache job or
+   manifest consumer from S620 instead of recomputing response layers from
+   preview pairs.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
