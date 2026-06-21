@@ -178,6 +178,11 @@ replace.
   native-material split baseline. The remaining max-absolute outlier is still
   frame 14, which is below the coverage attenuation pivot and should be handled
   by a separate peak cleanup pass.
+- S608/S609/S610 added and swept low-coverage highlight rescue. S608 proves the
+  rescue can remove the frame-14 peak but is too strong and regresses mean MAD;
+  S610 is too weak and leaves the peak unchanged. S609 is promoted: it keeps
+  S607's max MAD unchanged, improves max abs from `176/175` to `175/174`, and
+  keeps the mean-MAD movement small while remaining better than S604.
 
 ## Key Artifacts
 
@@ -425,6 +430,18 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_sequence_compare_s607.md`
 - Renderer scene depth/material frame-peak-control split full48 direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_direct_metrics_s607.md`
+- Renderer scene depth/material gentle low-coverage rescue split full48 export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_export_s609.md`
+- Renderer scene depth/material gentle low-coverage rescue split full48 validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_validate_s609.md`
+- Renderer scene depth/material gentle low-coverage rescue split full48 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_render_s609.md`
+- Renderer scene depth/material gentle low-coverage rescue split full48 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_gallery_s609.md`
+- Renderer scene depth/material gentle low-coverage rescue split full48 sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_sequence_compare_s609.md`
+- Renderer scene depth/material gentle low-coverage rescue split full48 direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_direct_metrics_s609.md`
 
 ## Verification
 
@@ -1045,6 +1062,47 @@ replace.
   - direct S585 max MAD: `5.6697800925925925`
   - direct S585 max abs: `175`
   - decision: `promoted over S604 for mean/max-MAD; frame-14 max abs remains for S608`
+- S608/S609/S610 low-coverage rescue sweep:
+  - S608 render `status=ready`, frames rendered `48`, failures `0`
+  - S608 response faces: `56828`
+  - S608 max rescue: `1.0`
+  - S608 direct S577 mean/max/maxabs: `3.0633944723079565` / `5.651857638888889` / `175`
+  - S608 direct S585 mean/max/maxabs: `3.074621967163923` / `5.6697800925925925` / `174`
+  - S608 decision: `not promoted; rescue is too strong and mean MAD moves back toward S604`
+  - S609 export `status=ready`
+  - S609 frames exported: `48`
+  - S609 response faces: `55898`
+  - S609 remainder faces: `870466`
+  - S609 coverage-control attenuated frames: `11`
+  - S609 low-coverage rescue frames: `11`
+  - S609 low-coverage max rescue: `0.12`
+  - S609 XML validation `status=ready`
+  - S609 XML parsed: `48`
+  - S609 validation failures: `0`
+  - S609 validation warnings: `0`
+  - S609 render `status=ready`
+  - S609 frames rendered: `48`
+  - S609 render failures: `0`
+  - S609 total elapsed ms: `10101`
+  - S609 image bytes: `134.40 MB`
+  - S609 preview bytes: `15.73 MB`
+  - S609 sequence compare `status=ready`
+  - S609 sequence compare common frames: `48`
+  - S609 sequence compare selected frames: `19`
+  - S609 sequence compare missing references: `0`
+  - S609 direct S577 mean MAD: `3.0457930919924556`
+  - S609 direct S577 max MAD: `5.651857638888889`
+  - S609 direct S577 max abs: `175`
+  - S609 direct S585 mean MAD: `3.0571595561128255`
+  - S609 direct S585 max MAD: `5.6697800925925925`
+  - S609 direct S585 max abs: `174`
+  - S609 decision: `promoted; best tested max-abs rescue without losing S607 max-MAD`
+  - S610 render `status=ready`, frames rendered `48`, failures `0`
+  - S610 response faces: `55850`
+  - S610 max rescue: `0.08`
+  - S610 direct S577 mean/max/maxabs: `3.045021071780693` / `5.651857638888889` / `176`
+  - S610 direct S585 mean/max/maxabs: `3.056393108603395` / `5.6697800925925925` / `175`
+  - S610 decision: `not promoted; rescue is too weak and leaves S607 max-abs peak unchanged`
 
 ## Current Meaning
 
@@ -1175,7 +1233,11 @@ HTTP. Public quick-tunnel publishing is blocked by Cloudflare quick-tunnel
 issuance returning HTTP `500`, not by the gallery artifacts. S607 adds
 coverage-aware per-frame attenuation, reduces high-coverage late-frame response
 faces, and improves S604's mean/max-MAD scores without changing the remaining
-frame-14 max-absolute outlier.
+frame-14 max-absolute outlier. S608/S609/S610 add a second, opposite control:
+low-coverage rescue for under-bright localized highlights. S609 is the best
+tested setting because it reduces the frame-14 max-abs peak by one level while
+preserving S607's max-MAD win and staying much closer to S607 mean MAD than
+S608.
 
 ## Next
 
@@ -1185,10 +1247,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S607 as the current native-material full48 baseline. The next sweep
-   should be a small frame-14 peak cleanup pass that preserves S607's lower
-   mean/max-MAD scores while attempting to pull max absolute error back toward
-   S602.
+4. Use S609 as the current native-material full48 baseline. The next sweep
+   should target the remaining frame-34/35 max-abs plateau only if it preserves
+   S609's frame-45 max-MAD and high-coverage late-frame improvements.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only

@@ -154,25 +154,45 @@ def coverage_control(mask_frame, args):
     max_attenuation = float(getattr(args, "coverage_attenuation_max", 1.0) or 0.0)
     ramp = clamp((coverage - pivot) / width, 0.0, 1.0) if strength > 0.0 else 0.0
     attenuation = clamp(ramp * strength, 0.0, max_attenuation) if strength > 0.0 else 0.0
+    rescue_strength = float(getattr(args, "low_coverage_rescue_strength", 0.0) or 0.0)
+    rescue_pivot = float(getattr(args, "low_coverage_rescue_pivot", 0.0) or 0.0)
+    rescue_width = max(1.0e-9, float(getattr(args, "low_coverage_rescue_width", 1.0) or 1.0))
+    rescue_ramp = clamp((rescue_pivot - coverage) / rescue_width, 0.0, 1.0) if rescue_strength > 0.0 else 0.0
+    rescue = clamp(rescue_ramp * rescue_strength, 0.0, 1.0) if rescue_strength > 0.0 else 0.0
+
     face_limit = int(getattr(args, "face_limit", 0) or 0)
-    if face_limit > 0 and attenuation > 0.0:
-        effective_face_limit = max(1, int(round(face_limit * max(0.0, 1.0 - attenuation))))
+    if face_limit > 0:
+        face_scale = max(
+            0.0,
+            1.0
+            - attenuation
+            + rescue * float(getattr(args, "low_coverage_rescue_face_limit_boost", 0.0) or 0.0),
+        )
+        effective_face_limit = max(1, int(round(face_limit * face_scale)))
     else:
         effective_face_limit = face_limit
     alpha_scale = 1.0 + attenuation * float(getattr(args, "coverage_alpha_boost", 0.0) or 0.0)
+    alpha_scale *= max(
+        0.0,
+        1.0 - rescue * float(getattr(args, "low_coverage_rescue_alpha_tighten", 0.0) or 0.0),
+    )
     reflectance_scale = max(
         0.0,
         1.0 - attenuation * float(getattr(args, "coverage_reflectance_attenuation", 0.0) or 0.0),
     )
+    reflectance_scale *= 1.0 + rescue * float(getattr(args, "low_coverage_rescue_reflectance_boost", 0.0) or 0.0)
     transmittance_scale = max(
         0.0,
         1.0 - attenuation * float(getattr(args, "coverage_transmittance_attenuation", 0.0) or 0.0),
     )
+    transmittance_scale *= 1.0 + rescue * float(getattr(args, "low_coverage_rescue_transmittance_boost", 0.0) or 0.0)
     return {
         "layer_coverage": coverage,
         "layer_strong_coverage": strong_coverage,
         "ramp": ramp,
         "attenuation": attenuation,
+        "low_coverage_rescue_ramp": rescue_ramp,
+        "low_coverage_rescue": rescue,
         "effective_face_limit": effective_face_limit,
         "alpha_scale": alpha_scale,
         "reflectance_scale": reflectance_scale,
@@ -180,7 +200,7 @@ def coverage_control(mask_frame, args):
     }
 
 
-def resolved_bin_specs(args, attenuation=0.0):
+def resolved_bin_specs(args, control=None):
     count = max(1, int(args.response_bin_count))
     strong_alpha = args.response_bin_alpha_strong
     weak_alpha = args.response_bin_alpha_weak
@@ -201,15 +221,21 @@ def resolved_bin_specs(args, attenuation=0.0):
     if weak_transmittance is None:
         weak_transmittance = args.response_specular_transmittance_vec
 
-    alpha_scale = 1.0 + float(attenuation) * float(getattr(args, "coverage_alpha_boost", 0.0) or 0.0)
-    reflectance_scale = max(
-        0.0,
-        1.0 - float(attenuation) * float(getattr(args, "coverage_reflectance_attenuation", 0.0) or 0.0),
-    )
-    transmittance_scale = max(
-        0.0,
-        1.0 - float(attenuation) * float(getattr(args, "coverage_transmittance_attenuation", 0.0) or 0.0),
-    )
+    if isinstance(control, dict):
+        alpha_scale = float(control.get("alpha_scale") or 1.0)
+        reflectance_scale = float(control.get("reflectance_scale") or 1.0)
+        transmittance_scale = float(control.get("transmittance_scale") or 1.0)
+    else:
+        attenuation = float(control or 0.0)
+        alpha_scale = 1.0 + attenuation * float(getattr(args, "coverage_alpha_boost", 0.0) or 0.0)
+        reflectance_scale = max(
+            0.0,
+            1.0 - attenuation * float(getattr(args, "coverage_reflectance_attenuation", 0.0) or 0.0),
+        )
+        transmittance_scale = max(
+            0.0,
+            1.0 - attenuation * float(getattr(args, "coverage_transmittance_attenuation", 0.0) or 0.0),
+        )
     specs = []
     for index in range(count):
         t = index / float(max(1, count - 1))
@@ -336,6 +362,15 @@ def markdown_report(export, export_path, root, next_text):
         f"alpha_boost=`{settings.get('coverage_alpha_boost')}`, "
         f"reflectance_attenuation=`{settings.get('coverage_reflectance_attenuation')}`, "
         f"transmittance_attenuation=`{settings.get('coverage_transmittance_attenuation')}`",
+        "- Low-coverage rescue: "
+        f"strength=`{settings.get('low_coverage_rescue_strength')}`, "
+        f"pivot=`{settings.get('low_coverage_rescue_pivot')}`, "
+        f"width=`{settings.get('low_coverage_rescue_width')}`",
+        "- Low-coverage rescue scale: "
+        f"face_limit_boost=`{settings.get('low_coverage_rescue_face_limit_boost')}`, "
+        f"alpha_tighten=`{settings.get('low_coverage_rescue_alpha_tighten')}`, "
+        f"reflectance_boost=`{settings.get('low_coverage_rescue_reflectance_boost')}`, "
+        f"transmittance_boost=`{settings.get('low_coverage_rescue_transmittance_boost')}`",
         f"- Use current water shape: `{settings.get('use_current_water_shape')}`",
         f"- Response shape ID prefix: `{settings.get('response_shape_id_prefix')}`",
         f"- Response BSDF ID prefix: `{settings.get('response_bsdf_id_prefix')}`",
@@ -352,12 +387,14 @@ def markdown_report(export, export_path, root, next_text):
         f"- Response BSDF insertions: `{checks.get('response_bsdf_insertions')}`",
         f"- Coverage-control attenuated frames: `{checks.get('coverage_control_attenuated_frames')}`",
         f"- Coverage-control max attenuation: `{checks.get('coverage_control_max_attenuation')}`",
+        f"- Low-coverage rescue frames: `{checks.get('low_coverage_rescue_frames')}`",
+        f"- Low-coverage max rescue: `{checks.get('low_coverage_max_rescue')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | Coverage | Atten | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
-        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Output | Coverage | Atten | Rescue | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -367,7 +404,8 @@ def markdown_report(export, export_path, root, next_text):
         control = item.get("coverage_control") or {}
         lines.append(
             f"| {frame.get('output_frame')} | {control.get('layer_coverage')} | "
-            f"{control.get('attenuation')} | {control.get('effective_face_limit')} | "
+            f"{control.get('attenuation')} | {control.get('low_coverage_rescue')} | "
+            f"{control.get('effective_face_limit')} | "
             f"{item.get('water_faces')} | "
             f"{item.get('response_faces')} | {item.get('remainder_faces')} | "
             f"`{item.get('mask_layer_repo_path')}` | `{(frame.get('xml_scene') or {}).get('repo_path')}` |"
@@ -423,6 +461,8 @@ def split_material(args):
         "response_bsdf_insertions": 0,
         "coverage_control_attenuated_frames": 0,
         "coverage_control_max_attenuation": 0.0,
+        "low_coverage_rescue_frames": 0,
+        "low_coverage_max_rescue": 0.0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -506,7 +546,7 @@ def split_material(args):
         remainder_mesh = os.path.join(mesh_dir, f"{base_name}_water_remainder.obj")
         response_shapes = []
         response_bins = []
-        frame_bin_specs = resolved_bin_specs(args, frame_control["attenuation"])
+        frame_bin_specs = resolved_bin_specs(args, frame_control)
         for bin_item in partition_selected_faces(selected, frame_bin_specs):
             spec = bin_item["spec"]
             bin_selected = bin_item["faces"]
@@ -576,6 +616,12 @@ def split_material(args):
         totals["coverage_control_max_attenuation"] = max(
             totals["coverage_control_max_attenuation"],
             frame_control["attenuation"],
+        )
+        if frame_control["low_coverage_rescue"] > 0.0:
+            totals["low_coverage_rescue_frames"] += 1
+        totals["low_coverage_max_rescue"] = max(
+            totals["low_coverage_max_rescue"],
+            frame_control["low_coverage_rescue"],
         )
 
         out_frame = copy.deepcopy(frame)
@@ -681,6 +727,13 @@ def split_material(args):
             "coverage_alpha_boost": args.coverage_alpha_boost,
             "coverage_reflectance_attenuation": args.coverage_reflectance_attenuation,
             "coverage_transmittance_attenuation": args.coverage_transmittance_attenuation,
+            "low_coverage_rescue_strength": args.low_coverage_rescue_strength,
+            "low_coverage_rescue_pivot": args.low_coverage_rescue_pivot,
+            "low_coverage_rescue_width": args.low_coverage_rescue_width,
+            "low_coverage_rescue_face_limit_boost": args.low_coverage_rescue_face_limit_boost,
+            "low_coverage_rescue_alpha_tighten": args.low_coverage_rescue_alpha_tighten,
+            "low_coverage_rescue_reflectance_boost": args.low_coverage_rescue_reflectance_boost,
+            "low_coverage_rescue_transmittance_boost": args.low_coverage_rescue_transmittance_boost,
             "allow_empty_mask_frames": args.allow_empty_mask_frames,
             "use_current_water_shape": args.use_current_water_shape,
             "response_shape_id_prefix": args.response_shape_id_prefix,
@@ -730,6 +783,13 @@ def main(argv=None):
     parser.add_argument("--coverage-alpha-boost", type=float, default=0.0)
     parser.add_argument("--coverage-reflectance-attenuation", type=float, default=0.0)
     parser.add_argument("--coverage-transmittance-attenuation", type=float, default=0.0)
+    parser.add_argument("--low-coverage-rescue-strength", type=float, default=0.0)
+    parser.add_argument("--low-coverage-rescue-pivot", type=float, default=0.07)
+    parser.add_argument("--low-coverage-rescue-width", type=float, default=0.02)
+    parser.add_argument("--low-coverage-rescue-face-limit-boost", type=float, default=0.0)
+    parser.add_argument("--low-coverage-rescue-alpha-tighten", type=float, default=0.0)
+    parser.add_argument("--low-coverage-rescue-reflectance-boost", type=float, default=0.0)
+    parser.add_argument("--low-coverage-rescue-transmittance-boost", type=float, default=0.0)
     parser.add_argument("--response-alpha", type=float, default=0.006)
     parser.add_argument("--response-bin-count", type=int, default=1)
     parser.add_argument("--response-bin-alpha-strong", type=float)
@@ -782,6 +842,20 @@ def main(argv=None):
         parser.error("coverage-reflectance-attenuation must be in [0, 1]")
     if args.coverage_transmittance_attenuation < 0.0 or args.coverage_transmittance_attenuation > 1.0:
         parser.error("coverage-transmittance-attenuation must be in [0, 1]")
+    if args.low_coverage_rescue_strength < 0.0:
+        parser.error("low-coverage-rescue-strength must be non-negative")
+    if args.low_coverage_rescue_pivot < 0.0:
+        parser.error("low-coverage-rescue-pivot must be non-negative")
+    if args.low_coverage_rescue_width <= 0.0:
+        parser.error("low-coverage-rescue-width must be positive")
+    if args.low_coverage_rescue_face_limit_boost < 0.0:
+        parser.error("low-coverage-rescue-face-limit-boost must be non-negative")
+    if args.low_coverage_rescue_alpha_tighten < 0.0 or args.low_coverage_rescue_alpha_tighten > 1.0:
+        parser.error("low-coverage-rescue-alpha-tighten must be in [0, 1]")
+    if args.low_coverage_rescue_reflectance_boost < 0.0:
+        parser.error("low-coverage-rescue-reflectance-boost must be non-negative")
+    if args.low_coverage_rescue_transmittance_boost < 0.0:
+        parser.error("low-coverage-rescue-transmittance-boost must be non-negative")
     if args.response_alpha <= 0.0:
         parser.error("response-alpha must be positive")
     if args.response_bin_count <= 0:
