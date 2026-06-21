@@ -477,6 +477,86 @@ def apply_screen_error_attenuation(selected, output_frame, mask_frame, screen_er
     return kept, stats
 
 
+def apply_screen_error_material_attenuation(selected, output_frame, mask_frame, screen_error_frames, args):
+    strength = arg_float(args, "screen_error_material_attenuation_strength", 0.0)
+    threshold = arg_float(args, "screen_error_negative_threshold", 8.0)
+    width = max(1.0e-9, arg_float(args, "screen_error_negative_width", 48.0))
+    min_scale = arg_float(args, "screen_error_material_min_scale", 0.25)
+    sample_radius = arg_int(args, "screen_error_sample_radius", 0)
+    coverage = coverage_float(mask_frame, "layer_coverage")
+    coverage_min = arg_float(args, "screen_error_coverage_min", 0.0)
+    coverage_max = arg_float(args, "screen_error_coverage_max", 1.0)
+    stats = {
+        "enabled": strength > 0.0 and bool(screen_error_frames),
+        "active": False,
+        "strength": strength,
+        "negative_threshold": threshold,
+        "negative_width": width,
+        "min_scale": min_scale,
+        "sample_radius": sample_radius,
+        "layer_coverage": coverage,
+        "coverage_min": coverage_min,
+        "coverage_max": coverage_max,
+        "output_min": arg_int(args, "screen_error_output_min", -1),
+        "output_max": arg_int(args, "screen_error_output_max", -1),
+        "sampled_faces": 0,
+        "candidate_faces": 0,
+        "attenuated_faces": 0,
+        "mean_candidate_delta": 0.0,
+        "min_delta": 0.0,
+        "max_delta": 0.0,
+        "mean_scale": 1.0,
+        "min_applied_scale": 1.0,
+    }
+    if not selected or strength <= 0.0 or not screen_error_frames:
+        return selected, stats
+    if coverage < coverage_min or coverage > coverage_max:
+        return selected, stats
+    if not screen_error_output_enabled(output_frame, args):
+        return selected, stats
+
+    actual, target = load_screen_error_images(output_frame, screen_error_frames)
+    if actual is None or target is None:
+        return selected, stats
+
+    all_deltas = []
+    candidate_deltas = []
+    applied_scales = []
+    for item in selected:
+        sx, sy = item["screen"]
+        actual_luma = sample_luma(actual, sx, sy, sample_radius)
+        target_luma = sample_luma(target, sx, sy, sample_radius)
+        delta = target_luma - actual_luma
+        all_deltas.append(delta)
+        item["screen_error_luma_delta"] = delta
+        item["screen_error_material_scale"] = 1.0
+        if delta > -threshold:
+            continue
+        candidate_deltas.append(delta)
+        response = clamp((-delta - threshold) / width, 0.0, 1.0)
+        scale = clamp(1.0 - strength * response, min_scale, 1.0)
+        if scale < 0.999:
+            item["screen_error_material_scale"] = scale
+            applied_scales.append(scale)
+
+    if not candidate_deltas:
+        stats["sampled_faces"] = len(all_deltas)
+        stats["min_delta"] = min(all_deltas) if all_deltas else 0.0
+        stats["max_delta"] = max(all_deltas) if all_deltas else 0.0
+        return selected, stats
+
+    stats["active"] = bool(applied_scales)
+    stats["sampled_faces"] = len(all_deltas)
+    stats["candidate_faces"] = len(candidate_deltas)
+    stats["attenuated_faces"] = len(applied_scales)
+    stats["mean_candidate_delta"] = sum(candidate_deltas) / float(max(1, len(candidate_deltas)))
+    stats["min_delta"] = min(all_deltas) if all_deltas else 0.0
+    stats["max_delta"] = max(all_deltas) if all_deltas else 0.0
+    stats["mean_scale"] = sum(applied_scales) / float(max(1, len(applied_scales))) if applied_scales else 1.0
+    stats["min_applied_scale"] = min(applied_scales) if applied_scales else 1.0
+    return selected, stats
+
+
 def resolved_bin_specs(args, control=None):
     count = max(1, int(args.response_bin_count))
     strong_alpha = args.response_bin_alpha_strong
@@ -526,14 +606,56 @@ def resolved_bin_specs(args, control=None):
     return specs
 
 
-def partition_selected_faces(selected, specs):
+def attenuated_spec(spec, scale, args):
+    result = copy.deepcopy(spec)
+    alpha_boost = arg_float(args, "screen_error_material_alpha_boost", 0.0)
+    result["alpha"] = float(result["alpha"]) * (1.0 + alpha_boost * (1.0 - scale))
+    result["specular_reflectance"] = scale_vec3(result.get("specular_reflectance"), scale)
+    result["screen_error_material_scale"] = scale
+    return result
+
+
+def finalize_partition_specs(partitions, args):
+    total = len(partitions)
+    for index, item in enumerate(partitions):
+        spec = copy.deepcopy(item["spec"])
+        spec["source_bin_index"] = spec.get("index")
+        spec["index"] = index
+        spec["bsdf_id"] = args.response_bsdf_id_prefix if total == 1 else f"{args.response_bsdf_id_prefix}_{index:02d}"
+        item["spec"] = spec
+    return partitions
+
+
+def partition_selected_faces(selected, specs, args=None):
     if len(specs) <= 1:
-        return [{"spec": specs[0], "faces": selected}]
-    bins = [{"spec": spec, "faces": []} for spec in specs]
-    for index, item in enumerate(selected):
-        bin_index = min(len(specs) - 1, int(index * len(specs) / max(1, len(selected))))
-        bins[bin_index]["faces"].append(item)
-    return [item for item in bins if item["faces"]]
+        bins = [{"spec": specs[0], "faces": selected}]
+    else:
+        bins = [{"spec": spec, "faces": []} for spec in specs]
+        for index, item in enumerate(selected):
+            bin_index = min(len(specs) - 1, int(index * len(specs) / max(1, len(selected))))
+            bins[bin_index]["faces"].append(item)
+        bins = [item for item in bins if item["faces"]]
+    if args is None or arg_float(args, "screen_error_material_attenuation_strength", 0.0) <= 0.0:
+        return bins
+
+    partitions = []
+    for bin_item in bins:
+        normal = []
+        attenuated = []
+        for item in bin_item["faces"]:
+            scale = float(item.get("screen_error_material_scale", 1.0) or 1.0)
+            if scale < 0.999:
+                attenuated.append(item)
+            else:
+                normal.append(item)
+        if normal:
+            partitions.append({"spec": copy.deepcopy(bin_item["spec"]), "faces": normal})
+        if attenuated:
+            scale = sum(float(item.get("screen_error_material_scale", 1.0) or 1.0) for item in attenuated) / float(len(attenuated))
+            partitions.append({"spec": attenuated_spec(bin_item["spec"], scale, args), "faces": attenuated})
+    if not partitions:
+        return bins
+    return finalize_partition_specs(partitions, args)
 
 
 def insert_response_bsdf(xml_text, block):
@@ -660,6 +782,10 @@ def markdown_report(export, export_path, root, next_text):
         f"coverage=`{settings.get('screen_error_coverage_min')}..{settings.get('screen_error_coverage_max')}`, "
         f"output=`{settings.get('screen_error_output_min')}..{settings.get('screen_error_output_max')}`, "
         f"gap=`{settings.get('screen_error_gap_summary')}`",
+        "- Screen-error material attenuation: "
+        f"strength=`{settings.get('screen_error_material_attenuation_strength')}`, "
+        f"min_scale=`{settings.get('screen_error_material_min_scale')}`, "
+        f"alpha_boost=`{settings.get('screen_error_material_alpha_boost')}`",
         "- Low-coverage rescue scale: "
         f"face_limit_boost=`{settings.get('low_coverage_rescue_face_limit_boost')}`, "
         f"alpha_tighten=`{settings.get('low_coverage_rescue_alpha_tighten')}`, "
@@ -694,12 +820,18 @@ def markdown_report(export, export_path, root, next_text):
         f"- Screen-error candidate faces: `{checks.get('screen_error_candidate_faces')}`",
         f"- Screen-error dropped faces: `{checks.get('screen_error_dropped_faces')}`",
         f"- Screen-error max drop fraction: `{checks.get('screen_error_max_drop_fraction')}`",
+        f"- Screen-error material attenuated frames: `{checks.get('screen_error_material_attenuated_frames')}`",
+        f"- Screen-error material sampled faces: `{checks.get('screen_error_material_sampled_faces')}`",
+        f"- Screen-error material candidate faces: `{checks.get('screen_error_material_candidate_faces')}`",
+        f"- Screen-error material attenuated faces: `{checks.get('screen_error_material_attenuated_faces')}`",
+        f"- Screen-error material min scale: `{checks.get('screen_error_material_min_scale')}`",
+        f"- Screen-error material mean scale: `{checks.get('screen_error_material_mean_scale')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Region Drop | Error Drop | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
-        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Region Drop | Error Drop | Material Faces | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -709,12 +841,14 @@ def markdown_report(export, export_path, root, next_text):
         control = item.get("coverage_control") or {}
         region = control.get("screen_region_attenuation") or {}
         error = control.get("screen_error_attenuation") or {}
+        material = control.get("screen_error_material_attenuation") or {}
         lines.append(
             f"| {frame.get('output_frame')} | {control.get('layer_coverage')} | "
             f"{control.get('attenuation')} | {control.get('low_coverage_rescue')} | "
             f"{control.get('coverage_band_rescue')} | "
             f"{region.get('dropped_faces')} | "
             f"{error.get('dropped_faces')} | "
+            f"{material.get('attenuated_faces')} | "
             f"{control.get('effective_face_limit')} | "
             f"{item.get('water_faces')} | "
             f"{item.get('response_faces')} | {item.get('remainder_faces')} | "
@@ -785,6 +919,13 @@ def split_material(args):
         "screen_error_candidate_faces": 0,
         "screen_error_dropped_faces": 0,
         "screen_error_max_drop_fraction": 0.0,
+        "screen_error_material_attenuated_frames": 0,
+        "screen_error_material_sampled_faces": 0,
+        "screen_error_material_candidate_faces": 0,
+        "screen_error_material_attenuated_faces": 0,
+        "screen_error_material_min_scale": 1.0,
+        "screen_error_material_mean_scale": 1.0,
+        "screen_error_material_scale_sum": 0.0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -828,6 +969,14 @@ def split_material(args):
             args,
         )
         frame_control["screen_region_attenuation"] = screen_region
+        selected, screen_error_material = apply_screen_error_material_attenuation(
+            selected,
+            output_frame,
+            mask_frame,
+            screen_error_frames,
+            args,
+        )
+        frame_control["screen_error_material_attenuation"] = screen_error_material
         selected, screen_error = apply_screen_error_attenuation(
             selected,
             output_frame,
@@ -886,10 +1035,11 @@ def split_material(args):
         response_shapes = []
         response_bins = []
         frame_bin_specs = resolved_bin_specs(args, frame_control)
-        for bin_item in partition_selected_faces(selected, frame_bin_specs):
+        frame_partitions = partition_selected_faces(selected, frame_bin_specs, args)
+        for bin_item in frame_partitions:
             spec = bin_item["spec"]
             bin_selected = bin_item["faces"]
-            suffix = "" if len(bin_specs) == 1 else f"_bin{spec['index']:02d}"
+            suffix = "" if len(frame_partitions) == 1 else f"_bin{spec['index']:02d}"
             response_mesh = os.path.join(mesh_dir, f"{base_name}_water_mask_material{suffix}.obj")
             response_stats = write_selected_obj(response_mesh, vertices, bin_selected, args.response_y_lift, args.reverse_faces)
             response_shapes.append({
@@ -908,6 +1058,8 @@ def split_material(args):
                 "alpha": spec["alpha"],
                 "specular_reflectance": spec["specular_reflectance"],
                 "specular_transmittance": spec["specular_transmittance"],
+                "screen_error_material_scale": spec.get("screen_error_material_scale", 1.0),
+                "source_bin_index": spec.get("source_bin_index"),
                 "face_samples": [
                     {
                         "centroid": [float(v) for v in item["centroid"]],
@@ -927,12 +1079,12 @@ def split_material(args):
         bsdf_blocks = "\n".join(
             response_bsdf_block(
                 args,
-                spec["bsdf_id"],
-                spec["alpha"],
-                spec["specular_reflectance"],
-                spec["specular_transmittance"],
+                bin_item["spec"]["bsdf_id"],
+                bin_item["spec"]["alpha"],
+                bin_item["spec"]["specular_reflectance"],
+                bin_item["spec"]["specular_transmittance"],
             )
-            for spec in frame_bin_specs
+            for bin_item in frame_partitions
         )
         patched, count = insert_response_bsdf(xml_text, bsdf_blocks)
         totals["response_bsdf_insertions"] += count
@@ -987,6 +1139,24 @@ def split_material(args):
             totals["screen_error_max_drop_fraction"],
             float(screen_error.get("drop_fraction") or 0.0),
         )
+        screen_error_material = frame_control.get("screen_error_material_attenuation") or {}
+        material_faces = int(screen_error_material.get("attenuated_faces") or 0)
+        totals["screen_error_material_sampled_faces"] += int(screen_error_material.get("sampled_faces") or 0)
+        totals["screen_error_material_candidate_faces"] += int(screen_error_material.get("candidate_faces") or 0)
+        totals["screen_error_material_attenuated_faces"] += material_faces
+        if material_faces > 0:
+            totals["screen_error_material_attenuated_frames"] += 1
+            totals["screen_error_material_min_scale"] = min(
+                totals["screen_error_material_min_scale"],
+                float(screen_error_material.get("min_applied_scale") or 1.0),
+            )
+            totals["screen_error_material_scale_sum"] += (
+                float(screen_error_material.get("mean_scale") or 1.0) * material_faces
+            )
+            totals["screen_error_material_mean_scale"] = (
+                totals["screen_error_material_scale_sum"]
+                / float(max(1, totals["screen_error_material_attenuated_faces"]))
+            )
 
         out_frame = copy.deepcopy(frame)
         out_frame["xml_scene"] = {
@@ -1117,6 +1287,9 @@ def split_material(args):
             "screen_error_coverage_max": args.screen_error_coverage_max,
             "screen_error_output_min": args.screen_error_output_min,
             "screen_error_output_max": args.screen_error_output_max,
+            "screen_error_material_attenuation_strength": args.screen_error_material_attenuation_strength,
+            "screen_error_material_min_scale": args.screen_error_material_min_scale,
+            "screen_error_material_alpha_boost": args.screen_error_material_alpha_boost,
             "low_coverage_rescue_face_limit_boost": args.low_coverage_rescue_face_limit_boost,
             "low_coverage_rescue_alpha_tighten": args.low_coverage_rescue_alpha_tighten,
             "low_coverage_rescue_reflectance_boost": args.low_coverage_rescue_reflectance_boost,
@@ -1195,6 +1368,9 @@ def main(argv=None):
     parser.add_argument("--screen-error-coverage-max", type=float, default=1.0)
     parser.add_argument("--screen-error-output-min", type=int, default=-1)
     parser.add_argument("--screen-error-output-max", type=int, default=-1)
+    parser.add_argument("--screen-error-material-attenuation-strength", type=float, default=0.0)
+    parser.add_argument("--screen-error-material-min-scale", type=float, default=0.25)
+    parser.add_argument("--screen-error-material-alpha-boost", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-face-limit-boost", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-alpha-tighten", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-reflectance-boost", type=float, default=0.0)
@@ -1311,6 +1487,12 @@ def main(argv=None):
         and args.screen_error_output_min > args.screen_error_output_max
     ):
         parser.error("screen-error-output-min cannot exceed screen-error-output-max")
+    if args.screen_error_material_attenuation_strength < 0.0 or args.screen_error_material_attenuation_strength > 1.0:
+        parser.error("screen-error-material-attenuation-strength must be in [0, 1]")
+    if args.screen_error_material_min_scale < 0.0 or args.screen_error_material_min_scale > 1.0:
+        parser.error("screen-error-material-min-scale must be in [0, 1]")
+    if args.screen_error_material_alpha_boost < 0.0:
+        parser.error("screen-error-material-alpha-boost must be non-negative")
     if args.low_coverage_rescue_face_limit_boost < 0.0:
         parser.error("low-coverage-rescue-face-limit-boost must be non-negative")
     if args.low_coverage_rescue_alpha_tighten < 0.0 or args.low_coverage_rescue_alpha_tighten > 1.0:

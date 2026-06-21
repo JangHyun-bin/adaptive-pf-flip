@@ -5477,3 +5477,26 @@ Next renderer-native step: stop dropping response faces and instead use the
 same signed-error field to drive continuous per-bin material attenuation or a
 separated water/response buffer. That should preserve S614's local automation
 while reducing the small mean-MAD tradeoff.
+
+S615 tested the continuous per-bin material attenuation branch and rejected it:
+
+- Extended split material tool:
+  `tools/split_mitsuba_water_mask_material.py` now supports
+  `--screen-error-material-*` attenuation that keeps response faces but splits
+  signed-error-selected faces into weaker BSDF bins.
+- S615 export/validation/render/direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48_export_s615.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48_validate_s615.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48_render_s615.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48_direct_metrics_s615.md`
+- S615 visual proof:
+  `build/shots/s615_mitsuba_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48/gallery/index.html`,
+  `build/shots/s615_mitsuba_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48/sequence_compare_s577_s585_s613_s614/gallery/index.html`
+
+S615 is operational but should not be promoted. It preserves all response faces
+and creates weaker material bins, but roughdielectric reflectance scaling
+regresses the late-frame target gap. Against S585, S614 is mean
+`3.050464838391632` / max `5.595675154320989`, while S615 worsens to mean
+`3.0605547785922496` / max `5.672728909465021`. Keep S614 as the automatic
+local-control direction and move next to a separated water/response buffer or
+explicit response AOV rather than another scalar roughdielectric tweak.
