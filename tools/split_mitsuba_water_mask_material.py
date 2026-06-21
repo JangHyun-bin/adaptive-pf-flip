@@ -122,6 +122,16 @@ def clamp(value, low, high):
     return max(float(low), min(float(high), float(value)))
 
 
+def arg_float(args, name, default):
+    value = getattr(args, name, default)
+    return float(default if value is None else value)
+
+
+def arg_int(args, name, default):
+    value = getattr(args, name, default)
+    return int(default if value is None else value)
+
+
 def lerp_vec3(a, b, t):
     if a is None and b is None:
         return None
@@ -211,6 +221,100 @@ def coverage_control(mask_frame, args):
         "reflectance_scale": reflectance_scale,
         "transmittance_scale": transmittance_scale,
     }
+
+
+def screen_region_bounds(args):
+    return {
+        "x_min": arg_float(args, "screen_region_x_min", 0.0),
+        "x_max": arg_float(args, "screen_region_x_max", 1.0),
+        "y_min": arg_float(args, "screen_region_y_min", 0.0),
+        "y_max": arg_float(args, "screen_region_y_max", 1.0),
+    }
+
+
+def screen_region_output_enabled(output_frame, args):
+    output_min = arg_int(args, "screen_region_output_min", -1)
+    output_max = arg_int(args, "screen_region_output_max", -1)
+    try:
+        frame_index = int(output_frame)
+    except (TypeError, ValueError):
+        return False
+    if output_min >= 0 and frame_index < output_min:
+        return False
+    if output_max >= 0 and frame_index > output_max:
+        return False
+    return True
+
+
+def screen_region_face_bucket(face_index):
+    value = (int(face_index) * 2654435761 + 1013904223) & 0xFFFFFFFF
+    return float(value) / 4294967296.0
+
+
+def apply_screen_region_attenuation(selected, image_width, image_height, output_frame, mask_frame, args):
+    strength = arg_float(args, "screen_region_attenuation_strength", 0.0)
+    coverage = coverage_float(mask_frame, "layer_coverage")
+    coverage_min = arg_float(args, "screen_region_coverage_min", 0.0)
+    coverage_max = arg_float(args, "screen_region_coverage_max", 1.0)
+    bounds = screen_region_bounds(args)
+    stats = {
+        "enabled": strength > 0.0,
+        "active": False,
+        "strength": strength,
+        "layer_coverage": coverage,
+        "coverage_min": coverage_min,
+        "coverage_max": coverage_max,
+        "output_min": arg_int(args, "screen_region_output_min", -1),
+        "output_max": arg_int(args, "screen_region_output_max", -1),
+        "x_min": bounds["x_min"],
+        "x_max": bounds["x_max"],
+        "y_min": bounds["y_min"],
+        "y_max": bounds["y_max"],
+        "candidate_faces": 0,
+        "dropped_faces": 0,
+        "kept_faces": len(selected),
+        "drop_fraction": 0.0,
+        "fallback_kept_one": False,
+    }
+    if not selected or strength <= 0.0:
+        return selected, stats
+    if coverage < coverage_min or coverage > coverage_max:
+        return selected, stats
+    if not screen_region_output_enabled(output_frame, args):
+        return selected, stats
+
+    width = max(1.0, float(image_width))
+    height = max(1.0, float(image_height))
+    kept = []
+    dropped = []
+    candidates = 0
+    for item in selected:
+        sx, sy = item["screen"]
+        nx = clamp(float(sx) / width, 0.0, 1.0)
+        ny = clamp(float(sy) / height, 0.0, 1.0)
+        in_region = (
+            bounds["x_min"] <= nx <= bounds["x_max"]
+            and bounds["y_min"] <= ny <= bounds["y_max"]
+        )
+        if in_region:
+            candidates += 1
+            if screen_region_face_bucket(item["face_index"]) < strength:
+                dropped.append(item)
+                continue
+        kept.append(item)
+    if not dropped:
+        stats["active"] = candidates > 0
+        stats["candidate_faces"] = candidates
+        return selected, stats
+    if not kept:
+        kept.append(dropped.pop(0))
+        stats["fallback_kept_one"] = True
+    stats["active"] = True
+    stats["candidate_faces"] = candidates
+    stats["dropped_faces"] = len(dropped)
+    stats["kept_faces"] = len(kept)
+    stats["drop_fraction"] = len(dropped) / float(max(1, len(selected)))
+    return kept, stats
 
 
 def resolved_bin_specs(args, control=None):
@@ -383,6 +487,12 @@ def markdown_report(export, export_path, root, next_text):
         f"strength=`{settings.get('coverage_band_rescue_strength')}`, "
         f"center=`{settings.get('coverage_band_rescue_center')}`, "
         f"width=`{settings.get('coverage_band_rescue_width')}`",
+        "- Screen-region attenuation: "
+        f"strength=`{settings.get('screen_region_attenuation_strength')}`, "
+        f"x=`{settings.get('screen_region_x_min')}..{settings.get('screen_region_x_max')}`, "
+        f"y=`{settings.get('screen_region_y_min')}..{settings.get('screen_region_y_max')}`, "
+        f"coverage=`{settings.get('screen_region_coverage_min')}..{settings.get('screen_region_coverage_max')}`, "
+        f"output=`{settings.get('screen_region_output_min')}..{settings.get('screen_region_output_max')}`",
         "- Low-coverage rescue scale: "
         f"face_limit_boost=`{settings.get('low_coverage_rescue_face_limit_boost')}`, "
         f"alpha_tighten=`{settings.get('low_coverage_rescue_alpha_tighten')}`, "
@@ -408,12 +518,16 @@ def markdown_report(export, export_path, root, next_text):
         f"- Low-coverage max rescue: `{checks.get('low_coverage_max_rescue')}`",
         f"- Coverage-band rescue frames: `{checks.get('coverage_band_rescue_frames')}`",
         f"- Coverage-band max rescue: `{checks.get('coverage_band_max_rescue')}`",
+        f"- Screen-region attenuated frames: `{checks.get('screen_region_attenuated_frames')}`",
+        f"- Screen-region candidate faces: `{checks.get('screen_region_candidate_faces')}`",
+        f"- Screen-region dropped faces: `{checks.get('screen_region_dropped_faces')}`",
+        f"- Screen-region max drop fraction: `{checks.get('screen_region_max_drop_fraction')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
-        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Region Drop | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -421,10 +535,12 @@ def markdown_report(export, export_path, root, next_text):
         frame = frames[index]
         item = frame.get("water_mask_material_response") or {}
         control = item.get("coverage_control") or {}
+        region = control.get("screen_region_attenuation") or {}
         lines.append(
             f"| {frame.get('output_frame')} | {control.get('layer_coverage')} | "
             f"{control.get('attenuation')} | {control.get('low_coverage_rescue')} | "
             f"{control.get('coverage_band_rescue')} | "
+            f"{region.get('dropped_faces')} | "
             f"{control.get('effective_face_limit')} | "
             f"{item.get('water_faces')} | "
             f"{item.get('response_faces')} | {item.get('remainder_faces')} | "
@@ -485,6 +601,10 @@ def split_material(args):
         "low_coverage_max_rescue": 0.0,
         "coverage_band_rescue_frames": 0,
         "coverage_band_max_rescue": 0.0,
+        "screen_region_attenuated_frames": 0,
+        "screen_region_candidate_faces": 0,
+        "screen_region_dropped_faces": 0,
+        "screen_region_max_drop_fraction": 0.0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -519,6 +639,15 @@ def split_material(args):
         source = Image.open(source_path).convert("RGB") if source_path and os.path.isfile(source_path) else None
         camera = parse_camera(source_xml)
         selected = select_faces(vertices, faces, camera, mask, source, frame_args)
+        selected, screen_region = apply_screen_region_attenuation(
+            selected,
+            mask.size[0],
+            mask.size[1],
+            output_frame,
+            mask_frame,
+            args,
+        )
+        frame_control["screen_region_attenuation"] = screen_region
         if not selected:
             if args.allow_empty_mask_frames:
                 patched = add_response_comment(
@@ -651,6 +780,15 @@ def split_material(args):
             totals["coverage_band_max_rescue"],
             frame_control["coverage_band_rescue"],
         )
+        screen_region = frame_control.get("screen_region_attenuation") or {}
+        totals["screen_region_candidate_faces"] += int(screen_region.get("candidate_faces") or 0)
+        totals["screen_region_dropped_faces"] += int(screen_region.get("dropped_faces") or 0)
+        if int(screen_region.get("dropped_faces") or 0) > 0:
+            totals["screen_region_attenuated_frames"] += 1
+        totals["screen_region_max_drop_fraction"] = max(
+            totals["screen_region_max_drop_fraction"],
+            float(screen_region.get("drop_fraction") or 0.0),
+        )
 
         out_frame = copy.deepcopy(frame)
         out_frame["xml_scene"] = {
@@ -761,6 +899,15 @@ def split_material(args):
             "coverage_band_rescue_strength": args.coverage_band_rescue_strength,
             "coverage_band_rescue_center": args.coverage_band_rescue_center,
             "coverage_band_rescue_width": args.coverage_band_rescue_width,
+            "screen_region_attenuation_strength": args.screen_region_attenuation_strength,
+            "screen_region_x_min": args.screen_region_x_min,
+            "screen_region_x_max": args.screen_region_x_max,
+            "screen_region_y_min": args.screen_region_y_min,
+            "screen_region_y_max": args.screen_region_y_max,
+            "screen_region_coverage_min": args.screen_region_coverage_min,
+            "screen_region_coverage_max": args.screen_region_coverage_max,
+            "screen_region_output_min": args.screen_region_output_min,
+            "screen_region_output_max": args.screen_region_output_max,
             "low_coverage_rescue_face_limit_boost": args.low_coverage_rescue_face_limit_boost,
             "low_coverage_rescue_alpha_tighten": args.low_coverage_rescue_alpha_tighten,
             "low_coverage_rescue_reflectance_boost": args.low_coverage_rescue_reflectance_boost,
@@ -820,6 +967,15 @@ def main(argv=None):
     parser.add_argument("--coverage-band-rescue-strength", type=float, default=0.0)
     parser.add_argument("--coverage-band-rescue-center", type=float, default=0.113)
     parser.add_argument("--coverage-band-rescue-width", type=float, default=0.004)
+    parser.add_argument("--screen-region-attenuation-strength", type=float, default=0.0)
+    parser.add_argument("--screen-region-x-min", type=float, default=0.0)
+    parser.add_argument("--screen-region-x-max", type=float, default=1.0)
+    parser.add_argument("--screen-region-y-min", type=float, default=0.0)
+    parser.add_argument("--screen-region-y-max", type=float, default=1.0)
+    parser.add_argument("--screen-region-coverage-min", type=float, default=0.0)
+    parser.add_argument("--screen-region-coverage-max", type=float, default=1.0)
+    parser.add_argument("--screen-region-output-min", type=int, default=-1)
+    parser.add_argument("--screen-region-output-max", type=int, default=-1)
     parser.add_argument("--low-coverage-rescue-face-limit-boost", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-alpha-tighten", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-reflectance-boost", type=float, default=0.0)
@@ -888,6 +1044,30 @@ def main(argv=None):
         parser.error("coverage-band-rescue-center must be non-negative")
     if args.coverage_band_rescue_width <= 0.0:
         parser.error("coverage-band-rescue-width must be positive")
+    if args.screen_region_attenuation_strength < 0.0 or args.screen_region_attenuation_strength > 1.0:
+        parser.error("screen-region-attenuation-strength must be in [0, 1]")
+    for label, value in (
+        ("screen-region-x-min", args.screen_region_x_min),
+        ("screen-region-x-max", args.screen_region_x_max),
+        ("screen-region-y-min", args.screen_region_y_min),
+        ("screen-region-y-max", args.screen_region_y_max),
+        ("screen-region-coverage-min", args.screen_region_coverage_min),
+        ("screen-region-coverage-max", args.screen_region_coverage_max),
+    ):
+        if value < 0.0 or value > 1.0:
+            parser.error(f"{label} must be in [0, 1]")
+    if args.screen_region_x_min > args.screen_region_x_max:
+        parser.error("screen-region-x-min cannot exceed screen-region-x-max")
+    if args.screen_region_y_min > args.screen_region_y_max:
+        parser.error("screen-region-y-min cannot exceed screen-region-y-max")
+    if args.screen_region_coverage_min > args.screen_region_coverage_max:
+        parser.error("screen-region-coverage-min cannot exceed screen-region-coverage-max")
+    if (
+        args.screen_region_output_min >= 0
+        and args.screen_region_output_max >= 0
+        and args.screen_region_output_min > args.screen_region_output_max
+    ):
+        parser.error("screen-region-output-min cannot exceed screen-region-output-max")
     if args.low_coverage_rescue_face_limit_boost < 0.0:
         parser.error("low-coverage-rescue-face-limit-boost must be non-negative")
     if args.low_coverage_rescue_alpha_tighten < 0.0 or args.low_coverage_rescue_alpha_tighten > 1.0:

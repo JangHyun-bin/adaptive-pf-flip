@@ -5410,3 +5410,37 @@ score: mean MAD `19.10240579989712`, max MAD `23.950307355967077`, max abs gap
 `response_alpha`, `response_luma`, `response_mask`, `target_gap_diff`) as the
 input contract for renderer-native material/light/volume response rather than
 continuing discrete emitter patches.
+
+S607-S613 established the current native-material split baseline:
+
+- S607 frame peak control report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_sequence_compare_s607.md`
+- S609 gentle low-coverage rescue report:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms11_gentle_low_coverage_rescue_full48_sequence_compare_s609.md`
+- S612 balanced dual rescue direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms14_balanced_dual_rescue_full48_direct_metrics_s612.md`
+- S613 screen-region attenuation export/validation/render/direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms15_screen_region_attenuation_full48_export_s613.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms15_screen_region_attenuation_full48_validate_s613.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms15_screen_region_attenuation_full48_render_s613.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms15_screen_region_attenuation_full48_direct_metrics_s613.md`
+- S613 visual proof:
+  `build/shots/s613_mitsuba_scene_depth_native_material_split_ms15_screen_region_attenuation_full48/gallery/index.html`,
+  `build/shots/s613_mitsuba_scene_depth_native_material_split_ms15_screen_region_attenuation_full48/sequence_compare_s577_s585_s607_s609_s612/gallery/index.html`
+- New tool option:
+  `tools/split_mitsuba_water_mask_material.py` now supports bounded
+  `--screen-region-*` response-face attenuation.
+
+S613 keeps the S612 peak-error margin while reducing the remaining late-frame
+MAD limiter. Against S577, mean MAD improves from `3.048554499957133` to
+`3.0386621897505144`, and frame-45 max MAD improves from
+`5.651857638888889` to `5.580354295267489`; max abs remains `173`. Against
+S585, mean MAD improves from `3.0598990483539095` to `3.050184823495371`, and
+frame-45 max MAD improves from `5.6697800925925925` to `5.599894547325103`;
+max abs remains `172`. Treat S613 as the current native-material split baseline
+if visual review accepts the late-frame local attenuation.
+
+Next renderer-native step: replace hand-selected screen boxes with either
+automatic signed-error-derived region controls or a separated water/response
+buffer path. The goal is to keep local correction authority without manually
+guessing screen regions for each shot.
