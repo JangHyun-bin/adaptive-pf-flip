@@ -250,6 +250,10 @@ replace.
 - S627 published the S626 `BOLD_SAFE` sweep gallery through a Cloudflare quick
   tunnel for direct browser comparison against S624/S625. The public index and
   selected GIF both returned HTTP `200`.
+- S628 added a peak/late-frame guard for the S626 `BOLD_SAFE` candidate. It
+  collected the worst peak and late-frame strips and passed the configured
+  guard (`max delta=7`, `max MAD=0.5889236111111111`,
+  `late max MAD=0.5678240740740741`).
 
 ## Key Artifacts
 
@@ -573,6 +577,8 @@ replace.
   `https://extraction-worked-helicopter-corp.trycloudflare.com`
 - Renderer scene depth/material response AOV scene native probe sweep publish:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_sweep_publish_s627.md`
+- Renderer scene depth/material response AOV scene native probe guard:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_guard_s075_s628.md`
 
 ## Verification
 
@@ -1413,6 +1419,18 @@ replace.
   - public GIF bytes: `9958129`
   - public URL: `https://extraction-worked-helicopter-corp.trycloudflare.com`
   - S627 decision: `public visual review link issued for BOLD_SAFE`
+- S628 response AOV scene native probe guard:
+  - guard `status=ready`
+  - candidate: `BOLD_SAFE`
+  - guard status: `passed`
+  - frames: `48`
+  - late frames: `12`
+  - peak frames: `4`
+  - max abs delta from S623: `7`
+  - max mean abs delta from S623: `0.5889236111111111`
+  - late max abs delta from S623: `6`
+  - late max mean abs delta from S623: `0.5678240740740741`
+  - S628 decision: `promotion guard passed pending visual review`
 
 ## Current Meaning
 
@@ -1503,7 +1521,8 @@ now reproducible through:
 42. a public visual review URL for the S624 native-style probe gallery,
 43. a narrow vectorized native-probe sweep that chooses a stronger bounded
    review candidate before any promotion over the S623 parity gate,
-44. a public visual review URL for that stronger S626 `BOLD_SAFE` sweep result.
+44. a public visual review URL for that stronger S626 `BOLD_SAFE` sweep result,
+45. a peak/late-frame guard pack for the stronger candidate before promotion.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1609,6 +1628,7 @@ S625 publishes that candidate for direct browser review.
 S626 then narrows the search around S624 and selects `BOLD_SAFE` as a stronger
 bounded review candidate while keeping it separate from the accepted gate.
 S627 publishes `BOLD_SAFE` for direct browser comparison.
+S628 validates the peak and late-frame risk envelope for that candidate.
 
 ## Next
 
@@ -1618,10 +1638,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S627 as the current public review point for the strongest bounded
-   native-style candidate. The next step should either promote `BOLD_SAFE` into
-   the external backend path or run a tighter late-frame/peak-error guard sweep
-   first.
+4. Use S628 as the current promotion guard for `BOLD_SAFE`. The next step
+   should promote `BOLD_SAFE` into the external backend path if the visual
+   review is acceptable, while still keeping S577 as the accepted full48 gate
+   until the promoted backend output is re-compared.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
