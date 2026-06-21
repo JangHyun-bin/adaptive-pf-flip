@@ -274,6 +274,10 @@ replace.
   scene/AOV descriptors, binds each frame to the S585 target preview as the new
   near-accepted visual anchor, and preserves the S577 envelope
   (`max anchor/S577 MAD=0.4139242541152263`).
+- S633 generated a bounded S585-anchored native-style candidate sweep from the
+  S632 handoff. It selected `ANCHOR_SOFT_30`, moving at most `2` levels from
+  S585 while keeping the S577 gate near the accepted envelope
+  (`max candidate/S577 MAD=0.49603587962962964`).
 
 ## Key Artifacts
 
@@ -607,6 +611,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_gate_sweep_s075_s631.md`
 - Renderer scene depth/material response AOV S585 anchor handoff:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_s585_anchor_handoff_s075_s632.md`
+- Renderer scene depth/material response AOV S585 anchor native candidate:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_s585_anchor_native_candidate_s075_s633.md`
 
 ## Verification
 
@@ -1510,6 +1516,20 @@ replace.
   - max S585-anchor-vs-S577 mean diff: `0.4139242541152263`
   - mean S585-anchor-vs-S577 mean diff: `0.15709458590534978`
   - S632 decision: `use this as the next bounded native-backend anchor`
+- S633 response AOV S585 anchor native candidate:
+  - candidate `status=ready`
+  - decision: `s585_anchor_native_candidate_ready`
+  - candidates: `11`
+  - selected: `ANCHOR_SOFT_30`
+  - frames: `48`
+  - missing references: `0`
+  - max candidate-vs-S585 abs diff: `2`
+  - max candidate-vs-S585 mean diff: `0.09598251028806584`
+  - mean candidate-vs-S585 mean diff: `0.07826358078275035`
+  - max candidate-vs-S577 abs diff: `6`
+  - max candidate-vs-S577 mean diff: `0.49603587962962964`
+  - mean candidate-vs-S577 mean diff: `0.23535816668810014`
+  - S633 decision: `bounded S585-anchored visual candidate ready`
 
 ## Current Meaning
 
@@ -1611,7 +1631,9 @@ now reproducible through:
    itself remains outside the accepted S577/S585 envelope,
 49. a S585-anchored response-AOV scene handoff that restores the next native
    backend branch to the near-accepted visual envelope while keeping scene/AOV
-   descriptor context.
+   descriptor context,
+50. a bounded S585-anchored native-style candidate that adds a small
+   scene-aware response while staying near the accepted S577/S585 envelope.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1732,6 +1754,9 @@ well outside the accepted S577/S585 envelope.
 S632 then creates the corrected branch point: keep the scene/AOV descriptor
 contract, but anchor the next backend candidate to S585 so future renderer
 movement starts near the accepted S577/S585 envelope.
+S633 uses that corrected branch point to recover a usable visual direction:
+`ANCHOR_SOFT_30` adds a small scene-aware response from S585 while keeping the
+S577 gap bounded far below the rejected S629/S631 response-scale family.
 
 ## Next
 
@@ -1741,11 +1766,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S632 as the current response-AOV scene anchor for the next visual
-   candidate. Keep S577 as the accepted full48 gate and S585 as the
-   near-accepted target.
-5. Build the next native-backend candidate against the S632 S585 anchor, with
-   strict S577/S585 gap tolerances before any publication or promotion.
+4. Use S633 as the current bounded S585-anchored native visual candidate. Keep
+   S577 as the accepted full48 gate and S585 as the near-accepted target.
+5. Promote `ANCHOR_SOFT_30` through the external backend/process adapter path,
+   then publish only after the same S577/S585 gate remains bounded.
 6. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 7. Keep S592 as the pass/fail gate: preserve S585 target parity and only
