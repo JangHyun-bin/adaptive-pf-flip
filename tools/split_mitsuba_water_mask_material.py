@@ -317,6 +317,166 @@ def apply_screen_region_attenuation(selected, image_width, image_height, output_
     return kept, stats
 
 
+def screen_error_output_enabled(output_frame, args):
+    output_min = arg_int(args, "screen_error_output_min", -1)
+    output_max = arg_int(args, "screen_error_output_max", -1)
+    try:
+        frame_index = int(output_frame)
+    except (TypeError, ValueError):
+        return False
+    if output_min >= 0 and frame_index < output_min:
+        return False
+    if output_max >= 0 and frame_index > output_max:
+        return False
+    return True
+
+
+def screen_error_frame_map(args, root):
+    path = getattr(args, "screen_error_gap_summary", None)
+    if not path:
+        return {}, None
+    gap_path = require_file(resolve_path(path), "screen error gap summary")
+    gap = read_json(gap_path)
+    if gap.get("schema") != "lsfs_mitsuba_renderer_target_gap":
+        raise SystemExit(f"{path}: expected lsfs_mitsuba_renderer_target_gap schema")
+    return (
+        {frame.get("output_frame"): frame for frame in gap.get("frames") or [] if frame.get("output_frame") is not None},
+        {
+            "path": gap_path,
+            "repo_path": posix_rel(gap_path, root),
+            "sha256": sha256_file(gap_path),
+            "checks": gap.get("checks") or {},
+        },
+    )
+
+
+def luma_from_pixel(pixel):
+    return 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2]
+
+
+def sample_luma(image, x, y, radius):
+    width, height = image.size
+    px = int(round(float(x)))
+    py = int(round(float(y)))
+    radius = max(0, int(radius))
+    total = 0.0
+    count = 0
+    for yy in range(max(0, py - radius), min(height - 1, py + radius) + 1):
+        for xx in range(max(0, px - radius), min(width - 1, px + radius) + 1):
+            total += luma_from_pixel(image.getpixel((xx, yy)))
+            count += 1
+    return total / float(max(1, count))
+
+
+def load_screen_error_images(output_frame, screen_error_frames):
+    frame = screen_error_frames.get(output_frame)
+    if not frame:
+        return None, None
+    actual_path = resolve_path(frame.get("actual_repo_path"))
+    target_path = resolve_path(frame.get("target_repo_path"))
+    if not actual_path or not os.path.isfile(actual_path) or not target_path or not os.path.isfile(target_path):
+        return None, None
+    from PIL import Image
+
+    actual = Image.open(actual_path).convert("RGB")
+    target = Image.open(target_path).convert("RGB")
+    if actual.size != target.size:
+        actual = actual.resize(target.size, Image.Resampling.BICUBIC)
+    return actual, target
+
+
+def apply_screen_error_attenuation(selected, output_frame, mask_frame, screen_error_frames, args):
+    strength = arg_float(args, "screen_error_attenuation_strength", 0.0)
+    threshold = arg_float(args, "screen_error_negative_threshold", 8.0)
+    width = max(1.0e-9, arg_float(args, "screen_error_negative_width", 48.0))
+    max_drop_fraction = arg_float(args, "screen_error_max_drop_fraction", 1.0)
+    sample_radius = arg_int(args, "screen_error_sample_radius", 0)
+    coverage = coverage_float(mask_frame, "layer_coverage")
+    coverage_min = arg_float(args, "screen_error_coverage_min", 0.0)
+    coverage_max = arg_float(args, "screen_error_coverage_max", 1.0)
+    stats = {
+        "enabled": strength > 0.0 and bool(screen_error_frames),
+        "active": False,
+        "strength": strength,
+        "negative_threshold": threshold,
+        "negative_width": width,
+        "max_drop_fraction": max_drop_fraction,
+        "sample_radius": sample_radius,
+        "layer_coverage": coverage,
+        "coverage_min": coverage_min,
+        "coverage_max": coverage_max,
+        "output_min": arg_int(args, "screen_error_output_min", -1),
+        "output_max": arg_int(args, "screen_error_output_max", -1),
+        "sampled_faces": 0,
+        "candidate_faces": 0,
+        "dropped_faces": 0,
+        "kept_faces": len(selected),
+        "mean_candidate_delta": 0.0,
+        "min_delta": 0.0,
+        "max_delta": 0.0,
+        "drop_fraction": 0.0,
+        "fallback_kept_one": False,
+    }
+    if not selected or strength <= 0.0 or not screen_error_frames:
+        return selected, stats
+    if coverage < coverage_min or coverage > coverage_max:
+        return selected, stats
+    if not screen_error_output_enabled(output_frame, args):
+        return selected, stats
+
+    actual, target = load_screen_error_images(output_frame, screen_error_frames)
+    if actual is None or target is None:
+        return selected, stats
+
+    drop_items = []
+    candidate_deltas = []
+    all_deltas = []
+    for item in selected:
+        sx, sy = item["screen"]
+        actual_luma = sample_luma(actual, sx, sy, sample_radius)
+        target_luma = sample_luma(target, sx, sy, sample_radius)
+        delta = target_luma - actual_luma
+        all_deltas.append(delta)
+        if delta > -threshold:
+            continue
+        candidate_deltas.append(delta)
+        response = clamp((-delta - threshold) / width, 0.0, 1.0)
+        probability = clamp(strength * response, 0.0, 1.0)
+        if probability <= 0.0:
+            continue
+        bucket = screen_region_face_bucket(item["face_index"])
+        if bucket < probability:
+            priority = bucket / max(1.0e-9, probability)
+            drop_items.append((priority, item))
+
+    if not candidate_deltas:
+        stats["sampled_faces"] = len(all_deltas)
+        stats["min_delta"] = min(all_deltas) if all_deltas else 0.0
+        stats["max_delta"] = max(all_deltas) if all_deltas else 0.0
+        return selected, stats
+
+    max_drop = int(round(len(selected) * max_drop_fraction)) if max_drop_fraction > 0.0 else 0
+    if max_drop_fraction > 0.0:
+        max_drop = max(1, max_drop)
+    drop_items.sort(key=lambda item: item[0])
+    drop_indices = {item["face_index"] for _priority, item in drop_items[:max_drop]}
+    kept = [item for item in selected if item["face_index"] not in drop_indices]
+    if drop_indices and not kept:
+        kept.append(selected[0])
+        drop_indices.discard(selected[0]["face_index"])
+        stats["fallback_kept_one"] = True
+    stats["active"] = bool(drop_indices)
+    stats["sampled_faces"] = len(all_deltas)
+    stats["candidate_faces"] = len(candidate_deltas)
+    stats["dropped_faces"] = len(drop_indices)
+    stats["kept_faces"] = len(kept)
+    stats["mean_candidate_delta"] = sum(candidate_deltas) / float(max(1, len(candidate_deltas)))
+    stats["min_delta"] = min(all_deltas) if all_deltas else 0.0
+    stats["max_delta"] = max(all_deltas) if all_deltas else 0.0
+    stats["drop_fraction"] = len(drop_indices) / float(max(1, len(selected)))
+    return kept, stats
+
+
 def resolved_bin_specs(args, control=None):
     count = max(1, int(args.response_bin_count))
     strong_alpha = args.response_bin_alpha_strong
@@ -493,6 +653,13 @@ def markdown_report(export, export_path, root, next_text):
         f"y=`{settings.get('screen_region_y_min')}..{settings.get('screen_region_y_max')}`, "
         f"coverage=`{settings.get('screen_region_coverage_min')}..{settings.get('screen_region_coverage_max')}`, "
         f"output=`{settings.get('screen_region_output_min')}..{settings.get('screen_region_output_max')}`",
+        "- Screen-error attenuation: "
+        f"strength=`{settings.get('screen_error_attenuation_strength')}`, "
+        f"threshold=`{settings.get('screen_error_negative_threshold')}`, "
+        f"width=`{settings.get('screen_error_negative_width')}`, "
+        f"coverage=`{settings.get('screen_error_coverage_min')}..{settings.get('screen_error_coverage_max')}`, "
+        f"output=`{settings.get('screen_error_output_min')}..{settings.get('screen_error_output_max')}`, "
+        f"gap=`{settings.get('screen_error_gap_summary')}`",
         "- Low-coverage rescue scale: "
         f"face_limit_boost=`{settings.get('low_coverage_rescue_face_limit_boost')}`, "
         f"alpha_tighten=`{settings.get('low_coverage_rescue_alpha_tighten')}`, "
@@ -522,12 +689,17 @@ def markdown_report(export, export_path, root, next_text):
         f"- Screen-region candidate faces: `{checks.get('screen_region_candidate_faces')}`",
         f"- Screen-region dropped faces: `{checks.get('screen_region_dropped_faces')}`",
         f"- Screen-region max drop fraction: `{checks.get('screen_region_max_drop_fraction')}`",
+        f"- Screen-error attenuated frames: `{checks.get('screen_error_attenuated_frames')}`",
+        f"- Screen-error sampled faces: `{checks.get('screen_error_sampled_faces')}`",
+        f"- Screen-error candidate faces: `{checks.get('screen_error_candidate_faces')}`",
+        f"- Screen-error dropped faces: `{checks.get('screen_error_dropped_faces')}`",
+        f"- Screen-error max drop fraction: `{checks.get('screen_error_max_drop_fraction')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Region Drop | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
-        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Region Drop | Error Drop | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -536,11 +708,13 @@ def markdown_report(export, export_path, root, next_text):
         item = frame.get("water_mask_material_response") or {}
         control = item.get("coverage_control") or {}
         region = control.get("screen_region_attenuation") or {}
+        error = control.get("screen_error_attenuation") or {}
         lines.append(
             f"| {frame.get('output_frame')} | {control.get('layer_coverage')} | "
             f"{control.get('attenuation')} | {control.get('low_coverage_rescue')} | "
             f"{control.get('coverage_band_rescue')} | "
             f"{region.get('dropped_faces')} | "
+            f"{error.get('dropped_faces')} | "
             f"{control.get('effective_face_limit')} | "
             f"{item.get('water_faces')} | "
             f"{item.get('response_faces')} | {item.get('remainder_faces')} | "
@@ -580,6 +754,7 @@ def split_material(args):
     os.makedirs(mesh_dir, exist_ok=True)
 
     mask_frames = output_frame_map(mask_source.get("frames") or [])
+    screen_error_frames, screen_error_source = screen_error_frame_map(args, root)
     bin_specs = resolved_bin_specs(args)
     frames = []
     failures = []
@@ -605,6 +780,11 @@ def split_material(args):
         "screen_region_candidate_faces": 0,
         "screen_region_dropped_faces": 0,
         "screen_region_max_drop_fraction": 0.0,
+        "screen_error_attenuated_frames": 0,
+        "screen_error_sampled_faces": 0,
+        "screen_error_candidate_faces": 0,
+        "screen_error_dropped_faces": 0,
+        "screen_error_max_drop_fraction": 0.0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -648,6 +828,14 @@ def split_material(args):
             args,
         )
         frame_control["screen_region_attenuation"] = screen_region
+        selected, screen_error = apply_screen_error_attenuation(
+            selected,
+            output_frame,
+            mask_frame,
+            screen_error_frames,
+            args,
+        )
+        frame_control["screen_error_attenuation"] = screen_error
         if not selected:
             if args.allow_empty_mask_frames:
                 patched = add_response_comment(
@@ -789,6 +977,16 @@ def split_material(args):
             totals["screen_region_max_drop_fraction"],
             float(screen_region.get("drop_fraction") or 0.0),
         )
+        screen_error = frame_control.get("screen_error_attenuation") or {}
+        totals["screen_error_sampled_faces"] += int(screen_error.get("sampled_faces") or 0)
+        totals["screen_error_candidate_faces"] += int(screen_error.get("candidate_faces") or 0)
+        totals["screen_error_dropped_faces"] += int(screen_error.get("dropped_faces") or 0)
+        if int(screen_error.get("dropped_faces") or 0) > 0:
+            totals["screen_error_attenuated_frames"] += 1
+        totals["screen_error_max_drop_fraction"] = max(
+            totals["screen_error_max_drop_fraction"],
+            float(screen_error.get("drop_fraction") or 0.0),
+        )
 
         out_frame = copy.deepcopy(frame)
         out_frame["xml_scene"] = {
@@ -859,6 +1057,7 @@ def split_material(args):
         "sources": {
             "base_export": source_entry(base_export_path, root, "base Mitsuba XML export", base),
             "mask_source": source_entry(mask_source_path, root, "water highlight mask source", mask_source),
+            "screen_error_gap": screen_error_source,
         },
         "frames": frames,
         "failures": failures,
@@ -908,6 +1107,16 @@ def split_material(args):
             "screen_region_coverage_max": args.screen_region_coverage_max,
             "screen_region_output_min": args.screen_region_output_min,
             "screen_region_output_max": args.screen_region_output_max,
+            "screen_error_gap_summary": (screen_error_source or {}).get("repo_path"),
+            "screen_error_attenuation_strength": args.screen_error_attenuation_strength,
+            "screen_error_negative_threshold": args.screen_error_negative_threshold,
+            "screen_error_negative_width": args.screen_error_negative_width,
+            "screen_error_sample_radius": args.screen_error_sample_radius,
+            "screen_error_max_drop_fraction": args.screen_error_max_drop_fraction,
+            "screen_error_coverage_min": args.screen_error_coverage_min,
+            "screen_error_coverage_max": args.screen_error_coverage_max,
+            "screen_error_output_min": args.screen_error_output_min,
+            "screen_error_output_max": args.screen_error_output_max,
             "low_coverage_rescue_face_limit_boost": args.low_coverage_rescue_face_limit_boost,
             "low_coverage_rescue_alpha_tighten": args.low_coverage_rescue_alpha_tighten,
             "low_coverage_rescue_reflectance_boost": args.low_coverage_rescue_reflectance_boost,
@@ -976,6 +1185,16 @@ def main(argv=None):
     parser.add_argument("--screen-region-coverage-max", type=float, default=1.0)
     parser.add_argument("--screen-region-output-min", type=int, default=-1)
     parser.add_argument("--screen-region-output-max", type=int, default=-1)
+    parser.add_argument("--screen-error-gap-summary")
+    parser.add_argument("--screen-error-attenuation-strength", type=float, default=0.0)
+    parser.add_argument("--screen-error-negative-threshold", type=float, default=8.0)
+    parser.add_argument("--screen-error-negative-width", type=float, default=48.0)
+    parser.add_argument("--screen-error-sample-radius", type=int, default=0)
+    parser.add_argument("--screen-error-max-drop-fraction", type=float, default=0.15)
+    parser.add_argument("--screen-error-coverage-min", type=float, default=0.0)
+    parser.add_argument("--screen-error-coverage-max", type=float, default=1.0)
+    parser.add_argument("--screen-error-output-min", type=int, default=-1)
+    parser.add_argument("--screen-error-output-max", type=int, default=-1)
     parser.add_argument("--low-coverage-rescue-face-limit-boost", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-alpha-tighten", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-reflectance-boost", type=float, default=0.0)
@@ -1068,6 +1287,30 @@ def main(argv=None):
         and args.screen_region_output_min > args.screen_region_output_max
     ):
         parser.error("screen-region-output-min cannot exceed screen-region-output-max")
+    if args.screen_error_attenuation_strength < 0.0 or args.screen_error_attenuation_strength > 1.0:
+        parser.error("screen-error-attenuation-strength must be in [0, 1]")
+    if args.screen_error_negative_threshold < 0.0:
+        parser.error("screen-error-negative-threshold must be non-negative")
+    if args.screen_error_negative_width <= 0.0:
+        parser.error("screen-error-negative-width must be positive")
+    if args.screen_error_sample_radius < 0:
+        parser.error("screen-error-sample-radius must be non-negative")
+    if args.screen_error_max_drop_fraction < 0.0 or args.screen_error_max_drop_fraction > 1.0:
+        parser.error("screen-error-max-drop-fraction must be in [0, 1]")
+    for label, value in (
+        ("screen-error-coverage-min", args.screen_error_coverage_min),
+        ("screen-error-coverage-max", args.screen_error_coverage_max),
+    ):
+        if value < 0.0 or value > 1.0:
+            parser.error(f"{label} must be in [0, 1]")
+    if args.screen_error_coverage_min > args.screen_error_coverage_max:
+        parser.error("screen-error-coverage-min cannot exceed screen-error-coverage-max")
+    if (
+        args.screen_error_output_min >= 0
+        and args.screen_error_output_max >= 0
+        and args.screen_error_output_min > args.screen_error_output_max
+    ):
+        parser.error("screen-error-output-min cannot exceed screen-error-output-max")
     if args.low_coverage_rescue_face_limit_boost < 0.0:
         parser.error("low-coverage-rescue-face-limit-boost must be non-negative")
     if args.low_coverage_rescue_alpha_tighten < 0.0 or args.low_coverage_rescue_alpha_tighten > 1.0:

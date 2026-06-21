@@ -5444,3 +5444,36 @@ Next renderer-native step: replace hand-selected screen boxes with either
 automatic signed-error-derived region controls or a separated water/response
 buffer path. The goal is to keep local correction authority without manually
 guessing screen regions for each shot.
+
+S614 replaced the hand-selected screen box with automatic face-level
+signed-error attenuation:
+
+- New reference gap tool:
+  `tools/build_mitsuba_reference_gap.py`
+- Extended split material tool:
+  `tools/split_mitsuba_water_mask_material.py` now supports
+  `--screen-error-*` face attenuation from a
+  `lsfs_mitsuba_renderer_target_gap` summary.
+- S614 input gap and signed analysis:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_s613_to_s585_gap_s614.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_signed_gap_s614.md`
+- S614 export/validation/render/direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_export_s614.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_validate_s614.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_render_s614.md`,
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_direct_metrics_s614.md`
+- S614 visual proof:
+  `build/shots/s614_mitsuba_scene_depth_native_material_split_ms16_screen_error_attenuation_full48/gallery/index.html`,
+  `build/shots/s614_mitsuba_scene_depth_native_material_split_ms16_screen_error_attenuation_full48/sequence_compare_s577_s585_s612_s613/gallery/index.html`
+
+S614 reaches S613-level quality without a manual screen box. It trades a tiny
+mean-MAD regression for a lower frame-45 max-MAD limiter: against S585, S613 is
+mean `3.050184823495371` and max `5.599894547325103`, while S614 is mean
+`3.050464838391632` and max `5.595675154320989`. Use S614 as the next
+automation direction, but keep S613 as the slightly lower mean-MAD visual
+reference until the sequence compare is reviewed.
+
+Next renderer-native step: stop dropping response faces and instead use the
+same signed-error field to drive continuous per-bin material attenuation or a
+separated water/response buffer. That should preserve S614's local automation
+while reducing the small mean-MAD tradeoff.
