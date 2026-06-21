@@ -231,6 +231,10 @@ replace.
   It filled the descriptor output image, metadata, and validation targets for
   all 48 frames, reconstructing the selected composite from signed response AOV
   layers with zero diff against both the selected and imported references.
+- S623 moved that descriptor execution behind an external backend process
+  boundary. The runner launched 48 subprocesses through
+  `mitsuba_response_aov_scene_backend.py`, preserved selected/imported parity,
+  and produced a backend gallery with zero process failures.
 
 ## Key Artifacts
 
@@ -540,6 +544,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_job_manifest_s075_s621.md`
 - Renderer scene depth/material response AOV scene job dry run:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_job_dry_run_s075_s622.md`
+- Renderer scene depth/material response AOV scene backend adapter:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_backend_adapter_s075_s623.md`
 
 ## Verification
 
@@ -1326,6 +1332,19 @@ replace.
   - output bytes: `14.77 MB`
   - GIF bytes: `7.91 MB`
   - S622 decision: `promoted as the descriptor execution smoke gate`
+- S623 response AOV scene backend adapter:
+  - adapter `status=passed`, frames `48`
+  - passed frames: `48`
+  - failed frames: `0`
+  - process failures: `0`
+  - stderr bytes: `0`
+  - max selected absolute diff: `0`
+  - max selected mean absolute diff: `0.0`
+  - max imported absolute diff: `0`
+  - max imported mean absolute diff: `0.0`
+  - output bytes: `14.77 MB`
+  - GIF bytes: `7.91 MB`
+  - S623 decision: `promoted as the external backend process boundary`
 
 ## Current Meaning
 
@@ -1406,7 +1425,10 @@ now reproducible through:
    descriptors with concrete input refs, future output targets, and gate
    expectations,
 39. a descriptor-level renderer/cache dry run that fills those output targets
-   and proves exact selected/imported composite parity across all 48 frames.
+   and proves exact selected/imported composite parity across all 48 frames,
+40. an external backend process adapter that executes the same descriptors
+   through subprocess calls with zero process failures and zero selected/imported
+   visual drift.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1503,6 +1525,9 @@ turns that contract into concrete frame descriptors, which is the execution
 boundary a renderer/cache backend can consume next. S622 executes that boundary
 with the current dry-run compositor and proves the descriptor IO path has zero
 visual drift before swapping in a heavier external renderer/cache backend.
+S623 performs that swap at the process boundary: the image math is still the
+parity backend, but the execution contract is now the same shape a native
+renderer/cache backend can replace.
 
 ## Next
 
@@ -1512,10 +1537,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S622 as the current descriptor execution smoke gate. The next step
-   should replace the dry-run compositor with an external renderer/cache
-   backend adapter while preserving descriptor IO, selected/imported parity,
-   and carried S577/S585 gate reporting.
+4. Use S623 as the current external backend process contract. The next step
+   should replace the parity backend internals with native renderer/cache work
+   while preserving descriptor IO, selected/imported parity, and carried
+   S577/S585 gate reporting.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
