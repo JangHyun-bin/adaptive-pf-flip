@@ -166,6 +166,11 @@ replace.
 - S605 tested a peak-balanced middle point between S602 and S604 with 62,400
   response faces. It regressed mean MAD and max MAD versus S604 and returned
   S577 max absolute error to `179`, so it is rejected.
+- S606 published the S604 full48 comparison gallery locally for visual review.
+  The gallery passed HTTP `200` checks for `index.html` and `assets/shot.gif`.
+  Two Cloudflare quick-tunnel attempts failed during URL issuance with
+  `trycloudflare.com` HTTP `500` / error code `1101`, so no public URL was
+  issued in this milestone.
 
 ## Key Artifacts
 
@@ -399,6 +404,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_sequence_compare_s605.md`
 - Renderer scene depth/material peak-balance split full48 direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_direct_metrics_s605.md`
+- Renderer scene depth/material soft-guard split full48 publish:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_publish_s606.md`
 
 ## Verification
 
@@ -981,6 +988,16 @@ replace.
   - direct S585 max MAD: `6.003236239711934`
   - direct S585 max abs: `175`
   - decision: `not promoted; S604 remains baseline`
+- S606 S604 full48 comparison gallery publish:
+  - gallery: `build/shots/s604_mitsuba_scene_depth_native_material_split_ms7_soft_guard_full48/sequence_compare_s577_s585_s602_s603/gallery/index.html`
+  - local URL: `http://127.0.0.1:8991`
+  - local `index.html` check: `200`
+  - local `assets/shot.gif` check: `200`
+  - GIF bytes: `13701804`
+  - HTTP server PID: `44732`
+  - public URL: `n/a`
+  - cftunnel attempts: `2`
+  - cftunnel result: `trycloudflare.com HTTP 500 / error code 1101`
 
 ## Current Meaning
 
@@ -1039,7 +1056,8 @@ now reproducible through:
 27. a soft-guard full48 baseline that improves mean/max-MAD error while keeping
    the S577 peak error below the earlier quiet-baseline outlier,
 28. a rejected peak-balance neighbor proving the current scalar split family is
-   near a tradeoff boundary.
+   near a tradeoff boundary,
+29. a locally published S604 review gallery with verified HTML/GIF checks.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1106,6 +1124,9 @@ with peak error versus S602 still tracked. S605 tries a middle point, but it
 loses S604's mean/max-MAD gains and returns S577 peak error to `179`. This
 suggests the next improvement should not be another simple scalar midpoint; it
 should either package S604 for review or introduce frame-aware peak control.
+S606 packages the S604 review evidence locally and verifies the page/GIF over
+HTTP. Public quick-tunnel publishing is blocked by Cloudflare quick-tunnel
+issuance returning HTTP `500`, not by the gallery artifacts.
 
 ## Next
 
@@ -1119,6 +1140,8 @@ photoreal renderer work back toward real scene data:
    should stay near the MS7 soft-guard range, recover peak-error margin toward
    S602 only if S604's lower mean/max-MAD scores are preserved, and rank
    candidates by full48 direct S577/S585 MAD before publishing.
-5. Keep S592 as the pass/fail gate: preserve S585 target parity and only
+5. Retry public publishing only after quick-tunnel issuance is healthy, or use
+   a named tunnel for stable review URLs.
+6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
