@@ -163,6 +163,9 @@ replace.
   S577 max absolute error below the earlier S601 outlier. S604 becomes the
   current full48 native-material split baseline, with peak error still tracked
   against S602.
+- S605 tested a peak-balanced middle point between S602 and S604 with 62,400
+  response faces. It regressed mean MAD and max MAD versus S604 and returned
+  S577 max absolute error to `179`, so it is rejected.
 
 ## Key Artifacts
 
@@ -384,6 +387,18 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_sequence_compare_s604.md`
 - Renderer scene depth/material soft-guard split full48 direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_direct_metrics_s604.md`
+- Renderer scene depth/material peak-balance split full48 export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_export_s605.md`
+- Renderer scene depth/material peak-balance split full48 validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_validate_s605.md`
+- Renderer scene depth/material peak-balance split full48 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_render_s605.md`
+- Renderer scene depth/material peak-balance split full48 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_gallery_s605.md`
+- Renderer scene depth/material peak-balance split full48 sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_sequence_compare_s605.md`
+- Renderer scene depth/material peak-balance split full48 direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_direct_metrics_s605.md`
 
 ## Verification
 
@@ -940,6 +955,32 @@ replace.
   - direct S585 mean MAD: `3.0774464431155693`
   - direct S585 max MAD: `5.939676568930041`
   - direct S585 max abs: `175`
+- S605 renderer scene depth/material localized split material MS8 peak balance full48:
+  - export `status=ready`
+  - frames exported: `48`
+  - response faces: `62400`
+  - remainder faces: `863964`
+  - XML validation `status=ready`
+  - XML parsed: `48`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `48`
+  - render failures: `0`
+  - total elapsed ms: `9936`
+  - image bytes: `134.74 MB`
+  - preview bytes: `15.92 MB`
+  - S577/S585/S602/S604/S605 full48 sequence compare `status=ready`
+  - sequence compare common frames: `48`
+  - sequence compare selected frames: `13`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.139332534936557`
+  - direct S577 max MAD: `5.992344393004116`
+  - direct S577 max abs: `179`
+  - direct S585 mean MAD: `3.149561873070988`
+  - direct S585 max MAD: `6.003236239711934`
+  - direct S585 max abs: `175`
+  - decision: `not promoted; S604 remains baseline`
 
 ## Current Meaning
 
@@ -996,7 +1037,9 @@ now reproducible through:
 26. a guarded full48 localized split baseline that improves both mean and max
    absolute S577/S585 error over the previous quiet baseline,
 27. a soft-guard full48 baseline that improves mean/max-MAD error while keeping
-   the S577 peak error below the earlier quiet-baseline outlier.
+   the S577 peak error below the earlier quiet-baseline outlier,
+28. a rejected peak-balance neighbor proving the current scalar split family is
+   near a tradeoff boundary.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1059,7 +1102,10 @@ MAD rises slightly. S603 shows that simple face-count recovery is not enough:
 it improves max MAD slightly but worsens mean MAD. S604 softens the response
 instead and improves mean/max-MAD over S602 while keeping S577 max abs below
 the S601 outlier. S604 is the current full48 native-material split baseline,
-with peak error versus S602 still tracked.
+with peak error versus S602 still tracked. S605 tries a middle point, but it
+loses S604's mean/max-MAD gains and returns S577 peak error to `179`. This
+suggests the next improvement should not be another simple scalar midpoint; it
+should either package S604 for review or introduce frame-aware peak control.
 
 ## Next
 
