@@ -118,6 +118,10 @@ def lerp(a, b, t):
     return float(a) + (float(b) - float(a)) * float(t)
 
 
+def clamp(value, low, high):
+    return max(float(low), min(float(high), float(value)))
+
+
 def lerp_vec3(a, b, t):
     if a is None and b is None:
         return None
@@ -128,7 +132,55 @@ def lerp_vec3(a, b, t):
     return [lerp(a[index], b[index], t) for index in range(3)]
 
 
-def resolved_bin_specs(args):
+def scale_vec3(values, scale):
+    if values is None:
+        return None
+    return [clamp(float(item) * float(scale), 0.0, 1.0) for item in values]
+
+
+def coverage_float(frame, key):
+    try:
+        return float((frame or {}).get(key) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def coverage_control(mask_frame, args):
+    coverage = coverage_float(mask_frame, "layer_coverage")
+    strong_coverage = coverage_float(mask_frame, "layer_strong_coverage")
+    strength = float(getattr(args, "coverage_attenuation_strength", 0.0) or 0.0)
+    pivot = float(getattr(args, "coverage_attenuation_pivot", 0.0) or 0.0)
+    width = max(1.0e-9, float(getattr(args, "coverage_attenuation_width", 1.0) or 1.0))
+    max_attenuation = float(getattr(args, "coverage_attenuation_max", 1.0) or 0.0)
+    ramp = clamp((coverage - pivot) / width, 0.0, 1.0) if strength > 0.0 else 0.0
+    attenuation = clamp(ramp * strength, 0.0, max_attenuation) if strength > 0.0 else 0.0
+    face_limit = int(getattr(args, "face_limit", 0) or 0)
+    if face_limit > 0 and attenuation > 0.0:
+        effective_face_limit = max(1, int(round(face_limit * max(0.0, 1.0 - attenuation))))
+    else:
+        effective_face_limit = face_limit
+    alpha_scale = 1.0 + attenuation * float(getattr(args, "coverage_alpha_boost", 0.0) or 0.0)
+    reflectance_scale = max(
+        0.0,
+        1.0 - attenuation * float(getattr(args, "coverage_reflectance_attenuation", 0.0) or 0.0),
+    )
+    transmittance_scale = max(
+        0.0,
+        1.0 - attenuation * float(getattr(args, "coverage_transmittance_attenuation", 0.0) or 0.0),
+    )
+    return {
+        "layer_coverage": coverage,
+        "layer_strong_coverage": strong_coverage,
+        "ramp": ramp,
+        "attenuation": attenuation,
+        "effective_face_limit": effective_face_limit,
+        "alpha_scale": alpha_scale,
+        "reflectance_scale": reflectance_scale,
+        "transmittance_scale": transmittance_scale,
+    }
+
+
+def resolved_bin_specs(args, attenuation=0.0):
     count = max(1, int(args.response_bin_count))
     strong_alpha = args.response_bin_alpha_strong
     weak_alpha = args.response_bin_alpha_weak
@@ -149,15 +201,24 @@ def resolved_bin_specs(args):
     if weak_transmittance is None:
         weak_transmittance = args.response_specular_transmittance_vec
 
+    alpha_scale = 1.0 + float(attenuation) * float(getattr(args, "coverage_alpha_boost", 0.0) or 0.0)
+    reflectance_scale = max(
+        0.0,
+        1.0 - float(attenuation) * float(getattr(args, "coverage_reflectance_attenuation", 0.0) or 0.0),
+    )
+    transmittance_scale = max(
+        0.0,
+        1.0 - float(attenuation) * float(getattr(args, "coverage_transmittance_attenuation", 0.0) or 0.0),
+    )
     specs = []
     for index in range(count):
         t = index / float(max(1, count - 1))
         specs.append({
             "index": index,
             "bsdf_id": args.response_bsdf_id_prefix if count == 1 else f"{args.response_bsdf_id_prefix}_{index:02d}",
-            "alpha": lerp(strong_alpha, weak_alpha, t),
-            "specular_reflectance": lerp_vec3(strong_reflectance, weak_reflectance, t),
-            "specular_transmittance": lerp_vec3(strong_transmittance, weak_transmittance, t),
+            "alpha": lerp(strong_alpha, weak_alpha, t) * alpha_scale,
+            "specular_reflectance": scale_vec3(lerp_vec3(strong_reflectance, weak_reflectance, t), reflectance_scale),
+            "specular_transmittance": scale_vec3(lerp_vec3(strong_transmittance, weak_transmittance, t), transmittance_scale),
         })
     return specs
 
@@ -266,6 +327,15 @@ def markdown_report(export, export_path, root, next_text):
         f"- Specular transmittance: `{settings.get('response_specular_transmittance')}`",
         f"- Mask threshold: `{settings.get('mask_threshold')}`",
         f"- Source luma gate: `{settings.get('source_luma_min')}..{settings.get('source_luma_max')}`",
+        "- Coverage attenuation: "
+        f"strength=`{settings.get('coverage_attenuation_strength')}`, "
+        f"pivot=`{settings.get('coverage_attenuation_pivot')}`, "
+        f"width=`{settings.get('coverage_attenuation_width')}`, "
+        f"max=`{settings.get('coverage_attenuation_max')}`",
+        "- Coverage material scale: "
+        f"alpha_boost=`{settings.get('coverage_alpha_boost')}`, "
+        f"reflectance_attenuation=`{settings.get('coverage_reflectance_attenuation')}`, "
+        f"transmittance_attenuation=`{settings.get('coverage_transmittance_attenuation')}`",
         f"- Use current water shape: `{settings.get('use_current_water_shape')}`",
         f"- Response shape ID prefix: `{settings.get('response_shape_id_prefix')}`",
         f"- Response BSDF ID prefix: `{settings.get('response_bsdf_id_prefix')}`",
@@ -280,20 +350,25 @@ def markdown_report(export, export_path, root, next_text):
         f"- Remainder faces: `{checks.get('remainder_faces')}`",
         f"- Water shape replacements: `{checks.get('water_shape_replacements')}`",
         f"- Response BSDF insertions: `{checks.get('response_bsdf_insertions')}`",
+        f"- Coverage-control attenuated frames: `{checks.get('coverage_control_attenuated_frames')}`",
+        f"- Coverage-control max attenuation: `{checks.get('coverage_control_max_attenuation')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
-        "| ---: | ---: | ---: | ---: | --- | --- |",
+        "| Output | Coverage | Atten | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
     for index in sample_indices:
         frame = frames[index]
         item = frame.get("water_mask_material_response") or {}
+        control = item.get("coverage_control") or {}
         lines.append(
-            f"| {frame.get('output_frame')} | {item.get('water_faces')} | "
+            f"| {frame.get('output_frame')} | {control.get('layer_coverage')} | "
+            f"{control.get('attenuation')} | {control.get('effective_face_limit')} | "
+            f"{item.get('water_faces')} | "
             f"{item.get('response_faces')} | {item.get('remainder_faces')} | "
             f"`{item.get('mask_layer_repo_path')}` | `{(frame.get('xml_scene') or {}).get('repo_path')}` |"
         )
@@ -346,6 +421,8 @@ def split_material(args):
         "remainder_bytes": 0,
         "water_shape_replacements": 0,
         "response_bsdf_insertions": 0,
+        "coverage_control_attenuated_frames": 0,
+        "coverage_control_max_attenuation": 0.0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -371,12 +448,15 @@ def split_material(args):
             continue
 
         vertices, faces = read_obj_mesh(water_mesh)
+        frame_control = coverage_control(mask_frame, args)
+        frame_args = copy.copy(args)
+        frame_args.face_limit = frame_control["effective_face_limit"]
         from PIL import Image
 
         mask = load_mask_luma(mask_path)
         source = Image.open(source_path).convert("RGB") if source_path and os.path.isfile(source_path) else None
         camera = parse_camera(source_xml)
-        selected = select_faces(vertices, faces, camera, mask, source, args)
+        selected = select_faces(vertices, faces, camera, mask, source, frame_args)
         if not selected:
             if args.allow_empty_mask_frames:
                 patched = add_response_comment(
@@ -411,6 +491,7 @@ def split_material(args):
                     "candidate_faces": 0,
                     "response_faces": 0,
                     "remainder_faces": len(faces),
+                    "coverage_control": frame_control,
                 }
                 frames.append(out_frame)
                 continue
@@ -425,7 +506,8 @@ def split_material(args):
         remainder_mesh = os.path.join(mesh_dir, f"{base_name}_water_remainder.obj")
         response_shapes = []
         response_bins = []
-        for bin_item in partition_selected_faces(selected, bin_specs):
+        frame_bin_specs = resolved_bin_specs(args, frame_control["attenuation"])
+        for bin_item in partition_selected_faces(selected, frame_bin_specs):
             spec = bin_item["spec"]
             bin_selected = bin_item["faces"]
             suffix = "" if len(bin_specs) == 1 else f"_bin{spec['index']:02d}"
@@ -471,7 +553,7 @@ def split_material(args):
                 spec["specular_reflectance"],
                 spec["specular_transmittance"],
             )
-            for spec in bin_specs
+            for spec in frame_bin_specs
         )
         patched, count = insert_response_bsdf(xml_text, bsdf_blocks)
         totals["response_bsdf_insertions"] += count
@@ -489,6 +571,12 @@ def split_material(args):
         totals["remainder_faces"] += remainder_stats["faces"]
         totals["remainder_vertices"] += remainder_stats["vertices"]
         totals["remainder_bytes"] += remainder_stats["bytes"]
+        if frame_control["attenuation"] > 0.0:
+            totals["coverage_control_attenuated_frames"] += 1
+        totals["coverage_control_max_attenuation"] = max(
+            totals["coverage_control_max_attenuation"],
+            frame_control["attenuation"],
+        )
 
         out_frame = copy.deepcopy(frame)
         out_frame["xml_scene"] = {
@@ -519,6 +607,7 @@ def split_material(args):
             "response_vertices": sum(item["vertices"] for item in response_bins),
             "response_bytes": sum(item["bytes"] for item in response_bins),
             "response_bins": response_bins,
+            "coverage_control": frame_control,
             "remainder_faces": remainder_stats["faces"],
             "remainder_vertices": remainder_stats["vertices"],
             "remainder_bytes": remainder_stats["bytes"],
@@ -585,6 +674,13 @@ def split_material(args):
             "mask_sample_radius": args.mask_sample_radius,
             "source_luma_min": args.source_luma_min,
             "source_luma_max": args.source_luma_max,
+            "coverage_attenuation_strength": args.coverage_attenuation_strength,
+            "coverage_attenuation_pivot": args.coverage_attenuation_pivot,
+            "coverage_attenuation_width": args.coverage_attenuation_width,
+            "coverage_attenuation_max": args.coverage_attenuation_max,
+            "coverage_alpha_boost": args.coverage_alpha_boost,
+            "coverage_reflectance_attenuation": args.coverage_reflectance_attenuation,
+            "coverage_transmittance_attenuation": args.coverage_transmittance_attenuation,
             "allow_empty_mask_frames": args.allow_empty_mask_frames,
             "use_current_water_shape": args.use_current_water_shape,
             "response_shape_id_prefix": args.response_shape_id_prefix,
@@ -627,6 +723,13 @@ def main(argv=None):
     parser.add_argument("--mask-sample-radius", type=int, default=5)
     parser.add_argument("--source-luma-min", type=float, default=0.0)
     parser.add_argument("--source-luma-max", type=float, default=255.0)
+    parser.add_argument("--coverage-attenuation-strength", type=float, default=0.0)
+    parser.add_argument("--coverage-attenuation-pivot", type=float, default=0.12)
+    parser.add_argument("--coverage-attenuation-width", type=float, default=0.08)
+    parser.add_argument("--coverage-attenuation-max", type=float, default=0.35)
+    parser.add_argument("--coverage-alpha-boost", type=float, default=0.0)
+    parser.add_argument("--coverage-reflectance-attenuation", type=float, default=0.0)
+    parser.add_argument("--coverage-transmittance-attenuation", type=float, default=0.0)
     parser.add_argument("--response-alpha", type=float, default=0.006)
     parser.add_argument("--response-bin-count", type=int, default=1)
     parser.add_argument("--response-bin-alpha-strong", type=float)
@@ -665,6 +768,20 @@ def main(argv=None):
         parser.error("source luma bounds must be in [0, 255]")
     if args.source_luma_min > args.source_luma_max:
         parser.error("source-luma-min cannot exceed source-luma-max")
+    if args.coverage_attenuation_strength < 0.0:
+        parser.error("coverage-attenuation-strength must be non-negative")
+    if args.coverage_attenuation_pivot < 0.0:
+        parser.error("coverage-attenuation-pivot must be non-negative")
+    if args.coverage_attenuation_width <= 0.0:
+        parser.error("coverage-attenuation-width must be positive")
+    if args.coverage_attenuation_max < 0.0 or args.coverage_attenuation_max > 1.0:
+        parser.error("coverage-attenuation-max must be in [0, 1]")
+    if args.coverage_alpha_boost < 0.0:
+        parser.error("coverage-alpha-boost must be non-negative")
+    if args.coverage_reflectance_attenuation < 0.0 or args.coverage_reflectance_attenuation > 1.0:
+        parser.error("coverage-reflectance-attenuation must be in [0, 1]")
+    if args.coverage_transmittance_attenuation < 0.0 or args.coverage_transmittance_attenuation > 1.0:
+        parser.error("coverage-transmittance-attenuation must be in [0, 1]")
     if args.response_alpha <= 0.0:
         parser.error("response-alpha must be positive")
     if args.response_bin_count <= 0:

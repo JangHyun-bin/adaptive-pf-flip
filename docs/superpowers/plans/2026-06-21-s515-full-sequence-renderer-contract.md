@@ -171,6 +171,13 @@ replace.
   Two Cloudflare quick-tunnel attempts failed during URL issuance with
   `trycloudflare.com` HTTP `500` / error code `1101`, so no public URL was
   issued in this milestone.
+- S607 added frame-aware coverage attenuation to the localized water-material
+  split path and rendered an `MS9` full48 candidate. It preserves 48/48 render
+  stability, attenuates only 11 high-coverage frames, improves S604's full48
+  mean MAD and max MAD against both S577 and S585, and becomes the current
+  native-material split baseline. The remaining max-absolute outlier is still
+  frame 14, which is below the coverage attenuation pivot and should be handled
+  by a separate peak cleanup pass.
 
 ## Key Artifacts
 
@@ -406,6 +413,18 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms8_peak_balance_full48_direct_metrics_s605.md`
 - Renderer scene depth/material soft-guard split full48 publish:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms7_soft_guard_full48_publish_s606.md`
+- Renderer scene depth/material frame-peak-control split full48 export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_export_s607.md`
+- Renderer scene depth/material frame-peak-control split full48 validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_validate_s607.md`
+- Renderer scene depth/material frame-peak-control split full48 render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_render_s607.md`
+- Renderer scene depth/material frame-peak-control split full48 gallery:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_gallery_s607.md`
+- Renderer scene depth/material frame-peak-control split full48 sequence compare:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_sequence_compare_s607.md`
+- Renderer scene depth/material frame-peak-control split full48 direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms9_frame_peak_control_full48_direct_metrics_s607.md`
 
 ## Verification
 
@@ -998,6 +1017,34 @@ replace.
   - public URL: `n/a`
   - cftunnel attempts: `2`
   - cftunnel result: `trycloudflare.com HTTP 500 / error code 1101`
+- S607 renderer scene depth/material localized split material MS9 frame peak control full48:
+  - export `status=ready`
+  - frames exported: `48`
+  - response faces: `55768`
+  - remainder faces: `870596`
+  - coverage-control attenuated frames: `11`
+  - coverage-control max attenuation: `0.2302478780864198`
+  - XML validation `status=ready`
+  - XML parsed: `48`
+  - validation failures: `0`
+  - validation warnings: `0`
+  - render `status=ready`
+  - frames rendered: `48`
+  - render failures: `0`
+  - total elapsed ms: `10305`
+  - image bytes: `134.38 MB`
+  - preview bytes: `15.73 MB`
+  - S577/S585/S602/S604/S605/S607 full48 sequence compare `status=ready`
+  - sequence compare common frames: `48`
+  - sequence compare selected frames: `17`
+  - sequence compare missing references: `0`
+  - direct S577 mean MAD: `3.0432079609267837`
+  - direct S577 max MAD: `5.651857638888889`
+  - direct S577 max abs: `176`
+  - direct S585 mean MAD: `3.054593420460391`
+  - direct S585 max MAD: `5.6697800925925925`
+  - direct S585 max abs: `175`
+  - decision: `promoted over S604 for mean/max-MAD; frame-14 max abs remains for S608`
 
 ## Current Meaning
 
@@ -1122,11 +1169,13 @@ instead and improves mean/max-MAD over S602 while keeping S577 max abs below
 the S601 outlier. S604 is the current full48 native-material split baseline,
 with peak error versus S602 still tracked. S605 tries a middle point, but it
 loses S604's mean/max-MAD gains and returns S577 peak error to `179`. This
-suggests the next improvement should not be another simple scalar midpoint; it
-should either package S604 for review or introduce frame-aware peak control.
+suggests the next improvement should not be another simple scalar midpoint.
 S606 packages the S604 review evidence locally and verifies the page/GIF over
 HTTP. Public quick-tunnel publishing is blocked by Cloudflare quick-tunnel
-issuance returning HTTP `500`, not by the gallery artifacts.
+issuance returning HTTP `500`, not by the gallery artifacts. S607 adds
+coverage-aware per-frame attenuation, reduces high-coverage late-frame response
+faces, and improves S604's mean/max-MAD scores without changing the remaining
+frame-14 max-absolute outlier.
 
 ## Next
 
@@ -1136,10 +1185,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S604 as the current native-material full48 baseline. The next sweep
-   should stay near the MS7 soft-guard range, recover peak-error margin toward
-   S602 only if S604's lower mean/max-MAD scores are preserved, and rank
-   candidates by full48 direct S577/S585 MAD before publishing.
+4. Use S607 as the current native-material full48 baseline. The next sweep
+   should be a small frame-14 peak cleanup pass that preserves S607's lower
+   mean/max-MAD scores while attempting to pull max absolute error back toward
+   S602.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
