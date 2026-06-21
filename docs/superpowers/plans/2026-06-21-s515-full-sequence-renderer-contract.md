@@ -254,6 +254,11 @@ replace.
   collected the worst peak and late-frame strips and passed the configured
   guard (`max delta=7`, `max MAD=0.5889236111111111`,
   `late max MAD=0.5678240740740741`).
+- S629 promoted the guarded `BOLD_SAFE` candidate into the external native
+  backend path. The runner launched 48 subprocesses through
+  `mitsuba_response_aov_scene_native_backend.py`, reproduced the S626 target
+  with zero pixel diff, and kept the S623 movement bounded to max delta `7`
+  and max MAD `0.5889236111111111`.
 
 ## Key Artifacts
 
@@ -579,6 +584,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_sweep_publish_s627.md`
 - Renderer scene depth/material response AOV scene native probe guard:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_guard_s075_s628.md`
+- Renderer scene depth/material response AOV scene native backend adapter:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_backend_adapter_s075_s629.md`
 
 ## Verification
 
@@ -1431,6 +1438,18 @@ replace.
   - late max abs delta from S623: `6`
   - late max mean abs delta from S623: `0.5678240740740741`
   - S628 decision: `promotion guard passed pending visual review`
+- S629 response AOV scene native backend adapter:
+  - adapter `status=passed`
+  - frames: `48`
+  - passed frames: `48`
+  - failed frames: `0`
+  - process failures: `0`
+  - max abs diff vs S626: `0`
+  - max mean abs diff vs S626: `0.0`
+  - max abs delta from S623: `7`
+  - max mean abs delta from S623: `0.5889236111111111`
+  - GIF bytes: `9.50 MB`
+  - S629 decision: `promoted as the current native backend smoke output`
 
 ## Current Meaning
 
@@ -1522,7 +1541,10 @@ now reproducible through:
 43. a narrow vectorized native-probe sweep that chooses a stronger bounded
    review candidate before any promotion over the S623 parity gate,
 44. a public visual review URL for that stronger S626 `BOLD_SAFE` sweep result,
-45. a peak/late-frame guard pack for the stronger candidate before promotion.
+45. a peak/late-frame guard pack for the stronger candidate before promotion,
+46. an external native backend executable and subprocess adapter that
+   reproduce the guarded `BOLD_SAFE` output from descriptors with zero diff
+   against S626.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1629,6 +1651,10 @@ S626 then narrows the search around S624 and selects `BOLD_SAFE` as a stronger
 bounded review candidate while keeping it separate from the accepted gate.
 S627 publishes `BOLD_SAFE` for direct browser comparison.
 S628 validates the peak and late-frame risk envelope for that candidate.
+S629 promotes that guarded candidate into the external native backend path:
+the visual math is still the response-AOV probe family, but it now runs through
+the same descriptor/process/metadata/validation shape expected from a real
+renderer backend and reproduces the S626 target exactly.
 
 ## Next
 
@@ -1638,10 +1664,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S628 as the current promotion guard for `BOLD_SAFE`. The next step
-   should promote `BOLD_SAFE` into the external backend path if the visual
-   review is acceptable, while still keeping S577 as the accepted full48 gate
-   until the promoted backend output is re-compared.
+4. Use S629 as the current promoted native backend smoke output for
+   `BOLD_SAFE`, while still keeping S577 as the accepted full48 gate until the
+   promoted backend output is re-compared against S577/S585 and reviewed.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
