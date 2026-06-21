@@ -282,6 +282,10 @@ replace.
   The subprocess backend reproduced S633 with zero pixel diff across all 48
   frames and preserved the bounded S585/S577 gate metrics
   (`max candidate/S585 diff=2`, `max candidate/S577 MAD=0.49603587962962964`).
+- S635 published the S634 promoted S585-anchored native backend gallery through
+  a Cloudflare quick tunnel. Both the public index and GIF returned HTTP `200`
+  (`GIF bytes=8376104`) at
+  `https://dynamic-her-endangered-encryption.trycloudflare.com`.
 
 ## Key Artifacts
 
@@ -619,6 +623,10 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_s585_anchor_native_candidate_s075_s633.md`
 - Renderer scene depth/material response AOV S585 anchor native backend adapter:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_s585_anchor_native_backend_adapter_s075_s634.md`
+- Public S634 response AOV S585 anchor native backend gallery:
+  `https://dynamic-her-endangered-encryption.trycloudflare.com`
+- Renderer scene depth/material response AOV S585 anchor native backend publish:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_s585_anchor_native_backend_publish_s075_s635.md`
 
 ## Verification
 
@@ -1549,6 +1557,15 @@ replace.
   - max candidate-vs-S577 abs diff: `6`
   - max candidate-vs-S577 mean diff: `0.49603587962962964`
   - S634 decision: `promoted through the external backend process boundary`
+- S635 response AOV S585 anchor native backend publish:
+  - publish `status=running`
+  - local index status: `200`
+  - public index status: `200`
+  - public index bytes: `3771`
+  - public GIF status: `200`
+  - public GIF bytes: `8376104`
+  - public URL: `https://dynamic-her-endangered-encryption.trycloudflare.com`
+  - S635 decision: `public visual review link issued for S634`
 
 ## Current Meaning
 
@@ -1654,7 +1671,9 @@ now reproducible through:
 50. a bounded S585-anchored native-style candidate that adds a small
    scene-aware response while staying near the accepted S577/S585 envelope,
 51. an external backend executable and subprocess adapter that reproduce that
-   bounded S585-anchored candidate with zero diff across all 48 frames.
+   bounded S585-anchored candidate with zero diff across all 48 frames,
+52. a public visual review URL for the promoted S634 bounded native backend
+   result.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1781,6 +1800,7 @@ S577 gap bounded far below the rejected S629/S631 response-scale family.
 S634 promotes that same candidate through the process/backend boundary, so the
 current bounded visual candidate now has the same descriptor/process/metadata/
 validation shape expected from a replaceable external renderer backend.
+S635 publishes that promoted backend result for direct visual review.
 
 ## Next
 
@@ -1790,14 +1810,15 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S634 as the current promoted bounded S585-anchored native backend
-   output. Keep S577 as the accepted full48 gate and S585 as the near-accepted
-   target.
-5. Compare and publish the S634 backend gallery for visual review, then tune
-   only if the public/visual review shows the response is too subtle or too
-   visible.
-6. Retry public publishing only after quick-tunnel issuance is healthy, or use
+4. Use S635 as the current public review point for the promoted bounded
+   S585-anchored native backend output.
+5. Keep S634 as the underlying promoted backend artifact, S577 as the accepted
+   full48 gate, and S585 as the near-accepted target.
+6. Review the public gallery, then tune only if the response is too subtle or
+   too visible; otherwise the next engineering step is to feed this bounded
+   backend output into the next renderer-native material/cache handoff.
+7. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
-7. Keep S592 as the pass/fail gate: preserve S585 target parity and only
+8. Keep S592 as the pass/fail gate: preserve S585 target parity and only
    promote renderer-native changes that improve or justify the S577 accepted
    gate movement.
