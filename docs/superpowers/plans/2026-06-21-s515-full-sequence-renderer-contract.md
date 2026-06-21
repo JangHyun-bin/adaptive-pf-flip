@@ -202,6 +202,12 @@ replace.
   render with max diff `0`, and found response scale `0.75` as the best S585
   compositing probe (`mean MAD=2.982389550647291`,
   `max MAD=5.524723508230453`).
+- S617 promoted that `0.75` response scale into a reusable
+  `lsfs_mitsuba_secondary_composite` manifest with gallery assets and direct
+  S577/S585 gate reports. It improves the S614 automatic baseline against both
+  gates (`S577 mean/max MAD=2.9732022274734224/5.5108699845679014`,
+  `S585 mean/max MAD=2.982389550647291/5.524723508230453`) and becomes the
+  current AOV/export integration target.
 
 ## Key Artifacts
 
@@ -487,6 +493,14 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_delta_buffer_base_render_s616.md`
 - Renderer scene depth/material response delta buffer:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_delta_buffer_s616.md`
+- Renderer scene depth/material response scale composite:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_s617.md`
+- Renderer scene depth/material response scale S577 gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_vs_s577_gap_s617.md`
+- Renderer scene depth/material response scale S585 gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_vs_s585_gap_s617.md`
+- Renderer scene depth/material response scale direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_direct_metrics_s617.md`
 
 ## Verification
 
@@ -1210,6 +1224,16 @@ replace.
   - response buffer reconstruction max abs diff: `0`
   - best S585 response scale: `0.75`
   - best S585 response scale mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
+- S617 response scale composite:
+  - composite `status=ready`, frames `48`, missing references `0`
+  - response scale: `0.75`
+  - composite bytes: `14.77 MB`
+  - gallery GIF bytes: `33.87 MB`
+  - S577 gap `status=ready`, frames `48`, missing references `0`
+  - S577 mean/max/maxabs: `2.9732022274734224` / `5.5108699845679014` / `151`
+  - S585 gap `status=ready`, frames `48`, missing references `0`
+  - S585 mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
+  - S617 decision: `promoted as the current response-scale AOV/export integration target`
 
 ## Current Meaning
 
@@ -1276,7 +1300,9 @@ now reproducible through:
 32. a base-only Mitsuba render that removes the response water bins while
    preserving the same scene/camera/secondary context,
 33. a full/base response delta buffer and compositing sweep that improves S585
-   direct mean/max MAD before renderer-native AOV integration.
+   direct mean/max MAD before renderer-native AOV integration,
+34. a promoted response-scale composite manifest that packages the selected
+   `0.75` response strength as a reusable S577/S585-gated visual candidate.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1360,7 +1386,10 @@ right next direction, with S614 preferred because it removes the manual screen
 box. S615 rejects material-only attenuation as a direct promotion path. S616
 then separates S614 into a reusable full/base response buffer and proves that
 response scale `0.75` can improve the direct S585 probe before moving that
-control into renderer-native AOV/export plumbing.
+control into renderer-native AOV/export plumbing. S617 promotes that scale into
+a standard composite manifest and verifies it against both S577 and S585. This
+is now the concrete visual target for the next portable response-AOV export
+contract.
 
 ## Next
 
@@ -1370,10 +1399,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S614 as the current automatic local-control render baseline and S616 as
-   the response-buffer/compositing proof. The next step should promote the
-   `0.75` response scale into a renderer-native AOV/export path instead of
-   continuing scalar coverage sweeps.
+4. Use S617 as the current visual gate for response-strength control. The next
+   step should package base render, signed response layer, selected scale,
+   composite, and S577/S585 metrics into a portable response-AOV export
+   contract.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
