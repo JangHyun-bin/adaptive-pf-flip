@@ -188,6 +188,20 @@ replace.
   the band rescue with a stronger bounded low-coverage rescue, keeps max MAD
   unchanged, improves global max abs to `173/172`, and becomes the current
   native-material split baseline.
+- S613 tested a hand-bounded screen-region attenuation for late frames. It
+  slightly improved mean direct S577/S585 MAD over S612/S614, but the box was
+  manual and therefore not promoted as the durable control.
+- S614 replaced that manual box with signed screen-error face attenuation
+  driven by the S613-to-S585 gap summary. It preserved full48 render stability
+  and lowered late-frame max-MAD with an automatic local-control path.
+- S615 tried material-only attenuation of the signed-error-selected response
+  faces. It preserved response faces but regressed mean/max MAD, so it is
+  rejected as a direct material-scale direction.
+- S616 split S614 into a full/base response delta buffer. A base-only render
+  removed 96 response shapes and 55,526 response faces, reconstructed the full
+  render with max diff `0`, and found response scale `0.75` as the best S585
+  compositing probe (`mean MAD=2.982389550647291`,
+  `max MAD=5.524723508230453`).
 
 ## Key Artifacts
 
@@ -459,6 +473,20 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms14_balanced_dual_rescue_full48_sequence_compare_s612.md`
 - Renderer scene depth/material balanced dual-rescue split full48 direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms14_balanced_dual_rescue_full48_direct_metrics_s612.md`
+- Renderer scene depth/material screen-region attenuation direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms15_screen_region_attenuation_full48_direct_metrics_s613.md`
+- Renderer scene depth/material screen-error attenuation direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms16_screen_error_attenuation_full48_direct_metrics_s614.md`
+- Renderer scene depth/material screen-error material attenuation direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_scene_depth_native_material_split_ms17_screen_error_material_attenuation_full48_direct_metrics_s615.md`
+- Renderer scene depth/material response buffer base export:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_delta_buffer_base_export_s616.md`
+- Renderer scene depth/material response buffer base export validation:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_delta_buffer_base_export_validation_s616.md`
+- Renderer scene depth/material response buffer base render:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_delta_buffer_base_render_s616.md`
+- Renderer scene depth/material response delta buffer:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_delta_buffer_s616.md`
 
 ## Verification
 
@@ -1159,6 +1187,29 @@ replace.
   - S612 direct S585 max MAD: `5.6697800925925925`
   - S612 direct S585 max abs: `172`
   - S612 decision: `promoted; best tested peak-error recovery while preserving S607/S609 max-MAD`
+- S613/S614/S615 localized screen-error experiments:
+  - S613 direct S577 mean/max/maxabs: `3.0386621897505144` / `5.580354295267489` / `173`
+  - S613 direct S585 mean/max/maxabs: `3.050184823495371` / `5.599894547325103` / `172`
+  - S613 decision: `not promoted as final; best mean MAD but uses a manual screen box`
+  - S614 direct S577 mean/max/maxabs: `3.038890683942044` / `5.5758995627572014` / `173`
+  - S614 direct S585 mean/max/maxabs: `3.050464838391632` / `5.595675154320989` / `172`
+  - S614 decision: `kept as automatic local-control baseline`
+  - S615 direct S577 mean/max/maxabs: `3.049201630015432` / `5.654789737654322` / `173`
+  - S615 direct S585 mean/max/maxabs: `3.0605547785922496` / `5.672728909465021` / `172`
+  - S615 decision: `rejected; material-only attenuation regresses the direct gap`
+- S616 response delta buffer:
+  - base export `status=ready`, frames exported `48`
+  - base export removed response shapes: `96`
+  - base export removed response faces: `55526`
+  - base XML validation `status=ready`, failures `0`, warnings `0`
+  - base render `status=ready`, frames rendered `48`, failures `0`
+  - response buffer `status=ready`, missing references `0`
+  - response buffer mean abs delta: `2.78263054323131`
+  - response buffer max abs delta: `184`
+  - response buffer changed channel fraction: `0.16185079357424553`
+  - response buffer reconstruction max abs diff: `0`
+  - best S585 response scale: `0.75`
+  - best S585 response scale mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
 
 ## Current Meaning
 
@@ -1218,7 +1269,14 @@ now reproducible through:
    the S577 peak error below the earlier quiet-baseline outlier,
 28. a rejected peak-balance neighbor proving the current scalar split family is
    near a tradeoff boundary,
-29. a locally published S604 review gallery with verified HTML/GIF checks.
+29. a locally published S604 review gallery with verified HTML/GIF checks,
+30. an automatic signed screen-error attenuation baseline that replaces manual
+   late-frame screen boxes,
+31. a rejected material-only response attenuation probe,
+32. a base-only Mitsuba render that removes the response water bins while
+   preserving the same scene/camera/secondary context,
+33. a full/base response delta buffer and compositing sweep that improves S585
+   direct mean/max MAD before renderer-native AOV integration.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1295,8 +1353,14 @@ tested setting because it reduces the frame-14 max-abs peak by one level while
 preserving S607's max-MAD win and staying much closer to S607 mean MAD than
 S608. S611 adds a narrow coverage-band rescue that fixes the frame-34/35
 plateau but not the global peak. S612 combines both rescue bands and becomes
-the current baseline: max MAD remains unchanged, global max abs improves to
-`173/172`, and the late-frame high-coverage attenuation stays intact.
+the current baseline for scalar split tuning: max MAD remains unchanged, global
+max abs improves to `173/172`, and the late-frame high-coverage attenuation
+stays intact. S613 and S614 show that localized screen-error controls are the
+right next direction, with S614 preferred because it removes the manual screen
+box. S615 rejects material-only attenuation as a direct promotion path. S616
+then separates S614 into a reusable full/base response buffer and proves that
+response scale `0.75` can improve the direct S585 probe before moving that
+control into renderer-native AOV/export plumbing.
 
 ## Next
 
@@ -1306,10 +1370,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S612 as the current native-material full48 baseline. The next sweep
-   should move away from scalar coverage response tuning and target either
-   spatially localized screen-region rescue or renderer-side tone/material
-   separation, because frame 45 max-MAD is now the main limiter.
+4. Use S614 as the current automatic local-control render baseline and S616 as
+   the response-buffer/compositing proof. The next step should promote the
+   `0.75` response scale into a renderer-native AOV/export path instead of
+   continuing scalar coverage sweeps.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
