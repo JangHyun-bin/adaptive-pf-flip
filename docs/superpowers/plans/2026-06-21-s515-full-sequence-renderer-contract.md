@@ -235,6 +235,11 @@ replace.
   boundary. The runner launched 48 subprocesses through
   `mitsuba_response_aov_scene_backend.py`, preserved selected/imported parity,
   and produced a backend gallery with zero process failures.
+- S624 generated the first scene-aware native-style visual probe from that
+  backend output. It uses response AOV masks, water-depth factors, and
+  secondary-density factors to produce a bounded 48-frame candidate
+  (`strength_0_45`) with max delta `4` and max MAD `0.23839956275720164`
+  against the S623 parity output.
 
 ## Key Artifacts
 
@@ -546,6 +551,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_job_dry_run_s075_s622.md`
 - Renderer scene depth/material response AOV scene backend adapter:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_backend_adapter_s075_s623.md`
+- Renderer scene depth/material response AOV scene native probe:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_s075_s624.md`
 
 ## Verification
 
@@ -1345,6 +1352,17 @@ replace.
   - output bytes: `14.77 MB`
   - GIF bytes: `7.91 MB`
   - S623 decision: `promoted as the external backend process boundary`
+- S624 response AOV scene native probe:
+  - probe `status=ready`, frames `48`
+  - selected candidate: `strength_0_45`
+  - missing references: `0`
+  - max abs delta from S623: `4`
+  - max mean abs delta from S623: `0.23839956275720164`
+  - mean mean abs delta from S623: `0.1970098835090878`
+  - max selected absolute diff: `4`
+  - max selected mean absolute diff: `0.23839956275720164`
+  - GIF bytes: `8.82 MB`
+  - S624 decision: `visual probe only, not yet the accepted gate`
 
 ## Current Meaning
 
@@ -1428,7 +1446,10 @@ now reproducible through:
    and proves exact selected/imported composite parity across all 48 frames,
 40. an external backend process adapter that executes the same descriptors
    through subprocess calls with zero process failures and zero selected/imported
-   visual drift.
+   visual drift,
+41. a scene-aware native-style visual probe that starts using response masks,
+   water-depth metadata, and secondary-density metadata inside the backend
+   family while keeping the movement bounded against the S623 parity output.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1527,7 +1548,9 @@ with the current dry-run compositor and proves the descriptor IO path has zero
 visual drift before swapping in a heavier external renderer/cache backend.
 S623 performs that swap at the process boundary: the image math is still the
 parity backend, but the execution contract is now the same shape a native
-renderer/cache backend can replace.
+renderer/cache backend can replace. S624 makes the first visual move inside
+that backend family by using scene metadata to generate a bounded native-style
+probe. It is a review candidate, not an accepted visual gate replacement yet.
 
 ## Next
 
@@ -1537,10 +1560,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S623 as the current external backend process contract. The next step
-   should replace the parity backend internals with native renderer/cache work
-   while preserving descriptor IO, selected/imported parity, and carried
-   S577/S585 gate reporting.
+4. Use S624 as the current scene-aware visual probe. The next step should
+   publish the gallery for direct review, then run a narrower parameter/mask
+   sweep before promoting any native-style movement over the S623 parity gate.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
