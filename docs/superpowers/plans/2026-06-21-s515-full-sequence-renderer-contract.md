@@ -265,6 +265,11 @@ replace.
   accepted gate (`max S629/S577 MAD=5.631182484567901`) than S585 is
   (`max S585/S577 MAD=0.4139242541152263`), so it stays a review/tuning
   candidate rather than an accepted visual gate.
+- S631 evaluated the existing S616 response-scale candidates directly against
+  S577/S585. Scale `0.75` remains the best of that family, but it is still far
+  outside the accepted envelope (`max scale/S577 MAD=5.5108699845679014`
+  versus `max S585/S577 MAD=0.4139242541152263`). This proves simple
+  response-scale backoff is not the right acceptance path.
 
 ## Key Artifacts
 
@@ -594,6 +599,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_backend_adapter_s075_s629.md`
 - Renderer scene depth/material response AOV scene native backend gate compare:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_backend_gate_compare_s075_s630.md`
+- Renderer scene depth/material response scale gate sweep:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_gate_sweep_s075_s631.md`
 
 ## Verification
 
@@ -1472,6 +1479,20 @@ replace.
   - max S585-vs-S577 abs diff: `5`
   - max S585-vs-S577 mean diff: `0.4139242541152263`
   - S630 decision: `keep BOLD_SAFE as a review/tuning candidate, not accepted gate`
+- S631 response scale gate sweep:
+  - sweep `status=ready`
+  - decision: `response_scale_still_outside_gate`
+  - candidates: `9`
+  - selected scale: `0.75`
+  - frames: `48`
+  - failed frames: `0`
+  - max selected scale-vs-S577 abs diff: `151`
+  - max selected scale-vs-S577 mean diff: `5.5108699845679014`
+  - mean selected scale-vs-S577 mean diff: `2.9732022274734224`
+  - max selected scale-vs-S585 abs diff: `148`
+  - max selected scale-vs-S585 mean diff: `5.524723508230453`
+  - max S585-vs-S577 mean diff: `0.4139242541152263`
+  - S631 decision: `response-scale backoff alone cannot recover the accepted envelope`
 
 ## Current Meaning
 
@@ -1568,7 +1589,9 @@ now reproducible through:
    reproduce the guarded `BOLD_SAFE` output from descriptors with zero diff
    against S626,
 47. a S577/S585 gate comparison proving that the promoted `BOLD_SAFE` backend
-   output is visually much stronger than the current accepted gate envelope.
+   output is visually much stronger than the current accepted gate envelope,
+48. a response-scale gate sweep proving that the current response-scale family
+   itself remains outside the accepted S577/S585 envelope.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1683,6 +1706,9 @@ S630 then re-compares the promoted output against the accepted S577/S585
 envelope and shows that it is too strong for direct acceptance: technically
 valid and inspectable, but currently a tuning branch rather than the accepted
 gate.
+S631 checks whether simply backing off response scale can solve that gap. It
+cannot: the best existing scale remains scale `0.75`, and that family is still
+well outside the accepted S577/S585 envelope.
 
 ## Next
 
@@ -1692,11 +1718,12 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S630 as the current `BOLD_SAFE` gate comparison. Keep S577 as the
-   accepted full48 gate, keep S585 as the near-accepted depth/material target,
-   and tune the response-AOV native backend before any promotion.
-5. Publish S630 only if a visual review link is needed before tuning; otherwise
-   prefer a narrower/softer response-AOV backend sweep first.
+4. Use S631 as the current response-scale diagnosis. Keep S577 as the accepted
+   full48 gate and S585 as the near-accepted target; branch the next visual
+   candidate from the S585 target contract rather than from S617 response
+   scale.
+5. Publish S630/S631 only if a visual review link is needed before tuning;
+   otherwise prefer an S585-anchored native-backend candidate first.
 6. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 7. Keep S592 as the pass/fail gate: preserve S585 target parity and only
