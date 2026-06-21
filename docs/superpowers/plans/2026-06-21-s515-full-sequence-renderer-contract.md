@@ -208,6 +208,11 @@ replace.
   gates (`S577 mean/max MAD=2.9732022274734224/5.5108699845679014`,
   `S585 mean/max MAD=2.982389550647291/5.524723508230453`) and becomes the
   current AOV/export integration target.
+- S618 packaged the S617 target as a signed response-AOV contract:
+  `base_rgb + response_positive_rgb - response_negative_rgb =
+  selected_composite_rgb`. It preserves 48-frame reconstruction with max diff
+  `0`, carries the S577/S585 gate metrics forward, and is now the portable
+  handoff format for the next renderer/cache consumer.
 
 ## Key Artifacts
 
@@ -501,6 +506,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_vs_s585_gap_s617.md`
 - Renderer scene depth/material response scale direct metrics:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_direct_metrics_s617.md`
+- Renderer scene depth/material signed response AOV contract:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_contract_s075_s618.md`
 
 ## Verification
 
@@ -1234,6 +1241,17 @@ replace.
   - S585 gap `status=ready`, frames `48`, missing references `0`
   - S585 mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
   - S617 decision: `promoted as the current response-scale AOV/export integration target`
+- S618 signed response AOV contract:
+  - contract `status=ready`, frames `48`, missing references `0`
+  - response scale: `0.75`
+  - reconstruction max abs diff: `0`
+  - reconstruction max mean abs diff: `0.0`
+  - mean abs signed delta: `2.092316449116941`
+  - max abs signed delta: `138`
+  - AOV bytes: `40.45 MB`
+  - composite bytes: `14.77 MB`
+  - selected-full max mean/maxabs: `0.9312789351851852` / `46`
+  - S618 decision: `promoted as the portable signed response-AOV handoff`
 
 ## Current Meaning
 
@@ -1302,7 +1320,9 @@ now reproducible through:
 33. a full/base response delta buffer and compositing sweep that improves S585
    direct mean/max MAD before renderer-native AOV integration,
 34. a promoted response-scale composite manifest that packages the selected
-   `0.75` response strength as a reusable S577/S585-gated visual candidate.
+   `0.75` response strength as a reusable S577/S585-gated visual candidate,
+35. a signed response-AOV contract that reconstructs the selected composite
+   exactly from base, positive response, and negative response layers.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1389,7 +1409,8 @@ response scale `0.75` can improve the direct S585 probe before moving that
 control into renderer-native AOV/export plumbing. S617 promotes that scale into
 a standard composite manifest and verifies it against both S577 and S585. This
 is now the concrete visual target for the next portable response-AOV export
-contract.
+contract. S618 completes that export boundary by storing the selected response
+as signed positive/negative AOV layers with exact reconstruction.
 
 ## Next
 
@@ -1400,9 +1421,9 @@ photoreal renderer work back toward real scene data:
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
 4. Use S617 as the current visual gate for response-strength control. The next
-   step should package base render, signed response layer, selected scale,
-   composite, and S577/S585 metrics into a portable response-AOV export
-   contract.
+   step should consume the S618 signed response-AOV contract from a renderer or
+   cache handoff consumer, rather than recomputing the response split from
+   full/base PNGs.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
