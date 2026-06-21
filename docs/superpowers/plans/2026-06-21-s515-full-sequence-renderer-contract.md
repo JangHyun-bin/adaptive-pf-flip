@@ -240,6 +240,9 @@ replace.
   secondary-density factors to produce a bounded 48-frame candidate
   (`strength_0_45`) with max delta `4` and max MAD `0.23839956275720164`
   against the S623 parity output.
+- S625 published the S624 native-probe gallery through a Cloudflare quick
+  tunnel for direct visual review. The public `index.html` and selected GIF
+  both returned HTTP `200`.
 
 ## Key Artifacts
 
@@ -553,6 +556,10 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_backend_adapter_s075_s623.md`
 - Renderer scene depth/material response AOV scene native probe:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_s075_s624.md`
+- Public S624 response AOV scene native probe gallery:
+  `https://reid-sheep-antivirus-spectacular.trycloudflare.com`
+- Renderer scene depth/material response AOV scene native probe publish:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_native_probe_publish_s625.md`
 
 ## Verification
 
@@ -1363,6 +1370,15 @@ replace.
   - max selected mean absolute diff: `0.23839956275720164`
   - GIF bytes: `8.82 MB`
   - S624 decision: `visual probe only, not yet the accepted gate`
+- S625 response AOV scene native probe publish:
+  - publish `status=published`
+  - local index status: `200`
+  - public index status: `200`
+  - public index bytes: `3011`
+  - public GIF status: `200`
+  - public GIF bytes: `9252915`
+  - public URL: `https://reid-sheep-antivirus-spectacular.trycloudflare.com`
+  - S625 decision: `public visual review link issued`
 
 ## Current Meaning
 
@@ -1449,7 +1465,8 @@ now reproducible through:
    visual drift,
 41. a scene-aware native-style visual probe that starts using response masks,
    water-depth metadata, and secondary-density metadata inside the backend
-   family while keeping the movement bounded against the S623 parity output.
+   family while keeping the movement bounded against the S623 parity output,
+42. a public visual review URL for the S624 native-style probe gallery.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1551,6 +1568,7 @@ parity backend, but the execution contract is now the same shape a native
 renderer/cache backend can replace. S624 makes the first visual move inside
 that backend family by using scene metadata to generate a bounded native-style
 probe. It is a review candidate, not an accepted visual gate replacement yet.
+S625 publishes that candidate for direct browser review.
 
 ## Next
 
@@ -1560,9 +1578,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S624 as the current scene-aware visual probe. The next step should
-   publish the gallery for direct review, then run a narrower parameter/mask
-   sweep before promoting any native-style movement over the S623 parity gate.
+4. Use S625 as the current public review point for the S624 scene-aware visual
+   probe. The next step should run a narrower parameter/mask sweep before
+   promoting any native-style movement over the S623 parity gate.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
