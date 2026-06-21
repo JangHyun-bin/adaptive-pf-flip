@@ -223,6 +223,10 @@ replace.
   The manifest keeps all 48 output frames ready, preserves exact AOV import
   parity (`max diff=0`), and records the expected 48-output-to-36-scene-frame
   normalized mapping from S578.
+- S621 consumed the S620 scene/AOV handoff into a renderer/cache job manifest.
+  It writes 48 per-frame descriptors that bind scene assets, render-data
+  controls, signed response AOV layers, selected composites, output targets,
+  and S577/S585 gate metrics without recomputing response layers.
 
 ## Key Artifacts
 
@@ -528,6 +532,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_direct_metrics_s619.md`
 - Renderer scene depth/material response AOV scene handoff:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_handoff_s075_s620.md`
+- Renderer scene depth/material response AOV scene job manifest:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_job_manifest_s075_s621.md`
 
 ## Verification
 
@@ -1291,6 +1297,17 @@ replace.
   - unique scene frames: `36`
   - scene frame count mismatch: `true` as expected from S578 normalized mapping
   - S620 decision: `promoted as the current scene-cache plus response-AOV handoff`
+- S621 response AOV scene job manifest:
+  - manifest `status=ready`, frames `48`, descriptors `48`
+  - missing inputs: `0`
+  - SHA mismatches: `0`
+  - size mismatches: `0`
+  - max import absolute diff: `0`
+  - max import mean absolute diff: `0.0`
+  - scene asset refs: `192/192`
+  - AOV refs: `240/240`
+  - unique scene frames: `36`
+  - S621 decision: `promoted as the current renderer/cache job descriptor input`
 
 ## Current Meaning
 
@@ -1366,7 +1383,10 @@ now reproducible through:
    the promoted visual gate with exact parity,
 37. a scene-cache plus response-AOV handoff that carries scene data, render-data
    controls, signed AOV layers, selected composites, and S577/S585 gate metrics
-   together for larger renderer-cache jobs.
+   together for larger renderer-cache jobs,
+38. a renderer/cache job manifest that expands that handoff into 48 per-frame
+   descriptors with concrete input refs, future output targets, and gate
+   expectations.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1458,7 +1478,9 @@ as signed positive/negative AOV layers with exact reconstruction. S619 consumes
 that contract back into a standard composite summary with zero import diff,
 which closes the response-AOV export/import loop. S620 wires that proven AOV
 boundary into the S578/S580 scene-cache handoff so scene data and signed
-response layers can travel through the same renderer-cache job contract.
+response layers can travel through the same renderer-cache job contract. S621
+turns that contract into concrete frame descriptors, which is the execution
+boundary a renderer/cache backend can consume next.
 
 ## Next
 
@@ -1468,10 +1490,9 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S620 as the current renderer/cache handoff for scene data plus signed
-   response-AOV layers. The next step should drive a renderer/cache job or
-   manifest consumer from S620 instead of recomputing response layers from
-   preview pairs.
+4. Use S621 as the current renderer/cache job descriptor input. The next step
+   should execute a backend adapter from those descriptors and compare produced
+   frames against the carried S577/S585 gate metrics.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
