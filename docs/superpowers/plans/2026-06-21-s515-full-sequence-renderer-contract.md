@@ -213,6 +213,11 @@ replace.
   selected_composite_rgb`. It preserves 48-frame reconstruction with max diff
   `0`, carries the S577/S585 gate metrics forward, and is now the portable
   handoff format for the next renderer/cache consumer.
+- S619 consumed the S618 signed response-AOV contract back into a standard
+  `lsfs_mitsuba_secondary_composite` summary. The import is exact
+  (`max diff=0`, `mean diff=0.0`) and preserves the S617/S618 S577/S585 gate
+  metrics, proving the response-AOV boundary can be exported and consumed
+  without visual drift.
 
 ## Key Artifacts
 
@@ -508,6 +513,14 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_scale_composite_s075_direct_metrics_s617.md`
 - Renderer scene depth/material signed response AOV contract:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_contract_s075_s618.md`
+- Renderer scene depth/material response AOV consumer:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_s619.md`
+- Renderer scene depth/material response AOV consumer S577 gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_vs_s577_gap_s619.md`
+- Renderer scene depth/material response AOV consumer S585 gap:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_vs_s585_gap_s619.md`
+- Renderer scene depth/material response AOV consumer direct metrics:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_consumer_s075_direct_metrics_s619.md`
 
 ## Verification
 
@@ -1252,6 +1265,15 @@ replace.
   - composite bytes: `14.77 MB`
   - selected-full max mean/maxabs: `0.9312789351851852` / `46`
   - S618 decision: `promoted as the portable signed response-AOV handoff`
+- S619 response AOV consumer:
+  - consumer `status=ready`, frames `48`, missing references `0`
+  - response scale: `0.75`
+  - max import absolute diff: `0`
+  - max import mean absolute diff: `0.0`
+  - max import mismatched coverage: `0.0`
+  - S577 mean/max/maxabs: `2.9732022274734224` / `5.5108699845679014` / `151`
+  - S585 mean/max/maxabs: `2.982389550647291` / `5.524723508230453` / `148`
+  - S619 decision: `promoted as the response-AOV import proof`
 
 ## Current Meaning
 
@@ -1322,7 +1344,9 @@ now reproducible through:
 34. a promoted response-scale composite manifest that packages the selected
    `0.75` response strength as a reusable S577/S585-gated visual candidate,
 35. a signed response-AOV contract that reconstructs the selected composite
-   exactly from base, positive response, and negative response layers.
+   exactly from base, positive response, and negative response layers,
+36. a response-AOV consumer proving that the portable contract can reconstruct
+   the promoted visual gate with exact parity.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1410,7 +1434,9 @@ control into renderer-native AOV/export plumbing. S617 promotes that scale into
 a standard composite manifest and verifies it against both S577 and S585. This
 is now the concrete visual target for the next portable response-AOV export
 contract. S618 completes that export boundary by storing the selected response
-as signed positive/negative AOV layers with exact reconstruction.
+as signed positive/negative AOV layers with exact reconstruction. S619 consumes
+that contract back into a standard composite summary with zero import diff,
+which closes the response-AOV export/import loop.
 
 ## Next
 
@@ -1420,10 +1446,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S617 as the current visual gate for response-strength control. The next
-   step should consume the S618 signed response-AOV contract from a renderer or
-   cache handoff consumer, rather than recomputing the response split from
-   full/base PNGs.
+4. Use S619 as the current response-AOV import gate. The next step should wire
+   the same contract/consumer boundary into the S578/S580 renderer scene-cache
+   handoff so larger renderer jobs can carry base, signed response, selected
+   composite, and gate metrics together.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
