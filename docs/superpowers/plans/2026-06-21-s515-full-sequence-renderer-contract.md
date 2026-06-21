@@ -227,6 +227,10 @@ replace.
   It writes 48 per-frame descriptors that bind scene assets, render-data
   controls, signed response AOV layers, selected composites, output targets,
   and S577/S585 gate metrics without recomputing response layers.
+- S622 dry-ran the S621 descriptors as a renderer/cache execution smoke gate.
+  It filled the descriptor output image, metadata, and validation targets for
+  all 48 frames, reconstructing the selected composite from signed response AOV
+  layers with zero diff against both the selected and imported references.
 
 ## Key Artifacts
 
@@ -534,6 +538,8 @@ replace.
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_handoff_s075_s620.md`
 - Renderer scene depth/material response AOV scene job manifest:
   `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_job_manifest_s075_s621.md`
+- Renderer scene depth/material response AOV scene job dry run:
+  `docs/reports/cinematic_larger_external_renderer_mitsuba_s515_full48_t4_response_aov_scene_job_dry_run_s075_s622.md`
 
 ## Verification
 
@@ -1308,6 +1314,18 @@ replace.
   - AOV refs: `240/240`
   - unique scene frames: `36`
   - S621 decision: `promoted as the current renderer/cache job descriptor input`
+- S622 response AOV scene job dry run:
+  - dry run `status=passed`, frames `48`
+  - passed frames: `48`
+  - failed frames: `0`
+  - missing frames: `0`
+  - max selected absolute diff: `0`
+  - max selected mean absolute diff: `0.0`
+  - max imported absolute diff: `0`
+  - max imported mean absolute diff: `0.0`
+  - output bytes: `14.77 MB`
+  - GIF bytes: `7.91 MB`
+  - S622 decision: `promoted as the descriptor execution smoke gate`
 
 ## Current Meaning
 
@@ -1386,7 +1404,9 @@ now reproducible through:
    together for larger renderer-cache jobs,
 38. a renderer/cache job manifest that expands that handoff into 48 per-frame
    descriptors with concrete input refs, future output targets, and gate
-   expectations.
+   expectations,
+39. a descriptor-level renderer/cache dry run that fills those output targets
+   and proves exact selected/imported composite parity across all 48 frames.
 
 This gives the next renderer step a stable boundary. The first non-stub backend
 is now in place and still produces the same accepted full48 visual output. The
@@ -1480,7 +1500,9 @@ which closes the response-AOV export/import loop. S620 wires that proven AOV
 boundary into the S578/S580 scene-cache handoff so scene data and signed
 response layers can travel through the same renderer-cache job contract. S621
 turns that contract into concrete frame descriptors, which is the execution
-boundary a renderer/cache backend can consume next.
+boundary a renderer/cache backend can consume next. S622 executes that boundary
+with the current dry-run compositor and proves the descriptor IO path has zero
+visual drift before swapping in a heavier external renderer/cache backend.
 
 ## Next
 
@@ -1490,9 +1512,10 @@ photoreal renderer work back toward real scene data:
 1. Keep S577 as the current accepted full48 texture/cache import gate.
 2. Use S578/S579 as the renderer-side scene-data input contract.
 3. Use S580/S581 as the reusable depth/material control sidecar and profile.
-4. Use S621 as the current renderer/cache job descriptor input. The next step
-   should execute a backend adapter from those descriptors and compare produced
-   frames against the carried S577/S585 gate metrics.
+4. Use S622 as the current descriptor execution smoke gate. The next step
+   should replace the dry-run compositor with an external renderer/cache
+   backend adapter while preserving descriptor IO, selected/imported parity,
+   and carried S577/S585 gate reporting.
 5. Retry public publishing only after quick-tunnel issuance is healthy, or use
    a named tunnel for stable review URLs.
 6. Keep S592 as the pass/fail gate: preserve S585 target parity and only
