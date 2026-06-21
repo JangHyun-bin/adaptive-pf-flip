@@ -159,6 +159,16 @@ def coverage_control(mask_frame, args):
     rescue_width = max(1.0e-9, float(getattr(args, "low_coverage_rescue_width", 1.0) or 1.0))
     rescue_ramp = clamp((rescue_pivot - coverage) / rescue_width, 0.0, 1.0) if rescue_strength > 0.0 else 0.0
     rescue = clamp(rescue_ramp * rescue_strength, 0.0, 1.0) if rescue_strength > 0.0 else 0.0
+    band_strength = float(getattr(args, "coverage_band_rescue_strength", 0.0) or 0.0)
+    band_center = float(getattr(args, "coverage_band_rescue_center", 0.0) or 0.0)
+    band_width = max(1.0e-9, float(getattr(args, "coverage_band_rescue_width", 1.0) or 1.0))
+    band_ramp = (
+        clamp(1.0 - abs(coverage - band_center) / band_width, 0.0, 1.0)
+        if band_strength > 0.0
+        else 0.0
+    )
+    band_rescue = clamp(band_ramp * band_strength, 0.0, 1.0) if band_strength > 0.0 else 0.0
+    total_rescue = clamp(rescue + band_rescue, 0.0, 1.0)
 
     face_limit = int(getattr(args, "face_limit", 0) or 0)
     if face_limit > 0:
@@ -166,7 +176,7 @@ def coverage_control(mask_frame, args):
             0.0,
             1.0
             - attenuation
-            + rescue * float(getattr(args, "low_coverage_rescue_face_limit_boost", 0.0) or 0.0),
+            + total_rescue * float(getattr(args, "low_coverage_rescue_face_limit_boost", 0.0) or 0.0),
         )
         effective_face_limit = max(1, int(round(face_limit * face_scale)))
     else:
@@ -174,18 +184,18 @@ def coverage_control(mask_frame, args):
     alpha_scale = 1.0 + attenuation * float(getattr(args, "coverage_alpha_boost", 0.0) or 0.0)
     alpha_scale *= max(
         0.0,
-        1.0 - rescue * float(getattr(args, "low_coverage_rescue_alpha_tighten", 0.0) or 0.0),
+        1.0 - total_rescue * float(getattr(args, "low_coverage_rescue_alpha_tighten", 0.0) or 0.0),
     )
     reflectance_scale = max(
         0.0,
         1.0 - attenuation * float(getattr(args, "coverage_reflectance_attenuation", 0.0) or 0.0),
     )
-    reflectance_scale *= 1.0 + rescue * float(getattr(args, "low_coverage_rescue_reflectance_boost", 0.0) or 0.0)
+    reflectance_scale *= 1.0 + total_rescue * float(getattr(args, "low_coverage_rescue_reflectance_boost", 0.0) or 0.0)
     transmittance_scale = max(
         0.0,
         1.0 - attenuation * float(getattr(args, "coverage_transmittance_attenuation", 0.0) or 0.0),
     )
-    transmittance_scale *= 1.0 + rescue * float(getattr(args, "low_coverage_rescue_transmittance_boost", 0.0) or 0.0)
+    transmittance_scale *= 1.0 + total_rescue * float(getattr(args, "low_coverage_rescue_transmittance_boost", 0.0) or 0.0)
     return {
         "layer_coverage": coverage,
         "layer_strong_coverage": strong_coverage,
@@ -193,6 +203,9 @@ def coverage_control(mask_frame, args):
         "attenuation": attenuation,
         "low_coverage_rescue_ramp": rescue_ramp,
         "low_coverage_rescue": rescue,
+        "coverage_band_rescue_ramp": band_ramp,
+        "coverage_band_rescue": band_rescue,
+        "total_rescue": total_rescue,
         "effective_face_limit": effective_face_limit,
         "alpha_scale": alpha_scale,
         "reflectance_scale": reflectance_scale,
@@ -366,6 +379,10 @@ def markdown_report(export, export_path, root, next_text):
         f"strength=`{settings.get('low_coverage_rescue_strength')}`, "
         f"pivot=`{settings.get('low_coverage_rescue_pivot')}`, "
         f"width=`{settings.get('low_coverage_rescue_width')}`",
+        "- Coverage-band rescue: "
+        f"strength=`{settings.get('coverage_band_rescue_strength')}`, "
+        f"center=`{settings.get('coverage_band_rescue_center')}`, "
+        f"width=`{settings.get('coverage_band_rescue_width')}`",
         "- Low-coverage rescue scale: "
         f"face_limit_boost=`{settings.get('low_coverage_rescue_face_limit_boost')}`, "
         f"alpha_tighten=`{settings.get('low_coverage_rescue_alpha_tighten')}`, "
@@ -389,12 +406,14 @@ def markdown_report(export, export_path, root, next_text):
         f"- Coverage-control max attenuation: `{checks.get('coverage_control_max_attenuation')}`",
         f"- Low-coverage rescue frames: `{checks.get('low_coverage_rescue_frames')}`",
         f"- Low-coverage max rescue: `{checks.get('low_coverage_max_rescue')}`",
+        f"- Coverage-band rescue frames: `{checks.get('coverage_band_rescue_frames')}`",
+        f"- Coverage-band max rescue: `{checks.get('coverage_band_max_rescue')}`",
         f"- XML scene bytes: `{format_bytes(checks.get('xml_scene_bytes', 0))}`",
         "",
         "## Frame Samples",
         "",
-        "| Output | Coverage | Atten | Rescue | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
-        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| Output | Coverage | Atten | Low Rescue | Band Rescue | Limit | Water Faces | Response Faces | Remainder Faces | Mask | XML Scene |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
     ]
     frames = export.get("frames", [])
     sample_indices = sorted(set([0, len(frames) // 2, len(frames) - 1])) if frames else []
@@ -405,6 +424,7 @@ def markdown_report(export, export_path, root, next_text):
         lines.append(
             f"| {frame.get('output_frame')} | {control.get('layer_coverage')} | "
             f"{control.get('attenuation')} | {control.get('low_coverage_rescue')} | "
+            f"{control.get('coverage_band_rescue')} | "
             f"{control.get('effective_face_limit')} | "
             f"{item.get('water_faces')} | "
             f"{item.get('response_faces')} | {item.get('remainder_faces')} | "
@@ -463,6 +483,8 @@ def split_material(args):
         "coverage_control_max_attenuation": 0.0,
         "low_coverage_rescue_frames": 0,
         "low_coverage_max_rescue": 0.0,
+        "coverage_band_rescue_frames": 0,
+        "coverage_band_max_rescue": 0.0,
     }
     for index, frame in enumerate(selected_frames(base.get("frames") or [], args.frames)):
         output_frame = frame.get("output_frame")
@@ -623,6 +645,12 @@ def split_material(args):
             totals["low_coverage_max_rescue"],
             frame_control["low_coverage_rescue"],
         )
+        if frame_control["coverage_band_rescue"] > 0.0:
+            totals["coverage_band_rescue_frames"] += 1
+        totals["coverage_band_max_rescue"] = max(
+            totals["coverage_band_max_rescue"],
+            frame_control["coverage_band_rescue"],
+        )
 
         out_frame = copy.deepcopy(frame)
         out_frame["xml_scene"] = {
@@ -730,6 +758,9 @@ def split_material(args):
             "low_coverage_rescue_strength": args.low_coverage_rescue_strength,
             "low_coverage_rescue_pivot": args.low_coverage_rescue_pivot,
             "low_coverage_rescue_width": args.low_coverage_rescue_width,
+            "coverage_band_rescue_strength": args.coverage_band_rescue_strength,
+            "coverage_band_rescue_center": args.coverage_band_rescue_center,
+            "coverage_band_rescue_width": args.coverage_band_rescue_width,
             "low_coverage_rescue_face_limit_boost": args.low_coverage_rescue_face_limit_boost,
             "low_coverage_rescue_alpha_tighten": args.low_coverage_rescue_alpha_tighten,
             "low_coverage_rescue_reflectance_boost": args.low_coverage_rescue_reflectance_boost,
@@ -786,6 +817,9 @@ def main(argv=None):
     parser.add_argument("--low-coverage-rescue-strength", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-pivot", type=float, default=0.07)
     parser.add_argument("--low-coverage-rescue-width", type=float, default=0.02)
+    parser.add_argument("--coverage-band-rescue-strength", type=float, default=0.0)
+    parser.add_argument("--coverage-band-rescue-center", type=float, default=0.113)
+    parser.add_argument("--coverage-band-rescue-width", type=float, default=0.004)
     parser.add_argument("--low-coverage-rescue-face-limit-boost", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-alpha-tighten", type=float, default=0.0)
     parser.add_argument("--low-coverage-rescue-reflectance-boost", type=float, default=0.0)
@@ -848,6 +882,12 @@ def main(argv=None):
         parser.error("low-coverage-rescue-pivot must be non-negative")
     if args.low_coverage_rescue_width <= 0.0:
         parser.error("low-coverage-rescue-width must be positive")
+    if args.coverage_band_rescue_strength < 0.0:
+        parser.error("coverage-band-rescue-strength must be non-negative")
+    if args.coverage_band_rescue_center < 0.0:
+        parser.error("coverage-band-rescue-center must be non-negative")
+    if args.coverage_band_rescue_width <= 0.0:
+        parser.error("coverage-band-rescue-width must be positive")
     if args.low_coverage_rescue_face_limit_boost < 0.0:
         parser.error("low-coverage-rescue-face-limit-boost must be non-negative")
     if args.low_coverage_rescue_alpha_tighten < 0.0 or args.low_coverage_rescue_alpha_tighten > 1.0:
